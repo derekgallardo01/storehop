@@ -92,8 +92,19 @@ class ItemRepositoryImpl @Inject constructor(
         xrefDao.setStoresForItem(id, storeIds, current.userId, now)
     }
 
-    override suspend fun softDelete(id: String) {
-        itemDao.softDelete(id, clock.millis())
+    override suspend fun softDelete(id: String) = db.withTransaction {
+        // Load the parent first so we (a) verify the caller owns the item before any
+        // write, and (b) get the userId we need to cascade-tombstone the junction
+        // rows and purchase records under the same ownership invariant. Without the
+        // cascade, ItemDao.softDelete would tombstone the item but leave xrefs and
+        // purchase history pointing at a "deleted" parent.
+        val userId = session.currentUserId()
+        val current = itemDao.observeById(userId, id).first()?.item
+            ?: return@withTransaction
+        val now = clock.millis()
+        itemDao.softDelete(current.userId, id, now)
+        xrefDao.softDeleteForItem(current.userId, id, now)
+        purchaseRecordDao.softDeleteForItem(current.userId, id, now)
     }
 
     override suspend fun markPurchased(id: String) = db.withTransaction {
@@ -104,7 +115,7 @@ class ItemRepositoryImpl @Inject constructor(
             ?: return@withTransaction
         val ownerId = current.userId
 
-        itemDao.markPurchased(id, now)
+        itemDao.markPurchased(ownerId, id, now)
 
         val xrefs = xrefDao.findForItem(id)
         if (xrefs.isEmpty()) {

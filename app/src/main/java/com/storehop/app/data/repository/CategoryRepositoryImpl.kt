@@ -52,10 +52,10 @@ class CategoryRepositoryImpl @Inject constructor(
     }
 
     override suspend fun setArchived(id: String, archived: Boolean) {
-        dao.setArchived(id, archived, clock.millis())
+        dao.setArchived(session.currentUserId(), id, archived, clock.millis())
     }
 
     override suspend fun softDelete(id: String) {
-        dao.softDelete(id, clock.millis())
+        dao.softDelete(session.currentUserId(), id, clock.millis())
     }
 }

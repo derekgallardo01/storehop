@@ -48,9 +48,21 @@ interface StoreDao {
     @Upsert
     suspend fun upsert(store: Store)
 
-    @Query("UPDATE stores SET isArchived = :archived, updatedAt = :now WHERE id = :id")
-    suspend fun setArchived(id: String, archived: Boolean, now: Long)
+    @Query(
+        """
+        UPDATE stores
+        SET isArchived = :archived, updatedAt = :now
+        WHERE id = :id AND userId = :userId
+        """,
+    )
+    suspend fun setArchived(userId: String, id: String, archived: Boolean, now: Long)
 
-    @Query("UPDATE stores SET deletedAt = :now, updatedAt = :now WHERE id = :id")
-    suspend fun softDelete(id: String, now: Long)
+    @Query(
+        """
+        UPDATE stores
+        SET deletedAt = :now, updatedAt = :now
+        WHERE id = :id AND userId = :userId
+        """,
+    )
+    suspend fun softDelete(userId: String, id: String, now: Long)
 }

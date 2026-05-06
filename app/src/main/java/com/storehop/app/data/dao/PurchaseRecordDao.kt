@@ -18,18 +18,32 @@ interface PurchaseRecordDao {
     @Query(
         """
         SELECT * FROM purchase_records
-        WHERE itemId = :itemId AND deletedAt IS NULL
+        WHERE itemId = :itemId AND userId = :userId AND deletedAt IS NULL
         ORDER BY purchasedAt DESC
         """,
     )
-    fun observeForItem(itemId: String): Flow<List<PurchaseRecord>>
+    fun observeForItem(userId: String, itemId: String): Flow<List<PurchaseRecord>>
 
     @Query(
         """
         UPDATE purchase_records
         SET deletedAt = :now, updatedAt = :now
-        WHERE id = :id
+        WHERE id = :id AND userId = :userId
         """,
     )
-    suspend fun softDelete(id: String, now: Long)
+    suspend fun softDelete(userId: String, id: String, now: Long)
+
+    /**
+     * Cascade-tombstone all purchase records for an item. Used by the item soft-delete
+     * flow so a deleted item doesn't leave purchase-history orphans visible to
+     * `observeForItem`. Bound by `userId` so a buggy caller cannot cascade across users.
+     */
+    @Query(
+        """
+        UPDATE purchase_records
+        SET deletedAt = :now, updatedAt = :now
+        WHERE itemId = :itemId AND userId = :userId AND deletedAt IS NULL
+        """,
+    )
+    suspend fun softDeleteForItem(userId: String, itemId: String, now: Long)
 }

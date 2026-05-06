@@ -33,10 +33,25 @@ interface ItemStoreXrefDao {
         """
         UPDATE item_store_xref
         SET deletedAt = :now, updatedAt = :now
-        WHERE itemId = :itemId AND storeId = :storeId
+        WHERE itemId = :itemId AND storeId = :storeId AND userId = :userId
         """,
     )
-    suspend fun softDelete(itemId: String, storeId: String, now: Long)
+    suspend fun softDelete(userId: String, itemId: String, storeId: String, now: Long)
+
+    /**
+     * Cascade-tombstone every live xref for an item. Used by the item soft-delete
+     * flow so a deleted item doesn't leave xref orphans (the cross-store-sync
+     * `ShoppingDao` query INNER JOINs through xrefs, so live xrefs against a
+     * deleted item would surface ghost rows). Scoped by `userId`.
+     */
+    @Query(
+        """
+        UPDATE item_store_xref
+        SET deletedAt = :now, updatedAt = :now
+        WHERE itemId = :itemId AND userId = :userId AND deletedAt IS NULL
+        """,
+    )
+    suspend fun softDeleteForItem(userId: String, itemId: String, now: Long)
 
     /**
      * Replace the set of stores an item is tagged to.
@@ -55,7 +70,7 @@ interface ItemStoreXrefDao {
         val existingIds = existing.map { it.storeId }.toSet()
         val toRemove = existingIds - storeIds
         val toAdd = storeIds - existingIds
-        toRemove.forEach { softDelete(itemId, it, now) }
+        toRemove.forEach { softDelete(userId, itemId, it, now) }
         toAdd.forEach { storeId ->
             upsert(
                 ItemStoreXref(

@@ -64,4 +64,24 @@ class CategoryRepositoryImplTest {
             kotlinx.coroutines.runBlocking { repo.addCategory("\t  ", icon = null) }
         }
     }
+
+    @Test fun `setArchived and softDelete are no-ops for categories the session does not own`() = runTest {
+        val otherRepo = CategoryRepositoryImpl(
+            dao = db.categoryDao(),
+            ids = object : IdGenerator { override fun newId(): String = UUID.randomUUID().toString() },
+            clock = Clock.fixed(Instant.ofEpochMilli(50_000L), ZoneOffset.UTC),
+            session = object : UserSessionProvider {
+                override fun currentUserId(): String = "some-other-user"
+            },
+        )
+
+        otherRepo.setArchived("cat_produce", archived = true)
+        otherRepo.softDelete("cat_produce")
+
+        // From the correct owner's perspective, cat_produce is unchanged.
+        val seeded = repo.observeAll(includeArchived = false).first()
+        val produce = seeded.single { it.id == "cat_produce" }
+        assertThat(produce.isArchived).isFalse()
+        assertThat(produce.deletedAt).isNull()
+    }
 }

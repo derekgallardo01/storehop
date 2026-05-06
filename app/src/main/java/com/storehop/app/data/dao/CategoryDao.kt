@@ -40,9 +40,21 @@ interface CategoryDao {
     @Upsert
     suspend fun upsert(category: Category)
 
-    @Query("UPDATE categories SET isArchived = :archived, updatedAt = :now WHERE id = :id")
-    suspend fun setArchived(id: String, archived: Boolean, now: Long)
+    @Query(
+        """
+        UPDATE categories
+        SET isArchived = :archived, updatedAt = :now
+        WHERE id = :id AND userId = :userId
+        """,
+    )
+    suspend fun setArchived(userId: String, id: String, archived: Boolean, now: Long)
 
-    @Query("UPDATE categories SET deletedAt = :now, updatedAt = :now WHERE id = :id")
-    suspend fun softDelete(id: String, now: Long)
+    @Query(
+        """
+        UPDATE categories
+        SET deletedAt = :now, updatedAt = :now
+        WHERE id = :id AND userId = :userId
+        """,
+    )
+    suspend fun softDelete(userId: String, id: String, now: Long)
 }

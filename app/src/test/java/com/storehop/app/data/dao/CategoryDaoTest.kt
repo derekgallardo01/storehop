@@ -30,9 +30,9 @@ class CategoryDaoTest {
         dao.upsert(cat("cat_bbq", "BBQ"))
         dao.observeAll(TEST_USER_ID, includeArchived = false).test {
             assertThat(awaitItem().map { it.name }).containsExactly("BBQ")
-            dao.setArchived("cat_bbq", archived = true, now = 100L)
+            dao.setArchived(TEST_USER_ID, "cat_bbq", archived = true, now = 100L)
             assertThat(awaitItem()).isEmpty()
-            dao.setArchived("cat_bbq", archived = false, now = 200L)
+            dao.setArchived(TEST_USER_ID, "cat_bbq", archived = false, now = 200L)
             assertThat(awaitItem().map { it.name }).containsExactly("BBQ")
             cancelAndIgnoreRemainingEvents()
         }
@@ -40,7 +40,7 @@ class CategoryDaoTest {
 
     @Test fun `observeAll(includeArchived=true) shows archived categories`() = runTest {
         dao.upsert(cat("cat_bbq", "BBQ"))
-        dao.setArchived("cat_bbq", archived = true, now = 100L)
+        dao.setArchived(TEST_USER_ID, "cat_bbq", archived = true, now = 100L)
         dao.observeAll(TEST_USER_ID, includeArchived = true).test {
             assertThat(awaitItem().map { it.name }).containsExactly("BBQ")
             cancelAndIgnoreRemainingEvents()
@@ -49,7 +49,7 @@ class CategoryDaoTest {
 
     @Test fun `softDelete removes from both observeAll variants`() = runTest {
         dao.upsert(cat("cat_bbq", "BBQ"))
-        dao.softDelete("cat_bbq", now = 100L)
+        dao.softDelete(TEST_USER_ID, "cat_bbq", now = 100L)
         dao.observeAll(TEST_USER_ID, includeArchived = true).test {
             assertThat(awaitItem()).isEmpty()
             cancelAndIgnoreRemainingEvents()

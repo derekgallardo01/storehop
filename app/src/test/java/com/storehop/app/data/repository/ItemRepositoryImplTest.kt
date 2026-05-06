@@ -112,7 +112,7 @@ class ItemRepositoryImplTest {
         // Item drops out of needed.
         assertThat(db.itemDao().observeNeeded(TEST_USER_ID).first()).isEmpty()
         // One PurchaseRecord per tagged store.
-        val records = db.purchaseRecordDao().observeForItem(itemId).first()
+        val records = db.purchaseRecordDao().observeForItem(TEST_USER_ID, itemId).first()
         assertThat(records).hasSize(2)
         assertThat(records.map { it.storeId }.toSet())
             .containsExactly("store_lidl", "store_continente")
@@ -176,13 +176,68 @@ class ItemRepositoryImplTest {
         // and, when called as the right user, source userId from the parent row.
         session.userId = OTHER_USER_ID
         repo.markPurchased(itemId)
-        assertThat(db.purchaseRecordDao().observeForItem(itemId).first()).isEmpty()
+        assertThat(db.purchaseRecordDao().observeForItem(TEST_USER_ID, itemId).first()).isEmpty()
 
         session.userId = TEST_USER_ID
         repo.markPurchased(itemId)
-        val records = db.purchaseRecordDao().observeForItem(itemId).first()
+        val records = db.purchaseRecordDao().observeForItem(TEST_USER_ID, itemId).first()
         assertThat(records).hasSize(1)
         assertThat(records.single().userId).isEqualTo(TEST_USER_ID)
+    }
+
+    @Test fun `softDelete is rejected for an item the live session does not own`() = runTest {
+        val itemId = repo.addItem(
+            name = "Milk", categoryId = null,
+            storeIds = setOf("store_lidl"),
+            quantity = null, notes = null,
+        )
+        // Switch session — softDelete must NOT tombstone another user's row.
+        session.userId = OTHER_USER_ID
+        repo.softDelete(itemId)
+
+        // Restore the owner and confirm the item is still live with its xrefs intact.
+        session.userId = TEST_USER_ID
+        val needed = db.itemDao().observeNeeded(TEST_USER_ID).first()
+        assertThat(needed.map { it.id }).containsExactly(itemId)
+        assertThat(db.itemStoreXrefDao().findForItem(itemId)).hasSize(1)
+    }
+
+    @Test fun `softDelete cascade-tombstones xrefs and purchase records under one transaction`() = runTest {
+        val itemId = repo.addItem(
+            name = "Milk", categoryId = null,
+            storeIds = setOf("store_lidl", "store_continente"),
+            quantity = null, notes = null,
+        )
+        repo.markPurchased(itemId)
+        // Mid-state: item now not-needed, xrefs exist, two purchase records exist.
+        assertThat(db.itemStoreXrefDao().findForItem(itemId)).hasSize(2)
+        assertThat(db.purchaseRecordDao().observeForItem(TEST_USER_ID, itemId).first())
+            .hasSize(2)
+
+        // Re-mark needed so we can use addItem-then-soft-delete semantics. Actually,
+        // softDelete should work regardless — proceed.
+        repo.softDelete(itemId)
+
+        // Item is gone from observeNeeded (was already not-needed) AND from observeAll.
+        assertThat(db.itemDao().observeNeeded(TEST_USER_ID).first()).isEmpty()
+        assertThat(db.itemDao().observeAll(TEST_USER_ID).first().map { it.item.id })
+            .doesNotContain(itemId)
+
+        // Xrefs cascade-tombstoned: findForItem filters deletedAt IS NULL, so empty.
+        assertThat(db.itemStoreXrefDao().findForItem(itemId)).isEmpty()
+        // Purchase records cascade-tombstoned (observeForItem filters deletedAt IS NULL).
+        assertThat(db.purchaseRecordDao().observeForItem(TEST_USER_ID, itemId).first())
+            .isEmpty()
+    }
+
+    @Test fun `observeById returns null for an id owned by a different user`() = runTest {
+        val itemId = repo.addItem(
+            name = "Milk", categoryId = null,
+            storeIds = setOf("store_lidl"),
+            quantity = null, notes = null,
+        )
+        session.userId = OTHER_USER_ID
+        assertThat(repo.observeById(itemId).first()).isNull()
     }
 
     private class StubSession(var userId: String) : UserSessionProvider {

@@ -83,4 +83,28 @@ class StoreRepositoryImplTest {
         assertThat(repo.observeAll(includeArchived = true).first().map { it.id })
             .contains("store_lidl")
     }
+
+    @Test fun `setArchived softDelete and rename are no-ops for stores the session does not own`() = runTest {
+        // Build a separate repo whose session is some-other-user, then try to
+        // mutate "store_lidl" (which is owned by local-only via the seed).
+        val otherRepo = StoreRepositoryImpl(
+            dao = db.storeDao(),
+            ids = object : IdGenerator { override fun newId(): String = UUID.randomUUID().toString() },
+            clock = Clock.fixed(Instant.ofEpochMilli(50_000L), ZoneOffset.UTC),
+            session = object : UserSessionProvider {
+                override fun currentUserId(): String = "some-other-user"
+            },
+        )
+
+        otherRepo.setArchived("store_lidl", archived = true)
+        otherRepo.softDelete("store_lidl")
+        otherRepo.rename("store_lidl", "Hijacked")
+
+        // From the original (correct) owner's perspective, store_lidl is unchanged.
+        val lidl = repo.observeById("store_lidl").first()
+        assertThat(lidl).isNotNull()
+        assertThat(lidl!!.name).isEqualTo("Lidl")
+        assertThat(lidl.isArchived).isFalse()
+        assertThat(lidl.deletedAt).isNull()
+    }
 }

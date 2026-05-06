@@ -40,7 +40,7 @@ class ItemDaoTest {
         dao.upsert(item(id = "i1", name = "Milk"))
         dao.observeNeeded(TEST_USER_ID).test {
             assertThat(awaitItem()).hasSize(1)
-            dao.softDelete("i1", now = 5_000L)
+            dao.softDelete(TEST_USER_ID, "i1", now = 5_000L)
             assertThat(awaitItem()).isEmpty()
             cancelAndIgnoreRemainingEvents()
         }
@@ -50,7 +50,7 @@ class ItemDaoTest {
         dao.upsert(item(id = "i1", name = "Milk", isNeeded = true))
         dao.observeNeeded(TEST_USER_ID).test {
             assertThat(awaitItem().single().isNeeded).isTrue()
-            dao.markPurchased("i1", now = 9_000L)
+            dao.markPurchased(TEST_USER_ID, "i1", now = 9_000L)
             // Must vanish from observeNeeded since the query filters isNeeded = 1.
             assertThat(awaitItem()).isEmpty()
             cancelAndIgnoreRemainingEvents()

@@ -55,7 +55,7 @@ class ShoppingDaoTest {
     }
 
     @Test fun `marking an item not-needed removes it from both store views`() = runTest {
-        db.itemDao().markPurchased("milk", now = 100L)
+        db.itemDao().markPurchased(TEST_USER_ID, "milk", now = 100L)
         db.shoppingDao().shoppingListForStore(TEST_USER_ID, "store_lidl").test {
             assertThat(awaitItem().map { it.itemName }).doesNotContain("Milk")
             cancelAndIgnoreRemainingEvents()

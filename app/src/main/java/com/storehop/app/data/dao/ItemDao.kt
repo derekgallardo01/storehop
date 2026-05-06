@@ -47,17 +47,17 @@ interface ItemDao {
         """
         UPDATE items
         SET deletedAt = :now, updatedAt = :now
-        WHERE id = :id
+        WHERE id = :id AND userId = :userId
         """,
     )
-    suspend fun softDelete(id: String, now: Long)
+    suspend fun softDelete(userId: String, id: String, now: Long)
 
     @Query(
         """
         UPDATE items
         SET isNeeded = 0, lastPurchasedAt = :now, updatedAt = :now
-        WHERE id = :id
+        WHERE id = :id AND userId = :userId
         """,
     )
-    suspend fun markPurchased(id: String, now: Long)
+    suspend fun markPurchased(userId: String, id: String, now: Long)
 }
