@@ -12,6 +12,8 @@ import com.storehop.app.data.util.IdGenerator
 import com.storehop.app.data.util.UserSessionProvider
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 import java.time.Clock
 import javax.inject.Inject
 
@@ -26,13 +28,19 @@ class ItemRepositoryImpl @Inject constructor(
 ) : ItemRepository {
 
     override fun observeAll(): Flow<List<ItemWithCategoryAndStores>> =
-        itemDao.observeAll(session.currentUserId())
+        session.userId.flatMapLatest { uid ->
+            if (uid == null) flowOf(emptyList()) else itemDao.observeAll(uid)
+        }
 
     override fun observeNeeded(): Flow<List<Item>> =
-        itemDao.observeNeeded(session.currentUserId())
+        session.userId.flatMapLatest { uid ->
+            if (uid == null) flowOf(emptyList()) else itemDao.observeNeeded(uid)
+        }
 
     override fun observeById(id: String): Flow<ItemWithCategoryAndStores?> =
-        itemDao.observeById(session.currentUserId(), id)
+        session.userId.flatMapLatest { uid ->
+            if (uid == null) flowOf(null) else itemDao.observeById(uid, id)
+        }
 
     override suspend fun addItem(
         name: String,
@@ -42,8 +50,8 @@ class ItemRepositoryImpl @Inject constructor(
         notes: String?,
         isNeeded: Boolean,
     ): String = db.withTransaction {
+        val userId = requireSignedIn()
         val now = clock.millis()
-        val userId = session.currentUserId()
         val id = ids.newId()
         itemDao.upsert(
             Item(
@@ -73,9 +81,10 @@ class ItemRepositoryImpl @Inject constructor(
         quantity: String?,
         notes: String?,
     ) = db.withTransaction {
+        val userId = requireSignedIn()
         val now = clock.millis()
         // Preserve isNeeded / lastPurchasedAt / createdAt from the current row.
-        val current = itemDao.observeById(session.currentUserId(), id).first()?.item
+        val current = itemDao.observeById(userId, id).first()?.item
             ?: return@withTransaction
         itemDao.upsert(
             current.copy(
@@ -93,12 +102,10 @@ class ItemRepositoryImpl @Inject constructor(
     }
 
     override suspend fun softDelete(id: String) = db.withTransaction {
+        val userId = requireSignedIn()
         // Load the parent first so we (a) verify the caller owns the item before any
         // write, and (b) get the userId we need to cascade-tombstone the junction
-        // rows and purchase records under the same ownership invariant. Without the
-        // cascade, ItemDao.softDelete would tombstone the item but leave xrefs and
-        // purchase history pointing at a "deleted" parent.
-        val userId = session.currentUserId()
+        // rows and purchase records under the same ownership invariant.
         val current = itemDao.observeById(userId, id).first()?.item
             ?: return@withTransaction
         val now = clock.millis()
@@ -121,10 +128,11 @@ class ItemRepositoryImpl @Inject constructor(
      * are inflated by the number of tagged stores.
      */
     override suspend fun markPurchased(id: String) = db.withTransaction {
+        val userId = requireSignedIn()
         val now = clock.millis()
         // Load the parent row first so PurchaseRecord.userId is sourced from the item,
         // not from a possibly-different live session.
-        val current = itemDao.observeById(session.currentUserId(), id).first()?.item
+        val current = itemDao.observeById(userId, id).first()?.item
             ?: return@withTransaction
         val ownerId = current.userId
 
@@ -139,6 +147,9 @@ class ItemRepositoryImpl @Inject constructor(
             }
         }
     }
+
+    private fun requireSignedIn(): String =
+        session.currentUserId() ?: throw IllegalStateException("Not signed in")
 
     private fun record(itemId: String, storeId: String?, userId: String, now: Long) =
         PurchaseRecord(

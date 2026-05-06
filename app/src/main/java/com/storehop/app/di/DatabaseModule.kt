@@ -5,6 +5,7 @@ import androidx.room.Room
 import com.storehop.app.data.dao.CategoryDao
 import com.storehop.app.data.dao.ItemDao
 import com.storehop.app.data.dao.ItemStoreXrefDao
+import com.storehop.app.data.dao.LocalOnlyMigrationDao
 import com.storehop.app.data.dao.PurchaseRecordDao
 import com.storehop.app.data.dao.ShoppingDao
 import com.storehop.app.data.dao.StoreCategoryOrderDao
@@ -42,4 +43,5 @@ object DatabaseModule {
     @Provides fun provideStoreCategoryOrderDao(db: StorehopDatabase): StoreCategoryOrderDao = db.storeCategoryOrderDao()
     @Provides fun provideShoppingDao(db: StorehopDatabase): ShoppingDao = db.shoppingDao()
     @Provides fun providePurchaseRecordDao(db: StorehopDatabase): PurchaseRecordDao = db.purchaseRecordDao()
+    @Provides fun provideLocalOnlyMigrationDao(db: StorehopDatabase): LocalOnlyMigrationDao = db.localOnlyMigrationDao()
 }

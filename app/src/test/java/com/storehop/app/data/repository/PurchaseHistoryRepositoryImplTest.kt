@@ -3,7 +3,7 @@ package com.storehop.app.data.repository
 import com.google.common.truth.Truth.assertThat
 import com.storehop.app.data.db.StorehopDatabase
 import com.storehop.app.data.entity.PurchaseRecord
-import com.storehop.app.data.util.UserSessionProvider
+import com.storehop.app.testing.FakeSessionProvider
 import com.storehop.app.testing.TEST_USER_ID
 import com.storehop.app.testing.createTestDb
 import kotlinx.coroutines.flow.first
@@ -28,9 +28,7 @@ class PurchaseHistoryRepositoryImplTest {
         repo = PurchaseHistoryRepositoryImpl(
             dao = db.purchaseRecordDao(),
             clock = Clock.fixed(Instant.ofEpochMilli(50_000L), ZoneOffset.UTC),
-            session = object : UserSessionProvider {
-                override fun currentUserId(): String = TEST_USER_ID
-            },
+            session = FakeSessionProvider(TEST_USER_ID),
         )
     }
 

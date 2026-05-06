@@ -4,7 +4,7 @@ import com.google.common.truth.Truth.assertThat
 import com.storehop.app.data.db.StorehopDatabase
 import com.storehop.app.data.entity.Store
 import com.storehop.app.data.util.IdGenerator
-import com.storehop.app.data.util.UserSessionProvider
+import com.storehop.app.testing.FakeSessionProvider
 import com.storehop.app.testing.OTHER_USER_ID
 import com.storehop.app.testing.TEST_USER_ID
 import com.storehop.app.testing.createTestDb
@@ -31,7 +31,7 @@ class ItemRepositoryImplTest {
     private lateinit var repo: ItemRepositoryImpl
     private val sequentialIds = SequentialIdGenerator()
     private val fixedClock: Clock = Clock.fixed(Instant.ofEpochMilli(50_000L), ZoneOffset.UTC)
-    private val session = StubSession(TEST_USER_ID)
+    private val session = FakeSessionProvider(TEST_USER_ID)
 
     @Before fun setup() {
         db = createTestDb(seeded = false)
@@ -95,7 +95,7 @@ class ItemRepositoryImplTest {
             quantity = null, notes = null,
         )
         // Session changes (simulating sign-in as a different user later).
-        session.userId = OTHER_USER_ID
+        session.setUserId(OTHER_USER_ID)
 
         val xrefs = db.itemStoreXrefDao().findForItem(itemId)
         assertThat(xrefs.map { it.userId }.toSet()).containsExactly(TEST_USER_ID)
@@ -130,7 +130,7 @@ class ItemRepositoryImplTest {
         // the audit caught: previously the new xrefs would be stamped with the LIVE
         // session userId rather than the parent item's userId, breaking the cross-table
         // ownership invariant.
-        session.userId = OTHER_USER_ID
+        session.setUserId(OTHER_USER_ID)
 
         repo.updateItem(
             id = itemId,
@@ -149,7 +149,7 @@ class ItemRepositoryImplTest {
             .containsExactly("store_lidl")
 
         // Switch back to the original owner and update again.
-        session.userId = TEST_USER_ID
+        session.setUserId(TEST_USER_ID)
         repo.updateItem(
             id = itemId,
             name = "Milk 2L",
@@ -174,11 +174,11 @@ class ItemRepositoryImplTest {
         )
         // Session changes — markPurchased should still no-op for the wrong session
         // and, when called as the right user, source userId from the parent row.
-        session.userId = OTHER_USER_ID
+        session.setUserId(OTHER_USER_ID)
         repo.markPurchased(itemId)
         assertThat(db.purchaseRecordDao().observeForItem(TEST_USER_ID, itemId).first()).isEmpty()
 
-        session.userId = TEST_USER_ID
+        session.setUserId(TEST_USER_ID)
         repo.markPurchased(itemId)
         val records = db.purchaseRecordDao().observeForItem(TEST_USER_ID, itemId).first()
         assertThat(records).hasSize(1)
@@ -192,11 +192,11 @@ class ItemRepositoryImplTest {
             quantity = null, notes = null,
         )
         // Switch session — softDelete must NOT tombstone another user's row.
-        session.userId = OTHER_USER_ID
+        session.setUserId(OTHER_USER_ID)
         repo.softDelete(itemId)
 
         // Restore the owner and confirm the item is still live with its xrefs intact.
-        session.userId = TEST_USER_ID
+        session.setUserId(TEST_USER_ID)
         val needed = db.itemDao().observeNeeded(TEST_USER_ID).first()
         assertThat(needed.map { it.id }).containsExactly(itemId)
         assertThat(db.itemStoreXrefDao().findForItem(itemId)).hasSize(1)
@@ -236,7 +236,7 @@ class ItemRepositoryImplTest {
             storeIds = setOf("store_lidl"),
             quantity = null, notes = null,
         )
-        session.userId = OTHER_USER_ID
+        session.setUserId(OTHER_USER_ID)
         assertThat(repo.observeById(itemId).first()).isNull()
     }
 
@@ -297,10 +297,6 @@ class ItemRepositoryImplTest {
         // Item is still not-needed.
         assertThat(db.itemDao().observeNeeded(TEST_USER_ID).first().map { it.id })
             .doesNotContain(itemId)
-    }
-
-    private class StubSession(var userId: String) : UserSessionProvider {
-        override fun currentUserId(): String = userId
     }
 
     /** Deterministic IDs for assertion stability. */

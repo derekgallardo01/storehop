@@ -4,6 +4,8 @@ import com.storehop.app.data.dao.ShoppingDao
 import com.storehop.app.data.db.relations.ShoppingRow
 import com.storehop.app.data.util.UserSessionProvider
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 import javax.inject.Inject
 
 class ShoppingRepositoryImpl @Inject constructor(
@@ -12,5 +14,8 @@ class ShoppingRepositoryImpl @Inject constructor(
 ) : ShoppingRepository {
 
     override fun shoppingListForStore(storeId: String): Flow<List<ShoppingRow>> =
-        dao.shoppingListForStore(session.currentUserId(), storeId)
+        session.userId.flatMapLatest { uid ->
+            if (uid == null) flowOf(emptyList())
+            else dao.shoppingListForStore(uid, storeId)
+        }
 }

@@ -9,6 +9,8 @@ import com.storehop.app.data.entity.Category
 import com.storehop.app.data.util.IdGenerator
 import com.storehop.app.data.util.UserSessionProvider
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 import java.time.Clock
 import javax.inject.Inject
 
@@ -23,16 +25,17 @@ class CategoryRepositoryImpl @Inject constructor(
 ) : CategoryRepository {
 
     override fun observeAll(includeArchived: Boolean): Flow<List<Category>> =
-        dao.observeAll(session.currentUserId(), includeArchived)
+        session.userId.flatMapLatest { uid ->
+            if (uid == null) flowOf(emptyList()) else dao.observeAll(uid, includeArchived)
+        }
 
     override suspend fun addCategory(name: String, icon: String?): String = db.withTransaction {
         val trimmed = name.trim()
         require(trimmed.isNotEmpty()) { "Category name cannot be empty" }
-        val userId = session.currentUserId()
+        val userId = requireSignedIn()
         val now = clock.millis()
 
-        // Same three-case shape as StoreRepositoryImpl.addStore -- see the
-        // commentary there for the full rationale on resurrection.
+        // See StoreRepositoryImpl.addStore for the resurrection rationale.
         val existing = dao.findAnyByName(userId, trimmed)
         when {
             existing == null -> {
@@ -71,23 +74,25 @@ class CategoryRepositoryImpl @Inject constructor(
     }
 
     override suspend fun rename(id: String, name: String) {
-        val current = dao.findById(session.currentUserId(), id) ?: return
+        val userId = requireSignedIn()
+        val current = dao.findById(userId, id) ?: return
         dao.upsert(current.copy(name = name.trim(), updatedAt = clock.millis()))
     }
 
     override suspend fun setArchived(id: String, archived: Boolean) {
-        dao.setArchived(session.currentUserId(), id, archived, clock.millis())
+        dao.setArchived(requireSignedIn(), id, archived, clock.millis())
     }
 
     override suspend fun softDelete(id: String) = db.withTransaction {
         // Cascade so a deleted category doesn't leave orphan SCO rows or items
         // whose categoryId resolves to a tombstoned Category through @Relation.
-        // Items keep existing — only their categoryId is cleared (UI shows them
-        // as "uncategorized" rather than disappearing them).
-        val userId = session.currentUserId()
+        val userId = requireSignedIn()
         val now = clock.millis()
         dao.softDelete(userId, id, now)
         itemDao.clearCategoryReferences(userId, id, now)
         scoDao.softDeleteForCategory(userId, id, now)
     }
+
+    private fun requireSignedIn(): String =
+        session.currentUserId() ?: throw IllegalStateException("Not signed in")
 }

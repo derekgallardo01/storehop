@@ -3,7 +3,7 @@ package com.storehop.app.data.repository
 import com.google.common.truth.Truth.assertThat
 import com.storehop.app.data.db.StorehopDatabase
 import com.storehop.app.data.util.IdGenerator
-import com.storehop.app.data.util.UserSessionProvider
+import com.storehop.app.testing.FakeSessionProvider
 import com.storehop.app.testing.createTestDb
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
@@ -34,9 +34,7 @@ class CategoryRepositoryImplTest {
             scoDao = db.storeCategoryOrderDao(),
             ids = object : IdGenerator { override fun newId(): String = UUID.randomUUID().toString() },
             clock = Clock.fixed(Instant.ofEpochMilli(50_000L), ZoneOffset.UTC),
-            session = object : UserSessionProvider {
-                override fun currentUserId(): String = "local-only"
-            },
+            session = FakeSessionProvider("local-only"),
         )
     }
     @After fun tearDown() { db.close() }
@@ -119,9 +117,7 @@ class CategoryRepositoryImplTest {
             scoDao = db.storeCategoryOrderDao(),
             ids = object : IdGenerator { override fun newId(): String = UUID.randomUUID().toString() },
             clock = Clock.fixed(Instant.ofEpochMilli(50_000L), ZoneOffset.UTC),
-            session = object : UserSessionProvider {
-                override fun currentUserId(): String = "some-other-user"
-            },
+            session = FakeSessionProvider("some-other-user"),
         )
 
         otherRepo.setArchived("cat_produce", archived = true)

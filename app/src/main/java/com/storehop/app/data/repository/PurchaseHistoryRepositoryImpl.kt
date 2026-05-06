@@ -4,6 +4,8 @@ import com.storehop.app.data.dao.PurchaseRecordDao
 import com.storehop.app.data.entity.PurchaseRecord
 import com.storehop.app.data.util.UserSessionProvider
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 import java.time.Clock
 import javax.inject.Inject
 
@@ -14,9 +16,13 @@ class PurchaseHistoryRepositoryImpl @Inject constructor(
 ) : PurchaseHistoryRepository {
 
     override fun observeForItem(itemId: String): Flow<List<PurchaseRecord>> =
-        dao.observeForItem(session.currentUserId(), itemId)
+        session.userId.flatMapLatest { uid ->
+            if (uid == null) flowOf(emptyList()) else dao.observeForItem(uid, itemId)
+        }
 
     override suspend fun softDelete(id: String) {
-        dao.softDelete(session.currentUserId(), id, clock.millis())
+        val userId = session.currentUserId()
+            ?: throw IllegalStateException("Not signed in")
+        dao.softDelete(userId, id, clock.millis())
     }
 }

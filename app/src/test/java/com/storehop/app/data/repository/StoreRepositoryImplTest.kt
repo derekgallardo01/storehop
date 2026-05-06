@@ -8,7 +8,7 @@ import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import com.storehop.app.data.db.StorehopDatabase
 import com.storehop.app.data.util.IdGenerator
-import com.storehop.app.data.util.UserSessionProvider
+import com.storehop.app.testing.FakeSessionProvider
 import com.storehop.app.testing.TEST_USER_ID
 import com.storehop.app.testing.createTestDb
 import kotlinx.coroutines.flow.first
@@ -40,10 +40,8 @@ class StoreRepositoryImplTest {
             scoDao = db.storeCategoryOrderDao(),
             ids = object : IdGenerator { override fun newId(): String = UUID.randomUUID().toString() },
             clock = Clock.fixed(Instant.ofEpochMilli(50_000L), ZoneOffset.UTC),
-            session = object : UserSessionProvider {
-                // Same sentinel as the seed pack so the unique-(userId,name) index applies.
-                override fun currentUserId(): String = "local-only"
-            },
+            // Same sentinel as the seed pack so the unique-(userId,name) index applies.
+            session = FakeSessionProvider("local-only"),
         )
     }
 
@@ -216,9 +214,7 @@ class StoreRepositoryImplTest {
             scoDao = db.storeCategoryOrderDao(),
             ids = object : IdGenerator { override fun newId(): String = UUID.randomUUID().toString() },
             clock = Clock.fixed(Instant.ofEpochMilli(50_000L), ZoneOffset.UTC),
-            session = object : UserSessionProvider {
-                override fun currentUserId(): String = "some-other-user"
-            },
+            session = FakeSessionProvider("some-other-user"),
         )
 
         otherRepo.setArchived("store_lidl", archived = true)

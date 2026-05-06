@@ -9,6 +9,8 @@ import com.storehop.app.data.entity.Store
 import com.storehop.app.data.util.IdGenerator
 import com.storehop.app.data.util.UserSessionProvider
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 import java.time.Clock
 import javax.inject.Inject
 
@@ -23,15 +25,19 @@ class StoreRepositoryImpl @Inject constructor(
 ) : StoreRepository {
 
     override fun observeAll(includeArchived: Boolean): Flow<List<Store>> =
-        dao.observeAll(session.currentUserId(), includeArchived)
+        session.userId.flatMapLatest { uid ->
+            if (uid == null) flowOf(emptyList()) else dao.observeAll(uid, includeArchived)
+        }
 
     override fun observeById(id: String): Flow<Store?> =
-        dao.observeById(session.currentUserId(), id)
+        session.userId.flatMapLatest { uid ->
+            if (uid == null) flowOf(null) else dao.observeById(uid, id)
+        }
 
     override suspend fun addStore(name: String, colorArgb: Int?): String = db.withTransaction {
         val trimmed = name.trim()
         require(trimmed.isNotEmpty()) { "Store name cannot be empty" }
-        val userId = session.currentUserId()
+        val userId = requireSignedIn()
         val now = clock.millis()
 
         // Three cases, all serialized inside the transaction:
@@ -42,10 +48,6 @@ class StoreRepositoryImpl @Inject constructor(
         //      the right model for sync: other devices see the row come back to
         //      life rather than appearing as a brand-new row that conflicts with
         //      their own tombstone.
-        //
-        // Without this, the schema UNIQUE(userId, name) index blocks the insert
-        // forever once a name is tombstoned -- @Upsert silently no-ops and
-        // addStore would return a UUID for a row that was never written.
         val existing = dao.findAnyByName(userId, trimmed)
         when {
             existing == null -> {
@@ -69,7 +71,6 @@ class StoreRepositoryImpl @Inject constructor(
                 throw IllegalArgumentException("A store named \"$trimmed\" already exists")
             }
             else -> {
-                // Resurrect.
                 dao.upsert(
                     existing.copy(
                         colorArgb = colorArgb,
@@ -84,27 +85,32 @@ class StoreRepositoryImpl @Inject constructor(
     }
 
     override suspend fun rename(id: String, name: String) {
-        val current = dao.findById(session.currentUserId(), id) ?: return
+        val userId = requireSignedIn()
+        val current = dao.findById(userId, id) ?: return
         dao.upsert(current.copy(name = name.trim(), updatedAt = clock.millis()))
     }
 
     override suspend fun setColor(id: String, colorArgb: Int?) {
-        val current = dao.findById(session.currentUserId(), id) ?: return
+        val userId = requireSignedIn()
+        val current = dao.findById(userId, id) ?: return
         dao.upsert(current.copy(colorArgb = colorArgb, updatedAt = clock.millis()))
     }
 
     override suspend fun setArchived(id: String, archived: Boolean) {
-        dao.setArchived(session.currentUserId(), id, archived, clock.millis())
+        dao.setArchived(requireSignedIn(), id, archived, clock.millis())
     }
 
     override suspend fun softDelete(id: String) = db.withTransaction {
         // Cascade so a deleted store doesn't leave orphan xrefs (which would still
         // surface in @Relation joins as a tombstoned store) or orphan SCO rows
         // (which would still appear in observeForStore).
-        val userId = session.currentUserId()
+        val userId = requireSignedIn()
         val now = clock.millis()
         dao.softDelete(userId, id, now)
         xrefDao.softDeleteForStore(userId, id, now)
         scoDao.softDeleteForStore(userId, id, now)
     }
+
+    private fun requireSignedIn(): String =
+        session.currentUserId() ?: throw IllegalStateException("Not signed in")
 }

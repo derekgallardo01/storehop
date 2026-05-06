@@ -5,6 +5,7 @@ import androidx.room.RoomDatabase
 import com.storehop.app.data.dao.CategoryDao
 import com.storehop.app.data.dao.ItemDao
 import com.storehop.app.data.dao.ItemStoreXrefDao
+import com.storehop.app.data.dao.LocalOnlyMigrationDao
 import com.storehop.app.data.dao.PurchaseRecordDao
 import com.storehop.app.data.dao.ShoppingDao
 import com.storehop.app.data.dao.StoreCategoryOrderDao
@@ -37,6 +38,7 @@ abstract class StorehopDatabase : RoomDatabase() {
     abstract fun storeCategoryOrderDao(): StoreCategoryOrderDao
     abstract fun shoppingDao(): ShoppingDao
     abstract fun purchaseRecordDao(): PurchaseRecordDao
+    abstract fun localOnlyMigrationDao(): LocalOnlyMigrationDao
 
     companion object {
         const val NAME: String = "storehop.db"
