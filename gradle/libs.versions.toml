@@ -21,6 +21,8 @@ espresso = "3.6.1"
 truth = "1.4.4"
 firebaseBom = "34.12.0"
 googleServices = "4.4.4"
+credentials = "1.5.0"
+googleIdentity = "1.1.1"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -46,6 +48,7 @@ androidx-hilt-navigation-compose = { group = "androidx.hilt", name = "hilt-navig
 
 kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "kotlinxSerialization" }
 kotlinx-coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-android", version.ref = "kotlinxCoroutines" }
+kotlinx-coroutines-play-services = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-play-services", version.ref = "kotlinxCoroutines" }
 kotlinx-coroutines-test = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-test", version.ref = "kotlinxCoroutines" }
 
 junit = { group = "junit", name = "junit", version.ref = "junit" }
@@ -61,6 +64,12 @@ firebase-bom = { group = "com.google.firebase", name = "firebase-bom", version.r
 # In BoM 33+ the Kotlin extensions are merged into the main artifacts; no -ktx suffix.
 firebase-auth = { group = "com.google.firebase", name = "firebase-auth" }
 firebase-firestore = { group = "com.google.firebase", name = "firebase-firestore" }
+
+# Credential Manager (the modern Sign In with Google flow; replaces the
+# deprecated GoogleSignIn API + GoogleSignInClient from play-services-auth).
+androidx-credentials = { group = "androidx.credentials", name = "credentials", version.ref = "credentials" }
+androidx-credentials-play-services-auth = { group = "androidx.credentials", name = "credentials-play-services-auth", version.ref = "credentials" }
+google-identity-googleid = { group = "com.google.android.libraries.identity.googleid", name = "googleid", version.ref = "googleIdentity" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

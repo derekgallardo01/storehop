@@ -2,6 +2,7 @@ package com.storehop.app
 
 import android.app.Application
 import com.storehop.app.auth.SignInBootstrapper
+import com.storehop.app.sync.SmokeTest
 import dagger.hilt.android.HiltAndroidApp
 import javax.inject.Inject
 
@@ -9,6 +10,7 @@ import javax.inject.Inject
 class StorehopApplication : Application() {
 
     @Inject lateinit var signInBootstrapper: SignInBootstrapper
+    @Inject lateinit var smokeTest: SmokeTest
 
     override fun onCreate() {
         super.onCreate()
@@ -17,5 +19,7 @@ class StorehopApplication : Application() {
         // claims any pre-Firebase `local-only` rows under the new uid the first
         // time we see one.
         signInBootstrapper.start()
+        // Debug-only Firestore round-trip check; no-op in release builds.
+        smokeTest.start()
     }
 }
