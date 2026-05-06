@@ -1,5 +1,6 @@
 package com.storehop.app.ui.items
 
+import android.net.Uri
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -8,6 +9,7 @@ import com.storehop.app.data.entity.Store
 import com.storehop.app.data.repository.CategoryRepository
 import com.storehop.app.data.repository.ItemRepository
 import com.storehop.app.data.repository.StoreRepository
+import com.storehop.app.data.storage.ImageUploader
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -33,6 +35,12 @@ data class ItemFormState(
     val storeIds: Set<String> = emptySet(),
     val isStaple: Boolean = false,
     val isPriority: Boolean = false,
+    /** Already-uploaded image URL from a prior save. */
+    val imageUrl: String? = null,
+    /** A local URI the user just picked but hasn't uploaded yet. */
+    val localImageUri: Uri? = null,
+    /** True while the upload kicked off by submit() is in flight. */
+    val isUploadingImage: Boolean = false,
     val isLoading: Boolean = false,
     val isSubmitting: Boolean = false,
     val nameError: String? = null,
@@ -44,6 +52,7 @@ data class ItemFormState(
 @HiltViewModel
 class ItemFormViewModel @Inject constructor(
     private val itemRepository: ItemRepository,
+    private val imageUploader: ImageUploader,
     categoryRepository: CategoryRepository,
     storeRepository: StoreRepository,
     savedStateHandle: SavedStateHandle,
@@ -75,6 +84,7 @@ class ItemFormViewModel @Inject constructor(
                         storeIds = row.stores.map { it.id }.toSet(),
                         isStaple = row.item.isStaple,
                         isPriority = row.item.isPriority,
+                        imageUrl = row.item.imageUrl,
                         isLoading = false,
                     )
                 } else {
@@ -98,6 +108,18 @@ class ItemFormViewModel @Inject constructor(
     fun setStaple(v: Boolean) { _state.value = _state.value.copy(isStaple = v) }
     fun setPriority(v: Boolean) { _state.value = _state.value.copy(isPriority = v) }
 
+    fun pickLocalImage(uri: Uri) {
+        // Stage the local URI for preview. Upload happens on submit() so we
+        // already have an itemId (Add mode generates one inside addItem).
+        _state.value = _state.value.copy(localImageUri = uri)
+    }
+
+    fun clearImage() {
+        // Clear both the staged local URI and the persisted URL. The saved
+        // imageUrl gets nulled in the next submit() call.
+        _state.value = _state.value.copy(localImageUri = null, imageUrl = null)
+    }
+
     fun submit() {
         val s = _state.value
         if (s.name.trim().isEmpty()) {
@@ -107,13 +129,16 @@ class ItemFormViewModel @Inject constructor(
         _state.value = s.copy(isSubmitting = true, saveError = null)
         viewModelScope.launch {
             try {
-                if (itemId == null) {
+                // Persist the row first so we have an id for the upload path.
+                // Image URL gets patched in by a follow-up updateItem if the
+                // user staged a local pick; otherwise we save as-is.
+                val savedId = if (itemId == null) {
                     itemRepository.addItem(
                         name = s.name,
                         categoryId = s.categoryId,
                         storeIds = s.storeIds,
                         brand = s.brand.takeIf { it.isNotBlank() },
-                        imageUrl = null,
+                        imageUrl = s.imageUrl,
                         isStaple = s.isStaple,
                         isPriority = s.isPriority,
                     )
@@ -126,16 +151,47 @@ class ItemFormViewModel @Inject constructor(
                         quantity = null,
                         notes = null,
                         brand = s.brand.takeIf { it.isNotBlank() },
-                        imageUrl = null,
+                        imageUrl = s.imageUrl,
+                        isStaple = s.isStaple,
+                        isPriority = s.isPriority,
+                    )
+                    itemId
+                }
+
+                if (s.localImageUri != null) {
+                    _state.value = _state.value.copy(isUploadingImage = true)
+                    val url = imageUploader.upload(s.localImageUri, savedId)
+                    itemRepository.updateItem(
+                        id = savedId,
+                        name = s.name,
+                        categoryId = s.categoryId,
+                        storeIds = s.storeIds,
+                        quantity = null,
+                        notes = null,
+                        brand = s.brand.takeIf { it.isNotBlank() },
+                        imageUrl = url,
                         isStaple = s.isStaple,
                         isPriority = s.isPriority,
                     )
                 }
-                _state.value = _state.value.copy(isSubmitting = false, saved = true)
+                _state.value = _state.value.copy(
+                    isSubmitting = false,
+                    isUploadingImage = false,
+                    saved = true,
+                )
             } catch (e: IllegalArgumentException) {
                 _state.value = _state.value.copy(
                     isSubmitting = false,
+                    isUploadingImage = false,
                     saveError = e.message ?: "Could not save",
+                )
+            } catch (e: Exception) {
+                // Upload failure: the row is already saved, surface a soft error
+                // and let the user retry. Don't block save on a network blip.
+                _state.value = _state.value.copy(
+                    isSubmitting = false,
+                    isUploadingImage = false,
+                    saveError = e.message ?: "Image upload failed",
                 )
             }
         }

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths xmlns:android="http://schemas.android.com/apk/res/android">
+    <!--
+      Camera capture writes to the app's external-cache dir; the OS auto-clears
+      it on uninstall and we don't need WRITE_EXTERNAL_STORAGE. The captured
+      file is read back via the picker flow and uploaded to Firebase Storage.
+    -->
+    <external-cache-path name="camera_capture" path="." />
+</paths>

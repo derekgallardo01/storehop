@@ -29,7 +29,6 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
@@ -161,10 +160,13 @@ fun ItemFormScreen(
                 onCheckedChange = viewModel::setPriority,
             )
 
-            // Image: stub until M2.3 wires the picker + Firebase Storage.
-            OutlinedButton(onClick = { /* M2.3 */ }, enabled = false, modifier = Modifier.fillMaxWidth()) {
-                Text("Add photo (M2.3)")
-            }
+            ImagePickerTile(
+                imageUrl = state.imageUrl,
+                localUri = state.localImageUri,
+                isUploading = state.isUploadingImage,
+                onImagePicked = viewModel::pickLocalImage,
+                onClearImage = viewModel::clearImage,
+            )
 
             state.saveError?.let { msg ->
                 Text(

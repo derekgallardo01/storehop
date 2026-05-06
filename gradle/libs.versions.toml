@@ -66,6 +66,7 @@ firebase-bom = { group = "com.google.firebase", name = "firebase-bom", version.r
 # In BoM 33+ the Kotlin extensions are merged into the main artifacts; no -ktx suffix.
 firebase-auth = { group = "com.google.firebase", name = "firebase-auth" }
 firebase-firestore = { group = "com.google.firebase", name = "firebase-firestore" }
+firebase-storage = { group = "com.google.firebase", name = "firebase-storage" }
 
 # Credential Manager (the modern Sign In with Google flow; replaces the
 # deprecated GoogleSignIn API + GoogleSignInClient from play-services-auth).
