@@ -16,6 +16,7 @@ turbine = "1.2.0"
 mockk = "1.13.13"
 robolectric = "4.14.1"
 androidxJunit = "1.2.1"
+androidxTestCore = "1.6.1"
 espresso = "3.6.1"
 truth = "1.4.4"
 
@@ -51,6 +52,7 @@ mockk = { group = "io.mockk", name = "mockk", version.ref = "mockk" }
 robolectric = { group = "org.robolectric", name = "robolectric", version.ref = "robolectric" }
 truth = { group = "com.google.truth", name = "truth", version.ref = "truth" }
 androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "androidxJunit" }
+androidx-test-core = { group = "androidx.test", name = "core-ktx", version.ref = "androidxTestCore" }
 androidx-espresso-core = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "espresso" }
 
 [plugins]
