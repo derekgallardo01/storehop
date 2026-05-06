@@ -1,6 +1,8 @@
 package com.storehop.app.data.repository
 
+import androidx.room.withTransaction
 import com.storehop.app.data.dao.StoreDao
+import com.storehop.app.data.db.StorehopDatabase
 import com.storehop.app.data.entity.Store
 import com.storehop.app.data.util.IdGenerator
 import com.storehop.app.data.util.UserSessionProvider
@@ -9,6 +11,7 @@ import java.time.Clock
 import javax.inject.Inject
 
 class StoreRepositoryImpl @Inject constructor(
+    private val db: StorehopDatabase,
     private val dao: StoreDao,
     private val ids: IdGenerator,
     private val clock: Clock,
@@ -21,7 +24,7 @@ class StoreRepositoryImpl @Inject constructor(
     override fun observeById(id: String): Flow<Store?> =
         dao.observeById(session.currentUserId(), id)
 
-    override suspend fun addStore(name: String, colorArgb: Int?): String {
+    override suspend fun addStore(name: String, colorArgb: Int?): String = db.withTransaction {
         val trimmed = name.trim()
         require(trimmed.isNotEmpty()) { "Store name cannot be empty" }
         val userId = session.currentUserId()
@@ -29,6 +32,8 @@ class StoreRepositoryImpl @Inject constructor(
         // @Upsert silently no-ops on a non-PK conflict (insert IGNOREs, then update
         // by PK is a no-op for a fresh UUID). Detect the collision here so the
         // caller gets a clear error instead of a UUID for a row that was never written.
+        // Wrapping in withTransaction closes the TOCTOU race between findByName and
+        // upsert -- two concurrent addStore calls with the same name now serialize.
         require(dao.findByName(userId, trimmed) == null) {
             "A store named \"$trimmed\" already exists"
         }
@@ -47,7 +52,7 @@ class StoreRepositoryImpl @Inject constructor(
                 deletedAt = null,
             ),
         )
-        return id
+        id
     }
 
     override suspend fun rename(id: String, name: String) {

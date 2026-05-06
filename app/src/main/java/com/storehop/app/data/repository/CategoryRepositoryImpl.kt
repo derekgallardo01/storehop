@@ -1,6 +1,8 @@
 package com.storehop.app.data.repository
 
+import androidx.room.withTransaction
 import com.storehop.app.data.dao.CategoryDao
+import com.storehop.app.data.db.StorehopDatabase
 import com.storehop.app.data.entity.Category
 import com.storehop.app.data.util.IdGenerator
 import com.storehop.app.data.util.UserSessionProvider
@@ -9,6 +11,7 @@ import java.time.Clock
 import javax.inject.Inject
 
 class CategoryRepositoryImpl @Inject constructor(
+    private val db: StorehopDatabase,
     private val dao: CategoryDao,
     private val ids: IdGenerator,
     private val clock: Clock,
@@ -18,12 +21,13 @@ class CategoryRepositoryImpl @Inject constructor(
     override fun observeAll(includeArchived: Boolean): Flow<List<Category>> =
         dao.observeAll(session.currentUserId(), includeArchived)
 
-    override suspend fun addCategory(name: String, icon: String?): String {
+    override suspend fun addCategory(name: String, icon: String?): String = db.withTransaction {
         val trimmed = name.trim()
         require(trimmed.isNotEmpty()) { "Category name cannot be empty" }
         val userId = session.currentUserId()
-        // Same rationale as StoreRepositoryImpl.addStore — Room's @Upsert silently
-        // no-ops on the non-PK (userId, name) unique-index conflict, so detect it here.
+        // See StoreRepositoryImpl.addStore for the rationale on detecting duplicates
+        // here AND wrapping in withTransaction (closes a TOCTOU race that would let
+        // two concurrent addCategory calls with the same name both pass the check).
         require(dao.findByName(userId, trimmed) == null) {
             "A category named \"$trimmed\" already exists"
         }
@@ -43,7 +47,7 @@ class CategoryRepositoryImpl @Inject constructor(
                 deletedAt = null,
             ),
         )
-        return id
+        id
     }
 
     override suspend fun rename(id: String, name: String) {

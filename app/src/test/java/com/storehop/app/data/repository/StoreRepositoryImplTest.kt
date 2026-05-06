@@ -1,6 +1,11 @@
 package com.storehop.app.data.repository
 
 import com.google.common.truth.Truth.assertThat
+import kotlinx.coroutines.Deferred
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import com.storehop.app.data.db.StorehopDatabase
 import com.storehop.app.data.util.IdGenerator
 import com.storehop.app.data.util.UserSessionProvider
@@ -29,6 +34,7 @@ class StoreRepositoryImplTest {
         // Seeded so the test can attempt to add a store with the same name as a seeded one.
         db = createTestDb(seeded = true)
         repo = StoreRepositoryImpl(
+            db = db,
             dao = db.storeDao(),
             ids = object : IdGenerator { override fun newId(): String = UUID.randomUUID().toString() },
             clock = Clock.fixed(Instant.ofEpochMilli(50_000L), ZoneOffset.UTC),
@@ -84,10 +90,36 @@ class StoreRepositoryImplTest {
             .contains("store_lidl")
     }
 
+    @Test fun `concurrent addStore with the same name only succeeds once`() = runTest {
+        // Without withTransaction wrapping addStore, two coroutines could both pass
+        // findByName == null and then upsert, with the second silently no-opping
+        // (Room @Upsert IGNOREs the unique-index conflict). Wrapping in
+        // withTransaction serializes the read+write so the second call sees the
+        // first's row and the require() check throws. Stress this:
+        val results: List<Result<String>> = coroutineScope {
+            val deferreds: List<Deferred<Result<String>>> = (0 until 8).map {
+                async(Dispatchers.Default) {
+                    runCatching { repo.addStore("RaceStore", colorArgb = null) }
+                }
+            }
+            deferreds.awaitAll()
+        }
+        val successes = results.count { it.isSuccess }
+        val failures = results.count { it.isFailure }
+
+        assertThat(successes).isEqualTo(1)
+        assertThat(failures).isEqualTo(7)
+        // And only one row in the DB.
+        val ours = repo.observeAll(includeArchived = false).first()
+            .filter { it.name == "RaceStore" }
+        assertThat(ours).hasSize(1)
+    }
+
     @Test fun `setArchived softDelete and rename are no-ops for stores the session does not own`() = runTest {
         // Build a separate repo whose session is some-other-user, then try to
         // mutate "store_lidl" (which is owned by local-only via the seed).
         val otherRepo = StoreRepositoryImpl(
+            db = db,
             dao = db.storeDao(),
             ids = object : IdGenerator { override fun newId(): String = UUID.randomUUID().toString() },
             clock = Clock.fixed(Instant.ofEpochMilli(50_000L), ZoneOffset.UTC),

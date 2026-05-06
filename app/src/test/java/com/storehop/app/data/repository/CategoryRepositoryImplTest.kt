@@ -28,6 +28,7 @@ class CategoryRepositoryImplTest {
         // Seeded so we can collide a user category with a seeded one.
         db = createTestDb(seeded = true)
         repo = CategoryRepositoryImpl(
+            db = db,
             dao = db.categoryDao(),
             ids = object : IdGenerator { override fun newId(): String = UUID.randomUUID().toString() },
             clock = Clock.fixed(Instant.ofEpochMilli(50_000L), ZoneOffset.UTC),
@@ -67,6 +68,7 @@ class CategoryRepositoryImplTest {
 
     @Test fun `setArchived and softDelete are no-ops for categories the session does not own`() = runTest {
         val otherRepo = CategoryRepositoryImpl(
+            db = db,
             dao = db.categoryDao(),
             ids = object : IdGenerator { override fun newId(): String = UUID.randomUUID().toString() },
             clock = Clock.fixed(Instant.ofEpochMilli(50_000L), ZoneOffset.UTC),
