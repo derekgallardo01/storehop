@@ -93,6 +93,7 @@ class ItemRepositoryImpl @Inject constructor(
                 quantity = quantity?.trim()?.takeIf { it.isNotEmpty() },
                 notes = notes?.trim()?.takeIf { it.isNotEmpty() },
                 updatedAt = now,
+                pendingSync = true,
             ),
         )
         // Pass the parent's userId, NOT session.currentUserId() — the parent is the

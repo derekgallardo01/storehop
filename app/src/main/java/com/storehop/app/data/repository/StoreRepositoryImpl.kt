@@ -77,6 +77,7 @@ class StoreRepositoryImpl @Inject constructor(
                         isArchived = false,
                         deletedAt = null,
                         updatedAt = now,
+                        pendingSync = true,
                     ),
                 )
                 existing.id
@@ -87,13 +88,13 @@ class StoreRepositoryImpl @Inject constructor(
     override suspend fun rename(id: String, name: String) {
         val userId = requireSignedIn()
         val current = dao.findById(userId, id) ?: return
-        dao.upsert(current.copy(name = name.trim(), updatedAt = clock.millis()))
+        dao.upsert(current.copy(name = name.trim(), updatedAt = clock.millis(), pendingSync = true))
     }
 
     override suspend fun setColor(id: String, colorArgb: Int?) {
         val userId = requireSignedIn()
         val current = dao.findById(userId, id) ?: return
-        dao.upsert(current.copy(colorArgb = colorArgb, updatedAt = clock.millis()))
+        dao.upsert(current.copy(colorArgb = colorArgb, updatedAt = clock.millis(), pendingSync = true))
     }
 
     override suspend fun setArchived(id: String, archived: Boolean) {

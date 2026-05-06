@@ -204,6 +204,48 @@ class StoreRepositoryImplTest {
             .containsAtLeast("milk", "bread")
     }
 
+    @Test fun `rename and setColor and setArchived re-flag pendingSync=1 after a previous push`() = runTest {
+        // Same class of bug as ItemDaoTest's pendingSync regression: a row that
+        // was previously pushed must be re-flagged dirty by any subsequent
+        // local mutation, including ones that go through the repository's
+        // `dao.upsert(current.copy(...))` path (which would otherwise preserve
+        // the prior `pendingSync = 0`).
+        val newId = repo.addStore("Mercadona", colorArgb = null)
+        db.storeDao().markPushed("local-only", newId)
+        // Sanity: post-push, clean.
+        fun pendingSyncOf(id: String): Int = db.openHelper.readableDatabase
+            .query(androidx.sqlite.db.SimpleSQLiteQuery(
+                "SELECT pendingSync FROM stores WHERE id = '$id'"))
+            .use { c -> c.moveToFirst(); c.getInt(0) }
+        assertThat(pendingSyncOf(newId)).isEqualTo(0)
+
+        repo.rename(newId, "Mercadona Express")
+        assertThat(pendingSyncOf(newId)).isEqualTo(1)
+
+        db.storeDao().markPushed("local-only", newId)
+        repo.setColor(newId, colorArgb = 0xFF112233.toInt())
+        assertThat(pendingSyncOf(newId)).isEqualTo(1)
+
+        db.storeDao().markPushed("local-only", newId)
+        repo.setArchived(newId, archived = true)
+        assertThat(pendingSyncOf(newId)).isEqualTo(1)
+    }
+
+    @Test fun `addStore resurrection path re-flags pendingSync=1 on the resurrected row`() = runTest {
+        // Soft-deleting a previously-pushed store and then re-adding it via
+        // resurrection must re-flag dirty so the cloud sees the tombstone clear.
+        repo.softDelete("store_lidl")
+        db.storeDao().markPushed("local-only", "store_lidl") // Simulate the soft-delete already synced.
+        // Now re-add. This goes through the resurrect path (existing.copy()).
+        val resurrected = repo.addStore("Lidl", colorArgb = null)
+        assertThat(resurrected).isEqualTo("store_lidl")
+        val pending = db.openHelper.readableDatabase
+            .query(androidx.sqlite.db.SimpleSQLiteQuery(
+                "SELECT pendingSync FROM stores WHERE id = 'store_lidl'"))
+            .use { c -> c.moveToFirst(); c.getInt(0) }
+        assertThat(pending).isEqualTo(1)
+    }
+
     @Test fun `setArchived softDelete and rename are no-ops for stores the session does not own`() = runTest {
         // Build a separate repo whose session is some-other-user, then try to
         // mutate "store_lidl" (which is owned by local-only via the seed).

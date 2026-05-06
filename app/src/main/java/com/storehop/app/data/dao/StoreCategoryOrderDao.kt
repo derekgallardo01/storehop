@@ -74,7 +74,7 @@ interface StoreCategoryOrderDao {
         existing
             .filter { it.categoryId !in incomingKeys }
             .forEach { softDelete(it.storeId, it.categoryId, now) }
-        ordered.forEach { upsert(it.copy(updatedAt = now, deletedAt = null)) }
+        ordered.forEach { upsert(it.copy(updatedAt = now, deletedAt = null, pendingSync = true)) }
     }
 
     @Query("SELECT * FROM store_category_order WHERE userId = :userId AND pendingSync = 1")
