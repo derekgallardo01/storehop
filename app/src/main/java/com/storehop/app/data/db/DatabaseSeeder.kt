@@ -47,7 +47,7 @@ class DatabaseSeeder @Inject constructor(
                     (id, name, colorArgb, isArchived, isSeeded, userId, createdAt, updatedAt, deletedAt)
                     VALUES (?, ?, NULL, 0, 1, ?, ?, ?, NULL)
                     """.trimIndent(),
-                    arrayOf(s.id, s.name, USER_ID, SEED_TIMESTAMP, SEED_TIMESTAMP),
+                    arrayOf<Any?>(s.id, s.name, USER_ID, SEED_TIMESTAMP, SEED_TIMESTAMP),
                 )
             }
             db.setTransactionSuccessful()
@@ -68,7 +68,7 @@ class DatabaseSeeder @Inject constructor(
                     (id, name, nameKey, icon, isArchived, isSeeded, userId, createdAt, updatedAt, deletedAt)
                     VALUES (?, ?, ?, ?, 0, 1, ?, ?, ?, NULL)
                     """.trimIndent(),
-                    arrayOf(c.id, c.name, c.nameKey, c.icon, USER_ID, SEED_TIMESTAMP, SEED_TIMESTAMP),
+                    arrayOf<Any?>(c.id, c.name, c.nameKey, c.icon, USER_ID, SEED_TIMESTAMP, SEED_TIMESTAMP),
                 )
             }
             db.setTransactionSuccessful()
@@ -89,7 +89,7 @@ class DatabaseSeeder @Inject constructor(
                     (storeId, categoryId, displayOrder, isSeeded, userId, createdAt, updatedAt, deletedAt)
                     VALUES (?, ?, ?, 1, ?, ?, ?, NULL)
                     """.trimIndent(),
-                    arrayOf(o.storeId, o.categoryId, o.displayOrder, USER_ID, SEED_TIMESTAMP, SEED_TIMESTAMP),
+                    arrayOf<Any?>(o.storeId, o.categoryId, o.displayOrder, USER_ID, SEED_TIMESTAMP, SEED_TIMESTAMP),
                 )
             }
             db.setTransactionSuccessful()
