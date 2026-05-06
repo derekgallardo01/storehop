@@ -33,7 +33,7 @@ interface StoreCategoryOrderDao {
     @Query(
         """
         UPDATE store_category_order
-        SET deletedAt = :now, updatedAt = :now
+        SET deletedAt = :now, updatedAt = :now, pendingSync = 1
         WHERE storeId = :storeId AND categoryId = :categoryId
         """,
     )
@@ -43,7 +43,7 @@ interface StoreCategoryOrderDao {
     @Query(
         """
         UPDATE store_category_order
-        SET deletedAt = :now, updatedAt = :now
+        SET deletedAt = :now, updatedAt = :now, pendingSync = 1
         WHERE storeId = :storeId AND userId = :userId AND deletedAt IS NULL
         """,
     )
@@ -53,7 +53,7 @@ interface StoreCategoryOrderDao {
     @Query(
         """
         UPDATE store_category_order
-        SET deletedAt = :now, updatedAt = :now
+        SET deletedAt = :now, updatedAt = :now, pendingSync = 1
         WHERE categoryId = :categoryId AND userId = :userId AND deletedAt IS NULL
         """,
     )

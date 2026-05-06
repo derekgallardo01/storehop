@@ -54,7 +54,7 @@ interface CategoryDao {
     @Query(
         """
         UPDATE categories
-        SET isArchived = :archived, updatedAt = :now
+        SET isArchived = :archived, updatedAt = :now, pendingSync = 1
         WHERE id = :id AND userId = :userId
         """,
     )
@@ -63,7 +63,7 @@ interface CategoryDao {
     @Query(
         """
         UPDATE categories
-        SET deletedAt = :now, updatedAt = :now
+        SET deletedAt = :now, updatedAt = :now, pendingSync = 1
         WHERE id = :id AND userId = :userId
         """,
     )

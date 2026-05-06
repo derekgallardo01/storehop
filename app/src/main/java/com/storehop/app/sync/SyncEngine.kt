@@ -12,8 +12,10 @@ import com.storehop.app.data.util.UserSessionProvider
 import com.storehop.app.sync.dto.SyncCollections
 import com.storehop.app.sync.dto.docId
 import com.storehop.app.sync.dto.toDto
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
@@ -26,20 +28,23 @@ import javax.inject.Singleton
  * Started once from [com.storehop.app.StorehopApplication.onCreate]. For the life
  * of the process:
  *
- *   1. Subscribes to [UserSessionProvider.userId]. Every time the uid changes
- *      (sign-in, sign-out, anonymous-to-Google upgrade), the previous push jobs
- *      are cancelled and fresh ones for the new uid are launched.
+ *   1. Subscribes to [UserSessionProvider.userId] via `collectLatest` so that a
+ *      uid change (sign-in / sign-out / anon-to-Google upgrade) cancels the
+ *      previous user's push jobs and starts fresh ones.
  *
- *   2. Per synced entity, watches that entity's `pendingSync = 1` Flow. For
- *      each batch the Flow emits, serializes each row to its DTO and writes
- *      it to `/users/{uid}/<collection>/{docId}`. On Firestore ack,
- *      `markPushed(uid, id)` flips the row's `pendingSync` to 0.
+ *   2. Per synced entity, watches that entity's `pendingSync = 1` Flow via
+ *      `collect` (NOT `collectLatest`) so a successful push -- which itself
+ *      triggers a Flow re-emission via `markPushed` -- doesn't cancel the
+ *      in-flight loop processing the rest of the batch. With `collect`, the
+ *      next emission is buffered and processed after the current loop returns.
+ *      Each row gets serialized to its DTO and written to
+ *      `/users/{uid}/<collection>/{docId}`. On Firestore ack, `markPushed`
+ *      flips `pendingSync` to 0.
  *
  * Failures (network, PERMISSION_DENIED, etc.) bubble up as exceptions; the row
- * stays `pendingSync = 1` and will be retried the next time its Flow re-emits
- * (which happens immediately because the Flow is hot and includes the dirty
- * row). Firestore's own offline queue covers transient network drops; durable
- * loss (app process killed mid-write) is recovered by the on-restart re-emission.
+ * stays `pendingSync = 1` and will be retried the next time its Flow re-emits.
+ * Firestore's own offline queue covers transient network drops; durable loss
+ * (app process killed mid-write) is recovered by the on-restart re-emission.
  *
  * Pull side lands in M5.
  */
@@ -55,7 +60,7 @@ class SyncEngine @Inject constructor(
     private val scoDao: StoreCategoryOrderDao,
     private val purchaseDao: PurchaseRecordDao,
 ) {
-    private var pushJob: Job? = null
+    @Volatile private var pushJob: Job? = null
 
     fun start() {
         applicationScope.launch {
@@ -71,7 +76,7 @@ class SyncEngine @Inject constructor(
         val userDoc = firestore.collection("users").document(uid)
 
         launch {
-            itemDao.observePendingPush(uid).collectLatest { rows ->
+            itemDao.observePendingPush(uid).collect { rows ->
                 rows.forEach { row ->
                     pushOne(userDoc.collection(SyncCollections.ITEMS).document(row.id), row.toDto()) {
                         itemDao.markPushed(uid, row.id)
@@ -81,7 +86,7 @@ class SyncEngine @Inject constructor(
         }
 
         launch {
-            categoryDao.observePendingPush(uid).collectLatest { rows ->
+            categoryDao.observePendingPush(uid).collect { rows ->
                 rows.forEach { row ->
                     pushOne(userDoc.collection(SyncCollections.CATEGORIES).document(row.id), row.toDto()) {
                         categoryDao.markPushed(uid, row.id)
@@ -91,7 +96,7 @@ class SyncEngine @Inject constructor(
         }
 
         launch {
-            storeDao.observePendingPush(uid).collectLatest { rows ->
+            storeDao.observePendingPush(uid).collect { rows ->
                 rows.forEach { row ->
                     pushOne(userDoc.collection(SyncCollections.STORES).document(row.id), row.toDto()) {
                         storeDao.markPushed(uid, row.id)
@@ -101,7 +106,7 @@ class SyncEngine @Inject constructor(
         }
 
         launch {
-            xrefDao.observePendingPush(uid).collectLatest { rows ->
+            xrefDao.observePendingPush(uid).collect { rows ->
                 rows.forEach { row ->
                     val docId = row.docId()
                     pushOne(userDoc.collection(SyncCollections.ITEM_STORE_XREFS).document(docId), row.toDto()) {
@@ -112,7 +117,7 @@ class SyncEngine @Inject constructor(
         }
 
         launch {
-            scoDao.observePendingPush(uid).collectLatest { rows ->
+            scoDao.observePendingPush(uid).collect { rows ->
                 rows.forEach { row ->
                     val docId = row.docId()
                     pushOne(userDoc.collection(SyncCollections.STORE_CATEGORY_ORDERS).document(docId), row.toDto()) {
@@ -123,7 +128,7 @@ class SyncEngine @Inject constructor(
         }
 
         launch {
-            purchaseDao.observePendingPush(uid).collectLatest { rows ->
+            purchaseDao.observePendingPush(uid).collect { rows ->
                 rows.forEach { row ->
                     pushOne(userDoc.collection(SyncCollections.PURCHASE_RECORDS).document(row.id), row.toDto()) {
                         purchaseDao.markPushed(uid, row.id)
@@ -141,10 +146,14 @@ class SyncEngine @Inject constructor(
         try {
             ref.set(dto).await()
             markClean()
+        } catch (e: CancellationException) {
+            // Cooperative cancellation (e.g. uid changed mid-push). Don't log; rethrow
+            // so the parent Job actually winds down.
+            throw e
         } catch (e: Exception) {
-            // Leave pendingSync = 1 so the row gets re-pushed next time the
-            // Flow re-emits. Logged at WARN because PERMISSION_DENIED in
-            // pre-M7 is expected; once rules deploy, this should fall silent.
+            // Leave pendingSync = 1 so the row gets re-pushed next time the Flow
+            // re-emits. WARN because PERMISSION_DENIED in pre-M7 is expected;
+            // once rules deploy in M7, this should fall silent.
             Log.w(TAG, "Push failed for ${ref.path}: ${e.message}")
         }
     }

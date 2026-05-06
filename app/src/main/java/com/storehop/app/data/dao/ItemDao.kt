@@ -46,7 +46,7 @@ interface ItemDao {
     @Query(
         """
         UPDATE items
-        SET deletedAt = :now, updatedAt = :now
+        SET deletedAt = :now, updatedAt = :now, pendingSync = 1
         WHERE id = :id AND userId = :userId
         """,
     )
@@ -55,7 +55,7 @@ interface ItemDao {
     @Query(
         """
         UPDATE items
-        SET isNeeded = 0, lastPurchasedAt = :now, updatedAt = :now
+        SET isNeeded = 0, lastPurchasedAt = :now, updatedAt = :now, pendingSync = 1
         WHERE id = :id AND userId = :userId
         """,
     )
@@ -70,7 +70,7 @@ interface ItemDao {
     @Query(
         """
         UPDATE items
-        SET categoryId = NULL, updatedAt = :now
+        SET categoryId = NULL, updatedAt = :now, pendingSync = 1
         WHERE categoryId = :categoryId AND userId = :userId AND deletedAt IS NULL
         """,
     )

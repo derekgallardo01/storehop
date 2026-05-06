@@ -32,7 +32,7 @@ interface ItemStoreXrefDao {
     @Query(
         """
         UPDATE item_store_xref
-        SET deletedAt = :now, updatedAt = :now
+        SET deletedAt = :now, updatedAt = :now, pendingSync = 1
         WHERE itemId = :itemId AND storeId = :storeId AND userId = :userId
         """,
     )
@@ -47,7 +47,7 @@ interface ItemStoreXrefDao {
     @Query(
         """
         UPDATE item_store_xref
-        SET deletedAt = :now, updatedAt = :now
+        SET deletedAt = :now, updatedAt = :now, pendingSync = 1
         WHERE itemId = :itemId AND userId = :userId AND deletedAt IS NULL
         """,
     )
@@ -62,7 +62,7 @@ interface ItemStoreXrefDao {
     @Query(
         """
         UPDATE item_store_xref
-        SET deletedAt = :now, updatedAt = :now
+        SET deletedAt = :now, updatedAt = :now, pendingSync = 1
         WHERE storeId = :storeId AND userId = :userId AND deletedAt IS NULL
         """,
     )

@@ -68,7 +68,7 @@ interface StoreDao {
     @Query(
         """
         UPDATE stores
-        SET isArchived = :archived, updatedAt = :now
+        SET isArchived = :archived, updatedAt = :now, pendingSync = 1
         WHERE id = :id AND userId = :userId
         """,
     )
@@ -77,7 +77,7 @@ interface StoreDao {
     @Query(
         """
         UPDATE stores
-        SET deletedAt = :now, updatedAt = :now
+        SET deletedAt = :now, updatedAt = :now, pendingSync = 1
         WHERE id = :id AND userId = :userId
         """,
     )

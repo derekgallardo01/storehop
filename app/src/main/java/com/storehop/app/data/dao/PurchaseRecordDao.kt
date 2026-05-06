@@ -27,7 +27,7 @@ interface PurchaseRecordDao {
     @Query(
         """
         UPDATE purchase_records
-        SET deletedAt = :now, updatedAt = :now
+        SET deletedAt = :now, updatedAt = :now, pendingSync = 1
         WHERE id = :id AND userId = :userId
         """,
     )
@@ -41,7 +41,7 @@ interface PurchaseRecordDao {
     @Query(
         """
         UPDATE purchase_records
-        SET deletedAt = :now, updatedAt = :now
+        SET deletedAt = :now, updatedAt = :now, pendingSync = 1
         WHERE itemId = :itemId AND userId = :userId AND deletedAt IS NULL
         """,
     )

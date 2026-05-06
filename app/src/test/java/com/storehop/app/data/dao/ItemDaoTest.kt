@@ -66,6 +66,38 @@ class ItemDaoTest {
         }
     }
 
+    @Test fun `softDelete and markPurchased re-flag pendingSync=1 after a previous push`() = runTest {
+        // Reproduce the silent-divergence bug: a row that's been pushed once
+        // (pendingSync = 0) gets edited locally; the edit MUST re-flag it as
+        // dirty so the sync engine pushes the new state.
+        dao.upsert(item(id = "i1", name = "Milk"))
+        dao.markPushed(TEST_USER_ID, "i1")
+        // Sanity: post-push, it's clean.
+        assertThat(db.openHelper.readableDatabase
+            .query(androidx.sqlite.db.SimpleSQLiteQuery(
+                "SELECT pendingSync FROM items WHERE id = 'i1'"))
+            .use { c -> c.moveToFirst(); c.getInt(0) }
+        ).isEqualTo(0)
+
+        dao.softDelete(TEST_USER_ID, "i1", now = 5_000L)
+
+        assertThat(db.openHelper.readableDatabase
+            .query(androidx.sqlite.db.SimpleSQLiteQuery(
+                "SELECT pendingSync FROM items WHERE id = 'i1'"))
+            .use { c -> c.moveToFirst(); c.getInt(0) }
+        ).isEqualTo(1)
+
+        // markPurchased path on a fresh row.
+        dao.upsert(item(id = "i2", name = "Bread"))
+        dao.markPushed(TEST_USER_ID, "i2")
+        dao.markPurchased(TEST_USER_ID, "i2", now = 6_000L)
+        assertThat(db.openHelper.readableDatabase
+            .query(androidx.sqlite.db.SimpleSQLiteQuery(
+                "SELECT pendingSync FROM items WHERE id = 'i2'"))
+            .use { c -> c.moveToFirst(); c.getInt(0) }
+        ).isEqualTo(1)
+    }
+
     private fun item(
         id: String,
         name: String,
