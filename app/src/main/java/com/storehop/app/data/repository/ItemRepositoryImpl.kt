@@ -107,6 +107,19 @@ class ItemRepositoryImpl @Inject constructor(
         purchaseRecordDao.softDeleteForItem(current.userId, id, now)
     }
 
+    /**
+     * Mark an item as purchased.
+     *
+     * **Known limitation (over-counting):** writes one [PurchaseRecord] *per
+     * tagged store* of the item, not one per actual purchase. So an item tagged
+     * to Lidl + Continente produces 2 records on a single `markPurchased(id)`
+     * call. The data-layer plan documented this as a deliberate "caller's
+     * choice on store" design but the API doesn't actually expose that choice
+     * yet. When a Shop-at-Store screen lands it will need a
+     * `markPurchasedAtStore(itemId, storeId)` overload that writes exactly one
+     * record. Until then, history-and-stats consumers should be aware records
+     * are inflated by the number of tagged stores.
+     */
     override suspend fun markPurchased(id: String) = db.withTransaction {
         val now = clock.millis()
         // Load the parent row first so PurchaseRecord.userId is sourced from the item,

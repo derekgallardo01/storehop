@@ -75,6 +75,28 @@ class StoreRepositoryImplTest {
         }
     }
 
+    @Test fun `NONA-2 addStore handles a 10000-char name without truncation or crash`() = runTest {
+        val giant = "X".repeat(10_000)
+        val id = repo.addStore(name = giant, colorArgb = null)
+        val live = repo.observeAll(includeArchived = false).first()
+            .single { it.id == id }
+        assertThat(live.name).isEqualTo(giant)
+        assertThat(live.name.length).isEqualTo(10_000)
+    }
+
+    @Test fun `NONA-3 addStore name with quotes apostrophes and SQL meta characters round-trips`() = runTest {
+        // SQLite parameterized queries protect against injection. This locks in
+        // that the repo isn't doing string concatenation anywhere we'd regress.
+        val tricky = "Joe's \"Mart\"; DROP TABLE stores; -- 100% safe"
+        val id = repo.addStore(name = tricky, colorArgb = null)
+        // Verify the row exists, contains the literal string, AND that the stores
+        // table is intact (DROP didn't run).
+        val live = repo.observeAll(includeArchived = false).first()
+        assertThat(live.single { it.id == id }.name).isEqualTo(tricky)
+        // Seed pack still intact => DROP TABLE didn't execute.
+        assertThat(live.count { it.isSeeded }).isEqualTo(14)
+    }
+
     @Test fun `addStore rejects an empty or whitespace-only name`() {
         assertThrows(IllegalArgumentException::class.java) {
             kotlinx.coroutines.runBlocking { repo.addStore("", colorArgb = null) }

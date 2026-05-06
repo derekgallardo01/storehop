@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools">
     <string name="app_name">Storehop</string>
     <string name="placeholder_screen_title">Storehop</string>
 
@@ -21,7 +21,10 @@
     <string name="cat_hardware">Bricolage</string>
     <string name="cat_garden">Jardim</string>
     <string name="cat_home_decor">Casa e Decoração</string>
-    <string name="cat_electronics">Eletrónica</string>
+    <!-- "Eletrónica" is the modern (post-1990 orthographic agreement) European
+         Portuguese spelling. Lint's dictionary suggests the older "Electrónica"
+         or the Brazilian "Eletrônica"; both are wrong for pt-PT. -->
+    <string name="cat_electronics" tools:ignore="Typos">Eletrónica</string>
     <string name="cat_stationery">Papelaria</string>
     <string name="cat_clothing">Vestuário</string>
     <string name="cat_other">Outros</string>
