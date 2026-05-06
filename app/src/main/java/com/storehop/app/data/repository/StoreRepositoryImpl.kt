@@ -1,6 +1,8 @@
 package com.storehop.app.data.repository
 
 import androidx.room.withTransaction
+import com.storehop.app.data.dao.ItemStoreXrefDao
+import com.storehop.app.data.dao.StoreCategoryOrderDao
 import com.storehop.app.data.dao.StoreDao
 import com.storehop.app.data.db.StorehopDatabase
 import com.storehop.app.data.entity.Store
@@ -13,6 +15,8 @@ import javax.inject.Inject
 class StoreRepositoryImpl @Inject constructor(
     private val db: StorehopDatabase,
     private val dao: StoreDao,
+    private val xrefDao: ItemStoreXrefDao,
+    private val scoDao: StoreCategoryOrderDao,
     private val ids: IdGenerator,
     private val clock: Clock,
     private val session: UserSessionProvider,
@@ -69,7 +73,14 @@ class StoreRepositoryImpl @Inject constructor(
         dao.setArchived(session.currentUserId(), id, archived, clock.millis())
     }
 
-    override suspend fun softDelete(id: String) {
-        dao.softDelete(session.currentUserId(), id, clock.millis())
+    override suspend fun softDelete(id: String) = db.withTransaction {
+        // Cascade so a deleted store doesn't leave orphan xrefs (which would still
+        // surface in @Relation joins as a tombstoned store) or orphan SCO rows
+        // (which would still appear in observeForStore).
+        val userId = session.currentUserId()
+        val now = clock.millis()
+        dao.softDelete(userId, id, now)
+        xrefDao.softDeleteForStore(userId, id, now)
+        scoDao.softDeleteForStore(userId, id, now)
     }
 }

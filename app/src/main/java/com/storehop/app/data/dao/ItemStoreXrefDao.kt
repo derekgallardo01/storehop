@@ -54,6 +54,21 @@ interface ItemStoreXrefDao {
     suspend fun softDeleteForItem(userId: String, itemId: String, now: Long)
 
     /**
+     * Cascade-tombstone every live xref pointing at a store. Used by the store
+     * soft-delete flow so items previously tagged to the deleted store don't
+     * still appear "sold at <tombstoned store>" in any relation that joins
+     * items to stores through this junction.
+     */
+    @Query(
+        """
+        UPDATE item_store_xref
+        SET deletedAt = :now, updatedAt = :now
+        WHERE storeId = :storeId AND userId = :userId AND deletedAt IS NULL
+        """,
+    )
+    suspend fun softDeleteForStore(userId: String, storeId: String, now: Long)
+
+    /**
      * Replace the set of stores an item is tagged to.
      * Tombstones any xref no longer in [storeIds] and upserts the new set.
      * `userId` is the parent item's userId — copied here to enforce the

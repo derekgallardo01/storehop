@@ -30,6 +30,8 @@ class CategoryRepositoryImplTest {
         repo = CategoryRepositoryImpl(
             db = db,
             dao = db.categoryDao(),
+            itemDao = db.itemDao(),
+            scoDao = db.storeCategoryOrderDao(),
             ids = object : IdGenerator { override fun newId(): String = UUID.randomUUID().toString() },
             clock = Clock.fixed(Instant.ofEpochMilli(50_000L), ZoneOffset.UTC),
             session = object : UserSessionProvider {
@@ -66,10 +68,41 @@ class CategoryRepositoryImplTest {
         }
     }
 
+    @Test fun `softDelete cascades clearing items categoryId and tombstoning store_category_orders`() = runTest {
+        // Tag two items to cat_produce. Lidl already has a SCO row for cat_produce.
+        listOf("milk", "bread").forEach { id ->
+            db.itemDao().upsert(
+                com.storehop.app.data.entity.Item(
+                    id = id, name = id, categoryId = "cat_produce", notes = null, quantity = null,
+                    isNeeded = true, lastPurchasedAt = null,
+                    userId = "local-only", createdAt = 1L, updatedAt = 1L, deletedAt = null,
+                ),
+            )
+        }
+        // Pre-condition: there's at least one live SCO pointing at cat_produce.
+        val producesScosBefore = db.storeCategoryOrderDao().findForStore("store_lidl")
+            .count { it.categoryId == "cat_produce" }
+        assertThat(producesScosBefore).isEqualTo(1)
+
+        repo.softDelete("cat_produce")
+
+        // Cascade: items' categoryId is NULL'd (they survive as uncategorized).
+        val items = db.itemDao().observeNeeded("local-only").first()
+            .filter { it.id in setOf("milk", "bread") }
+        assertThat(items).hasSize(2)
+        assertThat(items.map { it.categoryId }.toSet()).containsExactly(null)
+        // Cascade: SCO rows for cat_produce are tombstoned (across every store).
+        val producesScosAfter = db.storeCategoryOrderDao().findForStore("store_lidl")
+            .count { it.categoryId == "cat_produce" }
+        assertThat(producesScosAfter).isEqualTo(0)
+    }
+
     @Test fun `setArchived and softDelete are no-ops for categories the session does not own`() = runTest {
         val otherRepo = CategoryRepositoryImpl(
             db = db,
             dao = db.categoryDao(),
+            itemDao = db.itemDao(),
+            scoDao = db.storeCategoryOrderDao(),
             ids = object : IdGenerator { override fun newId(): String = UUID.randomUUID().toString() },
             clock = Clock.fixed(Instant.ofEpochMilli(50_000L), ZoneOffset.UTC),
             session = object : UserSessionProvider {

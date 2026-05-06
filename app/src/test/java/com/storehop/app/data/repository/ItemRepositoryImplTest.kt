@@ -240,6 +240,29 @@ class ItemRepositoryImplTest {
         assertThat(repo.observeById(itemId).first()).isNull()
     }
 
+    @Test fun `addItem rolls back the item insert if a downstream xref insert violates an FK`() = runTest {
+        // store_does_not_exist is not in the DB, so the xref FK to stores will fail.
+        // Without withTransaction wrapping addItem, the item upsert from a few lines
+        // above would persist, leaving an orphan item with no xrefs. Verify the
+        // entire transaction rolls back: no item, no xrefs, no purchase records.
+        val itemCountBefore = db.itemDao().observeAll(TEST_USER_ID).first().size
+
+        runCatching {
+            repo.addItem(
+                name = "Milk",
+                categoryId = null,
+                storeIds = setOf("store_lidl", "store_does_not_exist"),
+                quantity = null,
+                notes = null,
+            )
+        }.also { result ->
+            assertThat(result.isFailure).isTrue()
+        }
+
+        val itemCountAfter = db.itemDao().observeAll(TEST_USER_ID).first().size
+        assertThat(itemCountAfter).isEqualTo(itemCountBefore)
+    }
+
     private class StubSession(var userId: String) : UserSessionProvider {
         override fun currentUserId(): String = userId
     }

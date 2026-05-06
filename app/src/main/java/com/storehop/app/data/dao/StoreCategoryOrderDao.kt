@@ -39,6 +39,26 @@ interface StoreCategoryOrderDao {
     )
     suspend fun softDelete(storeId: String, categoryId: String, now: Long)
 
+    /** Cascade-tombstone every live SCO row for a store. Used when the store is soft-deleted. */
+    @Query(
+        """
+        UPDATE store_category_order
+        SET deletedAt = :now, updatedAt = :now
+        WHERE storeId = :storeId AND userId = :userId AND deletedAt IS NULL
+        """,
+    )
+    suspend fun softDeleteForStore(userId: String, storeId: String, now: Long)
+
+    /** Cascade-tombstone every live SCO row for a category. Used when the category is soft-deleted. */
+    @Query(
+        """
+        UPDATE store_category_order
+        SET deletedAt = :now, updatedAt = :now
+        WHERE categoryId = :categoryId AND userId = :userId AND deletedAt IS NULL
+        """,
+    )
+    suspend fun softDeleteForCategory(userId: String, categoryId: String, now: Long)
+
     /**
      * Atomic replace: tombstone the existing order set for [storeId], upsert the new ordered list.
      * Each entry's `displayOrder` should already be set on the input rows.

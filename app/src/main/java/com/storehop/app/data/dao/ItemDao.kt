@@ -60,4 +60,19 @@ interface ItemDao {
         """,
     )
     suspend fun markPurchased(userId: String, id: String, now: Long)
+
+    /**
+     * Clear `categoryId` on every live item that points at a category that's
+     * being soft-deleted. Used by the category cascade — without this, items
+     * would still resolve their @Relation join to the (tombstoned) category
+     * row. Setting categoryId = NULL makes the LEFT JOIN return null cleanly.
+     */
+    @Query(
+        """
+        UPDATE items
+        SET categoryId = NULL, updatedAt = :now
+        WHERE categoryId = :categoryId AND userId = :userId AND deletedAt IS NULL
+        """,
+    )
+    suspend fun clearCategoryReferences(userId: String, categoryId: String, now: Long)
 }

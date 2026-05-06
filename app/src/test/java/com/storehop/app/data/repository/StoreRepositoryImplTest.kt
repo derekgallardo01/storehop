@@ -36,6 +36,8 @@ class StoreRepositoryImplTest {
         repo = StoreRepositoryImpl(
             db = db,
             dao = db.storeDao(),
+            xrefDao = db.itemStoreXrefDao(),
+            scoDao = db.storeCategoryOrderDao(),
             ids = object : IdGenerator { override fun newId(): String = UUID.randomUUID().toString() },
             clock = Clock.fixed(Instant.ofEpochMilli(50_000L), ZoneOffset.UTC),
             session = object : UserSessionProvider {
@@ -115,12 +117,52 @@ class StoreRepositoryImplTest {
         assertThat(ours).hasSize(1)
     }
 
+    @Test fun `softDelete cascades to xrefs and store_category_orders for that store`() = runTest {
+        // Seed: Lidl already has 13 SCO rows. Tag two new items to Lidl too.
+        listOf("milk", "bread").forEach { id ->
+            db.itemDao().upsert(
+                com.storehop.app.data.entity.Item(
+                    id = id, name = id, categoryId = null, notes = null, quantity = null,
+                    isNeeded = true, lastPurchasedAt = null,
+                    userId = "local-only", createdAt = 1L, updatedAt = 1L, deletedAt = null,
+                ),
+            )
+            db.itemStoreXrefDao().upsert(
+                com.storehop.app.data.entity.ItemStoreXref(
+                    itemId = id, storeId = "store_lidl", userId = "local-only",
+                    createdAt = 1L, updatedAt = 1L, deletedAt = null,
+                ),
+            )
+        }
+        // Pre-conditions: live xrefs and live SCO rows for Lidl exist.
+        assertThat(db.itemStoreXrefDao().findForItem("milk")).isNotEmpty()
+        assertThat(db.storeCategoryOrderDao().findForStore("store_lidl")).isNotEmpty()
+
+        repo.softDelete("store_lidl")
+
+        // Lidl is gone from observeAll(includeArchived=false).
+        assertThat(repo.observeAll(includeArchived = false).first().map { it.id })
+            .doesNotContain("store_lidl")
+        // Cascade tombstoned the xrefs (findForItem filters deletedAt IS NULL).
+        assertThat(db.itemStoreXrefDao().findForItem("milk")).isEmpty()
+        assertThat(db.itemStoreXrefDao().findForItem("bread")).isEmpty()
+        // Cascade tombstoned the SCO rows (findForStore filters deletedAt IS NULL).
+        assertThat(db.storeCategoryOrderDao().findForStore("store_lidl")).isEmpty()
+        // Items themselves are NOT deleted -- they're just untagged from Lidl.
+        // (This is intentional: a user might re-add the store later, and the item
+        //  data should outlive the store-tagging.)
+        assertThat(db.itemDao().observeNeeded("local-only").first().map { it.id })
+            .containsAtLeast("milk", "bread")
+    }
+
     @Test fun `setArchived softDelete and rename are no-ops for stores the session does not own`() = runTest {
         // Build a separate repo whose session is some-other-user, then try to
         // mutate "store_lidl" (which is owned by local-only via the seed).
         val otherRepo = StoreRepositoryImpl(
             db = db,
             dao = db.storeDao(),
+            xrefDao = db.itemStoreXrefDao(),
+            scoDao = db.storeCategoryOrderDao(),
             ids = object : IdGenerator { override fun newId(): String = UUID.randomUUID().toString() },
             clock = Clock.fixed(Instant.ofEpochMilli(50_000L), ZoneOffset.UTC),
             session = object : UserSessionProvider {

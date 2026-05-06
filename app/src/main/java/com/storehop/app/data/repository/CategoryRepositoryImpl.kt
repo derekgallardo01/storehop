@@ -2,6 +2,8 @@ package com.storehop.app.data.repository
 
 import androidx.room.withTransaction
 import com.storehop.app.data.dao.CategoryDao
+import com.storehop.app.data.dao.ItemDao
+import com.storehop.app.data.dao.StoreCategoryOrderDao
 import com.storehop.app.data.db.StorehopDatabase
 import com.storehop.app.data.entity.Category
 import com.storehop.app.data.util.IdGenerator
@@ -13,6 +15,8 @@ import javax.inject.Inject
 class CategoryRepositoryImpl @Inject constructor(
     private val db: StorehopDatabase,
     private val dao: CategoryDao,
+    private val itemDao: ItemDao,
+    private val scoDao: StoreCategoryOrderDao,
     private val ids: IdGenerator,
     private val clock: Clock,
     private val session: UserSessionProvider,
@@ -59,7 +63,15 @@ class CategoryRepositoryImpl @Inject constructor(
         dao.setArchived(session.currentUserId(), id, archived, clock.millis())
     }
 
-    override suspend fun softDelete(id: String) {
-        dao.softDelete(session.currentUserId(), id, clock.millis())
+    override suspend fun softDelete(id: String) = db.withTransaction {
+        // Cascade so a deleted category doesn't leave orphan SCO rows or items
+        // whose categoryId resolves to a tombstoned Category through @Relation.
+        // Items keep existing — only their categoryId is cleared (UI shows them
+        // as "uncategorized" rather than disappearing them).
+        val userId = session.currentUserId()
+        val now = clock.millis()
+        dao.softDelete(userId, id, now)
+        itemDao.clearCategoryReferences(userId, id, now)
+        scoDao.softDeleteForCategory(userId, id, now)
     }
 }
