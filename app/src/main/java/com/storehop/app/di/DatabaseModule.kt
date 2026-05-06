@@ -11,6 +11,7 @@ import com.storehop.app.data.dao.ShoppingDao
 import com.storehop.app.data.dao.StoreCategoryOrderDao
 import com.storehop.app.data.dao.StoreDao
 import com.storehop.app.data.db.DatabaseSeeder
+import com.storehop.app.data.db.MIGRATION_1_2
 import com.storehop.app.data.db.StorehopDatabase
 import dagger.Module
 import dagger.Provides
@@ -34,6 +35,7 @@ object DatabaseModule {
         StorehopDatabase.NAME,
     )
         .addCallback(seeder)
+        .addMigrations(MIGRATION_1_2)
         .build()
 
     @Provides fun provideItemDao(db: StorehopDatabase): ItemDao = db.itemDao()

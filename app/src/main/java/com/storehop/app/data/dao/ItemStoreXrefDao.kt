@@ -99,4 +99,15 @@ interface ItemStoreXrefDao {
             )
         }
     }
+
+    @androidx.room.Query("SELECT * FROM item_store_xref WHERE userId = :userId AND pendingSync = 1")
+    fun observePendingPush(userId: String): kotlinx.coroutines.flow.Flow<List<ItemStoreXref>>
+
+    @androidx.room.Query(
+        """
+        UPDATE item_store_xref SET pendingSync = 0
+        WHERE itemId = :itemId AND storeId = :storeId AND userId = :userId
+        """,
+    )
+    suspend fun markPushed(userId: String, itemId: String, storeId: String)
 }

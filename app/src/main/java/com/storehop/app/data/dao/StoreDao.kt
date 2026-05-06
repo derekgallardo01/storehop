@@ -82,4 +82,10 @@ interface StoreDao {
         """,
     )
     suspend fun softDelete(userId: String, id: String, now: Long)
+
+    @Query("SELECT * FROM stores WHERE userId = :userId AND pendingSync = 1")
+    fun observePendingPush(userId: String): Flow<List<Store>>
+
+    @Query("UPDATE stores SET pendingSync = 0 WHERE id = :id AND userId = :userId")
+    suspend fun markPushed(userId: String, id: String)
 }

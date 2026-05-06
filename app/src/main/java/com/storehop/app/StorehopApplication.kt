@@ -2,7 +2,7 @@ package com.storehop.app
 
 import android.app.Application
 import com.storehop.app.auth.SignInBootstrapper
-import com.storehop.app.sync.SmokeTest
+import com.storehop.app.sync.SyncEngine
 import dagger.hilt.android.HiltAndroidApp
 import javax.inject.Inject
 
@@ -10,7 +10,7 @@ import javax.inject.Inject
 class StorehopApplication : Application() {
 
     @Inject lateinit var signInBootstrapper: SignInBootstrapper
-    @Inject lateinit var smokeTest: SmokeTest
+    @Inject lateinit var syncEngine: SyncEngine
 
     override fun onCreate() {
         super.onCreate()
@@ -19,7 +19,8 @@ class StorehopApplication : Application() {
         // claims any pre-Firebase `local-only` rows under the new uid the first
         // time we see one.
         signInBootstrapper.start()
-        // Debug-only Firestore round-trip check; no-op in release builds.
-        smokeTest.start()
+        // Watches Room for pending-sync rows and pushes them to Firestore.
+        // Cancels and restarts per-uid on sign-in/sign-out.
+        syncEngine.start()
     }
 }

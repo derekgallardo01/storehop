@@ -1,5 +1,6 @@
 package com.storehop.app.data.entity
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
@@ -22,4 +23,5 @@ data class Store(
     val createdAt: Long,
     val updatedAt: Long,
     val deletedAt: Long?,
+    @ColumnInfo(defaultValue = "1") val pendingSync: Boolean = true,
 )

@@ -1,5 +1,6 @@
 package com.storehop.app.data.entity
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
@@ -36,4 +37,5 @@ data class StoreCategoryOrder(
     val createdAt: Long,
     val updatedAt: Long,
     val deletedAt: Long?,
+    @ColumnInfo(defaultValue = "1") val pendingSync: Boolean = true,
 )

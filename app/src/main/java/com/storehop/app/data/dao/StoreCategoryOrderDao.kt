@@ -76,4 +76,15 @@ interface StoreCategoryOrderDao {
             .forEach { softDelete(it.storeId, it.categoryId, now) }
         ordered.forEach { upsert(it.copy(updatedAt = now, deletedAt = null)) }
     }
+
+    @Query("SELECT * FROM store_category_order WHERE userId = :userId AND pendingSync = 1")
+    fun observePendingPush(userId: String): Flow<List<StoreCategoryOrder>>
+
+    @Query(
+        """
+        UPDATE store_category_order SET pendingSync = 0
+        WHERE storeId = :storeId AND categoryId = :categoryId AND userId = :userId
+        """,
+    )
+    suspend fun markPushed(userId: String, storeId: String, categoryId: String)
 }

@@ -75,4 +75,10 @@ interface ItemDao {
         """,
     )
     suspend fun clearCategoryReferences(userId: String, categoryId: String, now: Long)
+
+    @Query("SELECT * FROM items WHERE userId = :userId AND pendingSync = 1")
+    fun observePendingPush(userId: String): Flow<List<Item>>
+
+    @Query("UPDATE items SET pendingSync = 0 WHERE id = :id AND userId = :userId")
+    suspend fun markPushed(userId: String, id: String)
 }

@@ -46,4 +46,10 @@ interface PurchaseRecordDao {
         """,
     )
     suspend fun softDeleteForItem(userId: String, itemId: String, now: Long)
+
+    @Query("SELECT * FROM purchase_records WHERE userId = :userId AND pendingSync = 1")
+    fun observePendingPush(userId: String): Flow<List<PurchaseRecord>>
+
+    @Query("UPDATE purchase_records SET pendingSync = 0 WHERE id = :id AND userId = :userId")
+    suspend fun markPushed(userId: String, id: String)
 }

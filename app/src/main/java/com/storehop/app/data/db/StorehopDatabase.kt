@@ -26,7 +26,7 @@ import com.storehop.app.data.entity.StoreCategoryOrder
         StoreCategoryOrder::class,
         PurchaseRecord::class,
     ],
-    version = 1,
+    version = 2,
     exportSchema = true,
 )
 abstract class StorehopDatabase : RoomDatabase() {
