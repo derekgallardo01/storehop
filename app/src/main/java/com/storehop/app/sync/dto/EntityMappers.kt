@@ -26,6 +26,10 @@ fun Item.toDto() = ItemDto(
     createdAt = createdAt,
     updatedAt = updatedAt,
     deletedAt = deletedAt,
+    brand = brand,
+    imageUrl = imageUrl,
+    isStaple = isStaple,
+    isPriority = isPriority,
 )
 
 fun Category.toDto() = CategoryDto(

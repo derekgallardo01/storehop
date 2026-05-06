@@ -37,4 +37,8 @@ data class Item(
     val updatedAt: Long,
     val deletedAt: Long?,
     @ColumnInfo(defaultValue = "1") val pendingSync: Boolean = true,
+    val brand: String? = null,
+    val imageUrl: String? = null,
+    @ColumnInfo(defaultValue = "0") val isStaple: Boolean = false,
+    @ColumnInfo(defaultValue = "0") val isPriority: Boolean = false,
 )

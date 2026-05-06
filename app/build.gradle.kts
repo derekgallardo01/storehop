@@ -105,6 +105,9 @@ dependencies {
     implementation(libs.androidx.credentials.play.services.auth)
     implementation(libs.google.identity.googleid)
 
+    implementation(libs.androidx.navigation.compose)
+    implementation(libs.coil.compose)
+
     testImplementation(libs.junit)
     testImplementation(libs.truth)
     testImplementation(libs.turbine)

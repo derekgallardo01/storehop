@@ -7,23 +7,33 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.List
+import androidx.compose.material.icons.filled.Storefront
+import androidx.compose.material3.Icon
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
+import androidx.navigation.NavGraph.Companion.findStartDestination
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
+import androidx.navigation.compose.rememberNavController
 import com.google.firebase.auth.FirebaseAuth
 import com.storehop.app.data.util.UserSessionProvider
-import com.storehop.app.ui.auth.SignInScreen
+import com.storehop.app.ui.items.ItemsListScreen
+import com.storehop.app.ui.nav.Routes
+import com.storehop.app.ui.shop.StorePickerScreen
 import com.storehop.app.ui.theme.StorehopTheme
 import dagger.hilt.android.AndroidEntryPoint
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -37,23 +47,15 @@ class MainActivity : ComponentActivity() {
         setContent {
             StorehopTheme {
                 Surface(modifier = Modifier.fillMaxSize()) {
-                    AppRouter()
+                    AppRoot()
                 }
             }
         }
     }
 }
 
-/**
- * View-model exposing the simplest possible auth state for routing:
- *   - currentUid is null while the very first signInAnonymously is in flight
- *   - isAnonymous tells us whether the user has opted to upgrade
- *
- * We don't gate the placeholder on Google sign-in; the user can use the app
- * anonymously. SignInScreen is shown manually when the user wants to upgrade.
- */
 @HiltViewModel
-class RouterViewModel @Inject constructor(
+class RootViewModel @Inject constructor(
     val session: UserSessionProvider,
     private val auth: FirebaseAuth,
 ) : ViewModel() {
@@ -61,21 +63,11 @@ class RouterViewModel @Inject constructor(
 }
 
 @Composable
-private fun AppRouter(viewModel: RouterViewModel = hiltViewModel()) {
+private fun AppRoot(viewModel: RootViewModel = hiltViewModel()) {
     val uid by viewModel.session.userId.collectAsState()
-    var showingSignIn by remember { mutableStateOf(false) }
-
-    when {
-        uid == null -> LoadingPlaceholder()
-        showingSignIn -> SignInScreen(
-            onContinue = { showingSignIn = false },
-            onSkip = { showingSignIn = false },
-        )
-        else -> Placeholder(
-            uid = uid!!,
-            isAnonymous = viewModel.isAnonymous(),
-            onUpgradeToGoogle = { showingSignIn = true },
-        )
+    when (uid) {
+        null -> LoadingPlaceholder()
+        else -> SignedInRoot()
     }
 }
 
@@ -89,26 +81,70 @@ private fun LoadingPlaceholder() {
     }
 }
 
+/**
+ * Two-tab scaffold: Shop and Items. Each tab is a separate Compose Navigation
+ * branch under a single `NavHost`; tapping a bottom-nav item navigates to that
+ * tab's root and resets to the saved state for that tab (so going Shop → ...
+ * → Items → Shop returns you where you were in the Shop tab).
+ */
 @Composable
-private fun Placeholder(
-    uid: String,
-    isAnonymous: Boolean,
-    onUpgradeToGoogle: () -> Unit,
-) {
-    Box(
-        modifier = Modifier.fillMaxSize().padding(24.dp),
-        contentAlignment = Alignment.Center,
-    ) {
-        androidx.compose.foundation.layout.Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
+private fun SignedInRoot() {
+    val navController = rememberNavController()
+    val backStackEntry by navController.currentBackStackEntryAsState()
+    val currentRoute = backStackEntry?.destination?.route
+
+    Scaffold(
+        bottomBar = {
+            NavigationBar {
+                NavigationBarItem(
+                    selected = Routes.isShopTabRoute(currentRoute),
+                    onClick = {
+                        navController.navigate(Routes.SHOP) {
+                            popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
+                    },
+                    icon = { Icon(Icons.Filled.Storefront, contentDescription = null) },
+                    label = { Text("Shop") },
+                )
+                NavigationBarItem(
+                    selected = Routes.isItemsTabRoute(currentRoute),
+                    onClick = {
+                        navController.navigate(Routes.ITEMS) {
+                            popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
+                    },
+                    icon = { Icon(Icons.Filled.List, contentDescription = null) },
+                    label = { Text("Items") },
+                )
+            }
+        },
+    ) { padding ->
+        NavHost(
+            navController = navController,
+            startDestination = Routes.SHOP,
+            modifier = Modifier.padding(padding),
         ) {
-            Text(text = stringResource(id = R.string.placeholder_screen_title))
-            Text(text = "uid: ${uid.take(12)}...")
-            Text(text = if (isAnonymous) "(anonymous)" else "(signed in with Google)")
-            if (isAnonymous) {
-                androidx.compose.foundation.layout.Spacer(Modifier.padding(top = 16.dp))
-                androidx.compose.material3.TextButton(onClick = onUpgradeToGoogle) {
-                    Text("Sign in with Google")
+            composable(Routes.SHOP) { StorePickerScreen() }
+            composable(Routes.SHOP_AT_STORE) {
+                // M2.2 lands the real screen; for now just a placeholder.
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text("Shop-at-Store (M2.2)")
+                }
+            }
+
+            composable(Routes.ITEMS) { ItemsListScreen() }
+            composable(Routes.ITEM_ADD) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text("Add Item (M2.1)")
+                }
+            }
+            composable(Routes.ITEM_EDIT) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text("Edit Item (M2.1)")
                 }
             }
         }

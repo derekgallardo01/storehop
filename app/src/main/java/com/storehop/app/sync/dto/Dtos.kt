@@ -33,6 +33,10 @@ class ItemDto(
     var createdAt: Long = 0L,
     var updatedAt: Long = 0L,
     var deletedAt: Long? = null,
+    var brand: String? = null,
+    var imageUrl: String? = null,
+    var isStaple: Boolean = false,
+    var isPriority: Boolean = false,
 )
 
 @Keep
