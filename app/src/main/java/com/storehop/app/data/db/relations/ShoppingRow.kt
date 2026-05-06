@@ -8,8 +8,13 @@ data class ShoppingRow(
     @ColumnInfo(name = "quantity") val quantity: String?,
     @ColumnInfo(name = "notes") val notes: String?,
     @ColumnInfo(name = "isNeeded") val isNeeded: Boolean,
+    @ColumnInfo(name = "brand") val brand: String?,
+    @ColumnInfo(name = "imageUrl") val imageUrl: String?,
+    @ColumnInfo(name = "isPriority") val isPriority: Boolean,
+    @ColumnInfo(name = "isStaple") val isStaple: Boolean,
     @ColumnInfo(name = "cat_id") val categoryId: String?,
     @ColumnInfo(name = "cat_name") val categoryName: String?,
     @ColumnInfo(name = "cat_icon") val categoryIcon: String?,
     @ColumnInfo(name = "displayOrder") val displayOrder: Int?,
 )
+

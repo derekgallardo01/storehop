@@ -34,6 +34,7 @@ import com.storehop.app.data.util.UserSessionProvider
 import com.storehop.app.ui.items.ItemFormScreen
 import com.storehop.app.ui.items.ItemsListScreen
 import com.storehop.app.ui.nav.Routes
+import com.storehop.app.ui.shop.ShopAtStoreScreen
 import com.storehop.app.ui.shop.StorePickerScreen
 import androidx.navigation.NavType
 import androidx.navigation.navArgument
@@ -131,12 +132,16 @@ private fun SignedInRoot() {
             startDestination = Routes.SHOP,
             modifier = Modifier.padding(padding),
         ) {
-            composable(Routes.SHOP) { StorePickerScreen() }
-            composable(Routes.SHOP_AT_STORE) {
-                // M2.2 lands the real screen; for now just a placeholder.
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text("Shop-at-Store (M2.2)")
-                }
+            composable(Routes.SHOP) {
+                StorePickerScreen(
+                    onPickStore = { id -> navController.navigate(Routes.shopAtStore(id)) },
+                )
+            }
+            composable(
+                route = Routes.SHOP_AT_STORE,
+                arguments = listOf(navArgument("storeId") { type = NavType.StringType }),
+            ) {
+                ShopAtStoreScreen(onBack = { navController.popBackStack() })
             }
 
             composable(Routes.ITEMS) {
