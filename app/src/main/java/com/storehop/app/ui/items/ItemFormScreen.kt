@@ -19,9 +19,10 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ListItem
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.HorizontalDivider
@@ -201,46 +202,67 @@ fun ItemFormScreen(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun CategoryDropdown(
     selectedId: String?,
     categories: List<com.storehop.app.data.entity.Category>,
     onSelect: (String?) -> Unit,
 ) {
-    var expanded by remember { mutableStateOf(false) }
+    var sheetOpen by remember { mutableStateOf(false) }
     val selected = categories.firstOrNull { it.id == selectedId }
     val displayLabel = selected?.localizedLabel() ?: "(none)"
+    val sheetState = rememberModalBottomSheetState()
 
+    // Disabled-but-clickable text field shows the current selection and
+    // launches the bottom sheet on tap. The transparent Box overlay catches
+    // the click since OutlinedTextField swallows clicks when not enabled.
     androidx.compose.foundation.layout.Box(modifier = Modifier.fillMaxWidth()) {
         OutlinedTextField(
             value = displayLabel,
             onValueChange = {},
             readOnly = true,
             label = { Text("Category") },
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable { expanded = true },
+            modifier = Modifier.fillMaxWidth(),
             enabled = false,
         )
-        // Invisible click target overlay to make the disabled OutlinedTextField tappable.
         androidx.compose.foundation.layout.Box(
             modifier = Modifier
                 .matchParentSize()
-                .clickable { expanded = true },
+                .clickable { sheetOpen = true },
         )
-        DropdownMenu(
-            expanded = expanded,
-            onDismissRequest = { expanded = false },
+    }
+
+    if (sheetOpen) {
+        ModalBottomSheet(
+            onDismissRequest = { sheetOpen = false },
+            sheetState = sheetState,
         ) {
-            DropdownMenuItem(
-                text = { Text("(none)") },
-                onClick = { onSelect(null); expanded = false },
-            )
-            categories.forEach { c ->
-                DropdownMenuItem(
-                    text = { Text(c.localizedLabel()) },
-                    onClick = { onSelect(c.id); expanded = false },
+            Column(modifier = Modifier.fillMaxWidth()) {
+                Text(
+                    text = "Pick a category",
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                 )
+                androidx.compose.foundation.lazy.LazyColumn(modifier = Modifier.fillMaxWidth()) {
+                    item {
+                        ListItem(
+                            headlineContent = { Text("(none)") },
+                            modifier = Modifier.clickable {
+                                onSelect(null); sheetOpen = false
+                            },
+                        )
+                    }
+                    items(categories.size) { i ->
+                        val c = categories[i]
+                        ListItem(
+                            headlineContent = { Text(c.localizedLabel()) },
+                            modifier = Modifier.clickable {
+                                onSelect(c.id); sheetOpen = false
+                            },
+                        )
+                    }
+                }
             }
         }
     }
