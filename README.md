@@ -1,9 +1,13 @@
 # Storehop
 
-A native Android shopping-list app for shoppers in Portugal. One master
-list of items is tagged across multiple stores. Marking an item as
-purchased at one store removes it from every store's list, and each
-store's view groups items by that store's specific aisle order.
+A native Android shopping-list app. One master list of items is tagged
+across multiple stores. Marking an item as purchased at one store
+removes it from every store's list, and each store's view groups items
+by that store's specific aisle order.
+
+The app ships with a starter set of stores and categories. Anything not
+on that list (a regional chain, a one-off shop, a category for a
+specific household) is added or renamed by the user.
 
 ## Status
 
