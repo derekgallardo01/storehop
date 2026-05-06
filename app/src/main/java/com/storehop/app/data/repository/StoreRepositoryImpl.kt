@@ -32,31 +32,55 @@ class StoreRepositoryImpl @Inject constructor(
         val trimmed = name.trim()
         require(trimmed.isNotEmpty()) { "Store name cannot be empty" }
         val userId = session.currentUserId()
-        // The (userId, name) unique index is enforced by the schema, but Room's
-        // @Upsert silently no-ops on a non-PK conflict (insert IGNOREs, then update
-        // by PK is a no-op for a fresh UUID). Detect the collision here so the
-        // caller gets a clear error instead of a UUID for a row that was never written.
-        // Wrapping in withTransaction closes the TOCTOU race between findByName and
-        // upsert -- two concurrent addStore calls with the same name now serialize.
-        require(dao.findByName(userId, trimmed) == null) {
-            "A store named \"$trimmed\" already exists"
-        }
         val now = clock.millis()
-        val id = ids.newId()
-        dao.upsert(
-            Store(
-                id = id,
-                name = trimmed,
-                colorArgb = colorArgb,
-                isArchived = false,
-                isSeeded = false,
-                userId = userId,
-                createdAt = now,
-                updatedAt = now,
-                deletedAt = null,
-            ),
-        )
-        id
+
+        // Three cases, all serialized inside the transaction:
+        //   1. No row at all          -> insert a new row with a fresh UUID.
+        //   2. Live row with same name -> reject as duplicate.
+        //   3. Tombstoned row with same name -> RESURRECT (clear deletedAt, refresh
+        //      colorArgb + updatedAt, return the original id). Re-using the id is
+        //      the right model for sync: other devices see the row come back to
+        //      life rather than appearing as a brand-new row that conflicts with
+        //      their own tombstone.
+        //
+        // Without this, the schema UNIQUE(userId, name) index blocks the insert
+        // forever once a name is tombstoned -- @Upsert silently no-ops and
+        // addStore would return a UUID for a row that was never written.
+        val existing = dao.findAnyByName(userId, trimmed)
+        when {
+            existing == null -> {
+                val id = ids.newId()
+                dao.upsert(
+                    Store(
+                        id = id,
+                        name = trimmed,
+                        colorArgb = colorArgb,
+                        isArchived = false,
+                        isSeeded = false,
+                        userId = userId,
+                        createdAt = now,
+                        updatedAt = now,
+                        deletedAt = null,
+                    ),
+                )
+                id
+            }
+            existing.deletedAt == null -> {
+                throw IllegalArgumentException("A store named \"$trimmed\" already exists")
+            }
+            else -> {
+                // Resurrect.
+                dao.upsert(
+                    existing.copy(
+                        colorArgb = colorArgb,
+                        isArchived = false,
+                        deletedAt = null,
+                        updatedAt = now,
+                    ),
+                )
+                existing.id
+            }
+        }
     }
 
     override suspend fun rename(id: String, name: String) {

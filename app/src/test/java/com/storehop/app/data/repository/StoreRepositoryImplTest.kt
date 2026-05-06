@@ -92,6 +92,34 @@ class StoreRepositoryImplTest {
             .contains("store_lidl")
     }
 
+    @Test fun `addStore resurrects a previously soft-deleted store with the same name (preserves id for sync)`() = runTest {
+        repo.softDelete("store_lidl")
+        // Resurrection path: addStore returns the ORIGINAL id, not a fresh UUID.
+        // Re-using the id is correct for sync semantics (other devices see the
+        // tombstone clear, not a delete-and-create which would conflict with
+        // their own tombstones).
+        val resurrectedId = repo.addStore("Lidl", colorArgb = 0xFF112233.toInt())
+        assertThat(resurrectedId).isEqualTo("store_lidl")
+
+        val live = repo.observeAll(includeArchived = false).first()
+            .filter { it.name == "Lidl" }
+        assertThat(live).hasSize(1)
+        // The resurrected row keeps its seeded provenance (it's still the seeded
+        // Lidl, just temporarily deleted then restored), and picks up the new color.
+        assertThat(live.single().id).isEqualTo("store_lidl")
+        assertThat(live.single().isSeeded).isTrue()
+        assertThat(live.single().colorArgb).isEqualTo(0xFF112233.toInt())
+        assertThat(live.single().deletedAt).isNull()
+    }
+
+    @Test fun `addStore still rejects a duplicate when the existing row is live (not tombstoned)`() {
+        // Sanity-check that the resurrection path doesn't accidentally also resurrect
+        // live rows -- the live-duplicate behavior must still throw.
+        assertThrows(IllegalArgumentException::class.java) {
+            kotlinx.coroutines.runBlocking { repo.addStore("Lidl", colorArgb = null) }
+        }
+    }
+
     @Test fun `concurrent addStore with the same name only succeeds once`() = runTest {
         // Without withTransaction wrapping addStore, two coroutines could both pass
         // findByName == null and then upsert, with the second silently no-opping
@@ -99,7 +127,7 @@ class StoreRepositoryImplTest {
         // withTransaction serializes the read+write so the second call sees the
         // first's row and the require() check throws. Stress this:
         val results: List<Result<String>> = coroutineScope {
-            val deferreds: List<Deferred<Result<String>>> = (0 until 8).map {
+            val deferreds: List<Deferred<Result<String>>> = (0 until 100).map {
                 async(Dispatchers.Default) {
                     runCatching { repo.addStore("RaceStore", colorArgb = null) }
                 }
@@ -109,9 +137,10 @@ class StoreRepositoryImplTest {
         val successes = results.count { it.isSuccess }
         val failures = results.count { it.isFailure }
 
+        // Octa-check bumped from 8 to 100 to make sure the lock truly serializes
+        // under realistic contention rather than just a small lucky window.
         assertThat(successes).isEqualTo(1)
-        assertThat(failures).isEqualTo(7)
-        // And only one row in the DB.
+        assertThat(failures).isEqualTo(99)
         val ours = repo.observeAll(includeArchived = false).first()
             .filter { it.name == "RaceStore" }
         assertThat(ours).hasSize(1)

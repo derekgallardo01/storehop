@@ -37,6 +37,17 @@ interface CategoryDao {
     )
     suspend fun findByName(userId: String, name: String): Category?
 
+    /** Mirror of StoreDao.findAnyByName -- includes tombstones for the resurrect-on-re-add path. */
+    @Query(
+        """
+        SELECT * FROM categories
+        WHERE userId = :userId
+          AND name = :name COLLATE NOCASE
+        LIMIT 1
+        """,
+    )
+    suspend fun findAnyByName(userId: String, name: String): Category?
+
     @Upsert
     suspend fun upsert(category: Category)
 

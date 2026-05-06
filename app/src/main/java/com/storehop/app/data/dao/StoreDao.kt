@@ -45,6 +45,23 @@ interface StoreDao {
     )
     suspend fun findByName(userId: String, name: String): Store?
 
+    /**
+     * Like [findByName] but does NOT filter out tombstones. Used by the
+     * resurrect-on-re-add path: when a user soft-deletes "Lidl" and then
+     * tries to add a new "Lidl", the schema-level UNIQUE(userId, name) index
+     * blocks the insert (tombstones still occupy the index slot), so the
+     * repository looks the tombstoned row up here and revives it instead.
+     */
+    @Query(
+        """
+        SELECT * FROM stores
+        WHERE userId = :userId
+          AND name = :name COLLATE NOCASE
+        LIMIT 1
+        """,
+    )
+    suspend fun findAnyByName(userId: String, name: String): Store?
+
     @Upsert
     suspend fun upsert(store: Store)
 

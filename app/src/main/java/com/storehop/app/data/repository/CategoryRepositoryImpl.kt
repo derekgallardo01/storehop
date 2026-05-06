@@ -29,29 +29,45 @@ class CategoryRepositoryImpl @Inject constructor(
         val trimmed = name.trim()
         require(trimmed.isNotEmpty()) { "Category name cannot be empty" }
         val userId = session.currentUserId()
-        // See StoreRepositoryImpl.addStore for the rationale on detecting duplicates
-        // here AND wrapping in withTransaction (closes a TOCTOU race that would let
-        // two concurrent addCategory calls with the same name both pass the check).
-        require(dao.findByName(userId, trimmed) == null) {
-            "A category named \"$trimmed\" already exists"
-        }
         val now = clock.millis()
-        val id = ids.newId()
-        dao.upsert(
-            Category(
-                id = id,
-                name = trimmed,
-                nameKey = null,
-                icon = icon,
-                isArchived = false,
-                isSeeded = false,
-                userId = userId,
-                createdAt = now,
-                updatedAt = now,
-                deletedAt = null,
-            ),
-        )
-        id
+
+        // Same three-case shape as StoreRepositoryImpl.addStore -- see the
+        // commentary there for the full rationale on resurrection.
+        val existing = dao.findAnyByName(userId, trimmed)
+        when {
+            existing == null -> {
+                val id = ids.newId()
+                dao.upsert(
+                    Category(
+                        id = id,
+                        name = trimmed,
+                        nameKey = null,
+                        icon = icon,
+                        isArchived = false,
+                        isSeeded = false,
+                        userId = userId,
+                        createdAt = now,
+                        updatedAt = now,
+                        deletedAt = null,
+                    ),
+                )
+                id
+            }
+            existing.deletedAt == null -> {
+                throw IllegalArgumentException("A category named \"$trimmed\" already exists")
+            }
+            else -> {
+                dao.upsert(
+                    existing.copy(
+                        icon = icon ?: existing.icon,
+                        isArchived = false,
+                        deletedAt = null,
+                        updatedAt = now,
+                    ),
+                )
+                existing.id
+            }
+        }
     }
 
     override suspend fun rename(id: String, name: String) {

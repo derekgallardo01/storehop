@@ -97,6 +97,20 @@ class CategoryRepositoryImplTest {
         assertThat(producesScosAfter).isEqualTo(0)
     }
 
+    @Test fun `addCategory resurrects a previously soft-deleted category with the same name`() = runTest {
+        repo.softDelete("cat_produce")
+        val resurrectedId = repo.addCategory(name = "Produce", icon = null)
+        assertThat(resurrectedId).isEqualTo("cat_produce")
+
+        val live = repo.observeAll(includeArchived = false).first()
+            .filter { it.name == "Produce" }
+        assertThat(live).hasSize(1)
+        assertThat(live.single().id).isEqualTo("cat_produce")
+        // Keeps its seeded provenance (still the same row, just resurrected).
+        assertThat(live.single().isSeeded).isTrue()
+        assertThat(live.single().deletedAt).isNull()
+    }
+
     @Test fun `setArchived and softDelete are no-ops for categories the session does not own`() = runTest {
         val otherRepo = CategoryRepositoryImpl(
             db = db,
