@@ -49,6 +49,10 @@ class ItemRepositoryImpl @Inject constructor(
         quantity: String?,
         notes: String?,
         isNeeded: Boolean,
+        brand: String?,
+        imageUrl: String?,
+        isStaple: Boolean,
+        isPriority: Boolean,
     ): String = db.withTransaction {
         val userId = requireSignedIn()
         val now = clock.millis()
@@ -66,6 +70,10 @@ class ItemRepositoryImpl @Inject constructor(
                 createdAt = now,
                 updatedAt = now,
                 deletedAt = null,
+                brand = brand?.trim()?.takeIf { it.isNotEmpty() },
+                imageUrl = imageUrl,
+                isStaple = isStaple,
+                isPriority = isPriority,
             ),
         )
         // Junction inherits userId from the parent we just wrote — ownership invariant.
@@ -80,6 +88,10 @@ class ItemRepositoryImpl @Inject constructor(
         storeIds: Set<String>,
         quantity: String?,
         notes: String?,
+        brand: String?,
+        imageUrl: String?,
+        isStaple: Boolean,
+        isPriority: Boolean,
     ) = db.withTransaction {
         val userId = requireSignedIn()
         val now = clock.millis()
@@ -92,6 +104,10 @@ class ItemRepositoryImpl @Inject constructor(
                 categoryId = categoryId,
                 quantity = quantity?.trim()?.takeIf { it.isNotEmpty() },
                 notes = notes?.trim()?.takeIf { it.isNotEmpty() },
+                brand = brand?.trim()?.takeIf { it.isNotEmpty() },
+                imageUrl = imageUrl,
+                isStaple = isStaple,
+                isPriority = isPriority,
                 updatedAt = now,
                 pendingSync = true,
             ),

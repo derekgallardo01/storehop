@@ -16,6 +16,10 @@ interface ItemRepository {
         quantity: String? = null,
         notes: String? = null,
         isNeeded: Boolean = true,
+        brand: String? = null,
+        imageUrl: String? = null,
+        isStaple: Boolean = false,
+        isPriority: Boolean = false,
     ): String
 
     suspend fun updateItem(
@@ -25,6 +29,10 @@ interface ItemRepository {
         storeIds: Set<String>,
         quantity: String?,
         notes: String?,
+        brand: String? = null,
+        imageUrl: String? = null,
+        isStaple: Boolean = false,
+        isPriority: Boolean = false,
     )
 
     suspend fun softDelete(id: String)

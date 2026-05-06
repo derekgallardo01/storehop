@@ -31,9 +31,12 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.google.firebase.auth.FirebaseAuth
 import com.storehop.app.data.util.UserSessionProvider
+import com.storehop.app.ui.items.ItemFormScreen
 import com.storehop.app.ui.items.ItemsListScreen
 import com.storehop.app.ui.nav.Routes
 import com.storehop.app.ui.shop.StorePickerScreen
+import androidx.navigation.NavType
+import androidx.navigation.navArgument
 import com.storehop.app.ui.theme.StorehopTheme
 import dagger.hilt.android.AndroidEntryPoint
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -136,16 +139,20 @@ private fun SignedInRoot() {
                 }
             }
 
-            composable(Routes.ITEMS) { ItemsListScreen() }
-            composable(Routes.ITEM_ADD) {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text("Add Item (M2.1)")
-                }
+            composable(Routes.ITEMS) {
+                ItemsListScreen(
+                    onAddItem = { navController.navigate(Routes.ITEM_ADD) },
+                    onEditItem = { id -> navController.navigate(Routes.itemEdit(id)) },
+                )
             }
-            composable(Routes.ITEM_EDIT) {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text("Edit Item (M2.1)")
-                }
+            composable(Routes.ITEM_ADD) {
+                ItemFormScreen(onBack = { navController.popBackStack() })
+            }
+            composable(
+                route = Routes.ITEM_EDIT,
+                arguments = listOf(navArgument("itemId") { type = NavType.StringType }),
+            ) {
+                ItemFormScreen(onBack = { navController.popBackStack() })
             }
         }
     }
