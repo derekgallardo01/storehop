@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:tools="http://schemas.android.com/tools">
-    <string name="app_name">Storehop</string>
-    <string name="placeholder_screen_title">Storehop</string>
+    <string name="app_name">StoreHop</string>
+    <string name="placeholder_screen_title">StoreHop</string>
 
     <!-- Etiquetas das categorias pré-instaladas. -->
     <string name="cat_produce">Frutas e Legumes</string>

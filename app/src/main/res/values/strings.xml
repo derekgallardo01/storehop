@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Storehop</string>
-    <string name="placeholder_screen_title">Storehop</string>
+    <string name="app_name">StoreHop</string>
+    <string name="placeholder_screen_title">StoreHop</string>
 
     <!-- Seeded category labels — keys match Category.nameKey for seeded rows. -->
     <string name="cat_produce">Produce</string>
