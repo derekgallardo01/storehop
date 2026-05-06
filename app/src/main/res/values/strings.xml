@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Storehop</string>
+    <string name="placeholder_screen_title">Storehop</string>
+
+    <!-- Seeded category labels — keys match Category.nameKey for seeded rows. -->
+    <string name="cat_produce">Produce</string>
+    <string name="cat_bakery">Bakery</string>
+    <string name="cat_dairy_eggs">Dairy &amp; Eggs</string>
+    <string name="cat_meat_fish">Meat &amp; Fish</string>
+    <string name="cat_frozen">Frozen</string>
+    <string name="cat_pantry">Pantry</string>
+    <string name="cat_snacks">Snacks</string>
+    <string name="cat_beverages">Beverages</string>
+    <string name="cat_alcohol">Alcohol</string>
+    <string name="cat_household">Household &amp; Cleaning</string>
+    <string name="cat_personal_care">Personal Care</string>
+    <string name="cat_pharmacy">Pharmacy</string>
+    <string name="cat_baby">Baby</string>
+    <string name="cat_pet">Pet</string>
+    <string name="cat_hardware">Hardware &amp; DIY</string>
+    <string name="cat_garden">Garden</string>
+    <string name="cat_home_decor">Home &amp; Decor</string>
+    <string name="cat_electronics">Electronics</string>
+    <string name="cat_stationery">Stationery</string>
+    <string name="cat_clothing">Clothing</string>
+    <string name="cat_other">Other</string>
+</resources>

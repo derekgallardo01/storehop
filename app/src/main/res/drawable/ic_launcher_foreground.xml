@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Placeholder mark: a simple sage shopping bag silhouette centered in the safe zone.
+         Replace with a real adaptive-icon foreground in the branding milestone. -->
+    <path
+        android:fillColor="#5A7A5C"
+        android:pathData="M40,38 L40,34 A14,14 0 0 1 68,34 L68,38 L78,38 L78,76 A4,4 0 0 1 74,80 L34,80 A4,4 0 0 1 30,76 L30,38 Z M46,38 L62,38 L62,34 A8,8 0 0 0 46,34 Z" />
+</vector>

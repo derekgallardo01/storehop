@@ -1,0 +1,40 @@
+# Gradle
+.gradle/
+build/
+**/build/
+!**/src/**/build/
+
+# IDE
+.idea/
+*.iml
+.vscode/
+local.properties
+
+# Android
+captures/
+.externalNativeBuild/
+.cxx/
+*.apk
+*.aab
+*.ap_
+*.dex
+*.class
+
+# Kotlin
+*.hprof
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Schema export — keep tracked so migrations are reviewable
+!app/schemas/
+
+# Firebase config (added in later milestone, must never auto-commit)
+app/google-services.json
+
+# Wrapper jar — bootstrap with `gradle wrapper` or Android Studio sync
+gradle/wrapper/gradle-wrapper.jar

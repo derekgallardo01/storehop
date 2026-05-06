@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Storehop</string>
+    <string name="placeholder_screen_title">Storehop</string>
+
+    <!-- Etiquetas das categorias pré-instaladas. -->
+    <string name="cat_produce">Frutas e Legumes</string>
+    <string name="cat_bakery">Padaria</string>
+    <string name="cat_dairy_eggs">Lacticínios e Ovos</string>
+    <string name="cat_meat_fish">Carne e Peixe</string>
+    <string name="cat_frozen">Congelados</string>
+    <string name="cat_pantry">Mercearia</string>
+    <string name="cat_snacks">Aperitivos</string>
+    <string name="cat_beverages">Bebidas</string>
+    <string name="cat_alcohol">Bebidas Alcoólicas</string>
+    <string name="cat_household">Casa e Limpeza</string>
+    <string name="cat_personal_care">Higiene Pessoal</string>
+    <string name="cat_pharmacy">Farmácia</string>
+    <string name="cat_baby">Bebé</string>
+    <string name="cat_pet">Animais</string>
+    <string name="cat_hardware">Bricolage</string>
+    <string name="cat_garden">Jardim</string>
+    <string name="cat_home_decor">Casa e Decoração</string>
+    <string name="cat_electronics">Eletrónica</string>
+    <string name="cat_stationery">Papelaria</string>
+    <string name="cat_clothing">Vestuário</string>
+    <string name="cat_other">Outros</string>
+</resources>
