@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Tells R8 to keep all `cat_*` string resources even though static analysis
+    can't see any references to them. CategoryLabel.localizedLabel() looks them
+    up dynamically via Resources.getIdentifier(name, "string", packageName), so
+    without this keep rule R8 would tree-shake them in the release build and
+    pt-PT category labels would silently fall back to the fallback English
+    `name` field on every Category row.
+-->
+<resources xmlns:tools="http://schemas.android.com/tools"
+    tools:keep="@string/cat_*" />
