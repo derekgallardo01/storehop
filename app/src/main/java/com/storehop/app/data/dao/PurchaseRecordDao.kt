@@ -10,7 +10,9 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 interface PurchaseRecordDao {
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    // ABORT (not REPLACE): UUIDs don't collide in normal use, so a duplicate
+    // PK indicates a real bug — surface it instead of silently overwriting.
+    @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insert(record: PurchaseRecord)
 
     @Query(

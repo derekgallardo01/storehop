@@ -78,6 +78,35 @@ class ShoppingDaoTest {
         }
     }
 
+    @Test fun `the query is scoped by userId on both items and item_store_xref`() = runTest {
+        // Insert another user's item tagged to the same store and confirm it's invisible.
+        runBlockingDb {
+            db.itemDao().upsert(
+                com.storehop.app.data.entity.Item(
+                    id = "their_milk", name = "OtherMilk", categoryId = "cat_dairy_eggs",
+                    notes = null, quantity = null, isNeeded = true, lastPurchasedAt = null,
+                    userId = "other-user", createdAt = 1L, updatedAt = 1L, deletedAt = null,
+                ),
+            )
+            db.itemStoreXrefDao().upsert(
+                com.storehop.app.data.entity.ItemStoreXref(
+                    itemId = "their_milk", storeId = "store_lidl", userId = "other-user",
+                    createdAt = 1L, updatedAt = 1L, deletedAt = null,
+                ),
+            )
+        }
+        db.shoppingDao().shoppingListForStore(TEST_USER_ID, "store_lidl").test {
+            val names = awaitItem().map { it.itemName }
+            assertThat(names).doesNotContain("OtherMilk")
+            cancelAndIgnoreRemainingEvents()
+        }
+        // And the other user only sees their own item.
+        db.shoppingDao().shoppingListForStore("other-user", "store_lidl").test {
+            assertThat(awaitItem().map { it.itemName }).containsExactly("OtherMilk")
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
     private fun seedFixture() {
         // Two stores, two categories, two items per category, both items tagged to both stores.
         // Lidl puts Produce in aisle 0, Dairy in aisle 1. Continente flips them.

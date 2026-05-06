@@ -32,8 +32,13 @@ interface ItemDao {
     fun observeNeeded(userId: String): Flow<List<Item>>
 
     @Transaction
-    @Query("SELECT * FROM items WHERE id = :id AND deletedAt IS NULL")
-    fun observeById(id: String): Flow<ItemWithCategoryAndStores?>
+    @Query(
+        """
+        SELECT * FROM items
+        WHERE id = :id AND userId = :userId AND deletedAt IS NULL
+        """,
+    )
+    fun observeById(userId: String, id: String): Flow<ItemWithCategoryAndStores?>
 
     @Upsert
     suspend fun upsert(item: Item)

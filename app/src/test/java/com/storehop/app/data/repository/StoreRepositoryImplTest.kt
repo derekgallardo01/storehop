@@ -1,0 +1,86 @@
+package com.storehop.app.data.repository
+
+import com.google.common.truth.Truth.assertThat
+import com.storehop.app.data.db.StorehopDatabase
+import com.storehop.app.data.util.IdGenerator
+import com.storehop.app.data.util.UserSessionProvider
+import com.storehop.app.testing.TEST_USER_ID
+import com.storehop.app.testing.createTestDb
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.test.runTest
+import org.junit.After
+import org.junit.Assert.assertThrows
+import org.junit.Before
+import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import java.time.Clock
+import java.time.Instant
+import java.time.ZoneOffset
+import java.util.UUID
+
+@RunWith(RobolectricTestRunner::class)
+class StoreRepositoryImplTest {
+
+    private lateinit var db: StorehopDatabase
+    private lateinit var repo: StoreRepositoryImpl
+
+    @Before fun setup() {
+        // Seeded so the test can attempt to add a store with the same name as a seeded one.
+        db = createTestDb(seeded = true)
+        repo = StoreRepositoryImpl(
+            dao = db.storeDao(),
+            ids = object : IdGenerator { override fun newId(): String = UUID.randomUUID().toString() },
+            clock = Clock.fixed(Instant.ofEpochMilli(50_000L), ZoneOffset.UTC),
+            session = object : UserSessionProvider {
+                // Same sentinel as the seed pack so the unique-(userId,name) index applies.
+                override fun currentUserId(): String = "local-only"
+            },
+        )
+    }
+
+    @After fun tearDown() { db.close() }
+
+    @Test fun `addStore appends a user store alongside the seeded ones`() = runTest {
+        repo.addStore("Mercadona", colorArgb = null)
+        val all = repo.observeAll(includeArchived = false).first()
+        // 14 seeded + 1 user = 15.
+        assertThat(all).hasSize(15)
+        val mercadona = all.single { it.name == "Mercadona" }
+        assertThat(mercadona.isSeeded).isFalse()
+    }
+
+    @Test fun `addStore rejects a duplicate name (case-insensitive) with IllegalArgumentException`() {
+        // Room's @Upsert silently no-ops on a non-PK unique-index conflict, so
+        // StoreRepositoryImpl detects the collision explicitly. This test pins
+        // that contract: same name as a seeded store, mixed case, both rejected.
+        assertThrows(IllegalArgumentException::class.java) {
+            kotlinx.coroutines.runBlocking { repo.addStore("Lidl", colorArgb = null) }
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            kotlinx.coroutines.runBlocking { repo.addStore("lidl", colorArgb = null) }
+        }
+        // No phantom row was created.
+        kotlinx.coroutines.runBlocking {
+            val all = repo.observeAll(includeArchived = false).first()
+            assertThat(all.count { it.name.equals("Lidl", ignoreCase = true) }).isEqualTo(1)
+        }
+    }
+
+    @Test fun `addStore rejects an empty or whitespace-only name`() {
+        assertThrows(IllegalArgumentException::class.java) {
+            kotlinx.coroutines.runBlocking { repo.addStore("", colorArgb = null) }
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            kotlinx.coroutines.runBlocking { repo.addStore("   ", colorArgb = null) }
+        }
+    }
+
+    @Test fun `archived seeded store is excluded from observeAll(false) and listed by observeAll(true)`() = runTest {
+        repo.setArchived("store_lidl", archived = true)
+        assertThat(repo.observeAll(includeArchived = false).first().map { it.id })
+            .doesNotContain("store_lidl")
+        assertThat(repo.observeAll(includeArchived = true).first().map { it.id })
+            .contains("store_lidl")
+    }
+}

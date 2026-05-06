@@ -19,17 +19,25 @@ class CategoryRepositoryImpl @Inject constructor(
         dao.observeAll(session.currentUserId(), includeArchived)
 
     override suspend fun addCategory(name: String, icon: String?): String {
+        val trimmed = name.trim()
+        require(trimmed.isNotEmpty()) { "Category name cannot be empty" }
+        val userId = session.currentUserId()
+        // Same rationale as StoreRepositoryImpl.addStore — Room's @Upsert silently
+        // no-ops on the non-PK (userId, name) unique-index conflict, so detect it here.
+        require(dao.findByName(userId, trimmed) == null) {
+            "A category named \"$trimmed\" already exists"
+        }
         val now = clock.millis()
         val id = ids.newId()
         dao.upsert(
             Category(
                 id = id,
-                name = name.trim(),
+                name = trimmed,
                 nameKey = null,
                 icon = icon,
                 isArchived = false,
                 isSeeded = false,
-                userId = session.currentUserId(),
+                userId = userId,
                 createdAt = now,
                 updatedAt = now,
                 deletedAt = null,
@@ -39,7 +47,7 @@ class CategoryRepositoryImpl @Inject constructor(
     }
 
     override suspend fun rename(id: String, name: String) {
-        val current = dao.findById(id) ?: return
+        val current = dao.findById(session.currentUserId(), id) ?: return
         dao.upsert(current.copy(name = name.trim(), updatedAt = clock.millis()))
     }
 

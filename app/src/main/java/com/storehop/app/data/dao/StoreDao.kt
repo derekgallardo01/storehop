@@ -19,11 +19,31 @@ interface StoreDao {
     )
     fun observeAll(userId: String, includeArchived: Boolean): Flow<List<Store>>
 
-    @Query("SELECT * FROM stores WHERE id = :id AND deletedAt IS NULL")
-    fun observeById(id: String): Flow<Store?>
+    @Query(
+        """
+        SELECT * FROM stores
+        WHERE id = :id AND userId = :userId AND deletedAt IS NULL
+        """,
+    )
+    fun observeById(userId: String, id: String): Flow<Store?>
 
-    @Query("SELECT * FROM stores WHERE id = :id AND deletedAt IS NULL")
-    suspend fun findById(id: String): Store?
+    @Query(
+        """
+        SELECT * FROM stores
+        WHERE id = :id AND userId = :userId AND deletedAt IS NULL
+        """,
+    )
+    suspend fun findById(userId: String, id: String): Store?
+
+    @Query(
+        """
+        SELECT * FROM stores
+        WHERE userId = :userId AND deletedAt IS NULL
+          AND name = :name COLLATE NOCASE
+        LIMIT 1
+        """,
+    )
+    suspend fun findByName(userId: String, name: String): Store?
 
     @Upsert
     suspend fun upsert(store: Store)

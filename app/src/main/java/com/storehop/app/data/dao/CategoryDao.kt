@@ -19,8 +19,23 @@ interface CategoryDao {
     )
     fun observeAll(userId: String, includeArchived: Boolean): Flow<List<Category>>
 
-    @Query("SELECT * FROM categories WHERE id = :id AND deletedAt IS NULL")
-    suspend fun findById(id: String): Category?
+    @Query(
+        """
+        SELECT * FROM categories
+        WHERE id = :id AND userId = :userId AND deletedAt IS NULL
+        """,
+    )
+    suspend fun findById(userId: String, id: String): Category?
+
+    @Query(
+        """
+        SELECT * FROM categories
+        WHERE userId = :userId AND deletedAt IS NULL
+          AND name = :name COLLATE NOCASE
+        LIMIT 1
+        """,
+    )
+    suspend fun findByName(userId: String, name: String): Category?
 
     @Upsert
     suspend fun upsert(category: Category)

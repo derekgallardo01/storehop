@@ -36,6 +36,7 @@ class ItemRepositoryImplTest {
     @Before fun setup() {
         db = createTestDb(seeded = false)
         repo = ItemRepositoryImpl(
+            db = db,
             itemDao = db.itemDao(),
             xrefDao = db.itemStoreXrefDao(),
             purchaseRecordDao = db.purchaseRecordDao(),
@@ -116,6 +117,72 @@ class ItemRepositoryImplTest {
         assertThat(records.map { it.storeId }.toSet())
             .containsExactly("store_lidl", "store_continente")
         assertThat(records.map { it.userId }.toSet()).containsExactly(TEST_USER_ID)
+    }
+
+    @Test fun `updateItem replaces store set and new xrefs inherit the parent item's userId`() = runTest {
+        val itemId = repo.addItem(
+            name = "Milk", categoryId = null,
+            storeIds = setOf("store_lidl"),
+            quantity = null, notes = null,
+        )
+
+        // Simulate a session change between create and update — this is the exact bug
+        // the audit caught: previously the new xrefs would be stamped with the LIVE
+        // session userId rather than the parent item's userId, breaking the cross-table
+        // ownership invariant.
+        session.userId = OTHER_USER_ID
+
+        repo.updateItem(
+            id = itemId,
+            name = "Milk 2L",
+            categoryId = null,
+            storeIds = setOf("store_lidl", "store_continente"),
+            quantity = "2L",
+            notes = null,
+        )
+
+        // updateItem still resolves the row by the live session, so it should be a
+        // no-op for the OTHER_USER session: assert the item is untouched and no new
+        // xrefs were written.
+        val xrefsAfterOtherSession = db.itemStoreXrefDao().findForItem(itemId)
+        assertThat(xrefsAfterOtherSession.map { it.storeId }.toSet())
+            .containsExactly("store_lidl")
+
+        // Switch back to the original owner and update again.
+        session.userId = TEST_USER_ID
+        repo.updateItem(
+            id = itemId,
+            name = "Milk 2L",
+            categoryId = null,
+            storeIds = setOf("store_lidl", "store_continente"),
+            quantity = "2L",
+            notes = null,
+        )
+
+        val xrefs = db.itemStoreXrefDao().findForItem(itemId)
+        assertThat(xrefs.map { it.storeId }.toSet())
+            .containsExactly("store_lidl", "store_continente")
+        // All xrefs carry the parent's userId — never the live session's.
+        assertThat(xrefs.map { it.userId }.toSet()).containsExactly(TEST_USER_ID)
+    }
+
+    @Test fun `markPurchased PurchaseRecords carry the parent's userId, not the session's`() = runTest {
+        val itemId = repo.addItem(
+            name = "Milk", categoryId = null,
+            storeIds = setOf("store_lidl"),
+            quantity = null, notes = null,
+        )
+        // Session changes — markPurchased should still no-op for the wrong session
+        // and, when called as the right user, source userId from the parent row.
+        session.userId = OTHER_USER_ID
+        repo.markPurchased(itemId)
+        assertThat(db.purchaseRecordDao().observeForItem(itemId).first()).isEmpty()
+
+        session.userId = TEST_USER_ID
+        repo.markPurchased(itemId)
+        val records = db.purchaseRecordDao().observeForItem(itemId).first()
+        assertThat(records).hasSize(1)
+        assertThat(records.single().userId).isEqualTo(TEST_USER_ID)
     }
 
     private class StubSession(var userId: String) : UserSessionProvider {

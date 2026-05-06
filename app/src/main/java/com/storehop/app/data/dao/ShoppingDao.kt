@@ -30,7 +30,9 @@ interface ShoppingDao {
                sco.displayOrder AS displayOrder
         FROM items i
         INNER JOIN item_store_xref isx
-               ON isx.itemId = i.id AND isx.deletedAt IS NULL
+               ON isx.itemId = i.id
+              AND isx.userId = :userId
+              AND isx.deletedAt IS NULL
         LEFT  JOIN categories c
                ON c.id = i.categoryId AND c.deletedAt IS NULL
         LEFT  JOIN store_category_order sco

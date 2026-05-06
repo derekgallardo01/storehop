@@ -18,19 +18,30 @@ class StoreRepositoryImpl @Inject constructor(
     override fun observeAll(includeArchived: Boolean): Flow<List<Store>> =
         dao.observeAll(session.currentUserId(), includeArchived)
 
-    override fun observeById(id: String): Flow<Store?> = dao.observeById(id)
+    override fun observeById(id: String): Flow<Store?> =
+        dao.observeById(session.currentUserId(), id)
 
     override suspend fun addStore(name: String, colorArgb: Int?): String {
+        val trimmed = name.trim()
+        require(trimmed.isNotEmpty()) { "Store name cannot be empty" }
+        val userId = session.currentUserId()
+        // The (userId, name) unique index is enforced by the schema, but Room's
+        // @Upsert silently no-ops on a non-PK conflict (insert IGNOREs, then update
+        // by PK is a no-op for a fresh UUID). Detect the collision here so the
+        // caller gets a clear error instead of a UUID for a row that was never written.
+        require(dao.findByName(userId, trimmed) == null) {
+            "A store named \"$trimmed\" already exists"
+        }
         val now = clock.millis()
         val id = ids.newId()
         dao.upsert(
             Store(
                 id = id,
-                name = name.trim(),
+                name = trimmed,
                 colorArgb = colorArgb,
                 isArchived = false,
                 isSeeded = false,
-                userId = session.currentUserId(),
+                userId = userId,
                 createdAt = now,
                 updatedAt = now,
                 deletedAt = null,
@@ -40,12 +51,12 @@ class StoreRepositoryImpl @Inject constructor(
     }
 
     override suspend fun rename(id: String, name: String) {
-        val current = dao.findById(id) ?: return
+        val current = dao.findById(session.currentUserId(), id) ?: return
         dao.upsert(current.copy(name = name.trim(), updatedAt = clock.millis()))
     }
 
     override suspend fun setColor(id: String, colorArgb: Int?) {
-        val current = dao.findById(id) ?: return
+        val current = dao.findById(session.currentUserId(), id) ?: return
         dao.upsert(current.copy(colorArgb = colorArgb, updatedAt = clock.millis()))
     }
 
