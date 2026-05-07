@@ -25,22 +25,26 @@ class ShoppingRepositoryImpl @Inject constructor(
             else dao.shoppingListForStore(uid, storeId, sessionStartMs)
         }
 
-    override fun observeStorePickerRows(): Flow<List<StorePickerRow>> =
+    override fun observeStorePickerRows(
+        sessionStartMs: Long,
+    ): Flow<List<StorePickerRow>> =
         session.userId.flatMapLatest { uid ->
             if (uid == null) {
                 flowOf(emptyList())
             } else {
                 combine(
                     storeDao.observeAll(uid, includeArchived = false),
-                    dao.observeNeededByStore(uid),
-                ) { stores, needed ->
-                    val byStore = needed.groupBy { it.storeId }
+                    dao.observeStorePickerItems(uid, sessionStartMs),
+                ) { stores, items ->
+                    val byStore = items.groupBy { it.storeId }
                     stores.map { store ->
-                        val items = byStore[store.id].orEmpty()
+                        val rows = byStore[store.id].orEmpty()
+                        val (needed, pickedUp) = rows.partition { it.isNeeded }
                         StorePickerRow(
                             store = store,
-                            neededCount = items.size,
-                            criticalItemNames = items
+                            neededCount = needed.size,
+                            pickedUpInSessionCount = pickedUp.size,
+                            criticalItemNames = needed
                                 .filter { it.isPriority }
                                 .map { it.itemName },
                         )

@@ -2,8 +2,8 @@ package com.storehop.app.data.dao
 
 import androidx.room.Dao
 import androidx.room.Query
-import com.storehop.app.data.db.relations.NeededItemAtStore
 import com.storehop.app.data.db.relations.ShoppingRow
+import com.storehop.app.data.db.relations.StorePickerItemRow
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -80,27 +80,41 @@ interface ShoppingDao {
     ): Flow<List<ShoppingRow>>
 
     /**
-     * Cross-store flat list of every item that is currently needed and tagged
-     * to ANY store. The Store Picker uses this to compute per-store needed
-     * counts and per-store priority badges in a single Flow rather than N+1.
+     * Cross-store flat list of every item that's currently relevant to a
+     * Store Picker badge: either still needed somewhere, OR purchased within
+     * the active shopping session (`lastPurchasedAt >= :sessionStartMs`).
+     * Lets the picker show "✓ All set" on a store where every needed item
+     * has been picked up this trip rather than the bland "Nothing needed,"
+     * AND keeps cross-store sync visible: an item bought at Lidl shows as
+     * picked-up on Aldi too if it was tagged at both.
      *
-     * Same join shape as [shoppingListForStore] minus the per-store filters.
+     * Same join shape as [shoppingListForStore] minus the per-store filter
+     * (we want every store the item touches). Includes `isNeeded` so the
+     * caller can split each store's rows into "still needed" vs
+     * "picked up" buckets without re-querying.
      */
     @Query(
         """
         SELECT isx.storeId  AS storeId,
                i.id         AS itemId,
                i.name       AS itemName,
-               i.isPriority AS isPriority
+               i.isPriority AS isPriority,
+               i.isNeeded   AS isNeeded
         FROM items i
         INNER JOIN item_store_xref isx
                ON isx.itemId = i.id
               AND isx.userId = :userId
               AND isx.deletedAt IS NULL
         WHERE i.deletedAt IS NULL
-          AND i.isNeeded = 1
           AND i.userId = :userId
+          AND (
+                i.isNeeded = 1
+             OR (i.lastPurchasedAt IS NOT NULL AND i.lastPurchasedAt >= :sessionStartMs)
+          )
         """,
     )
-    fun observeNeededByStore(userId: String): Flow<List<NeededItemAtStore>>
+    fun observeStorePickerItems(
+        userId: String,
+        sessionStartMs: Long,
+    ): Flow<List<StorePickerItemRow>>
 }

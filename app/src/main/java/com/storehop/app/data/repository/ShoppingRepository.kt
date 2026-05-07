@@ -12,6 +12,14 @@ data class StorePickerRow(
     val store: Store,
     val neededCount: Int,
     /**
+     * Items tagged to this store that the user has picked up within the
+     * active shopping session (whether the purchase happened here or at
+     * another store the item was also tagged to -- the cross-store sync
+     * point). Drives the "✓ All set" affirmation when a store had things
+     * to grab and they've all been grabbed.
+     */
+    val pickedUpInSessionCount: Int,
+    /**
      * Names of priority-flagged items currently needed at this store, in
      * insertion order. Empty if none. Drives the per-store "⚠ N critical"
      * badge AND the cross-store banner (caller dedupes across rows).
@@ -35,8 +43,10 @@ interface ShoppingRepository {
     fun shoppingListForStore(storeId: String, sessionStartMs: Long): Flow<List<ShoppingRow>>
 
     /**
-     * One row per live store with needed count + priority names. Drives the
-     * Store Picker home screen.
+     * One row per live store with needed count + session-picked-up count +
+     * priority names. Drives the Store Picker home screen. Caller passes in
+     * the session anchor (see ShoppingSessionTracker) so the rows reflect
+     * "what's relevant to this trip."
      */
-    fun observeStorePickerRows(): Flow<List<StorePickerRow>>
+    fun observeStorePickerRows(sessionStartMs: Long): Flow<List<StorePickerRow>>
 }

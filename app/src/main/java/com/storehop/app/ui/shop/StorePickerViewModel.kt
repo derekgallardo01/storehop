@@ -14,10 +14,20 @@ import javax.inject.Inject
 @HiltViewModel
 class StorePickerViewModel @Inject constructor(
     private val shoppingRepository: ShoppingRepository,
+    sessionTracker: ShoppingSessionTracker,
 ) : ViewModel() {
 
+    /**
+     * The picker anchors the trip on first view -- if the user opens the app
+     * and stares at the picker before tapping into a store, that's the start
+     * of their trip. Subsequent purchases (within the process) are gated
+     * against this same anchor so a non-staple bought at Lidl still surfaces
+     * an "✓ All set" badge on Aldi where it was also tagged.
+     */
+    private val sessionStartMs: Long = sessionTracker.sessionStartMs()
+
     val rows: StateFlow<List<StorePickerRow>> = shoppingRepository
-        .observeStorePickerRows()
+        .observeStorePickerRows(sessionStartMs)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000L), emptyList())
 
     /**

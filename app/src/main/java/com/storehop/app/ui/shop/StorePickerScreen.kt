@@ -145,11 +145,24 @@ private fun StorePickerCard(
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Medium,
                 )
+                val (subtitle, subtitleColor) = when {
+                    row.neededCount > 0 -> {
+                        val s = "${row.neededCount} item${if (row.neededCount == 1) "" else "s"} needed"
+                        s to MaterialTheme.colorScheme.onSurfaceVariant
+                    }
+                    // Trip-affirmation case: this store had things to grab and
+                    // they've all been grabbed (here or at another store this
+                    // item was tagged to). Sage primary so the user can scan
+                    // the picker and see at a glance which stops are done.
+                    row.pickedUpInSessionCount > 0 ->
+                        "✓ All set" to MaterialTheme.colorScheme.primary
+                    else ->
+                        "Nothing needed" to MaterialTheme.colorScheme.onSurfaceVariant
+                }
                 Text(
-                    text = if (row.neededCount == 0) "Nothing needed"
-                           else "${row.neededCount} item${if (row.neededCount == 1) "" else "s"} needed",
+                    text = subtitle,
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = subtitleColor,
                 )
             }
             if (row.criticalItemNames.isNotEmpty()) {
