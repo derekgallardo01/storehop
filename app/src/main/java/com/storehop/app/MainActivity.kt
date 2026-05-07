@@ -133,25 +133,13 @@ private fun SignedInRoot() {
             NavigationBar {
                 NavigationBarItem(
                     selected = Routes.isShopTabRoute(currentRoute),
-                    onClick = {
-                        navController.navigate(Routes.SHOP) {
-                            popUpTo(navController.graph.findStartDestination().id) { saveState = true }
-                            launchSingleTop = true
-                            restoreState = true
-                        }
-                    },
+                    onClick = { navigateToTab(navController, Routes.SHOP, currentRoute) },
                     icon = { Icon(Icons.Filled.Storefront, contentDescription = null) },
                     label = { Text(stringResource(R.string.nav_shop)) },
                 )
                 NavigationBarItem(
                     selected = Routes.isItemsTabRoute(currentRoute),
-                    onClick = {
-                        navController.navigate(Routes.ITEMS) {
-                            popUpTo(navController.graph.findStartDestination().id) { saveState = true }
-                            launchSingleTop = true
-                            restoreState = true
-                        }
-                    },
+                    onClick = { navigateToTab(navController, Routes.ITEMS, currentRoute) },
                     icon = { Icon(Icons.Filled.List, contentDescription = null) },
                     label = { Text(stringResource(R.string.nav_items)) },
                 )
@@ -197,5 +185,33 @@ private fun SignedInRoot() {
                 SettingsScreen(onBack = { navController.popBackStack() })
             }
         }
+    }
+}
+
+/**
+ * Bottom-nav tab navigation. Pre-pops Settings (the only non-tab peer
+ * destination) before the standard popUpTo+restoreState combo, because
+ * the canonical Material 3 bottom-nav pattern misbehaves when the
+ * current destination is a peer of the tabs rather than a child of one.
+ *
+ * The user-visible bug this fixes: from the Settings screen, tapping
+ * Items in the bottom nav sometimes landed on Shop instead of Items.
+ * Root cause was the popUpTo(startDestination)+restoreState combo
+ * leaving the chosen tab in an inconsistent state when the back stack
+ * had a non-tab destination on top. Explicitly popping Settings first
+ * makes the tab transition deterministic.
+ */
+private fun navigateToTab(
+    navController: androidx.navigation.NavController,
+    tabRoute: String,
+    currentRoute: String?,
+) {
+    if (currentRoute == Routes.SETTINGS) {
+        navController.popBackStack(Routes.SETTINGS, inclusive = true)
+    }
+    navController.navigate(tabRoute) {
+        popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+        launchSingleTop = true
+        restoreState = true
     }
 }
