@@ -57,6 +57,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -215,7 +216,7 @@ private fun AddStoreDialog(
 
     AlertDialog(
         onDismissRequest = { if (!saving) onDismiss() },
-        title = { Text("Add a store") },
+        title = { Text(stringResource(R.string.add_store_dialog_title)) },
         text = {
             OutlinedTextField(
                 value = name,
@@ -223,8 +224,8 @@ private fun AddStoreDialog(
                     name = it
                     error = null
                 },
-                label = { Text("Store name") },
-                placeholder = { Text("e.g. Local Butcher") },
+                label = { Text(stringResource(R.string.add_store_field_label)) },
+                placeholder = { Text(stringResource(R.string.add_store_field_placeholder)) },
                 singleLine = true,
                 isError = error != null,
                 supportingText = error?.let { { Text(it) } },
@@ -236,11 +237,13 @@ private fun AddStoreDialog(
                 onClick = { submit() },
                 enabled = name.isNotBlank() && !saving,
             ) {
-                Text(if (saving) "Adding…" else "Add")
+                Text(stringResource(if (saving) R.string.action_adding else R.string.action_add))
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss, enabled = !saving) { Text("Cancel") }
+            TextButton(onClick = onDismiss, enabled = !saving) {
+                Text(stringResource(R.string.action_cancel))
+            }
         },
     )
 }
@@ -265,7 +268,7 @@ private fun CriticalNeedsBanner(critical: List<String>) {
             Spacer(Modifier.width(12.dp))
             Column(modifier = Modifier.fillMaxWidth()) {
                 Text(
-                    text = "Critical items needed",
+                    text = stringResource(R.string.critical_needs_banner_title),
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.onPrimaryContainer,
@@ -334,7 +337,11 @@ private fun StorePickerCard(
                 )
                 val (subtitle, subtitleColor) = when {
                     row.neededCount > 0 -> {
-                        val s = "${row.neededCount} item${if (row.neededCount == 1) "" else "s"} needed"
+                        val s = pluralStringResource(
+                            R.plurals.store_items_needed,
+                            row.neededCount,
+                            row.neededCount,
+                        )
                         s to MaterialTheme.colorScheme.onSurfaceVariant
                     }
                     // Trip-affirmation case: this store had things to grab and
@@ -342,9 +349,9 @@ private fun StorePickerCard(
                     // item was tagged to). Sage primary so the user can scan
                     // the picker and see at a glance which stops are done.
                     row.pickedUpInSessionCount > 0 ->
-                        "✓ All set" to MaterialTheme.colorScheme.primary
+                        stringResource(R.string.store_all_set) to MaterialTheme.colorScheme.primary
                     else ->
-                        "Nothing needed" to MaterialTheme.colorScheme.onSurfaceVariant
+                        stringResource(R.string.store_nothing_needed) to MaterialTheme.colorScheme.onSurfaceVariant
                 }
                 Text(
                     text = subtitle,
@@ -357,7 +364,11 @@ private fun StorePickerCard(
                     onClick = onClick,
                     label = {
                         Text(
-                            text = "⚠ ${row.criticalItemNames.size} critical",
+                            text = pluralStringResource(
+                                R.plurals.store_critical_chip,
+                                row.criticalItemNames.size,
+                                row.criticalItemNames.size,
+                            ),
                             style = MaterialTheme.typography.labelMedium,
                         )
                     },
@@ -372,7 +383,7 @@ private fun StorePickerCard(
             // with the trailing actions; the rest of the row is tap = navigate.
             Icon(
                 Icons.Filled.DragIndicator,
-                contentDescription = "Drag to reorder",
+                contentDescription = stringResource(R.string.action_drag_to_reorder),
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = dragHandleModifier.size(20.dp),
             )
@@ -382,7 +393,7 @@ private fun StorePickerCard(
                 IconButton(onClick = { menuOpen = true }) {
                     Icon(
                         Icons.Filled.MoreVert,
-                        contentDescription = "Store options",
+                        contentDescription = stringResource(R.string.store_more_options),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
@@ -391,7 +402,7 @@ private fun StorePickerCard(
                     onDismissRequest = { menuOpen = false },
                 ) {
                     DropdownMenuItem(
-                        text = { Text("Rename") },
+                        text = { Text(stringResource(R.string.action_rename)) },
                         leadingIcon = { Icon(Icons.Filled.Edit, contentDescription = null) },
                         onClick = {
                             menuOpen = false
@@ -399,7 +410,12 @@ private fun StorePickerCard(
                         },
                     )
                     DropdownMenuItem(
-                        text = { Text("Delete", color = MaterialTheme.colorScheme.error) },
+                        text = {
+                            Text(
+                                stringResource(R.string.action_delete),
+                                color = MaterialTheme.colorScheme.error,
+                            )
+                        },
                         leadingIcon = {
                             Icon(
                                 Icons.Filled.Delete,
@@ -442,7 +458,7 @@ private fun RenameStoreDialog(
 
     AlertDialog(
         onDismissRequest = { if (!saving) onDismiss() },
-        title = { Text("Rename store") },
+        title = { Text(stringResource(R.string.rename_store_dialog_title)) },
         text = {
             OutlinedTextField(
                 value = name,
@@ -450,7 +466,7 @@ private fun RenameStoreDialog(
                     name = it
                     error = null
                 },
-                label = { Text("Store name") },
+                label = { Text(stringResource(R.string.add_store_field_label)) },
                 singleLine = true,
                 isError = error != null,
                 supportingText = error?.let { { Text(it) } },
@@ -472,11 +488,13 @@ private fun RenameStoreDialog(
                 },
                 enabled = canSubmit,
             ) {
-                Text(if (saving) "Saving…" else "Save")
+                Text(stringResource(if (saving) R.string.action_saving else R.string.action_save))
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss, enabled = !saving) { Text("Cancel") }
+            TextButton(onClick = onDismiss, enabled = !saving) {
+                Text(stringResource(R.string.action_cancel))
+            }
         },
     )
 }
@@ -489,23 +507,18 @@ private fun DeleteStoreConfirmDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Delete \"$storeName\"?") },
-        text = {
-            Text(
-                "Items tagged to this store will lose the tag but stay in your " +
-                    "list. This can't be undone from inside the app.",
-            )
-        },
+        title = { Text(stringResource(R.string.delete_store_dialog_title, storeName)) },
+        text = { Text(stringResource(R.string.delete_store_dialog_message)) },
         confirmButton = {
             TextButton(
                 onClick = onConfirm,
                 colors = androidx.compose.material3.ButtonDefaults.textButtonColors(
                     contentColor = MaterialTheme.colorScheme.error,
                 ),
-            ) { Text("Delete") }
+            ) { Text(stringResource(R.string.action_delete)) }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Cancel") }
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) }
         },
     )
 }

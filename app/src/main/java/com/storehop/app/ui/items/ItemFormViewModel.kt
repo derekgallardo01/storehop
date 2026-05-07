@@ -43,7 +43,10 @@ data class ItemFormState(
     val isUploadingImage: Boolean = false,
     val isLoading: Boolean = false,
     val isSubmitting: Boolean = false,
-    val nameError: String? = null,
+    /** True when the user has tried to save without typing a name. Screen
+     *  resolves this to a localized error string -- the VM doesn't hold UI
+     *  copy. */
+    val nameError: Boolean = false,
     val saveError: String? = null,
     val saved: Boolean = false,
     val deleted: Boolean = false,
@@ -95,7 +98,7 @@ class ItemFormViewModel @Inject constructor(
     }
 
     fun setName(v: String) {
-        _state.value = _state.value.copy(name = v, nameError = null, saveError = null)
+        _state.value = _state.value.copy(name = v, nameError = false, saveError = null)
     }
     fun setBrand(v: String) { _state.value = _state.value.copy(brand = v) }
     fun setCategoryId(v: String?) { _state.value = _state.value.copy(categoryId = v) }
@@ -123,7 +126,7 @@ class ItemFormViewModel @Inject constructor(
     fun submit() {
         val s = _state.value
         if (s.name.trim().isEmpty()) {
-            _state.value = s.copy(nameError = "Name is required")
+            _state.value = s.copy(nameError = true)
             return
         }
         _state.value = s.copy(isSubmitting = true, saveError = null)

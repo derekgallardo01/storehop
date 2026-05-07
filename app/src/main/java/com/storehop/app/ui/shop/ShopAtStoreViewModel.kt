@@ -29,6 +29,11 @@ data class ShopAtStoreUiState(
 
 data class CategorySection(
     val categoryName: String,
+    /**
+     * Seeded nameKey (e.g. "cat_produce") for localized header lookup.
+     * Null for user-added categories (header falls back to [categoryName]).
+     */
+    val categoryNameKey: String?,
     val displayOrder: Int?,
     val rows: List<ShoppingRow>,
 )
@@ -105,14 +110,17 @@ private fun List<ShoppingRow>.groupByCategory(): List<CategorySection> {
     // already aisle-sorted by the DAO.
     val groups = LinkedHashMap<String, MutableList<ShoppingRow>>()
     val groupOrders = HashMap<String, Int?>()
+    val groupNameKeys = HashMap<String, String?>()
     forEach { row ->
         val key = row.categoryName ?: "(uncategorized)"
         groups.getOrPut(key) { mutableListOf() }.add(row)
         groupOrders.putIfAbsent(key, row.displayOrder)
+        groupNameKeys.putIfAbsent(key, row.categoryNameKey)
     }
     return groups.entries.map { (name, items) ->
         CategorySection(
             categoryName = name,
+            categoryNameKey = groupNameKeys[name],
             displayOrder = groupOrders[name],
             rows = items,
         )

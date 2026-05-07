@@ -65,4 +65,81 @@
     <string name="settings_language_system">Predefinição do sistema</string>
     <string name="settings_language_english">English</string>
     <string name="settings_language_pt_pt">Português (Portugal)</string>
+
+    <!-- Lista e formulário de artigos. -->
+    <string name="search_items_placeholder">Procurar artigos por nome ou marca</string>
+    <string name="items_empty_no_query">Ainda sem artigos — toque em + para adicionar</string>
+    <string name="items_empty_with_query">Sem resultados para \"%1$s\"</string>
+    <string name="form_field_name">Nome</string>
+    <string name="form_field_brand_optional">Marca (opcional)</string>
+    <string name="form_field_category">Categoria</string>
+    <string name="form_field_category_none">(nenhuma)</string>
+    <string name="form_field_category_pick">Escolha uma categoria</string>
+    <string name="form_field_stores">Lojas</string>
+    <string name="form_toggle_staple">Sempre na lista</string>
+    <string name="form_toggle_staple_subtitle">Permanece visível mesmo depois de marcado como comprado</string>
+    <string name="form_toggle_priority">Crítico — não me deixar esquecer</string>
+    <string name="form_toggle_priority_subtitle">Destaca este artigo na lista de todas as lojas quando é necessário</string>
+    <string name="form_error_name_required">O nome é obrigatório</string>
+    <string name="delete_item_title">Eliminar artigo?</string>
+    <string name="delete_item_message">Isto remove \"%1$s\" da lista de todas as lojas.</string>
+    <string name="badge_always_on_list">Sempre na lista</string>
+    <string name="badge_critical">Crítico</string>
+
+    <!-- Selector de fotografia. -->
+    <string name="photo_section_label">Fotografia</string>
+    <string name="photo_section_title">Fotografia do artigo</string>
+    <string name="photo_take">Tirar fotografia</string>
+    <string name="photo_choose_from_gallery">Escolher da galeria</string>
+    <string name="photo_remove">Remover fotografia</string>
+    <string name="photo_add">Adicionar fotografia</string>
+    <string name="photo_item">Fotografia do artigo</string>
+
+    <!-- Compras na loja. -->
+    <string name="action_more">Mais</string>
+    <string name="action_share_list">Partilhar lista</string>
+    <string name="search_store_placeholder">Procurar na lista desta loja</string>
+    <string name="aisle_format">%1$s (corredor %2$d)</string>
+    <string name="shop_empty_no_query">Ainda sem artigos aqui — adicione artigos no separador Artigos e associe-os a esta loja</string>
+    <string name="shop_empty_with_query">Sem resultados para \"%1$s\"</string>
+
+    <!-- Selector de lojas. -->
+    <string name="critical_needs_banner_title">Artigos críticos em falta</string>
+    <string name="store_nothing_needed">Nada em falta</string>
+    <string name="store_all_set">✓ Tudo pronto</string>
+    <string name="add_store_dialog_title">Adicionar uma loja</string>
+    <string name="add_store_field_label">Nome da loja</string>
+    <string name="add_store_field_placeholder">ex: Talho local</string>
+    <string name="action_adding">A adicionar…</string>
+    <string name="action_add">Adicionar</string>
+    <string name="rename_store_dialog_title">Mudar nome da loja</string>
+    <string name="action_rename">Mudar nome</string>
+    <string name="delete_store_dialog_title">Eliminar \"%1$s\"?</string>
+    <string name="delete_store_dialog_message">Os artigos associados a esta loja perdem essa associação mas permanecem na sua lista. Esta acção não pode ser anulada dentro da aplicação.</string>
+    <string name="error_store_name_empty">O nome da loja não pode estar vazio</string>
+    <string name="error_store_name_duplicate">Já existe uma loja com o nome \"%1$s\"</string>
+    <string name="error_could_not_add_store">Não foi possível adicionar a loja</string>
+    <string name="error_could_not_rename_store">Não foi possível mudar o nome da loja</string>
+    <string name="store_more_options">Opções da loja</string>
+    <string name="action_drag_to_reorder">Arrastar para reordenar</string>
+
+    <!-- Conteúdo da partilha de lista. -->
+    <string name="share_list_header">StoreHop — compras em %1$s</string>
+    <string name="share_list_subject">Compras em %1$s</string>
+    <string name="share_list_chooser_title">Partilhar lista de compras</string>
+    <string name="share_list_default_store">esta loja</string>
+
+    <!-- Plurais. -->
+    <plurals name="store_items_needed">
+        <item quantity="one">%d artigo em falta</item>
+        <item quantity="other">%d artigos em falta</item>
+    </plurals>
+    <plurals name="critical_at_this_store">
+        <item quantity="one">%d artigo crítico nesta loja</item>
+        <item quantity="other">%d artigos críticos nesta loja</item>
+    </plurals>
+    <plurals name="store_critical_chip">
+        <item quantity="one">⚠ %d crítico</item>
+        <item quantity="other">⚠ %d críticos</item>
+    </plurals>
 </resources>

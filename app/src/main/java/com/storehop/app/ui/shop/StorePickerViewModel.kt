@@ -1,11 +1,14 @@
 package com.storehop.app.ui.shop
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.storehop.app.R
 import com.storehop.app.data.repository.ShoppingRepository
 import com.storehop.app.data.repository.StorePickerRow
 import com.storehop.app.data.repository.StoreRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
@@ -15,6 +18,7 @@ import javax.inject.Inject
 
 @HiltViewModel
 class StorePickerViewModel @Inject constructor(
+    @ApplicationContext private val appContext: Context,
     private val shoppingRepository: ShoppingRepository,
     private val storeRepository: StoreRepository,
     sessionTracker: ShoppingSessionTracker,
@@ -58,29 +62,35 @@ class StorePickerViewModel @Inject constructor(
      * Successful adds append to the bottom of the picker via the repo's
      * `nextDisplayOrder` allocation; the user can drag from there.
      */
-    suspend fun addStore(name: String): String? = try {
-        storeRepository.addStore(name = name.trim())
-        null
-    } catch (e: IllegalArgumentException) {
-        e.message ?: "Could not add store"
+    suspend fun addStore(name: String): String? {
+        val trimmed = name.trim()
+        // Validate locally before the repo so we can return localized strings
+        // (the repo throws English messages for log diagnostics; we map
+        // post-throw errors to the duplicate-name path since that's the only
+        // IllegalArgumentException the empty-pre-check leaves on the table).
+        if (trimmed.isEmpty()) return appContext.getString(R.string.error_store_name_empty)
+        return try {
+            storeRepository.addStore(name = trimmed)
+            null
+        } catch (e: IllegalArgumentException) {
+            appContext.getString(R.string.error_store_name_duplicate, trimmed)
+        } catch (e: Exception) {
+            appContext.getString(R.string.error_could_not_add_store)
+        }
     }
 
     /**
-     * Rename an existing store. Returns null on success or an error string
-     * the rename dialog should show inline. Empty/whitespace names get the
-     * same friendly rejection as addStore (the repo's rename does NOT
-     * currently throw on duplicates -- a future audit could add that, but
-     * the unique-(userId, name) index would refuse the row anyway, leaving
-     * the rename a silent no-op until then).
+     * Rename an existing store. Returns null on success or a localized error
+     * string the rename dialog renders inline.
      */
     suspend fun renameStore(id: String, name: String): String? {
         val trimmed = name.trim()
-        if (trimmed.isEmpty()) return "Store name cannot be empty"
+        if (trimmed.isEmpty()) return appContext.getString(R.string.error_store_name_empty)
         return try {
             storeRepository.rename(id, trimmed)
             null
         } catch (e: Exception) {
-            e.message ?: "Could not rename store"
+            appContext.getString(R.string.error_could_not_rename_store)
         }
     }
 

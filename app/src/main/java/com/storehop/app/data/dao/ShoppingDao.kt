@@ -49,6 +49,7 @@ interface ShoppingDao {
                i.isStaple      AS isStaple,
                c.id            AS cat_id,
                c.name          AS cat_name,
+               c.nameKey       AS cat_nameKey,
                c.icon          AS cat_icon,
                sco.displayOrder AS displayOrder
         FROM items i

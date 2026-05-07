@@ -6,7 +6,7 @@ import org.junit.Test
 
 class ShareListAsTextTest {
 
-    private fun row(name: String, brand: String? = null, category: String? = null) =
+    private fun row(name: String, brand: String? = null) =
         ShoppingRow(
             itemId = "id-$name",
             itemName = name,
@@ -17,21 +17,18 @@ class ShareListAsTextTest {
             imageUrl = null,
             isPriority = false,
             isStaple = false,
-            categoryId = category?.let { "cat-$it" },
-            categoryName = category,
+            categoryId = null,
+            categoryName = null,
+            categoryNameKey = null,
             categoryIcon = null,
             displayOrder = null,
         )
 
-    @Test fun `header includes the store name and trailing whitespace is trimmed`() {
+    @Test fun `header is emitted verbatim and trailing whitespace is trimmed`() {
         val text = buildShareListText(
-            storeName = "Lidl",
+            header = "StoreHop — shopping at Lidl",
             sections = listOf(
-                CategorySection(
-                    categoryName = "Produce",
-                    displayOrder = 0,
-                    rows = listOf(row("Bananas")),
-                ),
+                "Produce" to listOf(row("Bananas")),
             ),
         )
         assertThat(text).startsWith("StoreHop — shopping at Lidl")
@@ -39,23 +36,15 @@ class ShareListAsTextTest {
         assertThat(text).doesNotMatch("(?s).*\\n\\s*$")
     }
 
-    @Test fun `categories are uppercased and rows are dash-prefixed in section order`() {
+    @Test fun `section labels are uppercased and rows are dash-prefixed in section order`() {
         val text = buildShareListText(
-            storeName = "Continente",
+            header = "StoreHop — shopping at Continente",
             sections = listOf(
-                CategorySection(
-                    categoryName = "Produce",
-                    displayOrder = 0,
-                    rows = listOf(row("Bananas"), row("Tomatoes")),
-                ),
-                CategorySection(
-                    categoryName = "Dairy & Eggs",
-                    displayOrder = 1,
-                    rows = listOf(row("Milk"), row("Eggs")),
-                ),
+                "Produce" to listOf(row("Bananas"), row("Tomatoes")),
+                "Dairy & Eggs" to listOf(row("Milk"), row("Eggs")),
             ),
         )
-        // Sections come out in the order given, with their headers UPPER.
+        // Sections come out in the order given, with their labels UPPER.
         val produceIdx = text.indexOf("PRODUCE")
         val dairyIdx = text.indexOf("DAIRY & EGGS")
         assertThat(produceIdx).isAtLeast(0)
@@ -66,13 +55,9 @@ class ShareListAsTextTest {
 
     @Test fun `brand is rendered in parentheses when present`() {
         val text = buildShareListText(
-            storeName = "Lidl",
+            header = "StoreHop — shopping at Lidl",
             sections = listOf(
-                CategorySection(
-                    categoryName = "Dairy",
-                    displayOrder = 0,
-                    rows = listOf(row("Milk", brand = "Mimosa"), row("Eggs")),
-                ),
+                "Dairy" to listOf(row("Milk", brand = "Mimosa"), row("Eggs")),
             ),
         )
         assertThat(text).contains("- Milk (Mimosa)")
@@ -83,13 +68,9 @@ class ShareListAsTextTest {
 
     @Test fun `blank brand string is treated as no brand`() {
         val text = buildShareListText(
-            storeName = "Lidl",
+            header = "StoreHop — shopping at Lidl",
             sections = listOf(
-                CategorySection(
-                    categoryName = "Pantry",
-                    displayOrder = 0,
-                    rows = listOf(row("Rice", brand = "   ")),
-                ),
+                "Pantry" to listOf(row("Rice", brand = "   ")),
             ),
         )
         assertThat(text).contains("- Rice")

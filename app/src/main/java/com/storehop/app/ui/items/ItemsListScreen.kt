@@ -46,6 +46,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import com.storehop.app.R
 import com.storehop.app.data.db.relations.ItemWithCategoryAndStores
+import com.storehop.app.ui.util.localizedLabel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -88,7 +89,7 @@ fun ItemsListScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp, vertical = 8.dp),
-                placeholder = { Text("Search items by name or brand") },
+                placeholder = { Text(stringResource(R.string.search_items_placeholder)) },
                 leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
                 singleLine = true,
             )
@@ -156,7 +157,7 @@ private fun ItemRow(
             )
             val subtitle = listOfNotNull(
                 row.item.brand?.takeIf { it.isNotBlank() },
-                row.category?.name,
+                row.category?.localizedLabel(),
             ).joinToString(" • ")
             if (subtitle.isNotEmpty()) {
                 Text(
@@ -169,7 +170,7 @@ private fun ItemRow(
         if (row.item.isStaple) {
             Icon(
                 Icons.Filled.Star,
-                contentDescription = "Always on the list",
+                contentDescription = stringResource(R.string.badge_always_on_list),
                 tint = MaterialTheme.colorScheme.secondary,
                 modifier = Modifier.size(18.dp),
             )
@@ -178,7 +179,7 @@ private fun ItemRow(
         if (row.item.isPriority) {
             Icon(
                 Icons.Filled.Warning,
-                contentDescription = "Critical",
+                contentDescription = stringResource(R.string.badge_critical),
                 tint = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.size(18.dp),
             )
@@ -193,8 +194,8 @@ private fun EmptyState(query: String) {
         contentAlignment = Alignment.Center,
     ) {
         Text(
-            text = if (query.isBlank()) "No items yet — tap + to add one"
-                   else "No items match \"$query\"",
+            text = if (query.isBlank()) stringResource(R.string.items_empty_no_query)
+                   else stringResource(R.string.items_empty_with_query, query),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )

@@ -40,9 +40,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
 import coil.compose.AsyncImage
+import com.storehop.app.R
 import java.io.File
 
 /**
@@ -86,7 +88,7 @@ fun ImagePickerTile(
 
     Column(modifier = modifier.fillMaxWidth()) {
         Text(
-            "Photo",
+            stringResource(R.string.photo_section_label),
             style = MaterialTheme.typography.labelLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -103,13 +105,13 @@ fun ImagePickerTile(
             if (displayModel != null) {
                 AsyncImage(
                     model = displayModel,
-                    contentDescription = "Item photo",
+                    contentDescription = stringResource(R.string.photo_item),
                     modifier = Modifier.size(120.dp),
                 )
             } else {
                 Icon(
                     Icons.Filled.AddAPhoto,
-                    contentDescription = "Add photo",
+                    contentDescription = stringResource(R.string.photo_add),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.size(36.dp),
                 )
@@ -134,12 +136,12 @@ fun ImagePickerTile(
         ) {
             Column(modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)) {
                 Text(
-                    text = "Item photo",
+                    text = stringResource(R.string.photo_section_title),
                     style = MaterialTheme.typography.titleMedium,
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                 )
                 ListItem(
-                    headlineContent = { Text("Take photo") },
+                    headlineContent = { Text(stringResource(R.string.photo_take)) },
                     leadingContent = { Icon(Icons.Filled.CameraAlt, contentDescription = null) },
                     modifier = Modifier.clickable {
                         sheetOpen = false
@@ -149,7 +151,7 @@ fun ImagePickerTile(
                     },
                 )
                 ListItem(
-                    headlineContent = { Text("Choose from gallery") },
+                    headlineContent = { Text(stringResource(R.string.photo_choose_from_gallery)) },
                     leadingContent = { Icon(Icons.Filled.PhotoLibrary, contentDescription = null) },
                     modifier = Modifier.clickable {
                         sheetOpen = false
@@ -162,7 +164,7 @@ fun ImagePickerTile(
                 )
                 if (imageUrl != null || localUri != null) {
                     ListItem(
-                        headlineContent = { Text("Remove photo") },
+                        headlineContent = { Text(stringResource(R.string.photo_remove)) },
                         leadingContent = { Icon(Icons.Filled.Delete, contentDescription = null) },
                         modifier = Modifier.clickable {
                             sheetOpen = false

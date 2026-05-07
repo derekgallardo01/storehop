@@ -14,6 +14,12 @@ data class ShoppingRow(
     @ColumnInfo(name = "isStaple") val isStaple: Boolean,
     @ColumnInfo(name = "cat_id") val categoryId: String?,
     @ColumnInfo(name = "cat_name") val categoryName: String?,
+    /**
+     * Seeded category nameKey (e.g. "cat_produce") for resource-string
+     * lookup. Null for user-added categories -- in that case the screen
+     * falls back to [categoryName] which is whatever the user typed.
+     */
+    @ColumnInfo(name = "cat_nameKey") val categoryNameKey: String?,
     @ColumnInfo(name = "cat_icon") val categoryIcon: String?,
     @ColumnInfo(name = "displayOrder") val displayOrder: Int?,
 )

@@ -47,10 +47,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.storehop.app.R
 import com.storehop.app.data.db.relations.ShoppingRow
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -63,32 +66,39 @@ fun ShopAtStoreScreen(
     val context = LocalContext.current
     var menuOpen by remember { mutableStateOf(false) }
 
+    val defaultStoreLabel = stringResource(R.string.share_list_default_store)
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(state.store?.name ?: "Shopping") },
+                title = { Text(state.store?.name ?: stringResource(R.string.title_shop)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = stringResource(R.string.action_back),
+                        )
                     }
                 },
                 actions = {
                     val canShare = state.rowsByCategory.isNotEmpty()
                     IconButton(onClick = { menuOpen = true }, enabled = canShare) {
-                        Icon(Icons.Filled.MoreVert, contentDescription = "More")
+                        Icon(
+                            Icons.Filled.MoreVert,
+                            contentDescription = stringResource(R.string.action_more),
+                        )
                     }
                     DropdownMenu(
                         expanded = menuOpen,
                         onDismissRequest = { menuOpen = false },
                     ) {
                         DropdownMenuItem(
-                            text = { Text("Share list") },
+                            text = { Text(stringResource(R.string.action_share_list)) },
                             leadingIcon = { Icon(Icons.Filled.Share, contentDescription = null) },
                             onClick = {
                                 menuOpen = false
                                 launchShareList(
                                     context = context,
-                                    storeName = state.store?.name ?: "this store",
+                                    storeName = state.store?.name ?: defaultStoreLabel,
                                     sections = state.rowsByCategory,
                                 )
                             },
@@ -109,7 +119,7 @@ fun ShopAtStoreScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp, vertical = 8.dp),
-                placeholder = { Text("Search this store's list") },
+                placeholder = { Text(stringResource(R.string.search_store_placeholder)) },
                 leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
                 singleLine = true,
             )
@@ -123,7 +133,7 @@ fun ShopAtStoreScreen(
                 ) {
                     state.rowsByCategory.forEach { section ->
                         item(key = "header_${section.categoryName}") {
-                            CategoryHeader(section.categoryName, section.displayOrder)
+                            CategoryHeader(section)
                         }
                         items(section.rows, key = { it.itemId }) { row ->
                             ShopAtStoreRow(row, onTap = { viewModel.togglePurchased(row) })
@@ -156,7 +166,7 @@ private fun CriticalBanner(criticalNames: List<String>) {
             Column(modifier = Modifier.fillMaxWidth()) {
                 val n = criticalNames.size
                 Text(
-                    text = "$n critical item${if (n == 1) "" else "s"} at this store",
+                    text = pluralStringResource(R.plurals.critical_at_this_store, n, n),
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.onPrimaryContainer,
@@ -173,16 +183,33 @@ private fun CriticalBanner(criticalNames: List<String>) {
 }
 
 @Composable
-private fun CategoryHeader(name: String, displayOrder: Int?) {
+private fun CategoryHeader(section: CategorySection) {
+    val label = section.localizedDisplayName()
+    val displayOrder = section.displayOrder
     Text(
-        text = if (displayOrder != null && displayOrder < 9999) "$name (aisle ${displayOrder + 1})"
-               else name,
+        text = if (displayOrder != null && displayOrder < 9999)
+            stringResource(R.string.aisle_format, label, displayOrder + 1)
+        else label,
         style = MaterialTheme.typography.labelLarge,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 8.dp),
     )
+}
+
+/**
+ * Resolve the section's display label from its seeded `nameKey` if present,
+ * falling back to the raw category name. Same lookup pattern as the
+ * [com.storehop.app.ui.util.localizedLabel] extension on Category.
+ */
+@Composable
+@android.annotation.SuppressLint("DiscouragedApi")
+private fun CategorySection.localizedDisplayName(): String {
+    val context = LocalContext.current
+    val key = categoryNameKey ?: return categoryName
+    val resId = context.resources.getIdentifier(key, "string", context.packageName)
+    return if (resId != 0) context.getString(resId) else categoryName
 }
 
 @Composable
@@ -241,14 +268,14 @@ private fun ShopAtStoreRow(
             // come back next visit even though they just checked it off.
             Icon(
                 Icons.Filled.Star,
-                contentDescription = "Always on the list",
+                contentDescription = stringResource(R.string.badge_always_on_list),
                 tint = MaterialTheme.colorScheme.secondary,
                 modifier = Modifier.size(18.dp).padding(end = 16.dp),
             )
         } else if (isPriorityVisual) {
             Icon(
                 Icons.Filled.Warning,
-                contentDescription = "Critical",
+                contentDescription = stringResource(R.string.badge_critical),
                 tint = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.size(18.dp).padding(end = 16.dp),
             )
@@ -263,8 +290,8 @@ private fun EmptyState(query: String) {
         contentAlignment = Alignment.Center,
     ) {
         Text(
-            text = if (query.isBlank()) "No items here yet — add items in the Items tab and tag them to this store"
-                   else "No matches for \"$query\"",
+            text = if (query.isBlank()) stringResource(R.string.shop_empty_no_query)
+                   else stringResource(R.string.shop_empty_with_query, query),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = androidx.compose.ui.text.style.TextAlign.Center,

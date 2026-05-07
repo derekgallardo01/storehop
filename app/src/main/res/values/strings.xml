@@ -62,4 +62,81 @@
     <string name="settings_language_system">System default</string>
     <string name="settings_language_english">English</string>
     <string name="settings_language_pt_pt">Português (Portugal)</string>
+
+    <!-- Items list + form. -->
+    <string name="search_items_placeholder">Search items by name or brand</string>
+    <string name="items_empty_no_query">No items yet — tap + to add one</string>
+    <string name="items_empty_with_query">No items match \"%1$s\"</string>
+    <string name="form_field_name">Name</string>
+    <string name="form_field_brand_optional">Brand (optional)</string>
+    <string name="form_field_category">Category</string>
+    <string name="form_field_category_none">(none)</string>
+    <string name="form_field_category_pick">Pick a category</string>
+    <string name="form_field_stores">Stores</string>
+    <string name="form_toggle_staple">Always on the list</string>
+    <string name="form_toggle_staple_subtitle">Stays visible even after you mark it purchased</string>
+    <string name="form_toggle_priority">Critical — don\'t let me forget this</string>
+    <string name="form_toggle_priority_subtitle">Highlights this item across every store\'s list when needed</string>
+    <string name="form_error_name_required">Name is required</string>
+    <string name="delete_item_title">Delete item?</string>
+    <string name="delete_item_message">This removes \"%1$s\" from every store\'s list.</string>
+    <string name="badge_always_on_list">Always on the list</string>
+    <string name="badge_critical">Critical</string>
+
+    <!-- Photo picker. -->
+    <string name="photo_section_label">Photo</string>
+    <string name="photo_section_title">Item photo</string>
+    <string name="photo_take">Take photo</string>
+    <string name="photo_choose_from_gallery">Choose from gallery</string>
+    <string name="photo_remove">Remove photo</string>
+    <string name="photo_add">Add photo</string>
+    <string name="photo_item">Item photo</string>
+
+    <!-- Shop-at-Store. -->
+    <string name="action_more">More</string>
+    <string name="action_share_list">Share list</string>
+    <string name="search_store_placeholder">Search this store\'s list</string>
+    <string name="aisle_format">%1$s (aisle %2$d)</string>
+    <string name="shop_empty_no_query">No items here yet — add items in the Items tab and tag them to this store</string>
+    <string name="shop_empty_with_query">No matches for \"%1$s\"</string>
+
+    <!-- Store Picker. -->
+    <string name="critical_needs_banner_title">Critical items needed</string>
+    <string name="store_nothing_needed">Nothing needed</string>
+    <string name="store_all_set">✓ All set</string>
+    <string name="add_store_dialog_title">Add a store</string>
+    <string name="add_store_field_label">Store name</string>
+    <string name="add_store_field_placeholder">e.g. Local Butcher</string>
+    <string name="action_adding">Adding…</string>
+    <string name="action_add">Add</string>
+    <string name="rename_store_dialog_title">Rename store</string>
+    <string name="action_rename">Rename</string>
+    <string name="delete_store_dialog_title">Delete \"%1$s\"?</string>
+    <string name="delete_store_dialog_message">Items tagged to this store will lose the tag but stay in your list. This can\'t be undone from inside the app.</string>
+    <string name="error_store_name_empty">Store name cannot be empty</string>
+    <string name="error_store_name_duplicate">A store named \"%1$s\" already exists</string>
+    <string name="error_could_not_add_store">Could not add store</string>
+    <string name="error_could_not_rename_store">Could not rename store</string>
+    <string name="store_more_options">Store options</string>
+    <string name="action_drag_to_reorder">Drag to reorder</string>
+
+    <!-- Share-list payload (formatted via context.getString). -->
+    <string name="share_list_header">StoreHop — shopping at %1$s</string>
+    <string name="share_list_subject">Shopping at %1$s</string>
+    <string name="share_list_chooser_title">Share shopping list</string>
+    <string name="share_list_default_store">this store</string>
+
+    <!-- Plurals: count-based strings. -->
+    <plurals name="store_items_needed">
+        <item quantity="one">%d item needed</item>
+        <item quantity="other">%d items needed</item>
+    </plurals>
+    <plurals name="critical_at_this_store">
+        <item quantity="one">%d critical item at this store</item>
+        <item quantity="other">%d critical items at this store</item>
+    </plurals>
+    <plurals name="store_critical_chip">
+        <item quantity="one">⚠ %d critical</item>
+        <item quantity="other">⚠ %d critical</item>
+    </plurals>
 </resources>

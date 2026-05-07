@@ -44,8 +44,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.storehop.app.R
 import com.storehop.app.ui.util.localizedLabel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -74,16 +76,24 @@ fun ItemFormScreen(
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text(if (isEdit) "Edit item" else "Add item") },
+                title = {
+                    Text(stringResource(if (isEdit) R.string.title_edit_item else R.string.title_add_item))
+                },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = stringResource(R.string.action_back),
+                        )
                     }
                 },
                 actions = {
                     if (isEdit) {
                         IconButton(onClick = { showDeleteConfirm = true }) {
-                            Icon(Icons.Filled.Delete, contentDescription = "Delete")
+                            Icon(
+                                Icons.Filled.Delete,
+                                contentDescription = stringResource(R.string.action_delete),
+                            )
                         }
                     }
                     // Save lives in the top bar so it's always visible -- the
@@ -99,9 +109,9 @@ fun ItemFormScreen(
                                 strokeWidth = 2.dp,
                                 color = MaterialTheme.colorScheme.primary,
                             )
-                            Text("Saving…")
+                            Text(stringResource(R.string.action_saving))
                         } else {
-                            Text("Save")
+                            Text(stringResource(R.string.action_save))
                         }
                     }
                 },
@@ -128,9 +138,11 @@ fun ItemFormScreen(
             OutlinedTextField(
                 value = state.name,
                 onValueChange = viewModel::setName,
-                label = { Text("Name") },
-                isError = state.nameError != null,
-                supportingText = state.nameError?.let { { Text(it) } },
+                label = { Text(stringResource(R.string.form_field_name)) },
+                isError = state.nameError,
+                supportingText = if (state.nameError) {
+                    { Text(stringResource(R.string.form_error_name_required)) }
+                } else null,
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
             )
@@ -138,7 +150,7 @@ fun ItemFormScreen(
             OutlinedTextField(
                 value = state.brand,
                 onValueChange = viewModel::setBrand,
-                label = { Text("Brand (optional)") },
+                label = { Text(stringResource(R.string.form_field_brand_optional)) },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
             )
@@ -151,7 +163,7 @@ fun ItemFormScreen(
 
             Column {
                 Text(
-                    "Stores",
+                    stringResource(R.string.form_field_stores),
                     style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -175,14 +187,14 @@ fun ItemFormScreen(
             HorizontalDivider()
 
             ToggleRow(
-                title = "Always on the list",
-                subtitle = "Stays visible even after you mark it purchased",
+                title = stringResource(R.string.form_toggle_staple),
+                subtitle = stringResource(R.string.form_toggle_staple_subtitle),
                 checked = state.isStaple,
                 onCheckedChange = viewModel::setStaple,
             )
             ToggleRow(
-                title = "Critical — don't let me forget this",
-                subtitle = "Highlights this item across every store's list when needed",
+                title = stringResource(R.string.form_toggle_priority),
+                subtitle = stringResource(R.string.form_toggle_priority_subtitle),
                 checked = state.isPriority,
                 onCheckedChange = viewModel::setPriority,
             )
@@ -202,16 +214,18 @@ fun ItemFormScreen(
     if (showDeleteConfirm) {
         AlertDialog(
             onDismissRequest = { showDeleteConfirm = false },
-            title = { Text("Delete item?") },
-            text = { Text("This removes \"${state.name}\" from every store's list.") },
+            title = { Text(stringResource(R.string.delete_item_title)) },
+            text = { Text(stringResource(R.string.delete_item_message, state.name)) },
             confirmButton = {
                 TextButton(onClick = {
                     showDeleteConfirm = false
                     viewModel.delete()
-                }) { Text("Delete") }
+                }) { Text(stringResource(R.string.action_delete)) }
             },
             dismissButton = {
-                TextButton(onClick = { showDeleteConfirm = false }) { Text("Cancel") }
+                TextButton(onClick = { showDeleteConfirm = false }) {
+                    Text(stringResource(R.string.action_cancel))
+                }
             },
         )
     }
@@ -226,7 +240,8 @@ private fun CategoryDropdown(
 ) {
     var sheetOpen by remember { mutableStateOf(false) }
     val selected = categories.firstOrNull { it.id == selectedId }
-    val displayLabel = selected?.localizedLabel() ?: "(none)"
+    val noneLabel = stringResource(R.string.form_field_category_none)
+    val displayLabel = selected?.localizedLabel() ?: noneLabel
     val sheetState = rememberModalBottomSheetState()
 
     // Disabled-but-clickable text field shows the current selection and
@@ -237,7 +252,7 @@ private fun CategoryDropdown(
             value = displayLabel,
             onValueChange = {},
             readOnly = true,
-            label = { Text("Category") },
+            label = { Text(stringResource(R.string.form_field_category)) },
             modifier = Modifier.fillMaxWidth(),
             enabled = false,
         )
@@ -255,14 +270,14 @@ private fun CategoryDropdown(
         ) {
             Column(modifier = Modifier.fillMaxWidth()) {
                 Text(
-                    text = "Pick a category",
+                    text = stringResource(R.string.form_field_category_pick),
                     style = MaterialTheme.typography.titleMedium,
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                 )
                 androidx.compose.foundation.lazy.LazyColumn(modifier = Modifier.fillMaxWidth()) {
                     item {
                         ListItem(
-                            headlineContent = { Text("(none)") },
+                            headlineContent = { Text(noneLabel) },
                             modifier = Modifier.clickable {
                                 onSelect(null); sheetOpen = false
                             },
