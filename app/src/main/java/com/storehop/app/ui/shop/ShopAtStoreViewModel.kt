@@ -87,14 +87,15 @@ class ShopAtStoreViewModel @Inject constructor(
     fun setQuery(q: String) { _query.value = q }
 
     /**
-     * Tap behavior on a row:
-     *  - needed item -> mark purchased (strike-through if staple, disappears if not)
-     *  - purchased staple -> mark needed again (un-checks, returns to top of section)
+     * Tap behavior on a row, scoped to THIS store only -- per-store need
+     * state means checking off milk at Lidl never touches milk at Aldi.
+     *  - needed -> mark purchased at this store (writes one PurchaseRecord)
+     *  - purchased -> mark needed again at this store (un-checks; no record)
      */
     fun togglePurchased(row: ShoppingRow) {
         viewModelScope.launch {
-            if (row.isNeeded) itemRepository.markPurchased(row.itemId)
-            else itemRepository.markNeeded(row.itemId)
+            if (row.isNeeded) itemRepository.markPurchasedAtStore(row.itemId, storeId)
+            else itemRepository.markNeededAtStore(row.itemId, storeId)
         }
     }
 }

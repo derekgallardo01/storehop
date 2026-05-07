@@ -32,11 +32,6 @@ class ItemRepositoryImpl @Inject constructor(
             if (uid == null) flowOf(emptyList()) else itemDao.observeAll(uid)
         }
 
-    override fun observeNeeded(): Flow<List<Item>> =
-        session.userId.flatMapLatest { uid ->
-            if (uid == null) flowOf(emptyList()) else itemDao.observeNeeded(uid)
-        }
-
     override fun observeById(id: String): Flow<ItemWithCategoryAndStores?> =
         session.userId.flatMapLatest { uid ->
             if (uid == null) flowOf(null) else itemDao.observeById(uid, id)
@@ -132,44 +127,30 @@ class ItemRepositoryImpl @Inject constructor(
     }
 
     /**
-     * Mark an item as purchased.
+     * Mark this (item, store) row as purchased. Per-store: only `isx(item,
+     * store).isNeeded` flips -- other stores the item is tagged to are
+     * untouched. Writes exactly one [PurchaseRecord] for the pair (vs. the
+     * old API which wrote one per tagged store and inflated history counts).
      *
-     * **Known limitation (over-counting):** writes one [PurchaseRecord] *per
-     * tagged store* of the item, not one per actual purchase. So an item tagged
-     * to Lidl + Continente produces 2 records on a single `markPurchased(id)`
-     * call. The data-layer plan documented this as a deliberate "caller's
-     * choice on store" design but the API doesn't actually expose that choice
-     * yet. When a Shop-at-Store screen lands it will need a
-     * `markPurchasedAtStore(itemId, storeId)` overload that writes exactly one
-     * record. Until then, history-and-stats consumers should be aware records
-     * are inflated by the number of tagged stores.
+     * Verifies the item belongs to the live user before any write so a
+     * mid-call session swap can't corrupt cross-table ownership invariants.
      */
-    override suspend fun markPurchased(id: String) = db.withTransaction {
+    override suspend fun markPurchasedAtStore(itemId: String, storeId: String) = db.withTransaction {
         val userId = requireSignedIn()
         val now = clock.millis()
-        // Load the parent row first so PurchaseRecord.userId is sourced from the item,
-        // not from a possibly-different live session.
-        val current = itemDao.observeById(userId, id).first()?.item
+        val current = itemDao.observeById(userId, itemId).first()?.item
             ?: return@withTransaction
         val ownerId = current.userId
 
-        itemDao.markPurchased(ownerId, id, now)
-
-        val xrefs = xrefDao.findForItem(id)
-        if (xrefs.isEmpty()) {
-            purchaseRecordDao.insert(record(id, storeId = null, ownerId, now))
-        } else {
-            xrefs.forEach { x ->
-                purchaseRecordDao.insert(record(id, storeId = x.storeId, ownerId, now))
-            }
-        }
+        xrefDao.markPurchasedAtStore(ownerId, itemId, storeId, now)
+        purchaseRecordDao.insert(record(itemId, storeId = storeId, ownerId, now))
     }
 
-    override suspend fun markNeeded(id: String) = db.withTransaction {
+    override suspend fun markNeededAtStore(itemId: String, storeId: String) = db.withTransaction {
         val userId = requireSignedIn()
-        val current = itemDao.observeById(userId, id).first()?.item
+        val current = itemDao.observeById(userId, itemId).first()?.item
             ?: return@withTransaction
-        itemDao.markNeeded(current.userId, id, clock.millis())
+        xrefDao.markNeededAtStore(current.userId, itemId, storeId, clock.millis())
     }
 
     private fun requireSignedIn(): String =

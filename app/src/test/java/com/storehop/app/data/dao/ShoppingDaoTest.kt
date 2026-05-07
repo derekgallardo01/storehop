@@ -59,14 +59,22 @@ class ShoppingDaoTest {
         }
     }
 
-    @Test fun `marking an item not-needed removes it from both store views (outside the session window)`() = runTest {
-        db.itemDao().markPurchased(TEST_USER_ID, "milk", now = 100L)
+    @Test fun `marking purchased at one store removes it from THAT store but not the other`() = runTest {
+        // Per-store need state: marking milk purchased at Lidl flips Lidl's
+        // xref isNeeded=0 but leaves Continente's xref untouched. Lidl's view
+        // drops milk (outside session window); Continente's view still shows
+        // milk as needed. This is the bug-fix this whole migration exists for.
+        db.itemStoreXrefDao().markPurchasedAtStore(TEST_USER_ID, "milk", "store_lidl", now = 100L)
+
         db.shoppingDao().shoppingListForStore(TEST_USER_ID, "store_lidl", NO_WINDOW).test {
             assertThat(awaitItem().map { it.itemName }).doesNotContain("Milk")
             cancelAndIgnoreRemainingEvents()
         }
         db.shoppingDao().shoppingListForStore(TEST_USER_ID, "store_continente", NO_WINDOW).test {
-            assertThat(awaitItem().map { it.itemName }).doesNotContain("Milk")
+            // Continente still has milk on the list -- per-store independence.
+            val continenteRows = awaitItem()
+            assertThat(continenteRows.map { it.itemName }).contains("Milk")
+            assertThat(continenteRows.single { it.itemName == "Milk" }.isNeeded).isTrue()
             cancelAndIgnoreRemainingEvents()
         }
     }
@@ -84,20 +92,22 @@ class ShoppingDaoTest {
     }
 
     @Test fun `purchased staple stays in the list at the bottom of its category section`() = runTest {
-        // Mark "milk" a staple, mark it purchased -- now it should still appear
-        // in Lidl's list, but pushed below the still-needed Eggs. NO_WINDOW
-        // proves the row survives via the isStaple path, not the session path.
+        // Mark "milk" a staple, mark it purchased at Lidl -- now it should
+        // still appear in Lidl's list, but pushed below the still-needed
+        // Eggs. NO_WINDOW proves the row survives via the isStaple path,
+        // not the session path. The xref's isNeeded=false drives the strike-
+        // through visual; isStaple keeps the row visible despite that.
         val now = 200L
         db.itemDao().upsert(
             item("milk", "Milk", categoryId = "cat_dairy_eggs").copy(isStaple = true),
         )
-        db.itemDao().markPurchased(TEST_USER_ID, "milk", now)
+        db.itemStoreXrefDao().markPurchasedAtStore(TEST_USER_ID, "milk", "store_lidl", now)
+
         db.shoppingDao().shoppingListForStore(TEST_USER_ID, "store_lidl", NO_WINDOW).test {
             val rows = awaitItem()
             val names = rows.map { it.itemName }
             // Produce -> Bananas, Tomatoes (needed), Dairy -> Eggs (needed) before Milk (purchased staple).
             assertThat(names).containsExactly("Bananas", "Tomatoes", "Eggs", "Milk").inOrder()
-            // The purchased staple row carries isNeeded=false so the UI can strike it.
             assertThat(rows.first { it.itemName == "Milk" }.isNeeded).isFalse()
             assertThat(rows.first { it.itemName == "Eggs" }.isNeeded).isTrue()
             cancelAndIgnoreRemainingEvents()
@@ -105,10 +115,11 @@ class ShoppingDaoTest {
     }
 
     @Test fun `purchased non-staple before the session window is filtered out`() = runTest {
-        // Eggs is NOT a staple. lastPurchasedAt(100) < sessionStartMs(200) so
-        // the row falls outside the session window and disappears -- this is
-        // the "next visit shows a clean list" path.
-        db.itemDao().markPurchased(TEST_USER_ID, "eggs", now = 100L)
+        // Eggs is NOT a staple. xref(eggs, lidl).lastPurchasedAt(100) <
+        // sessionStartMs(200) so the row falls outside the session window
+        // and disappears -- "next visit shows a clean list" path.
+        db.itemStoreXrefDao()
+            .markPurchasedAtStore(TEST_USER_ID, "eggs", "store_lidl", now = 100L)
         db.shoppingDao().shoppingListForStore(TEST_USER_ID, "store_lidl", sessionStartMs = 200L).test {
             val names = awaitItem().map { it.itemName }
             assertThat(names).doesNotContain("Eggs")
@@ -117,9 +128,11 @@ class ShoppingDaoTest {
     }
 
     @Test fun `purchased non-staple within the session window stays visible struck-through`() = runTest {
-        // lastPurchasedAt(200) >= sessionStartMs(100) so eggs stays in the
-        // list within the session, with isNeeded=false so the UI can strike it.
-        db.itemDao().markPurchased(TEST_USER_ID, "eggs", now = 200L)
+        // xref(eggs, lidl).lastPurchasedAt(200) >= sessionStartMs(100) so
+        // eggs stays in the list within the session, with isNeeded=false so
+        // the UI can strike it.
+        db.itemStoreXrefDao()
+            .markPurchasedAtStore(TEST_USER_ID, "eggs", "store_lidl", now = 200L)
         db.shoppingDao().shoppingListForStore(TEST_USER_ID, "store_lidl", sessionStartMs = 100L).test {
             val rows = awaitItem()
             val eggs = rows.firstOrNull { it.itemName == "Eggs" }

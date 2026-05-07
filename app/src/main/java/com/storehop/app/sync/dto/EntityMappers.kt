@@ -65,6 +65,8 @@ fun ItemStoreXref.toDto() = ItemStoreXrefDto(
     createdAt = createdAt,
     updatedAt = updatedAt,
     deletedAt = deletedAt,
+    isNeeded = isNeeded,
+    lastPurchasedAt = lastPurchasedAt,
 )
 
 fun StoreCategoryOrder.toDto() = StoreCategoryOrderDto(

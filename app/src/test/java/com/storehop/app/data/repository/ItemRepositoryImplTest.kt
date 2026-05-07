@@ -101,22 +101,51 @@ class ItemRepositoryImplTest {
         assertThat(xrefs.map { it.userId }.toSet()).containsExactly(TEST_USER_ID)
     }
 
-    @Test fun `markPurchased clears isNeeded and writes a PurchaseRecord per tagged store`() = runTest {
+    @Test fun `markPurchasedAtStore flips isNeeded only at that store and writes one PurchaseRecord`() = runTest {
         val itemId = repo.addItem(
             name = "Milk", categoryId = null,
             storeIds = setOf("store_lidl", "store_continente"),
             quantity = null, notes = null,
         )
-        repo.markPurchased(itemId)
+        repo.markPurchasedAtStore(itemId, "store_lidl")
 
-        // Item drops out of needed.
-        assertThat(db.itemDao().observeNeeded(TEST_USER_ID).first()).isEmpty()
-        // One PurchaseRecord per tagged store.
+        // Per-store: Lidl's xref is now not-needed. Continente's xref is
+        // untouched -- this is the bug-fix the whole migration exists for.
+        val xrefs = db.itemStoreXrefDao().findForItem(itemId)
+            .associateBy { it.storeId }
+        assertThat(xrefs.getValue("store_lidl").isNeeded).isFalse()
+        assertThat(xrefs.getValue("store_continente").isNeeded).isTrue()
+
+        // Exactly one PurchaseRecord, scoped to the store we marked.
         val records = db.purchaseRecordDao().observeForItem(TEST_USER_ID, itemId).first()
-        assertThat(records).hasSize(2)
-        assertThat(records.map { it.storeId }.toSet())
-            .containsExactly("store_lidl", "store_continente")
-        assertThat(records.map { it.userId }.toSet()).containsExactly(TEST_USER_ID)
+        assertThat(records).hasSize(1)
+        assertThat(records.single().storeId).isEqualTo("store_lidl")
+        assertThat(records.single().userId).isEqualTo(TEST_USER_ID)
+    }
+
+    @Test fun `markNeededAtStore restores only the targeted store's xref`() = runTest {
+        val itemId = repo.addItem(
+            name = "Milk", categoryId = null,
+            storeIds = setOf("store_lidl", "store_continente"),
+            quantity = null, notes = null,
+        )
+        repo.markPurchasedAtStore(itemId, "store_lidl")
+        // Sanity: Lidl's xref is purchased.
+        assertThat(
+            db.itemStoreXrefDao().findForItem(itemId)
+                .single { it.storeId == "store_lidl" }.isNeeded,
+        ).isFalse()
+
+        repo.markNeededAtStore(itemId, "store_lidl")
+
+        val xrefs = db.itemStoreXrefDao().findForItem(itemId)
+            .associateBy { it.storeId }
+        assertThat(xrefs.getValue("store_lidl").isNeeded).isTrue()
+        assertThat(xrefs.getValue("store_continente").isNeeded).isTrue()
+        // markNeededAtStore is a state correction, NOT a purchase --
+        // no new PurchaseRecord, just the one from the original purchase.
+        assertThat(db.purchaseRecordDao().observeForItem(TEST_USER_ID, itemId).first())
+            .hasSize(1)
     }
 
     @Test fun `updateItem replaces store set and new xrefs inherit the parent item's userId`() = runTest {
@@ -166,20 +195,20 @@ class ItemRepositoryImplTest {
         assertThat(xrefs.map { it.userId }.toSet()).containsExactly(TEST_USER_ID)
     }
 
-    @Test fun `markPurchased PurchaseRecords carry the parent's userId, not the session's`() = runTest {
+    @Test fun `markPurchasedAtStore PurchaseRecords carry the parent's userId, not the session's`() = runTest {
         val itemId = repo.addItem(
             name = "Milk", categoryId = null,
             storeIds = setOf("store_lidl"),
             quantity = null, notes = null,
         )
-        // Session changes — markPurchased should still no-op for the wrong session
-        // and, when called as the right user, source userId from the parent row.
+        // Session changes — the call should no-op for the wrong session and,
+        // when called as the right user, source userId from the parent row.
         session.setUserId(OTHER_USER_ID)
-        repo.markPurchased(itemId)
+        repo.markPurchasedAtStore(itemId, "store_lidl")
         assertThat(db.purchaseRecordDao().observeForItem(TEST_USER_ID, itemId).first()).isEmpty()
 
         session.setUserId(TEST_USER_ID)
-        repo.markPurchased(itemId)
+        repo.markPurchasedAtStore(itemId, "store_lidl")
         val records = db.purchaseRecordDao().observeForItem(TEST_USER_ID, itemId).first()
         assertThat(records).hasSize(1)
         assertThat(records.single().userId).isEqualTo(TEST_USER_ID)
@@ -197,8 +226,8 @@ class ItemRepositoryImplTest {
 
         // Restore the owner and confirm the item is still live with its xrefs intact.
         session.setUserId(TEST_USER_ID)
-        val needed = db.itemDao().observeNeeded(TEST_USER_ID).first()
-        assertThat(needed.map { it.id }).containsExactly(itemId)
+        val live = db.itemDao().observeAll(TEST_USER_ID).first().map { it.item.id }
+        assertThat(live).contains(itemId)
         assertThat(db.itemStoreXrefDao().findForItem(itemId)).hasSize(1)
     }
 
@@ -208,18 +237,18 @@ class ItemRepositoryImplTest {
             storeIds = setOf("store_lidl", "store_continente"),
             quantity = null, notes = null,
         )
-        repo.markPurchased(itemId)
-        // Mid-state: item now not-needed, xrefs exist, two purchase records exist.
+        // Build up state at both stores so we can verify the cascade hits both
+        // xrefs and both PurchaseRecords.
+        repo.markPurchasedAtStore(itemId, "store_lidl")
+        repo.markPurchasedAtStore(itemId, "store_continente")
+        // Mid-state: two live xrefs, two purchase records.
         assertThat(db.itemStoreXrefDao().findForItem(itemId)).hasSize(2)
         assertThat(db.purchaseRecordDao().observeForItem(TEST_USER_ID, itemId).first())
             .hasSize(2)
 
-        // Re-mark needed so we can use addItem-then-soft-delete semantics. Actually,
-        // softDelete should work regardless — proceed.
         repo.softDelete(itemId)
 
-        // Item is gone from observeNeeded (was already not-needed) AND from observeAll.
-        assertThat(db.itemDao().observeNeeded(TEST_USER_ID).first()).isEmpty()
+        // Item gone from observeAll.
         assertThat(db.itemDao().observeAll(TEST_USER_ID).first().map { it.item.id })
             .doesNotContain(itemId)
 
@@ -263,40 +292,38 @@ class ItemRepositoryImplTest {
         assertThat(itemCountAfter).isEqualTo(itemCountBefore)
     }
 
-       @Test fun `OCTA-4 addItem with empty storeIds set works and the item is reachable via observeNeeded`() = runTest {
+    @Test fun `OCTA-4 addItem with empty storeIds set works and the item is reachable via observeAll`() = runTest {
         val id = repo.addItem(
             name = "Untagged Milk", categoryId = null,
             storeIds = emptySet(),
             quantity = null, notes = null,
         )
-        val needed = db.itemDao().observeNeeded(TEST_USER_ID).first()
-        assertThat(needed.map { it.id }).contains(id)
+        val all = db.itemDao().observeAll(TEST_USER_ID).first()
+        assertThat(all.map { it.item.id }).contains(id)
         assertThat(db.itemStoreXrefDao().findForItem(id)).isEmpty()
     }
 
-    @Test fun `OCTA-5 markPurchased twice on same item is idempotent (one set of records OR cleared)`() = runTest {
+    @Test fun `OCTA-5 markPurchasedAtStore twice writes two PurchaseRecords (idempotency contract)`() = runTest {
         val itemId = repo.addItem(
             name = "Milk", categoryId = null,
             storeIds = setOf("store_lidl"),
             quantity = null, notes = null,
         )
-        repo.markPurchased(itemId)
+        repo.markPurchasedAtStore(itemId, "store_lidl")
         val recordsAfterFirst = db.purchaseRecordDao().observeForItem(TEST_USER_ID, itemId).first()
         assertThat(recordsAfterFirst).hasSize(1)
 
-        // Second markPurchased: item is already isNeeded=0. Today's behavior:
-        //   - markPurchased re-runs UPDATE (no-op since isNeeded already 0)
-        //   - PurchaseRecord still gets inserted (we never check whether already-purchased)
-        // So the second call ADDS another purchase record. Pin this behavior either way.
-        repo.markPurchased(itemId)
+        // Second call on an already-purchased xref: today's behavior is to
+        // write another PurchaseRecord. Pin that. If we ever change it to
+        // idempotent (skip the record when xref.isNeeded is already 0), flip
+        // the assertion. The key thing is it doesn't crash or corrupt state.
+        repo.markPurchasedAtStore(itemId, "store_lidl")
         val recordsAfterSecond = db.purchaseRecordDao().observeForItem(TEST_USER_ID, itemId).first()
-        // Document current behavior: a duplicate record is written. If this changes to
-        // 'idempotent / no duplicate record', flip the assertion. The key thing is that
-        // it doesn't CRASH or produce inconsistent state.
-        assertThat(recordsAfterSecond.size).isAtLeast(1)
-        // Item is still not-needed.
-        assertThat(db.itemDao().observeNeeded(TEST_USER_ID).first().map { it.id })
-            .doesNotContain(itemId)
+        assertThat(recordsAfterSecond).hasSize(2)
+        // The xref is still not-needed.
+        assertThat(
+            db.itemStoreXrefDao().findForItem(itemId).single().isNeeded,
+        ).isFalse()
     }
 
     /** Deterministic IDs for assertion stability. */

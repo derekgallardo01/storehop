@@ -110,4 +110,38 @@ interface ItemStoreXrefDao {
         """,
     )
     suspend fun markPushed(userId: String, itemId: String, storeId: String)
+
+    /**
+     * Mark the (itemId, storeId) row as purchased at THIS store. Doesn't
+     * touch any other store the item is tagged to -- that's the per-store
+     * need-state model. Caller (the repo) writes a [PurchaseRecord] for
+     * exactly this store.
+     */
+    @Query(
+        """
+        UPDATE item_store_xref
+        SET isNeeded = 0,
+            lastPurchasedAt = :now,
+            updatedAt = :now,
+            pendingSync = 1
+        WHERE itemId = :itemId AND storeId = :storeId AND userId = :userId
+        """,
+    )
+    suspend fun markPurchasedAtStore(userId: String, itemId: String, storeId: String, now: Long)
+
+    /**
+     * Restore the (itemId, storeId) row to needed at this store. Used to
+     * undo a mis-tap in the Shop-at-Store screen. lastPurchasedAt is left
+     * intact -- the prior purchase still happened in history.
+     */
+    @Query(
+        """
+        UPDATE item_store_xref
+        SET isNeeded = 1,
+            updatedAt = :now,
+            pendingSync = 1
+        WHERE itemId = :itemId AND storeId = :storeId AND userId = :userId
+        """,
+    )
+    suspend fun markNeededAtStore(userId: String, itemId: String, storeId: String, now: Long)
 }

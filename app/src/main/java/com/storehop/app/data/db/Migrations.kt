@@ -87,3 +87,53 @@ val MIGRATION_3_4 = object : Migration(3, 4) {
         )
     }
 }
+
+/**
+ * v4 -> v5: move per-store need state from `items` to `item_store_xref`.
+ *
+ * The old model had `items.isNeeded` and `items.lastPurchasedAt` -- a single
+ * "is this item on the list" flag that applied uniformly across every store
+ * the item was tagged to. Marking milk purchased at Lidl flipped Aldi's
+ * milk to "purchased" at the same time, which is wrong: each store's row
+ * is its own piece of state -- "I bought milk at Lidl" and "I still need
+ * milk at Aldi" must coexist.
+ *
+ * After this migration:
+ *  - `item_store_xref.isNeeded` (default 1) stores per-(item, store) need
+ *  - `item_store_xref.lastPurchasedAt` stores when this specific row was
+ *    last purchased -- powers the within-session strike-through window
+ *
+ * Backfill: every live xref copies the parent item's current isNeeded /
+ * lastPurchasedAt values, which is the most faithful snapshot we can
+ * reconstruct -- both stores' rows briefly agree, then diverge as the
+ * user shops.
+ *
+ * `items.isNeeded` and `items.lastPurchasedAt` stay in the schema (we'd
+ * have to do a table-recreation migration to drop them) but become
+ * vestigial -- new code paths read xref values; the item-level fields are
+ * left frozen at their pre-migration values for tombstone safety on older
+ * Firestore-pull code that may still parse them.
+ */
+val MIGRATION_4_5 = object : Migration(4, 5) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE `item_store_xref` ADD COLUMN `isNeeded` INTEGER NOT NULL DEFAULT 1")
+        db.execSQL("ALTER TABLE `item_store_xref` ADD COLUMN `lastPurchasedAt` INTEGER")
+        // Backfill each live xref's per-store state from the parent item's
+        // (now-vestigial) global values. Also re-flag pendingSync so the
+        // next Firestore push carries the new columns.
+        db.execSQL(
+            """
+            UPDATE `item_store_xref`
+            SET isNeeded = COALESCE(
+                    (SELECT i.isNeeded FROM `items` i WHERE i.id = item_store_xref.itemId),
+                    1
+                ),
+                lastPurchasedAt = (
+                    SELECT i.lastPurchasedAt FROM `items` i WHERE i.id = item_store_xref.itemId
+                ),
+                pendingSync = 1
+            WHERE deletedAt IS NULL
+            """.trimIndent(),
+        )
+    }
+}

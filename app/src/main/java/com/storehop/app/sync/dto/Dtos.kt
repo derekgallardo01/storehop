@@ -75,6 +75,8 @@ class ItemStoreXrefDto(
     var createdAt: Long = 0L,
     var updatedAt: Long = 0L,
     var deletedAt: Long? = null,
+    var isNeeded: Boolean = true,
+    var lastPurchasedAt: Long? = null,
 )
 
 @Keep
