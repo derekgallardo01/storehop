@@ -9,6 +9,7 @@ package com.storehop.app.ui.nav
 object Routes {
     const val SHOP = "shop"
     const val ITEMS = "items"
+    const val SETTINGS = "settings"
 
     const val SHOP_AT_STORE = "shop/store/{storeId}"
     fun shopAtStore(storeId: String) = "shop/store/$storeId"

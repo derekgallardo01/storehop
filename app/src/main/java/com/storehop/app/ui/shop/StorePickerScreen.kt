@@ -24,6 +24,7 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DragIndicator
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
@@ -68,6 +69,7 @@ import sh.calvin.reorderable.rememberReorderableLazyListState
 @Composable
 fun StorePickerScreen(
     onPickStore: (storeId: String) -> Unit,
+    onOpenSettings: () -> Unit,
     viewModel: StorePickerViewModel = hiltViewModel(),
 ) {
     val rows by viewModel.rows.collectAsState()
@@ -103,7 +105,16 @@ fun StorePickerScreen(
     var pendingDelete by remember { mutableStateOf<StorePickerRow?>(null) }
 
     Scaffold(
-        topBar = { TopAppBar(title = { Text("Where are you shopping?") }) },
+        topBar = {
+            TopAppBar(
+                title = { Text("Where are you shopping?") },
+                actions = {
+                    IconButton(onClick = onOpenSettings) {
+                        Icon(Icons.Filled.Settings, contentDescription = "Settings")
+                    }
+                },
+            )
+        },
         floatingActionButton = {
             ExtendedFloatingActionButton(
                 onClick = { showAddDialog = true },

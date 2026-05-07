@@ -34,6 +34,7 @@ import com.storehop.app.data.util.UserSessionProvider
 import com.storehop.app.ui.items.ItemFormScreen
 import com.storehop.app.ui.items.ItemsListScreen
 import com.storehop.app.ui.nav.Routes
+import com.storehop.app.ui.settings.SettingsScreen
 import com.storehop.app.ui.shop.ShopAtStoreScreen
 import com.storehop.app.ui.shop.StorePickerScreen
 import androidx.navigation.NavType
@@ -135,6 +136,7 @@ private fun SignedInRoot() {
             composable(Routes.SHOP) {
                 StorePickerScreen(
                     onPickStore = { id -> navController.navigate(Routes.shopAtStore(id)) },
+                    onOpenSettings = { navController.navigate(Routes.SETTINGS) },
                 )
             }
             composable(
@@ -148,6 +150,7 @@ private fun SignedInRoot() {
                 ItemsListScreen(
                     onAddItem = { navController.navigate(Routes.ITEM_ADD) },
                     onEditItem = { id -> navController.navigate(Routes.itemEdit(id)) },
+                    onOpenSettings = { navController.navigate(Routes.SETTINGS) },
                 )
             }
             composable(Routes.ITEM_ADD) {
@@ -158,6 +161,10 @@ private fun SignedInRoot() {
                 arguments = listOf(navArgument("itemId") { type = NavType.StringType }),
             ) {
                 ItemFormScreen(onBack = { navController.popBackStack() })
+            }
+
+            composable(Routes.SETTINGS) {
+                SettingsScreen(onBack = { navController.popBackStack() })
             }
         }
     }

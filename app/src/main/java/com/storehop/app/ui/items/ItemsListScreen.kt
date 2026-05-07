@@ -20,11 +20,13 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -48,13 +50,23 @@ import com.storehop.app.data.db.relations.ItemWithCategoryAndStores
 fun ItemsListScreen(
     onAddItem: () -> Unit,
     onEditItem: (itemId: String) -> Unit,
+    onOpenSettings: () -> Unit,
     viewModel: ItemsListViewModel = hiltViewModel(),
 ) {
     val items by viewModel.items.collectAsState()
     val query by viewModel.query.collectAsState()
 
     Scaffold(
-        topBar = { TopAppBar(title = { Text("Items") }) },
+        topBar = {
+            TopAppBar(
+                title = { Text("Items") },
+                actions = {
+                    IconButton(onClick = onOpenSettings) {
+                        Icon(Icons.Filled.Settings, contentDescription = "Settings")
+                    }
+                },
+            )
+        },
         floatingActionButton = {
             FloatingActionButton(onClick = onAddItem) {
                 Icon(Icons.Filled.Add, contentDescription = "Add item")
