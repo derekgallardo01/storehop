@@ -14,9 +14,14 @@ import com.storehop.app.sync.dto.docId
 import com.storehop.app.sync.dto.toDto
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
@@ -52,6 +57,7 @@ import javax.inject.Singleton
 class SyncEngine @Inject constructor(
     private val firestore: FirebaseFirestore,
     private val session: UserSessionProvider,
+    private val pullStateRepo: PullStateRepository,
     private val applicationScope: CoroutineScope,
     private val itemDao: ItemDao,
     private val categoryDao: CategoryDao,
@@ -62,12 +68,38 @@ class SyncEngine @Inject constructor(
 ) {
     @Volatile private var pushJob: Job? = null
 
+    /**
+     * v0.4: push jobs are gated on [PullState.SUCCEEDED] for the active uid.
+     *
+     * While `IN_PROGRESS` (pull running) or `FAILED` (pull errored), no push
+     * happens. Local edits accumulate `pendingSync = 1` and flush to cloud
+     * automatically when the state flips to `SUCCEEDED`.
+     *
+     * This is what closes the silent-corruption bug: even if seeded local
+     * data is sitting at `pendingSync = 1` after a fresh install, it never
+     * pushes until pull has either populated the local DB from cloud (so
+     * the seeded rows get overwritten by cloud's authoritative copy) or
+     * confirmed cloud was empty (so push freely populates cloud).
+     */
+    @OptIn(ExperimentalCoroutinesApi::class)
     fun start() {
         applicationScope.launch {
-            session.userId.collectLatest { uid ->
-                pushJob?.cancel()
-                pushJob = if (uid == null) null else launchPushJobsFor(uid)
-            }
+            session.userId
+                .filterNotNull()
+                .flatMapLatest { uid ->
+                    pullStateRepo.observe(uid).map { state -> uid to state }
+                }
+                .distinctUntilChanged()
+                .collectLatest { (uid, state) ->
+                    pushJob?.cancel()
+                    pushJob = if (state == PullState.SUCCEEDED) {
+                        Log.i(TAG, "PullState=SUCCEEDED for uid=$uid; starting push jobs")
+                        launchPushJobsFor(uid)
+                    } else {
+                        Log.i(TAG, "PullState=$state for uid=$uid; push paused")
+                        null
+                    }
+                }
         }
     }
 

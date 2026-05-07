@@ -42,6 +42,7 @@ import org.junit.Test
  *  - successful push -> markPushed flips pendingSync = 0 on the row
  *  - push failure leaves pendingSync = 1 so the row retries on next emission
  *  - signed-out (uid == null) state runs no push jobs
+ *  - v0.4 gating: push jobs only launch when pullState == SUCCEEDED
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class SyncEngineTest {
@@ -158,6 +159,83 @@ class SyncEngineTest {
         scope.cancel()
     }
 
+    @Test fun `pullState=FAILED keeps push jobs paused`() = runTest {
+        // Critical contract: push must NOT run while pull hasn't completed.
+        // Otherwise seeded/orphan-claimed local data could push to cloud and
+        // overwrite the user's actual data -- the bug v0.4 closes.
+        stubFirestorePath()
+        every { itemDao.observePendingPush(any()) } returns flowOf(
+            listOf(
+                Item(
+                    id = "milk", name = "Milk", categoryId = null, notes = null,
+                    quantity = null, isNeeded = true, lastPurchasedAt = null,
+                    userId = "uid", createdAt = 1L, updatedAt = 1L, deletedAt = null,
+                ),
+            ),
+        )
+        every { categoryDao.observePendingPush(any()) } returns flowOf(emptyList())
+        every { storeDao.observePendingPush(any()) } returns flowOf(emptyList())
+        every { xrefDao.observePendingPush(any()) } returns flowOf(emptyList())
+        every { scoDao.observePendingPush(any()) } returns flowOf(emptyList())
+        every { purchaseDao.observePendingPush(any()) } returns flowOf(emptyList())
+
+        val pullState = MutableStateFlow(PullState.FAILED)
+        val pullStateRepo: PullStateRepository = mockk {
+            every { observe("uid") } returns pullState
+        }
+
+        val scope = CoroutineScope(SupervisorJob() + mainDispatcher.dispatcher)
+        val engine = newEngine(FakeSessionProvider(initial = "uid"), scope, pullStateRepo)
+        engine.start()
+        advanceUntilIdle()
+
+        // Despite the pending row, push must not have happened.
+        coVerify(exactly = 0) { itemDao.markPushed(any(), any()) }
+        scope.cancel()
+    }
+
+    @Test fun `pullState transition to SUCCEEDED starts push jobs`() = runTest {
+        // Real-world scenario: pull is in flight, edits accumulate as
+        // pendingSync=1; when pull succeeds, push jobs spin up and flush.
+        val docRef = stubFirestorePath()
+        every { itemDao.observePendingPush("uid") } returns flowOf(
+            listOf(
+                Item(
+                    id = "milk", name = "Milk", categoryId = null, notes = null,
+                    quantity = null, isNeeded = true, lastPurchasedAt = null,
+                    userId = "uid", createdAt = 1L, updatedAt = 1L, deletedAt = null,
+                ),
+            ),
+        )
+        every { categoryDao.observePendingPush(any()) } returns flowOf(emptyList())
+        every { storeDao.observePendingPush(any()) } returns flowOf(emptyList())
+        every { xrefDao.observePendingPush(any()) } returns flowOf(emptyList())
+        every { scoDao.observePendingPush(any()) } returns flowOf(emptyList())
+        every { purchaseDao.observePendingPush(any()) } returns flowOf(emptyList())
+
+        val pullState = MutableStateFlow(PullState.IN_PROGRESS)
+        val pullStateRepo: PullStateRepository = mockk {
+            every { observe("uid") } returns pullState
+        }
+
+        val scope = CoroutineScope(SupervisorJob() + mainDispatcher.dispatcher)
+        val engine = newEngine(FakeSessionProvider(initial = "uid"), scope, pullStateRepo)
+        engine.start()
+        advanceUntilIdle()
+
+        // No push yet -- IN_PROGRESS keeps push paused.
+        coVerify(exactly = 0) { itemDao.markPushed(any(), any()) }
+
+        // Pull finishes successfully.
+        pullState.value = PullState.SUCCEEDED
+        advanceUntilIdle()
+
+        // Now push fires.
+        coVerify(exactly = 1) { docRef.set(any()) }
+        coVerify(exactly = 1) { itemDao.markPushed("uid", "milk") }
+        scope.cancel()
+    }
+
     @Test fun `uid switch cancels the previous user's pending observers`() = runTest {
         stubFirestorePath()
         // Two distinct flows for the two uids; the first must be cancelled
@@ -198,9 +276,24 @@ class SyncEngineTest {
         scope.cancel()
     }
 
-    private fun newEngine(session: UserSessionProvider, scope: CoroutineScope) = SyncEngine(
+    /**
+     * Default pullStateRepo for tests that exercise pre-v0.4 contracts: every
+     * uid is already SUCCEEDED so push jobs run immediately. The new gating
+     * tests use their own MutableStateFlow-backed mock so they can drive the
+     * transition explicitly.
+     */
+    private fun stubSucceededPullState(): PullStateRepository = mockk {
+        every { observe(any()) } answers { flowOf(PullState.SUCCEEDED) }
+    }
+
+    private fun newEngine(
+        session: UserSessionProvider,
+        scope: CoroutineScope,
+        pullStateRepo: PullStateRepository = stubSucceededPullState(),
+    ) = SyncEngine(
         firestore = firestore,
         session = session,
+        pullStateRepo = pullStateRepo,
         applicationScope = scope,
         itemDao = itemDao,
         categoryDao = categoryDao,
