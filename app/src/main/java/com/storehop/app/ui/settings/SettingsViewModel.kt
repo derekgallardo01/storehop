@@ -11,6 +11,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.auth.FirebaseAuth
 import com.storehop.app.auth.GoogleSignInUseCase
+import com.storehop.app.data.dao.LocalOnlyMigrationDao
 import com.storehop.app.data.prefs.ThemeMode
 import com.storehop.app.data.prefs.UserPreferencesRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -41,6 +42,7 @@ class SettingsViewModel @Inject constructor(
     private val auth: FirebaseAuth,
     private val googleSignIn: GoogleSignInUseCase,
     private val userPrefs: UserPreferencesRepository,
+    private val migrationDao: LocalOnlyMigrationDao,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(snapshot())
@@ -139,7 +141,20 @@ class SettingsViewModel @Inject constructor(
         _state.update { it.copy(busy = true, error = null) }
         viewModelScope.launch {
             googleSignIn.signIn(activityContext)
-                .onSuccess { _state.value = snapshot().copy(busy = false) }
+                .onSuccess {
+                    // After the auth flip succeeds, re-stamp any rows still
+                    // under the previous uid onto the active one BEFORE we
+                    // clear the busy flag. SignInBootstrapper would catch
+                    // this asynchronously via its uid-change collector, but
+                    // doing it here gates the "Signed in" state on the data
+                    // already being migrated -- so the user doesn't see a
+                    // brief "where did my stores go?" moment when they
+                    // navigate from Settings to Shop right after sign-in.
+                    auth.currentUser?.uid?.let { uid ->
+                        migrationDao.claimAllOrphanRowsAs(uid)
+                    }
+                    _state.value = snapshot().copy(busy = false)
+                }
                 .onFailure { e ->
                     _state.value = snapshot().copy(
                         busy = false,
