@@ -57,6 +57,14 @@ android {
             if (hasReleaseSigning) {
                 signingConfig = signingConfigs.getByName("release")
             }
+            // Bundle native debug symbols so Play Console can symbolicate
+            // crashes/ANRs in the third-party native code we ship (Firebase
+            // SDKs, Compose runtime). SYMBOL_TABLE is the smaller variant --
+            // function names but no source line numbers, which is plenty
+            // for the kinds of stack traces we'd actually see.
+            ndk {
+                debugSymbolLevel = "SYMBOL_TABLE"
+            }
         }
         debug {
             isMinifyEnabled = false
