@@ -37,6 +37,7 @@ data class CategorySection(
 class ShopAtStoreViewModel @Inject constructor(
     private val shoppingRepository: ShoppingRepository,
     private val itemRepository: ItemRepository,
+    sessionTracker: ShoppingSessionTracker,
     storeRepository: StoreRepository,
     savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
@@ -46,14 +47,13 @@ class ShopAtStoreViewModel @Inject constructor(
     }
 
     /**
-     * Captured once when the ViewModel is constructed -- defines the "current
-     * shopping session" at this store. Items the user marks purchased while
-     * this VM is alive (lastPurchasedAt >= sessionStartMs) stay visible
-     * struck-through and tappable to undo. Re-entering the screen creates a
-     * new VM with a fresh value, so previously purchased non-staples drop
-     * out and the list reads clean again.
+     * Anchored to the *process-wide* shopping session, not this VM's lifetime.
+     * That way an item purchased at Lidl shows struck-through at Continente
+     * too within the same trip -- the strike-through is the cross-store sync
+     * confirmation. The anchor resets when the app process restarts; see
+     * [ShoppingSessionTracker] for details.
      */
-    private val sessionStartMs: Long = System.currentTimeMillis()
+    private val sessionStartMs: Long = sessionTracker.sessionStartMs()
 
     private val _query = MutableStateFlow("")
     val query: StateFlow<String> = _query.asStateFlow()
