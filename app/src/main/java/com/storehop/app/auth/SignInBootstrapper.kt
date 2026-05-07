@@ -33,14 +33,27 @@ class SignInBootstrapper @Inject constructor(
         applicationScope.launch {
             // Wait for the first real (non-null) uid to arrive.
             val uid = session.userId.filterNotNull().first()
-            val before = migrationDao.countLocalOnlyStores()
-            if (before > 0) {
-                Log.i(TAG, "Claiming $before local-only stores (and their cohort) to uid=$uid")
+            val beforeLocalOnly = migrationDao.countLocalOnlyStores()
+            if (beforeLocalOnly > 0) {
+                Log.i(TAG, "Claiming $beforeLocalOnly local-only stores (and their cohort) to uid=$uid")
                 migrationDao.claimAllLocalOnlyRowsAs(uid)
             }
-            val after = migrationDao.countLocalOnlyStores()
-            check(after == 0) {
-                "claim migration left $after local-only stores; expected 0"
+            val afterLocalOnly = migrationDao.countLocalOnlyStores()
+            check(afterLocalOnly == 0) {
+                "claim migration left $afterLocalOnly local-only stores; expected 0"
+            }
+
+            // Orphan-uid recovery: rows under any uid that isn't `local-only`
+            // and isn't the current session uid. This happens when
+            // GoogleSignInUseCase's linkWithCredential failed and fell back
+            // to signInWithCredential -- the user ended up on a different
+            // Firebase uid than the one their data was originally stamped
+            // with. Single-user v1 assumption: claim those rows to the
+            // current session so they don't stay orphaned.
+            val beforeOrphans = migrationDao.countOrphanStores(uid)
+            if (beforeOrphans > 0) {
+                Log.i(TAG, "Claiming $beforeOrphans orphan-uid stores (and their cohort) to uid=$uid")
+                migrationDao.claimAllOrphanRowsAs(uid)
             }
         }
     }
