@@ -36,3 +36,11 @@ Thumbs.db
 
 # Firebase config (added in later milestone, must never auto-commit)
 app/google-services.json
+
+# Release signing — NEVER commit either of these. Lose the keystore
+# and you lose the ability to publish updates under the same app
+# identity on Google Play, so back it up somewhere safe (1Password,
+# encrypted USB, etc.) outside this repo.
+keystore.properties
+*.jks
+*.keystore
