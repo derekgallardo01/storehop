@@ -29,6 +29,33 @@
     <string name="cat_clothing">Vestuário</string>
     <string name="cat_other">Outros</string>
 
+    <!-- Títulos das barras superiores. -->
+    <string name="title_shop">Onde vai fazer compras?</string>
+    <string name="title_items">Artigos</string>
+    <string name="title_settings">Definições</string>
+    <string name="title_add_item">Adicionar artigo</string>
+    <string name="title_edit_item">Editar artigo</string>
+
+    <!-- Acções comuns. -->
+    <string name="action_back">Voltar</string>
+    <string name="action_save">Guardar</string>
+    <string name="action_saving">A guardar…</string>
+    <string name="action_cancel">Cancelar</string>
+    <string name="action_delete">Eliminar</string>
+    <string name="action_add_store">Adicionar loja</string>
+    <string name="action_add_item">Adicionar artigo</string>
+    <string name="action_settings">Definições</string>
+
+    <!-- Secção de conta. -->
+    <string name="account_title">Conta</string>
+    <string name="account_anonymous_label">Conta anónima</string>
+    <string name="account_anonymous_description">Apenas neste dispositivo. Inicie sessão para fazer cópia de segurança e sincronizar a sua lista entre dispositivos.</string>
+    <string name="account_signed_in_default">Sessão iniciada</string>
+    <string name="action_sign_in_with_google">Iniciar sessão com Google</string>
+    <string name="account_sign_in_helper">Os artigos, lojas e fotografias existentes ficam associados à sua conta Google quando inicia sessão — sem perda de dados.</string>
+    <string name="action_sign_out">Terminar sessão</string>
+    <string name="account_sign_out_helper">Terminar sessão remove a vista sincronizada deste dispositivo e regressa a uma conta anónima local. Os dados na nuvem permanecem seguros na sua conta Google e voltam a aparecer quando iniciar sessão novamente.</string>
+
     <!-- Definições. -->
     <string name="settings_theme_title">Tema</string>
     <string name="settings_theme_system">Seguir o sistema</string>

@@ -57,9 +57,11 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.storehop.app.R
 import com.storehop.app.data.repository.StorePickerRow
 import kotlinx.coroutines.launch
 import sh.calvin.reorderable.ReorderableItem
@@ -107,10 +109,13 @@ fun StorePickerScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Where are you shopping?") },
+                title = { Text(stringResource(R.string.title_shop)) },
                 actions = {
                     IconButton(onClick = onOpenSettings) {
-                        Icon(Icons.Filled.Settings, contentDescription = "Settings")
+                        Icon(
+                            Icons.Filled.Settings,
+                            contentDescription = stringResource(R.string.action_settings),
+                        )
                     }
                 },
             )
@@ -119,7 +124,7 @@ fun StorePickerScreen(
             ExtendedFloatingActionButton(
                 onClick = { showAddDialog = true },
                 icon = { Icon(Icons.Filled.Add, contentDescription = null) },
-                text = { Text("Add store") },
+                text = { Text(stringResource(R.string.action_add_store)) },
             )
         },
     ) { padding ->

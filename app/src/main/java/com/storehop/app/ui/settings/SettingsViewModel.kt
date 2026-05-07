@@ -46,11 +46,14 @@ class SettingsViewModel @Inject constructor(
 
     /**
      * Current per-app locale tag ("en", "pt-PT", or empty for "follow system").
-     * Re-reads on every `state` flow tick so the UI refreshes after a locale
-     * switch without us wiring a separate listener (AppCompatDelegate's
-     * locale state is process-wide and changes are synchronous).
+     * Initialized from AppCompatDelegate at construction; updated optimistically
+     * by [setLocale] so the radio selection reflects the choice instantly. The
+     * activity is recreated by the screen after [setLocale] returns, which
+     * remakes this VM with a fresh read -- so the optimistic value and the
+     * post-recreate value should match.
      */
-    val currentLocaleTag: StateFlow<String> = MutableStateFlow(readLocaleTag()).asStateFlow()
+    private val _localeTag = MutableStateFlow(readLocaleTag())
+    val currentLocaleTag: StateFlow<String> = _localeTag.asStateFlow()
 
     private val authListener = FirebaseAuth.AuthStateListener { _state.value = snapshot() }
 
@@ -68,15 +71,19 @@ class SettingsViewModel @Inject constructor(
     /**
      * Switch the per-app locale. Pass `""` for "follow system." AppCompat
      * dispatches to `LocaleManager` on API 33+ and uses its own backport on
-     * older devices; the change is persisted across app restarts. The
-     * Activity is recreated by AppCompat as part of the call so all
-     * resource-loaded strings re-resolve immediately.
+     * older devices; the change is persisted across app restarts.
+     *
+     * IMPORTANT: the screen MUST call `activity.recreate()` after this -- on
+     * API 33+ the system would normally auto-restart, but with a non-AppCompat
+     * Activity (we use ComponentActivity) the auto-restart is unreliable, so
+     * we force it from the call site to guarantee strings re-resolve.
      */
     fun setLocale(tag: String) {
         AppCompatDelegate.setApplicationLocales(
             if (tag.isBlank()) LocaleListCompat.getEmptyLocaleList()
             else LocaleListCompat.forLanguageTags(tag),
         )
+        _localeTag.value = tag
     }
 
     private fun readLocaleTag(): String {

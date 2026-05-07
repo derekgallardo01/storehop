@@ -39,10 +39,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
+import com.storehop.app.R
 import com.storehop.app.data.db.relations.ItemWithCategoryAndStores
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -59,17 +61,23 @@ fun ItemsListScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Items") },
+                title = { Text(stringResource(R.string.title_items)) },
                 actions = {
                     IconButton(onClick = onOpenSettings) {
-                        Icon(Icons.Filled.Settings, contentDescription = "Settings")
+                        Icon(
+                            Icons.Filled.Settings,
+                            contentDescription = stringResource(R.string.action_settings),
+                        )
                     }
                 },
             )
         },
         floatingActionButton = {
             FloatingActionButton(onClick = onAddItem) {
-                Icon(Icons.Filled.Add, contentDescription = "Add item")
+                Icon(
+                    Icons.Filled.Add,
+                    contentDescription = stringResource(R.string.action_add_item),
+                )
             }
         },
     ) { padding ->

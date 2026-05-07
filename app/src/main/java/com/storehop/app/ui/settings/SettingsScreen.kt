@@ -77,10 +77,13 @@ fun SettingsScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Settings") },
+                title = { Text(stringResource(R.string.title_settings)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = stringResource(R.string.action_back),
+                        )
                     }
                 },
             )
@@ -106,7 +109,16 @@ fun SettingsScreen(
             )
             LanguageCard(
                 selectedTag = currentLocaleTag,
-                onSelect = viewModel::setLocale,
+                onSelect = { tag ->
+                    viewModel.setLocale(tag)
+                    // Force the activity to remake so resource strings
+                    // re-resolve under the new locale. On API 33+ the system
+                    // would normally auto-restart after setApplicationLocales,
+                    // but ComponentActivity (vs AppCompatActivity) doesn't
+                    // always get that auto-restart -- doing it ourselves is
+                    // both safe and reliable across versions.
+                    (context as? android.app.Activity)?.recreate()
+                },
             )
         }
     }
@@ -230,7 +242,7 @@ private fun AccountCard(
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Text(
-                "Account",
+                stringResource(R.string.account_title),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,
             )
@@ -241,12 +253,12 @@ private fun AccountCard(
                 Column(modifier = Modifier.weight(1f)) {
                     if (state.isAnonymous) {
                         Text(
-                            "Anonymous account",
+                            stringResource(R.string.account_anonymous_label),
                             style = MaterialTheme.typography.bodyLarge,
                             fontWeight = FontWeight.Medium,
                         )
                         Text(
-                            "Local-only on this device. Sign in to back up + sync your list across devices.",
+                            stringResource(R.string.account_anonymous_description),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -254,7 +266,7 @@ private fun AccountCard(
                         Text(
                             text = state.displayName?.takeIf { it.isNotBlank() }
                                 ?: state.email
-                                ?: "Signed in",
+                                ?: stringResource(R.string.account_signed_in_default),
                             style = MaterialTheme.typography.bodyLarge,
                             fontWeight = FontWeight.Medium,
                         )
@@ -283,10 +295,10 @@ private fun AccountCard(
                         )
                         Spacer(Modifier.width(8.dp))
                     }
-                    Text("Sign in with Google")
+                    Text(stringResource(R.string.action_sign_in_with_google))
                 }
                 Text(
-                    "Your existing items, stores, and photos transfer to your Google account when you sign in -- no data loss.",
+                    stringResource(R.string.account_sign_in_helper),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -304,10 +316,10 @@ private fun AccountCard(
                         )
                         Spacer(Modifier.width(8.dp))
                     }
-                    Text("Sign out")
+                    Text(stringResource(R.string.action_sign_out))
                 }
                 Text(
-                    "Signing out clears the cloud-synced view on this device and drops you back to a local-only anonymous account. Your cloud data stays safe under your Google account and reappears when you sign in again.",
+                    stringResource(R.string.account_sign_out_helper),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )

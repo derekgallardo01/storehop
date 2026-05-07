@@ -26,6 +26,33 @@
     <string name="cat_clothing">Clothing</string>
     <string name="cat_other">Other</string>
 
+    <!-- Top-bar titles. -->
+    <string name="title_shop">Where are you shopping?</string>
+    <string name="title_items">Items</string>
+    <string name="title_settings">Settings</string>
+    <string name="title_add_item">Add item</string>
+    <string name="title_edit_item">Edit item</string>
+
+    <!-- Common actions. -->
+    <string name="action_back">Back</string>
+    <string name="action_save">Save</string>
+    <string name="action_saving">Saving…</string>
+    <string name="action_cancel">Cancel</string>
+    <string name="action_delete">Delete</string>
+    <string name="action_add_store">Add store</string>
+    <string name="action_add_item">Add item</string>
+    <string name="action_settings">Settings</string>
+
+    <!-- Account section. -->
+    <string name="account_title">Account</string>
+    <string name="account_anonymous_label">Anonymous account</string>
+    <string name="account_anonymous_description">Local-only on this device. Sign in to back up + sync your list across devices.</string>
+    <string name="account_signed_in_default">Signed in</string>
+    <string name="action_sign_in_with_google">Sign in with Google</string>
+    <string name="account_sign_in_helper">Your existing items, stores, and photos transfer to your Google account when you sign in — no data loss.</string>
+    <string name="action_sign_out">Sign out</string>
+    <string name="account_sign_out_helper">Signing out clears the cloud-synced view on this device and drops you back to a local-only anonymous account. Your cloud data stays safe under your Google account and reappears when you sign in again.</string>
+
     <!-- Settings screen. -->
     <string name="settings_theme_title">Theme</string>
     <string name="settings_theme_system">Follow system</string>
