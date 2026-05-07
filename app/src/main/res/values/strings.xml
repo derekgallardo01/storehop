@@ -33,6 +33,10 @@
     <string name="title_add_item">Add item</string>
     <string name="title_edit_item">Edit item</string>
 
+    <!-- Bottom nav labels. Kept short so they fit two-tab layout. -->
+    <string name="nav_shop">Shop</string>
+    <string name="nav_items">Items</string>
+
     <!-- Common actions. -->
     <string name="action_back">Back</string>
     <string name="action_save">Save</string>

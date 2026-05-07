@@ -22,6 +22,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
@@ -140,7 +141,7 @@ private fun SignedInRoot() {
                         }
                     },
                     icon = { Icon(Icons.Filled.Storefront, contentDescription = null) },
-                    label = { Text("Shop") },
+                    label = { Text(stringResource(R.string.nav_shop)) },
                 )
                 NavigationBarItem(
                     selected = Routes.isItemsTabRoute(currentRoute),
@@ -152,7 +153,7 @@ private fun SignedInRoot() {
                         }
                     },
                     icon = { Icon(Icons.Filled.List, contentDescription = null) },
-                    label = { Text("Items") },
+                    label = { Text(stringResource(R.string.nav_items)) },
                 )
             }
         },

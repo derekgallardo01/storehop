@@ -36,6 +36,10 @@
     <string name="title_add_item">Adicionar artigo</string>
     <string name="title_edit_item">Editar artigo</string>
 
+    <!-- Etiquetas da navegação inferior. -->
+    <string name="nav_shop">Compras</string>
+    <string name="nav_items">Artigos</string>
+
     <!-- Acções comuns. -->
     <string name="action_back">Voltar</string>
     <string name="action_save">Guardar</string>
