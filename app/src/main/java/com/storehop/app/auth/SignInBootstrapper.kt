@@ -4,8 +4,8 @@ import android.util.Log
 import com.storehop.app.data.dao.LocalOnlyMigrationDao
 import com.storehop.app.data.util.UserSessionProvider
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filterNotNull
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -13,15 +13,16 @@ import javax.inject.Singleton
 /**
  * Bridges the gap between the pre-Firebase data layer (where every row carries
  * `userId = "local-only"`) and the post-Firebase one (every row tagged with a
- * real Firebase uid).
+ * real Firebase uid). Also handles in-session uid switches (Google Sign-In's
+ * linkWithCredential -> signInWithCredential fallback path).
  *
- * Started once from [com.storehop.app.StorehopApplication.onCreate]:
- *  1. Waits for the [UserSessionProvider]'s first non-null uid (anonymous or Google).
- *  2. Re-stamps every `local-only` row in Room to that uid in a single transaction.
+ * Started once from [com.storehop.app.StorehopApplication.onCreate]; collects
+ * every distinct non-null uid the session emits and runs two claims per uid:
+ *  1. local-only -> uid (only finds rows on first launch after a fresh install)
+ *  2. orphan-uid -> uid (catches data left under a previous uid after an auth
+ *     state change, e.g. anonymous-then-Google or Google-account-switch)
  *
- * Idempotent on subsequent app starts -- after the first run, no rows match the
- * `WHERE userId = 'local-only'` filter, so the UPDATEs are no-ops. We still log
- * the post-migration count so operational issues are visible in logcat.
+ * Idempotent: when no matching rows exist, both UPDATEs are no-ops.
  */
 @Singleton
 class SignInBootstrapper @Inject constructor(
@@ -31,30 +32,44 @@ class SignInBootstrapper @Inject constructor(
 ) {
     fun start() {
         applicationScope.launch {
-            // Wait for the first real (non-null) uid to arrive.
-            val uid = session.userId.filterNotNull().first()
-            val beforeLocalOnly = migrationDao.countLocalOnlyStores()
-            if (beforeLocalOnly > 0) {
-                Log.i(TAG, "Claiming $beforeLocalOnly local-only stores (and their cohort) to uid=$uid")
-                migrationDao.claimAllLocalOnlyRowsAs(uid)
-            }
-            val afterLocalOnly = migrationDao.countLocalOnlyStores()
-            check(afterLocalOnly == 0) {
-                "claim migration left $afterLocalOnly local-only stores; expected 0"
-            }
+            // Listen for every uid the session emits, not just the first.
+            // This matters when Google Sign-In flips the uid mid-session
+            // (linkWithCredential fails, signInWithCredential succeeds
+            // under a different uid -- the data we just claimed under the
+            // anonymous uid is suddenly orphaned). distinctUntilChanged
+            // skips duplicate emissions; the work below only runs when the
+            // active uid actually changes.
+            session.userId
+                .filterNotNull()
+                .distinctUntilChanged()
+                .collect { uid ->
+                    // local-only -> uid: only finds rows on the very first
+                    // run after a fresh install (DatabaseSeeder writes
+                    // local-only rows on DB create). After that, this is a
+                    // no-op for every subsequent uid change.
+                    val beforeLocalOnly = migrationDao.countLocalOnlyStores()
+                    if (beforeLocalOnly > 0) {
+                        Log.i(TAG, "Claiming $beforeLocalOnly local-only stores (and their cohort) to uid=$uid")
+                        migrationDao.claimAllLocalOnlyRowsAs(uid)
+                    }
+                    val afterLocalOnly = migrationDao.countLocalOnlyStores()
+                    check(afterLocalOnly == 0) {
+                        "claim migration left $afterLocalOnly local-only stores; expected 0"
+                    }
 
-            // Orphan-uid recovery: rows under any uid that isn't `local-only`
-            // and isn't the current session uid. This happens when
-            // GoogleSignInUseCase's linkWithCredential failed and fell back
-            // to signInWithCredential -- the user ended up on a different
-            // Firebase uid than the one their data was originally stamped
-            // with. Single-user v1 assumption: claim those rows to the
-            // current session so they don't stay orphaned.
-            val beforeOrphans = migrationDao.countOrphanStores(uid)
-            if (beforeOrphans > 0) {
-                Log.i(TAG, "Claiming $beforeOrphans orphan-uid stores (and their cohort) to uid=$uid")
-                migrationDao.claimAllOrphanRowsAs(uid)
-            }
+                    // orphan-uid -> uid: every time the active uid changes,
+                    // re-stamp any rows still under a previous uid onto the
+                    // new one. Single-user v1 assumption: all data on the
+                    // device is by definition the active user's, so orphans
+                    // from auth-flow edge cases (linkWithCredential fallback,
+                    // Google account switch, anonymous-then-signed-in) all
+                    // get carried over rather than being silently lost.
+                    val beforeOrphans = migrationDao.countOrphanStores(uid)
+                    if (beforeOrphans > 0) {
+                        Log.i(TAG, "Claiming $beforeOrphans orphan-uid stores (and their cohort) to uid=$uid")
+                        migrationDao.claimAllOrphanRowsAs(uid)
+                    }
+                }
         }
     }
 
