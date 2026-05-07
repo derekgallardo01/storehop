@@ -142,15 +142,15 @@
 
     <!-- Plurais. -->
     <plurals name="store_items_needed">
-        <item quantity="one">%d artigo em falta</item>
-        <item quantity="other">%d artigos em falta</item>
+        <item quantity="one">%d artigo</item>
+        <item quantity="other">%d artigos</item>
     </plurals>
     <plurals name="critical_at_this_store">
         <item quantity="one">%d artigo crítico nesta loja</item>
         <item quantity="other">%d artigos críticos nesta loja</item>
     </plurals>
     <plurals name="store_critical_chip">
-        <item quantity="one">⚠ %d crítico</item>
-        <item quantity="other">⚠ %d críticos</item>
+        <item quantity="one">⚠ %d</item>
+        <item quantity="other">⚠ %d</item>
     </plurals>
 </resources>

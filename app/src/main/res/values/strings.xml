@@ -139,15 +139,15 @@
 
     <!-- Plurals: count-based strings. -->
     <plurals name="store_items_needed">
-        <item quantity="one">%d item needed</item>
-        <item quantity="other">%d items needed</item>
+        <item quantity="one">%d item</item>
+        <item quantity="other">%d items</item>
     </plurals>
     <plurals name="critical_at_this_store">
         <item quantity="one">%d critical item at this store</item>
         <item quantity="other">%d critical items at this store</item>
     </plurals>
     <plurals name="store_critical_chip">
-        <item quantity="one">⚠ %d critical</item>
-        <item quantity="other">⚠ %d critical</item>
+        <item quantity="one">⚠ %d</item>
+        <item quantity="other">⚠ %d</item>
     </plurals>
 </resources>
