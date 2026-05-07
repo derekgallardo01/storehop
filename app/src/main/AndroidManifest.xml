@@ -13,6 +13,17 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.Storehop">
 
+        <!--
+          AppCompatDelegate.setApplicationLocales needs this opt-in when the
+          host Activity isn't an AppCompatActivity (we use ComponentActivity
+          for Compose-only). With autoStoreLocales=true, AppCompat delegates
+          to LocaleManager on API 33+ and uses its own backport on older
+          devices; without it the call silently no-ops on ComponentActivity.
+        -->
+        <meta-data
+            android:name="autoStoreLocales"
+            android:value="true" />
+
         <activity
             android:name=".MainActivity"
             android:exported="true"
