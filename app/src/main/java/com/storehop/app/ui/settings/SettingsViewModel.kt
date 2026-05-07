@@ -1,14 +1,20 @@
 package com.storehop.app.ui.settings
 
 import android.content.Context
+import androidx.appcompat.app.AppCompatDelegate
+import androidx.core.os.LocaleListCompat
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.auth.FirebaseAuth
 import com.storehop.app.auth.GoogleSignInUseCase
+import com.storehop.app.data.prefs.ThemeMode
+import com.storehop.app.data.prefs.UserPreferencesRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
@@ -28,10 +34,23 @@ data class AccountState(
 class SettingsViewModel @Inject constructor(
     private val auth: FirebaseAuth,
     private val googleSignIn: GoogleSignInUseCase,
+    private val userPrefs: UserPreferencesRepository,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(snapshot())
     val state: StateFlow<AccountState> = _state.asStateFlow()
+
+    /** Theme-mode pref for the Theme section's selection state. */
+    val themeMode: StateFlow<ThemeMode> = userPrefs.themeMode
+        .stateIn(viewModelScope, SharingStarted.Eagerly, ThemeMode.SYSTEM)
+
+    /**
+     * Current per-app locale tag ("en", "pt-PT", or empty for "follow system").
+     * Re-reads on every `state` flow tick so the UI refreshes after a locale
+     * switch without us wiring a separate listener (AppCompatDelegate's
+     * locale state is process-wide and changes are synchronous).
+     */
+    val currentLocaleTag: StateFlow<String> = MutableStateFlow(readLocaleTag()).asStateFlow()
 
     private val authListener = FirebaseAuth.AuthStateListener { _state.value = snapshot() }
 
@@ -40,6 +59,29 @@ class SettingsViewModel @Inject constructor(
     override fun onCleared() {
         super.onCleared()
         auth.removeAuthStateListener(authListener)
+    }
+
+    fun setThemeMode(mode: ThemeMode) {
+        viewModelScope.launch { userPrefs.setThemeMode(mode) }
+    }
+
+    /**
+     * Switch the per-app locale. Pass `""` for "follow system." AppCompat
+     * dispatches to `LocaleManager` on API 33+ and uses its own backport on
+     * older devices; the change is persisted across app restarts. The
+     * Activity is recreated by AppCompat as part of the call so all
+     * resource-loaded strings re-resolve immediately.
+     */
+    fun setLocale(tag: String) {
+        AppCompatDelegate.setApplicationLocales(
+            if (tag.isBlank()) LocaleListCompat.getEmptyLocaleList()
+            else LocaleListCompat.forLanguageTags(tag),
+        )
+    }
+
+    private fun readLocaleTag(): String {
+        val locales = AppCompatDelegate.getApplicationLocales()
+        return if (locales.isEmpty) "" else locales.toLanguageTags()
     }
 
     /**

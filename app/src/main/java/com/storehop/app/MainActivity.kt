@@ -4,6 +4,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -24,12 +25,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.flow.stateIn
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.google.firebase.auth.FirebaseAuth
+import com.storehop.app.data.prefs.ThemeMode
+import com.storehop.app.data.prefs.UserPreferencesRepository
 import com.storehop.app.data.util.UserSessionProvider
 import com.storehop.app.ui.items.ItemFormScreen
 import com.storehop.app.ui.items.ItemsListScreen
@@ -50,9 +55,20 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            StorehopTheme {
+            // RootViewModel hands us the theme-mode pref. We resolve SYSTEM
+            // against isSystemInDarkTheme() at composition time so a theme
+            // switch in the OS settings updates us live, and a LIGHT/DARK
+            // override beats the system regardless.
+            val rootViewModel: RootViewModel = hiltViewModel()
+            val themeMode by rootViewModel.themeMode.collectAsState()
+            val isDark = when (themeMode) {
+                ThemeMode.SYSTEM -> isSystemInDarkTheme()
+                ThemeMode.LIGHT -> false
+                ThemeMode.DARK -> true
+            }
+            StorehopTheme(darkTheme = isDark) {
                 Surface(modifier = Modifier.fillMaxSize()) {
-                    AppRoot()
+                    AppRoot(rootViewModel)
                 }
             }
         }
@@ -63,8 +79,21 @@ class MainActivity : ComponentActivity() {
 class RootViewModel @Inject constructor(
     val session: UserSessionProvider,
     private val auth: FirebaseAuth,
+    userPrefs: UserPreferencesRepository,
 ) : ViewModel() {
     fun isAnonymous(): Boolean = auth.currentUser?.isAnonymous == true
+
+    /**
+     * Theme-mode preference, with SYSTEM as the seed so first-launch users
+     * follow OS dark mode until they explicitly pick LIGHT or DARK from
+     * Settings.
+     */
+    val themeMode: kotlinx.coroutines.flow.StateFlow<ThemeMode> = userPrefs.themeMode
+        .stateIn(
+            viewModelScope,
+            kotlinx.coroutines.flow.SharingStarted.Eagerly,
+            ThemeMode.SYSTEM,
+        )
 }
 
 @Composable

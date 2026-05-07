@@ -25,4 +25,14 @@
     <string name="cat_stationery">Stationery</string>
     <string name="cat_clothing">Clothing</string>
     <string name="cat_other">Other</string>
+
+    <!-- Settings screen. -->
+    <string name="settings_theme_title">Theme</string>
+    <string name="settings_theme_system">Follow system</string>
+    <string name="settings_theme_light">Light</string>
+    <string name="settings_theme_dark">Dark</string>
+    <string name="settings_language_title">Language</string>
+    <string name="settings_language_system">System default</string>
+    <string name="settings_language_english">English</string>
+    <string name="settings_language_pt_pt">Português (Portugal)</string>
 </resources>

@@ -8,10 +8,15 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AccountCircle
@@ -24,6 +29,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SnackbarHost
@@ -40,10 +46,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
+import com.storehop.app.R
+import com.storehop.app.data.prefs.ThemeMode
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -52,6 +62,8 @@ fun SettingsScreen(
     viewModel: SettingsViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsState()
+    val themeMode by viewModel.themeMode.collectAsState()
+    val currentLocaleTag by viewModel.currentLocaleTag.collectAsState()
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
 
@@ -76,7 +88,11 @@ fun SettingsScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) { Snackbar(it) } },
     ) { padding ->
         Column(
-            modifier = Modifier.padding(padding).fillMaxSize().padding(16.dp),
+            modifier = Modifier
+                .padding(padding)
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             AccountCard(
@@ -84,7 +100,116 @@ fun SettingsScreen(
                 onSignIn = { viewModel.signInWithGoogle(context) },
                 onSignOut = viewModel::signOut,
             )
+            ThemeCard(
+                selected = themeMode,
+                onSelect = viewModel::setThemeMode,
+            )
+            LanguageCard(
+                selectedTag = currentLocaleTag,
+                onSelect = viewModel::setLocale,
+            )
         }
+    }
+}
+
+@Composable
+private fun ThemeCard(
+    selected: ThemeMode,
+    onSelect: (ThemeMode) -> Unit,
+) {
+    SettingsCard(title = stringResource(R.string.settings_theme_title)) {
+        Column(modifier = Modifier.selectableGroup()) {
+            RadioRow(
+                label = stringResource(R.string.settings_theme_system),
+                selected = selected == ThemeMode.SYSTEM,
+                onClick = { onSelect(ThemeMode.SYSTEM) },
+            )
+            RadioRow(
+                label = stringResource(R.string.settings_theme_light),
+                selected = selected == ThemeMode.LIGHT,
+                onClick = { onSelect(ThemeMode.LIGHT) },
+            )
+            RadioRow(
+                label = stringResource(R.string.settings_theme_dark),
+                selected = selected == ThemeMode.DARK,
+                onClick = { onSelect(ThemeMode.DARK) },
+            )
+        }
+    }
+}
+
+@Composable
+private fun LanguageCard(
+    selectedTag: String,
+    onSelect: (String) -> Unit,
+) {
+    SettingsCard(title = stringResource(R.string.settings_language_title)) {
+        Column(modifier = Modifier.selectableGroup()) {
+            RadioRow(
+                label = stringResource(R.string.settings_language_system),
+                selected = selectedTag.isBlank(),
+                onClick = { onSelect("") },
+            )
+            RadioRow(
+                label = stringResource(R.string.settings_language_english),
+                selected = selectedTag.equals("en", ignoreCase = true) ||
+                    selectedTag.startsWith("en-", ignoreCase = true),
+                onClick = { onSelect("en") },
+            )
+            RadioRow(
+                label = stringResource(R.string.settings_language_pt_pt),
+                selected = selectedTag.equals("pt-PT", ignoreCase = true),
+                onClick = { onSelect("pt-PT") },
+            )
+        }
+    }
+}
+
+@Composable
+private fun SettingsCard(
+    title: String,
+    content: @Composable () -> Unit,
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant,
+        ),
+    ) {
+        Column(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Text(
+                title,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+            )
+            content()
+        }
+    }
+}
+
+@Composable
+private fun RadioRow(
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(48.dp)
+            .selectable(
+                selected = selected,
+                onClick = onClick,
+                role = Role.RadioButton,
+            ),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        RadioButton(selected = selected, onClick = null)
+        Spacer(Modifier.width(8.dp))
+        Text(label, style = MaterialTheme.typography.bodyLarge)
     }
 }
 
