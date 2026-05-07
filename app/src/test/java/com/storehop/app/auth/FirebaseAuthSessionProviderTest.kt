@@ -44,7 +44,13 @@ class FirebaseAuthSessionProviderTest {
     private val auth: FirebaseAuth = mockk(relaxed = true)
     private val migrationDao: LocalOnlyMigrationDao = mockk(relaxed = true)
     private val pullCoordinator: PullCoordinator = mockk(relaxed = true)
-    private val pullStateRepo: PullStateRepository = mockk(relaxed = true)
+    private val pullStateRepo: PullStateRepository = mockk(relaxed = true) {
+        // Default: every uid is already SUCCEEDED so the gating coroutine's
+        // cold-launch short-circuit fires when uid hasn't changed. Tests that
+        // exercise the "still needs sync" path (NEEDED, FAILED, IN_PROGRESS)
+        // override this stub.
+        every { observe(any()) } returns kotlinx.coroutines.flow.flowOf(PullState.SUCCEEDED)
+    }
 
     /**
      * Default behavior: cloud is empty (returning user with no cloud data
@@ -53,6 +59,7 @@ class FirebaseAuthSessionProviderTest {
     private fun stubCloudEmpty() {
         coEvery { pullCoordinator.peek(any()) } returns false
     }
+
 
     @Test fun `userId starts at the disk-cached uid for returning users`() = runTest {
         every { auth.currentUser } returns mockUser("anon-uid")
@@ -67,6 +74,53 @@ class FirebaseAuthSessionProviderTest {
         // Initial value mirrors auth.currentUser.uid -- no `null` flicker on
         // cold launch for already-signed-in users.
         assertThat(provider.userId.value).isEqualTo("anon-uid")
+        scope.cancel()
+    }
+
+    @Test fun `cold-launch returning user runs sync even when initial uid matches if pullState is NEEDED`() = runTest {
+        // Regression for an emulator-caught bug: on cold launch of a returning
+        // user, FirebaseAuth.currentUser?.uid is non-null from disk cache, so
+        // both rawUid and _userId initialize to the same value. The gating
+        // coroutine's first emission sees `_userId.value == newUid` and used
+        // to short-circuit before runSyncFor ran -- leaving pullState stuck
+        // at NEEDED forever and SyncEngine permanently paused. Fix: short-
+        // circuit only when pullState is already SUCCEEDED.
+        every { auth.currentUser } returns mockUser("anon-uid")
+        every { auth.signInAnonymously() } returns Tasks.forResult(mockk<AuthResult>(relaxed = true))
+        every { pullStateRepo.observe("anon-uid") } returns kotlinx.coroutines.flow.flowOf(PullState.NEEDED)
+        coEvery { pullCoordinator.peek("anon-uid") } returns false
+        coEvery { migrationDao.countLocalOnlyStores() } returns 0
+        coEvery { migrationDao.countOrphanStores("anon-uid") } returns 0
+
+        val scope = CoroutineScope(SupervisorJob() + mainDispatcher.dispatcher)
+        newProvider(scope)
+        advanceUntilIdle()
+
+        // peek must run -- sync was NOT short-circuited.
+        coVerify(exactly = 1) { pullCoordinator.peek("anon-uid") }
+        // pullState transitions IN_PROGRESS -> SUCCEEDED.
+        coVerifyOrder {
+            pullStateRepo.set("anon-uid", PullState.IN_PROGRESS)
+            pullStateRepo.set("anon-uid", PullState.SUCCEEDED)
+        }
+        scope.cancel()
+    }
+
+    @Test fun `cold-launch returning user with SUCCEEDED state skips sync (cheap launch)`() = runTest {
+        // Inverse of the regression test above: when pullState is already
+        // SUCCEEDED for the cached uid, we DO short-circuit -- otherwise every
+        // cold launch would issue a Firestore peek read, costing bandwidth
+        // and reads on the free tier.
+        every { auth.currentUser } returns mockUser("anon-uid")
+        every { auth.signInAnonymously() } returns Tasks.forResult(mockk<AuthResult>(relaxed = true))
+        every { pullStateRepo.observe("anon-uid") } returns kotlinx.coroutines.flow.flowOf(PullState.SUCCEEDED)
+
+        val scope = CoroutineScope(SupervisorJob() + mainDispatcher.dispatcher)
+        newProvider(scope)
+        advanceUntilIdle()
+
+        coVerify(exactly = 0) { pullCoordinator.peek(any()) }
+        coVerify(exactly = 0) { pullCoordinator.pullForUid(any()) }
         scope.cancel()
     }
 

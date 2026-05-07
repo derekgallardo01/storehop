@@ -11,6 +11,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -95,10 +96,18 @@ class FirebaseAuthSessionProvider @Inject constructor(
                     }
                     return@collect
                 }
-                // Skip the no-op case where the gated flow already matches
-                // (e.g. cold-launch initial value lined up with the
-                // listener's first emission).
-                if (_userId.value == newUid) return@collect
+                // Skip only when this uid has already been fully synced
+                // (SUCCEEDED). For the cold-launch initial-value case where
+                // _userId.value already matches but pullState is NEEDED,
+                // FAILED, or stuck IN_PROGRESS (process died mid-pull), we
+                // still need to run sync -- otherwise push stays paused
+                // forever and the user accumulates dirty rows that never
+                // ship to cloud.
+                if (_userId.value == newUid) {
+                    val state = pullStateRepo.observe(newUid).first()
+                    if (state == PullState.SUCCEEDED) return@collect
+                    Log.i(TAG, "Re-running sync for uid=$newUid (pullState=$state)")
+                }
 
                 runSyncFor(newUid)
                 _userId.value = newUid
