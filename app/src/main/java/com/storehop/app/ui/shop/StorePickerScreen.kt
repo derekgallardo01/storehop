@@ -79,6 +79,7 @@ import sh.calvin.reorderable.rememberReorderableLazyListState
 fun StorePickerScreen(
     onPickStore: (storeId: String) -> Unit,
     onOpenSettings: () -> Unit,
+    onEditAisles: (storeId: String) -> Unit,
     viewModel: StorePickerViewModel = hiltViewModel(),
 ) {
     val rows by viewModel.rows.collectAsState()
@@ -161,6 +162,7 @@ fun StorePickerScreen(
                             onClick = { onPickStore(row.store.id) },
                             onRename = { pendingRename = row },
                             onDelete = { pendingDelete = row },
+                            onEditAisles = { onEditAisles(row.store.id) },
                             // Long-press the drag-handle icon starts a drag.
                             // Tap (without long-press) still navigates via onClick.
                             dragHandleModifier = Modifier.longPressDraggableHandle(
@@ -328,6 +330,7 @@ private fun StorePickerCard(
     onClick: () -> Unit,
     onRename: () -> Unit,
     onDelete: () -> Unit,
+    onEditAisles: () -> Unit,
     dragHandleModifier: Modifier,
 ) {
     var menuOpen by remember { mutableStateOf(false) }
@@ -444,6 +447,16 @@ private fun StorePickerCard(
                         onClick = {
                             menuOpen = false
                             onRename()
+                        },
+                    )
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.action_edit_aisles)) },
+                        leadingIcon = {
+                            Icon(Icons.Filled.DragIndicator, contentDescription = null)
+                        },
+                        onClick = {
+                            menuOpen = false
+                            onEditAisles()
                         },
                     )
                     DropdownMenuItem(

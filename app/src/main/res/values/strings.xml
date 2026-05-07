@@ -173,4 +173,10 @@
     <string name="categories_empty_state">No categories yet. Tap + to add one.</string>
     <string name="category_more_options">More options</string>
     <string name="action_more_options">More options</string>
+
+    <!-- v0.5 per-store aisle reorder. Reachable from Store Picker overflow. -->
+    <string name="title_edit_aisles">Edit aisles for %1$s</string>
+    <string name="action_edit_aisles">Edit aisles</string>
+    <string name="aisle_order_empty_state">No aisles to reorder yet. Add an item to this store to set its aisle order.</string>
+    <string name="aisle_order_helper">Long-press the drag handle to reorder. Released when you let go.</string>
 </resources>

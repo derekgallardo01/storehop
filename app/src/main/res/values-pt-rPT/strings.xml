@@ -175,4 +175,10 @@
     <string name="categories_empty_state">Sem categorias. Toque em + para adicionar.</string>
     <string name="category_more_options">Mais opções</string>
     <string name="action_more_options">Mais opções</string>
+
+    <!-- v0.5 reordenação de corredores por loja. -->
+    <string name="title_edit_aisles">Corredores: %1$s</string>
+    <string name="action_edit_aisles">Editar corredores</string>
+    <string name="aisle_order_empty_state">Sem corredores para reordenar. Adicione um artigo a esta loja para definir a ordem.</string>
+    <string name="aisle_order_helper">Mantenha premida a pega para arrastar. Solta ao largar.</string>
 </resources>

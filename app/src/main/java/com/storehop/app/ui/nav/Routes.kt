@@ -14,6 +14,10 @@ object Routes {
     const val SHOP_AT_STORE = "shop/store/{storeId}"
     fun shopAtStore(storeId: String) = "shop/store/$storeId"
 
+    /** Per-store aisle reorder, reachable from the Store Picker overflow menu. */
+    const val EDIT_AISLE_ORDER = "shop/store/{storeId}/aisles"
+    fun editAisleOrder(storeId: String) = "shop/store/$storeId/aisles"
+
     const val ITEM_ADD = "items/add"
     const val ITEM_EDIT = "items/edit/{itemId}"
     fun itemEdit(itemId: String) = "items/edit/$itemId"
