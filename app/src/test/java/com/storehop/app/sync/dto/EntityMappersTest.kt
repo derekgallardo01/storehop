@@ -152,6 +152,76 @@ class EntityMappersTest {
         assertThat(sco.docId()).isEqualTo("lidl__produce")
     }
 
+    // ---- DTO → Entity round-trip parity (pull side, v0.4) -----------------
+    //
+    // The two contracts: every persisted field round-trips, and `pendingSync`
+    // is forced to `false` regardless of the source entity's value (so pulled
+    // rows don't immediately re-push and overwrite newer cloud edits). Tests
+    // start with `pendingSync = true` to prove the false-after-pull rule.
+
+    @Test fun `Item entity-DTO-entity round trip preserves fields and forces pendingSync false`() {
+        val original = Item(
+            id = "i1", name = "Milk", categoryId = "cat", notes = "n", quantity = "1L",
+            isNeeded = true, lastPurchasedAt = 500L, userId = "u",
+            createdAt = 100L, updatedAt = 200L, deletedAt = 300L,
+            pendingSync = true,
+            brand = "Mimosa", imageUrl = "https://img/x.jpg",
+            isStaple = true, isPriority = true,
+        )
+        val roundTripped = original.toDto().toEntity()
+        // pendingSync flips; everything else stays.
+        assertThat(roundTripped).isEqualTo(original.copy(pendingSync = false))
+    }
+
+    @Test fun `Category entity-DTO-entity round trip preserves fields and forces pendingSync false`() {
+        val original = Category(
+            id = "cat", name = "Dairy & Eggs", nameKey = "cat_dairy_eggs", icon = "🥛",
+            isArchived = false, isSeeded = true, userId = "u",
+            createdAt = 1L, updatedAt = 2L, deletedAt = null,
+            pendingSync = true,
+        )
+        assertThat(original.toDto().toEntity()).isEqualTo(original.copy(pendingSync = false))
+    }
+
+    @Test fun `Store entity-DTO-entity round trip preserves displayOrder and forces pendingSync false`() {
+        val original = Store(
+            id = "s1", name = "Lidl", colorArgb = 0xFFAABBCC.toInt(),
+            isArchived = false, isSeeded = true, userId = "u",
+            createdAt = 1L, updatedAt = 2L, deletedAt = null,
+            pendingSync = true, displayOrder = 7,
+        )
+        assertThat(original.toDto().toEntity()).isEqualTo(original.copy(pendingSync = false))
+    }
+
+    @Test fun `ItemStoreXref entity-DTO-entity round trip preserves per-store state and forces pendingSync false`() {
+        val original = ItemStoreXref(
+            itemId = "i1", storeId = "s1", userId = "u",
+            createdAt = 1L, updatedAt = 2L, deletedAt = null,
+            pendingSync = true,
+            isNeeded = false, lastPurchasedAt = 500L,
+        )
+        assertThat(original.toDto().toEntity()).isEqualTo(original.copy(pendingSync = false))
+    }
+
+    @Test fun `StoreCategoryOrder entity-DTO-entity round trip preserves displayOrder and forces pendingSync false`() {
+        val original = StoreCategoryOrder(
+            storeId = "s1", categoryId = "cat", displayOrder = 3,
+            isSeeded = false, userId = "u",
+            createdAt = 1L, updatedAt = 2L, deletedAt = null,
+            pendingSync = true,
+        )
+        assertThat(original.toDto().toEntity()).isEqualTo(original.copy(pendingSync = false))
+    }
+
+    @Test fun `PurchaseRecord entity-DTO-entity round trip preserves fields and forces pendingSync false`() {
+        val original = PurchaseRecord(
+            id = "p1", itemId = "i1", storeId = "s1", purchasedAt = 999L,
+            userId = "u", createdAt = 1L, updatedAt = 2L, deletedAt = null,
+            pendingSync = true,
+        )
+        assertThat(original.toDto().toEntity()).isEqualTo(original.copy(pendingSync = false))
+    }
+
     @Test fun `SyncCollections names match the Firestore subcollection layout`() {
         // Pinning these prevents a rename refactor from silently breaking
         // every existing user's cloud data (Firestore docs would land in a

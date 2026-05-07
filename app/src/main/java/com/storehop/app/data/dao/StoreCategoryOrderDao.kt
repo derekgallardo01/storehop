@@ -30,6 +30,13 @@ interface StoreCategoryOrderDao {
     @Upsert
     suspend fun upsert(order: StoreCategoryOrder)
 
+    /**
+     * Batch upsert for the pull side. Mappers stamp `pendingSync = false`.
+     * Called inside [PullWriteDao]'s single transaction.
+     */
+    @Upsert
+    suspend fun upsertFromCloud(rows: List<StoreCategoryOrder>)
+
     @Query(
         """
         UPDATE store_category_order

@@ -51,6 +51,13 @@ interface CategoryDao {
     @Upsert
     suspend fun upsert(category: Category)
 
+    /**
+     * Batch upsert for the pull side. Mappers stamp `pendingSync = false`.
+     * Called inside [PullWriteDao]'s single transaction.
+     */
+    @Upsert
+    suspend fun upsertFromCloud(rows: List<Category>)
+
     @Query(
         """
         UPDATE categories

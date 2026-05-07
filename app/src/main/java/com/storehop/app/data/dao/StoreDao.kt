@@ -82,6 +82,13 @@ interface StoreDao {
     @Upsert
     suspend fun upsert(store: Store)
 
+    /**
+     * Batch upsert for the pull side. Mappers stamp `pendingSync = false`.
+     * Called inside [PullWriteDao]'s single transaction.
+     */
+    @Upsert
+    suspend fun upsertFromCloud(rows: List<Store>)
+
     @Query(
         """
         UPDATE stores

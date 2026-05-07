@@ -43,6 +43,14 @@ interface ItemDao {
     @Upsert
     suspend fun upsert(item: Item)
 
+    /**
+     * Batch upsert for the pull side. Mappers stamp `pendingSync = false` so
+     * pulled rows don't immediately re-push. Called inside [PullWriteDao]'s
+     * single transaction.
+     */
+    @Upsert
+    suspend fun upsertFromCloud(rows: List<Item>)
+
     @Query(
         """
         UPDATE items

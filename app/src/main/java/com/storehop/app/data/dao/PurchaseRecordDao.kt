@@ -15,6 +15,15 @@ interface PurchaseRecordDao {
     @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insert(record: PurchaseRecord)
 
+    /**
+     * Batch upsert for the pull side. Pull uses Upsert (not Insert) because
+     * the same record can legitimately arrive twice -- once from a previous
+     * push, once from a re-pull on a new device. Mappers stamp
+     * `pendingSync = false`. Called inside [PullWriteDao]'s single transaction.
+     */
+    @androidx.room.Upsert
+    suspend fun upsertFromCloud(rows: List<PurchaseRecord>)
+
     @Query(
         """
         SELECT * FROM purchase_records

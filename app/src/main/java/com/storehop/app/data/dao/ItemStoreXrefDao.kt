@@ -29,6 +29,13 @@ interface ItemStoreXrefDao {
     @Upsert
     suspend fun upsert(xref: ItemStoreXref)
 
+    /**
+     * Batch upsert for the pull side. Mappers stamp `pendingSync = false`.
+     * Called inside [PullWriteDao]'s single transaction.
+     */
+    @Upsert
+    suspend fun upsertFromCloud(rows: List<ItemStoreXref>)
+
     @Query(
         """
         UPDATE item_store_xref
