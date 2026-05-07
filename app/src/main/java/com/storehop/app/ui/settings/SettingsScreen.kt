@@ -1,5 +1,8 @@
 package com.storehop.app.ui.settings
 
+import android.app.Activity
+import android.content.Context
+import android.content.ContextWrapper
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -116,8 +119,10 @@ fun SettingsScreen(
                     // would normally auto-restart after setApplicationLocales,
                     // but ComponentActivity (vs AppCompatActivity) doesn't
                     // always get that auto-restart -- doing it ourselves is
-                    // both safe and reliable across versions.
-                    (context as? android.app.Activity)?.recreate()
+                    // both safe and reliable across versions. We unwrap the
+                    // Compose Context (it's typically a ContextWrapper around
+                    // the Activity, so a direct cast returns null).
+                    context.findActivity()?.recreate()
                 },
             )
         }
@@ -359,4 +364,16 @@ private fun AccountAvatar(photoUrl: String?, isAnonymous: Boolean) {
             )
         }
     }
+}
+
+/**
+ * Walks the Context wrapper chain to find the underlying [Activity]. Compose's
+ * `LocalContext.current` is typically a ContextWrapper around the Activity (the
+ * Theme's themed wrapper), so a direct `as? Activity` cast returns null. Walking
+ * `baseContext` until we hit an Activity is the standard pattern.
+ */
+private tailrec fun Context.findActivity(): Activity? = when (this) {
+    is Activity -> this
+    is ContextWrapper -> baseContext.findActivity()
+    else -> null
 }
