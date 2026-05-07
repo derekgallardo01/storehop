@@ -20,16 +20,22 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DragIndicator
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -91,6 +97,10 @@ fun StorePickerScreen(
     }
 
     var showAddDialog by remember { mutableStateOf(false) }
+    // Pending Rename / Delete actions. We keep the entire StorePickerRow so
+    // dialogs can show the current name without re-fetching.
+    var pendingRename by remember { mutableStateOf<StorePickerRow?>(null) }
+    var pendingDelete by remember { mutableStateOf<StorePickerRow?>(null) }
 
     Scaffold(
         topBar = { TopAppBar(title = { Text("Where are you shopping?") }) },
@@ -119,7 +129,9 @@ fun StorePickerScreen(
                             row = row,
                             isDragging = dragging,
                             onClick = { onPickStore(row.store.id) },
-                            // Long-press anywhere on the card starts a drag.
+                            onRename = { pendingRename = row },
+                            onDelete = { pendingDelete = row },
+                            // Long-press the drag-handle icon starts a drag.
                             // Tap (without long-press) still navigates via onClick.
                             dragHandleModifier = Modifier.longPressDraggableHandle(
                                 onDragStarted = { isDragging = true },
@@ -139,6 +151,23 @@ fun StorePickerScreen(
         AddStoreDialog(
             onDismiss = { showAddDialog = false },
             onAdd = viewModel::addStore,
+        )
+    }
+    pendingRename?.let { row ->
+        RenameStoreDialog(
+            currentName = row.store.name,
+            onDismiss = { pendingRename = null },
+            onRename = { newName -> viewModel.renameStore(row.store.id, newName) },
+        )
+    }
+    pendingDelete?.let { row ->
+        DeleteStoreConfirmDialog(
+            storeName = row.store.name,
+            onDismiss = { pendingDelete = null },
+            onConfirm = {
+                viewModel.deleteStore(row.store.id)
+                pendingDelete = null
+            },
         )
     }
 }
@@ -241,8 +270,12 @@ private fun StorePickerCard(
     row: StorePickerRow,
     isDragging: Boolean,
     onClick: () -> Unit,
+    onRename: () -> Unit,
+    onDelete: () -> Unit,
     dragHandleModifier: Modifier,
 ) {
+    var menuOpen by remember { mutableStateOf(false) }
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -255,7 +288,7 @@ private fun StorePickerCard(
         ),
     ) {
         Row(
-            modifier = Modifier.fillMaxWidth().padding(16.dp),
+            modifier = Modifier.fillMaxWidth().padding(start = 16.dp, top = 16.dp, bottom = 16.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             // Store color dot.
@@ -319,22 +352,144 @@ private fun StorePickerCard(
                 )
                 Spacer(Modifier.width(4.dp))
             }
-            // Drag handle: long-press here (or anywhere on the row -- this
-            // handle is co-located with the row's drag region) to start
-            // reordering. Subtle so it doesn't distract from the chevron.
+            // Drag handle: long-press here to start reordering. Co-located
+            // with the trailing actions; the rest of the row is tap = navigate.
             Icon(
                 Icons.Filled.DragIndicator,
                 contentDescription = "Drag to reorder",
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = dragHandleModifier
-                    .size(20.dp)
-                    .padding(end = 4.dp),
+                modifier = dragHandleModifier.size(20.dp),
             )
+            // Overflow menu: Rename / Delete. Wrapped in a Box so the
+            // DropdownMenu anchors here rather than at the screen edge.
+            Box {
+                IconButton(onClick = { menuOpen = true }) {
+                    Icon(
+                        Icons.Filled.MoreVert,
+                        contentDescription = "Store options",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                DropdownMenu(
+                    expanded = menuOpen,
+                    onDismissRequest = { menuOpen = false },
+                ) {
+                    DropdownMenuItem(
+                        text = { Text("Rename") },
+                        leadingIcon = { Icon(Icons.Filled.Edit, contentDescription = null) },
+                        onClick = {
+                            menuOpen = false
+                            onRename()
+                        },
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Delete", color = MaterialTheme.colorScheme.error) },
+                        leadingIcon = {
+                            Icon(
+                                Icons.Filled.Delete,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.error,
+                            )
+                        },
+                        onClick = {
+                            menuOpen = false
+                            onDelete()
+                        },
+                    )
+                }
+            }
             Icon(
                 Icons.AutoMirrored.Filled.KeyboardArrowRight,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(end = 12.dp),
             )
         }
     }
+}
+
+@Composable
+private fun RenameStoreDialog(
+    currentName: String,
+    onDismiss: () -> Unit,
+    onRename: suspend (String) -> String?,
+) {
+    var name by remember { mutableStateOf(currentName) }
+    var error by remember { mutableStateOf<String?>(null) }
+    var saving by remember { mutableStateOf(false) }
+    val focusRequester = remember { FocusRequester() }
+    val scope = rememberCoroutineScope()
+
+    LaunchedEffect(Unit) { focusRequester.requestFocus() }
+
+    val canSubmit = name.isNotBlank() && name.trim() != currentName && !saving
+
+    AlertDialog(
+        onDismissRequest = { if (!saving) onDismiss() },
+        title = { Text("Rename store") },
+        text = {
+            OutlinedTextField(
+                value = name,
+                onValueChange = {
+                    name = it
+                    error = null
+                },
+                label = { Text("Store name") },
+                singleLine = true,
+                isError = error != null,
+                supportingText = error?.let { { Text(it) } },
+                modifier = Modifier.focusRequester(focusRequester),
+            )
+        },
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    if (canSubmit) {
+                        saving = true
+                        scope.launch {
+                            val result = onRename(name)
+                            saving = false
+                            if (result == null) onDismiss()
+                            else error = result
+                        }
+                    }
+                },
+                enabled = canSubmit,
+            ) {
+                Text(if (saving) "Saving…" else "Save")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss, enabled = !saving) { Text("Cancel") }
+        },
+    )
+}
+
+@Composable
+private fun DeleteStoreConfirmDialog(
+    storeName: String,
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Delete \"$storeName\"?") },
+        text = {
+            Text(
+                "Items tagged to this store will lose the tag but stay in your " +
+                    "list. This can't be undone from inside the app.",
+            )
+        },
+        confirmButton = {
+            TextButton(
+                onClick = onConfirm,
+                colors = androidx.compose.material3.ButtonDefaults.textButtonColors(
+                    contentColor = MaterialTheme.colorScheme.error,
+                ),
+            ) { Text("Delete") }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Cancel") }
+        },
+    )
 }

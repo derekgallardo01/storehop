@@ -64,4 +64,33 @@ class StorePickerViewModel @Inject constructor(
     } catch (e: IllegalArgumentException) {
         e.message ?: "Could not add store"
     }
+
+    /**
+     * Rename an existing store. Returns null on success or an error string
+     * the rename dialog should show inline. Empty/whitespace names get the
+     * same friendly rejection as addStore (the repo's rename does NOT
+     * currently throw on duplicates -- a future audit could add that, but
+     * the unique-(userId, name) index would refuse the row anyway, leaving
+     * the rename a silent no-op until then).
+     */
+    suspend fun renameStore(id: String, name: String): String? {
+        val trimmed = name.trim()
+        if (trimmed.isEmpty()) return "Store name cannot be empty"
+        return try {
+            storeRepository.rename(id, trimmed)
+            null
+        } catch (e: Exception) {
+            e.message ?: "Could not rename store"
+        }
+    }
+
+    /**
+     * Soft-delete a store. The repo cascade-tombstones every xref + SCO row
+     * pointing at it -- items previously tagged here lose this store but
+     * stay in the user's master list. Fire-and-forget; the upstream Flow
+     * will drop the row from the picker on the next emission.
+     */
+    fun deleteStore(id: String) {
+        viewModelScope.launch { storeRepository.softDelete(id) }
+    }
 }
