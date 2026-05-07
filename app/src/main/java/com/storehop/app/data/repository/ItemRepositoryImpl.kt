@@ -126,6 +126,16 @@ class ItemRepositoryImpl @Inject constructor(
         purchaseRecordDao.softDeleteForItem(current.userId, id, now)
     }
 
+    override suspend fun undoSoftDelete(id: String) = db.withTransaction {
+        val userId = requireSignedIn()
+        val item = itemDao.findAnyById(userId, id) ?: return@withTransaction
+        val deletedAt = item.deletedAt ?: return@withTransaction
+        val now = clock.millis()
+        itemDao.restoreFromTombstone(item.userId, id, now)
+        xrefDao.restoreCascadeForItem(item.userId, id, deletedAt, now)
+        purchaseRecordDao.restoreCascadeForItem(item.userId, id, deletedAt, now)
+    }
+
     /**
      * Mark this (item, store) row as purchased. Per-store: only `isx(item,
      * store).isNeeded` flips -- other stores the item is tagged to are

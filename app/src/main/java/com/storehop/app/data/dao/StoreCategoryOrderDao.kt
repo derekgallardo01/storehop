@@ -49,6 +49,16 @@ interface StoreCategoryOrderDao {
     )
     suspend fun softDeleteForStore(userId: String, storeId: String, now: Long)
 
+    /** Inverse of [softDeleteForStore], filtered by exact `deletedAt`. */
+    @Query(
+        """
+        UPDATE store_category_order
+        SET deletedAt = NULL, updatedAt = :now, pendingSync = 1
+        WHERE storeId = :storeId AND userId = :userId AND deletedAt = :deletedAt
+        """,
+    )
+    suspend fun restoreCascadeForStore(userId: String, storeId: String, deletedAt: Long, now: Long)
+
     /** Cascade-tombstone every live SCO row for a category. Used when the category is soft-deleted. */
     @Query(
         """

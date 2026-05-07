@@ -69,6 +69,30 @@ interface ItemStoreXrefDao {
     suspend fun softDeleteForStore(userId: String, storeId: String, now: Long)
 
     /**
+     * Restore the cascade-tombstoned xrefs for a store. Filters by the exact
+     * `deletedAt` used during the cascade so a later, separate tombstoning of
+     * a different row at the same time doesn't accidentally come back too.
+     */
+    @Query(
+        """
+        UPDATE item_store_xref
+        SET deletedAt = NULL, updatedAt = :now, pendingSync = 1
+        WHERE storeId = :storeId AND userId = :userId AND deletedAt = :deletedAt
+        """,
+    )
+    suspend fun restoreCascadeForStore(userId: String, storeId: String, deletedAt: Long, now: Long)
+
+    /** Inverse of [softDeleteForItem]; same `deletedAt`-filter pattern. */
+    @Query(
+        """
+        UPDATE item_store_xref
+        SET deletedAt = NULL, updatedAt = :now, pendingSync = 1
+        WHERE itemId = :itemId AND userId = :userId AND deletedAt = :deletedAt
+        """,
+    )
+    suspend fun restoreCascadeForItem(userId: String, itemId: String, deletedAt: Long, now: Long)
+
+    /**
      * Replace the set of stores an item is tagged to.
      * Tombstones any xref no longer in [storeIds] and upserts the new set.
      * `userId` is the parent item's userId — copied here to enforce the

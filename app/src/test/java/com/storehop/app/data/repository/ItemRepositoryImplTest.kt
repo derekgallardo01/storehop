@@ -231,6 +231,32 @@ class ItemRepositoryImplTest {
         assertThat(db.itemStoreXrefDao().findForItem(itemId)).hasSize(1)
     }
 
+    @Test fun `undoSoftDelete restores the item, its xrefs, and its purchase records`() = runTest {
+        val itemId = repo.addItem(
+            name = "Milk", categoryId = null,
+            storeIds = setOf("store_lidl", "store_continente"),
+            quantity = null, notes = null,
+        )
+        repo.markPurchasedAtStore(itemId, "store_lidl")
+        repo.markPurchasedAtStore(itemId, "store_continente")
+        // Pre: 2 xrefs, 2 PurchaseRecords.
+        assertThat(db.itemStoreXrefDao().findForItem(itemId)).hasSize(2)
+        assertThat(db.purchaseRecordDao().observeForItem(TEST_USER_ID, itemId).first()).hasSize(2)
+
+        repo.softDelete(itemId)
+
+        // Cascade tombstoned everything.
+        assertThat(db.itemStoreXrefDao().findForItem(itemId)).isEmpty()
+        assertThat(db.purchaseRecordDao().observeForItem(TEST_USER_ID, itemId).first()).isEmpty()
+
+        repo.undoSoftDelete(itemId)
+
+        // Item live again, both xrefs restored, both purchase records restored.
+        assertThat(db.itemDao().observeAll(TEST_USER_ID).first().map { it.item.id }).contains(itemId)
+        assertThat(db.itemStoreXrefDao().findForItem(itemId)).hasSize(2)
+        assertThat(db.purchaseRecordDao().observeForItem(TEST_USER_ID, itemId).first()).hasSize(2)
+    }
+
     @Test fun `softDelete cascade-tombstones xrefs and purchase records under one transaction`() = runTest {
         val itemId = repo.addItem(
             name = "Milk", categoryId = null,

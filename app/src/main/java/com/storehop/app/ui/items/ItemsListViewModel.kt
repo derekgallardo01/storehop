@@ -4,13 +4,17 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.storehop.app.data.db.relations.ItemWithCategoryAndStores
 import com.storehop.app.data.repository.ItemRepository
+import com.storehop.app.ui.util.UndoEvent
+import com.storehop.app.ui.util.UndoEventBus
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 /**
@@ -25,6 +29,7 @@ import javax.inject.Inject
 @HiltViewModel
 class ItemsListViewModel @Inject constructor(
     private val itemRepository: ItemRepository,
+    undoBus: UndoEventBus,
 ) : ViewModel() {
 
     private val _query = MutableStateFlow("")
@@ -44,5 +49,18 @@ class ItemsListViewModel @Inject constructor(
             initialValue = emptyList(),
         )
 
+    /**
+     * Pass-through stream of cross-screen undo events. The form fires an
+     * ItemDeleted event on softDelete; this list shows a snackbar with UNDO
+     * once it pops to the front. Channel-based, so each event is delivered
+     * exactly once -- restarting the list after an undo doesn't re-show the
+     * snackbar.
+     */
+    val undoEvents: Flow<UndoEvent> = undoBus.events
+
     fun setQuery(q: String) { _query.value = q }
+
+    fun undoItemDelete(itemId: String) {
+        viewModelScope.launch { itemRepository.undoSoftDelete(itemId) }
+    }
 }

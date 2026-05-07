@@ -10,6 +10,8 @@ import com.storehop.app.data.repository.CategoryRepository
 import com.storehop.app.data.repository.ItemRepository
 import com.storehop.app.data.repository.StoreRepository
 import com.storehop.app.data.storage.ImageUploader
+import com.storehop.app.ui.util.UndoEvent
+import com.storehop.app.ui.util.UndoEventBus
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -56,6 +58,7 @@ data class ItemFormState(
 class ItemFormViewModel @Inject constructor(
     private val itemRepository: ItemRepository,
     private val imageUploader: ImageUploader,
+    private val undoBus: UndoEventBus,
     categoryRepository: CategoryRepository,
     storeRepository: StoreRepository,
     savedStateHandle: SavedStateHandle,
@@ -202,11 +205,17 @@ class ItemFormViewModel @Inject constructor(
 
     fun delete() {
         val id = itemId ?: return
+        val nameSnapshot = _state.value.name.trim().ifEmpty { _state.value.name }
         _state.value = _state.value.copy(isSubmitting = true)
         viewModelScope.launch {
             try {
                 itemRepository.softDelete(id)
                 _state.value = _state.value.copy(isSubmitting = false, deleted = true)
+                // Hand the undo prompt to whichever screen pops in next
+                // (the items list, today). Using the bus instead of plumbing
+                // a callback up through the screen because the form is about
+                // to be destroyed by the back-navigation effect.
+                undoBus.emit(UndoEvent.ItemDeleted(itemId = id, itemName = nameSnapshot))
             } catch (e: Exception) {
                 _state.value = _state.value.copy(
                     isSubmitting = false,

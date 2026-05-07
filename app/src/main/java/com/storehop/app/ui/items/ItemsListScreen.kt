@@ -26,15 +26,25 @@ import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Snackbar
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -46,7 +56,10 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import com.storehop.app.R
 import com.storehop.app.data.db.relations.ItemWithCategoryAndStores
+import com.storehop.app.ui.util.UndoEvent
 import com.storehop.app.ui.util.localizedLabel
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -58,6 +71,28 @@ fun ItemsListScreen(
 ) {
     val items by viewModel.items.collectAsState()
     val query by viewModel.query.collectAsState()
+    val snackbarHostState = remember { SnackbarHostState() }
+    val undoLabel = stringResource(R.string.action_undo)
+    val undoTemplate = stringResource(R.string.undo_item_deleted)
+
+    // Pull cross-screen undo prompts from the bus and surface them as a
+    // snackbar with an UNDO action. The form fires these after softDelete.
+    LaunchedEffect(Unit) {
+        viewModel.undoEvents.collect { event ->
+            when (event) {
+                is UndoEvent.ItemDeleted -> {
+                    snackbarHostState.currentSnackbarData?.dismiss()
+                    val result = snackbarHostState.showSnackbar(
+                        message = undoTemplate.format(event.itemName),
+                        actionLabel = undoLabel,
+                    )
+                    if (result == SnackbarResult.ActionPerformed) {
+                        viewModel.undoItemDelete(event.itemId)
+                    }
+                }
+            }
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -81,6 +116,7 @@ fun ItemsListScreen(
                 )
             }
         },
+        snackbarHost = { SnackbarHost(snackbarHostState) { Snackbar(it) } },
     ) { padding ->
         Column(modifier = Modifier.padding(padding).fillMaxSize()) {
             OutlinedTextField(
@@ -94,15 +130,32 @@ fun ItemsListScreen(
                 singleLine = true,
             )
 
-            if (items.isEmpty()) {
-                EmptyState(query = query)
-            } else {
-                LazyColumn(
-                    contentPadding = PaddingValues(bottom = 96.dp),
-                    modifier = Modifier.fillMaxSize(),
-                ) {
-                    items(items, key = { it.item.id }) { row ->
-                        ItemRow(row = row, onClick = { onEditItem(row.item.id) })
+            // Pure UX affordance: data is already reactive via Flow, but
+            // pull-to-refresh gives users a "I asked for fresh data and it
+            // happened" beat. We just show the spinner for a short moment.
+            var isRefreshing by remember { mutableStateOf(false) }
+            val ptrScope = rememberCoroutineScope()
+            PullToRefreshBox(
+                isRefreshing = isRefreshing,
+                onRefresh = {
+                    ptrScope.launch {
+                        isRefreshing = true
+                        delay(500)
+                        isRefreshing = false
+                    }
+                },
+                modifier = Modifier.fillMaxSize(),
+            ) {
+                if (items.isEmpty()) {
+                    EmptyState(query = query)
+                } else {
+                    LazyColumn(
+                        contentPadding = PaddingValues(bottom = 96.dp),
+                        modifier = Modifier.fillMaxSize(),
+                    ) {
+                        items(items, key = { it.item.id }) { row ->
+                            ItemRow(row = row, onClick = { onEditItem(row.item.id) })
+                        }
                     }
                 }
             }

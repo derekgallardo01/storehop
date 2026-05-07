@@ -106,6 +106,13 @@
     <string name="aisle_format">%1$s (corredor %2$d)</string>
     <string name="shop_empty_no_query">Ainda sem artigos aqui — adicione artigos no separador Artigos e associe-os a esta loja</string>
     <string name="shop_empty_with_query">Sem resultados para \"%1$s\"</string>
+    <string name="quick_add_placeholder">Adicionar um artigo a esta loja…</string>
+
+    <!-- Snackbar de anular. -->
+    <string name="action_undo">Anular</string>
+    <string name="undo_item_purchased">\"%1$s\" marcado como comprado.</string>
+    <string name="undo_store_deleted">\"%1$s\" eliminado.</string>
+    <string name="undo_item_deleted">\"%1$s\" eliminado.</string>
 
     <!-- Selector de lojas. -->
     <string name="critical_needs_banner_title">Artigos críticos em falta</string>

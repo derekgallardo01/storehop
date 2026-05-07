@@ -132,6 +132,20 @@ class StoreRepositoryImpl @Inject constructor(
         scoDao.softDeleteForStore(userId, id, now)
     }
 
+    override suspend fun undoSoftDelete(id: String) = db.withTransaction {
+        val userId = requireSignedIn()
+        // Find the store regardless of tombstone state, read back the timestamp
+        // it was deleted at, and restore the cascade by that exact ms. Filtering
+        // by the exact deletedAt means a later, separate tombstoning of a
+        // different row at a different time isn't accidentally restored too.
+        val store = dao.findAnyById(userId, id) ?: return@withTransaction
+        val deletedAt = store.deletedAt ?: return@withTransaction
+        val now = clock.millis()
+        dao.restoreFromTombstone(userId, id, now)
+        xrefDao.restoreCascadeForStore(userId, id, deletedAt, now)
+        scoDao.restoreCascadeForStore(userId, id, deletedAt, now)
+    }
+
     private fun requireSignedIn(): String =
         session.currentUserId() ?: throw IllegalStateException("Not signed in")
 }

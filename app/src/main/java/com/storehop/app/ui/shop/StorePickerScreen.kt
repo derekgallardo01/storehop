@@ -40,6 +40,10 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Snackbar
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -57,6 +61,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -107,6 +113,12 @@ fun StorePickerScreen(
     var pendingRename by remember { mutableStateOf<StorePickerRow?>(null) }
     var pendingDelete by remember { mutableStateOf<StorePickerRow?>(null) }
 
+    val scope = rememberCoroutineScope()
+    val haptics = LocalHapticFeedback.current
+    val snackbarHostState = remember { SnackbarHostState() }
+    val undoLabel = stringResource(R.string.action_undo)
+    val undoTemplate = stringResource(R.string.undo_store_deleted)
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -128,6 +140,7 @@ fun StorePickerScreen(
                 text = { Text(stringResource(R.string.action_add_store)) },
             )
         },
+        snackbarHost = { SnackbarHost(snackbarHostState) { Snackbar(it) } },
     ) { padding ->
         Column(modifier = Modifier.padding(padding).fillMaxSize()) {
             if (critical.isNotEmpty()) {
@@ -151,7 +164,13 @@ fun StorePickerScreen(
                             // Long-press the drag-handle icon starts a drag.
                             // Tap (without long-press) still navigates via onClick.
                             dragHandleModifier = Modifier.longPressDraggableHandle(
-                                onDragStarted = { isDragging = true },
+                                onDragStarted = {
+                                    isDragging = true
+                                    // Tactile cue confirming the long-press
+                                    // engaged drag mode -- otherwise users
+                                    // may not realize they can now drag.
+                                    haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                                },
                                 onDragStopped = {
                                     isDragging = false
                                     viewModel.commitOrder(localRows.map { it.store.id })
@@ -182,8 +201,26 @@ fun StorePickerScreen(
             storeName = row.store.name,
             onDismiss = { pendingDelete = null },
             onConfirm = {
-                viewModel.deleteStore(row.store.id)
+                val storeId = row.store.id
+                val storeName = row.store.name
+                // Stronger haptic for a destructive action -- matches the
+                // weight of the consequence and gives the user a tactile
+                // beat that "something significant just happened."
+                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                viewModel.deleteStore(storeId)
                 pendingDelete = null
+                // Offer undo via snackbar. Cancel any in-flight snackbar so a
+                // rapid second delete doesn't queue up two prompts.
+                scope.launch {
+                    snackbarHostState.currentSnackbarData?.dismiss()
+                    val result = snackbarHostState.showSnackbar(
+                        message = undoTemplate.format(storeName),
+                        actionLabel = undoLabel,
+                    )
+                    if (result == SnackbarResult.ActionPerformed) {
+                        viewModel.undoDeleteStore(storeId)
+                    }
+                }
             },
         )
     }

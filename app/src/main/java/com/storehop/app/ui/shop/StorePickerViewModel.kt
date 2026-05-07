@@ -103,4 +103,14 @@ class StorePickerViewModel @Inject constructor(
     fun deleteStore(id: String) {
         viewModelScope.launch { storeRepository.softDelete(id) }
     }
+
+    /**
+     * Reverse a recent [deleteStore]. Restores the store row plus every
+     * cascade-tombstoned xref + SCO row tagged to that exact deletion
+     * timestamp -- so all the items that used to be at this store come
+     * back tagged to it.
+     */
+    fun undoDeleteStore(id: String) {
+        viewModelScope.launch { storeRepository.undoSoftDelete(id) }
+    }
 }

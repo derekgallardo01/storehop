@@ -325,6 +325,113 @@ class StoreRepositoryImplTest {
         assertThat(pending).isEqualTo(0)
     }
 
+    @Test fun `undoSoftDelete restores the store row and the cascade of xrefs and SCO rows`() = runTest {
+        // Build state: tag two items to Lidl and verify the cascade tombstones,
+        // then undo and verify everything comes back exactly as it was.
+        listOf("milk", "bread").forEach { id ->
+            db.itemDao().upsert(
+                com.storehop.app.data.entity.Item(
+                    id = id, name = id, categoryId = null, notes = null, quantity = null,
+                    isNeeded = true, lastPurchasedAt = null,
+                    userId = "local-only", createdAt = 1L, updatedAt = 1L, deletedAt = null,
+                ),
+            )
+            db.itemStoreXrefDao().upsert(
+                com.storehop.app.data.entity.ItemStoreXref(
+                    itemId = id, storeId = "store_lidl", userId = "local-only",
+                    createdAt = 1L, updatedAt = 1L, deletedAt = null,
+                ),
+            )
+        }
+        val xrefsBefore = db.itemStoreXrefDao().findForItem("milk").size + db.itemStoreXrefDao().findForItem("bread").size
+        val scoBefore = db.storeCategoryOrderDao().findForStore("store_lidl").size
+        assertThat(xrefsBefore).isAtLeast(2)
+        assertThat(scoBefore).isAtLeast(1)
+
+        repo.softDelete("store_lidl")
+
+        // Sanity: store + cascade are tombstoned.
+        assertThat(repo.observeAll(includeArchived = false).first().map { it.id })
+            .doesNotContain("store_lidl")
+        assertThat(db.itemStoreXrefDao().findForItem("milk")).isEmpty()
+        assertThat(db.storeCategoryOrderDao().findForStore("store_lidl")).isEmpty()
+
+        repo.undoSoftDelete("store_lidl")
+
+        // Store comes back live.
+        assertThat(repo.observeAll(includeArchived = false).first().map { it.id })
+            .contains("store_lidl")
+        // Both Lidl xrefs come back.
+        assertThat(db.itemStoreXrefDao().findForItem("milk").map { it.storeId }).contains("store_lidl")
+        assertThat(db.itemStoreXrefDao().findForItem("bread").map { it.storeId }).contains("store_lidl")
+        // SCO rows for Lidl come back.
+        assertThat(db.storeCategoryOrderDao().findForStore("store_lidl")).hasSize(scoBefore)
+    }
+
+    @Test fun `undoSoftDelete is a no-op when the store isn't tombstoned`() = runTest {
+        // Lidl is live (seeded). undo on a live row should leave state unchanged.
+        val before = repo.observeById("store_lidl").first()!!
+        repo.undoSoftDelete("store_lidl")
+        val after = repo.observeById("store_lidl").first()!!
+        assertThat(after.deletedAt).isNull()
+        // updatedAt is unchanged since no row was touched.
+        assertThat(after.updatedAt).isEqualTo(before.updatedAt)
+    }
+
+    @Test fun `undoSoftDelete only restores rows tombstoned at the same instant`() = runTest {
+        // Tombstone Lidl, then later (different `now`) tombstone Continente.
+        // Undoing Lidl should NOT restore Continente's xrefs/SCOs.
+        listOf("milk").forEach { id ->
+            db.itemDao().upsert(
+                com.storehop.app.data.entity.Item(
+                    id = id, name = id, categoryId = null, notes = null, quantity = null,
+                    isNeeded = true, lastPurchasedAt = null,
+                    userId = "local-only", createdAt = 1L, updatedAt = 1L, deletedAt = null,
+                ),
+            )
+            db.itemStoreXrefDao().upsert(
+                com.storehop.app.data.entity.ItemStoreXref(
+                    itemId = id, storeId = "store_lidl", userId = "local-only",
+                    createdAt = 1L, updatedAt = 1L, deletedAt = null,
+                ),
+            )
+            db.itemStoreXrefDao().upsert(
+                com.storehop.app.data.entity.ItemStoreXref(
+                    itemId = id, storeId = "store_continente", userId = "local-only",
+                    createdAt = 1L, updatedAt = 1L, deletedAt = null,
+                ),
+            )
+        }
+        // The repo is built with a fixed clock at 50_000L, so both deletes use the same ts.
+        // Build a second repo at a different clock for Continente's delete.
+        val repoLater = StoreRepositoryImpl(
+            db = db,
+            dao = db.storeDao(),
+            xrefDao = db.itemStoreXrefDao(),
+            scoDao = db.storeCategoryOrderDao(),
+            ids = object : IdGenerator { override fun newId(): String = UUID.randomUUID().toString() },
+            clock = Clock.fixed(Instant.ofEpochMilli(99_999L), ZoneOffset.UTC),
+            session = FakeSessionProvider("local-only"),
+        )
+
+        repo.softDelete("store_lidl")              // ts = 50_000L
+        repoLater.softDelete("store_continente")   // ts = 99_999L
+
+        repo.undoSoftDelete("store_lidl")
+
+        // Lidl restored.
+        assertThat(repo.observeAll(includeArchived = false).first().map { it.id })
+            .contains("store_lidl")
+        // Continente still tombstoned (different `deletedAt`, undoSoftDelete
+        // filters by exact instant).
+        assertThat(repo.observeAll(includeArchived = false).first().map { it.id })
+            .doesNotContain("store_continente")
+        // Continente's xref still tombstoned.
+        val milkXrefs = db.itemStoreXrefDao().findForItem("milk").map { it.storeId }
+        assertThat(milkXrefs).contains("store_lidl")
+        assertThat(milkXrefs).doesNotContain("store_continente")
+    }
+
     @Test fun `setArchived softDelete and rename are no-ops for stores the session does not own`() = runTest {
         // Build a separate repo whose session is some-other-user, then try to
         // mutate "store_lidl" (which is owned by local-only via the seed).

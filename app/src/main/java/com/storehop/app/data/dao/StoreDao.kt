@@ -62,6 +62,23 @@ interface StoreDao {
     )
     suspend fun findAnyByName(userId: String, name: String): Store?
 
+    /** Tombstone-aware lookup. Returns the row regardless of `deletedAt`. */
+    @Query("SELECT * FROM stores WHERE id = :id AND userId = :userId LIMIT 1")
+    suspend fun findAnyById(userId: String, id: String): Store?
+
+    /**
+     * Inverse of [softDelete]: clears `deletedAt`, bumps updatedAt, and
+     * re-flags pendingSync so the resurrection pushes to Firestore.
+     */
+    @Query(
+        """
+        UPDATE stores
+        SET deletedAt = NULL, updatedAt = :now, pendingSync = 1
+        WHERE id = :id AND userId = :userId
+        """,
+    )
+    suspend fun restoreFromTombstone(userId: String, id: String, now: Long)
+
     @Upsert
     suspend fun upsert(store: Store)
 

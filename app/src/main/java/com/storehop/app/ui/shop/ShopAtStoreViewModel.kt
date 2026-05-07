@@ -103,6 +103,34 @@ class ShopAtStoreViewModel @Inject constructor(
             else itemRepository.markNeededAtStore(row.itemId, storeId)
         }
     }
+
+    /**
+     * Reverse a freshly-checked-off row. Called from the snackbar UNDO action
+     * after [togglePurchased]. No PurchaseRecord is rolled back -- the record
+     * is harmless to keep (history is append-only) and trying to delete the
+     * exact one we just inserted is fragile.
+     */
+    fun undoPurchase(itemId: String) {
+        viewModelScope.launch { itemRepository.markNeededAtStore(itemId, storeId) }
+    }
+
+    /**
+     * Add a new item from the bottom quick-add bar: name only, auto-tagged
+     * to this store, defaults for everything else (no brand/category/photo,
+     * not a staple, not priority). Lets the user capture an item without
+     * leaving the shopping flow.
+     */
+    fun quickAdd(name: String) {
+        val trimmed = name.trim()
+        if (trimmed.isEmpty()) return
+        viewModelScope.launch {
+            itemRepository.addItem(
+                name = trimmed,
+                categoryId = null,
+                storeIds = setOf(storeId),
+            )
+        }
+    }
 }
 
 private fun List<ShoppingRow>.groupByCategory(): List<CategorySection> {

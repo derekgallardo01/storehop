@@ -47,6 +47,16 @@ interface PurchaseRecordDao {
     )
     suspend fun softDeleteForItem(userId: String, itemId: String, now: Long)
 
+    /** Inverse of [softDeleteForItem], filtered by exact `deletedAt`. */
+    @Query(
+        """
+        UPDATE purchase_records
+        SET deletedAt = NULL, updatedAt = :now, pendingSync = 1
+        WHERE itemId = :itemId AND userId = :userId AND deletedAt = :deletedAt
+        """,
+    )
+    suspend fun restoreCascadeForItem(userId: String, itemId: String, deletedAt: Long, now: Long)
+
     @Query("SELECT * FROM purchase_records WHERE userId = :userId AND pendingSync = 1")
     fun observePendingPush(userId: String): Flow<List<PurchaseRecord>>
 

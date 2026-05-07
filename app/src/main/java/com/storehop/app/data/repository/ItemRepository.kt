@@ -36,6 +36,13 @@ interface ItemRepository {
     suspend fun softDelete(id: String)
 
     /**
+     * Undo a previous [softDelete]. Reads the row's `deletedAt` and restores
+     * the item plus every xref + PurchaseRecord row that was tombstoned at
+     * that same instant. No-op when the row isn't currently tombstoned.
+     */
+    suspend fun undoSoftDelete(id: String)
+
+    /**
      * Mark this item purchased at one specific store. Per-store need state:
      * checking off milk at Lidl flips only `isx(Lidl, milk).isNeeded` -- the
      * Aldi xref is untouched, so milk still shows as needed at Aldi. Writes

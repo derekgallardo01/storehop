@@ -52,6 +52,20 @@ interface ItemDao {
     )
     suspend fun softDelete(userId: String, id: String, now: Long)
 
+    /** Tombstone-aware lookup for the undo path. */
+    @Query("SELECT * FROM items WHERE id = :id AND userId = :userId LIMIT 1")
+    suspend fun findAnyById(userId: String, id: String): Item?
+
+    /** Inverse of [softDelete]: clears `deletedAt`, re-flags pendingSync. */
+    @Query(
+        """
+        UPDATE items
+        SET deletedAt = NULL, updatedAt = :now, pendingSync = 1
+        WHERE id = :id AND userId = :userId
+        """,
+    )
+    suspend fun restoreFromTombstone(userId: String, id: String, now: Long)
+
     @Query(
         """
         UPDATE items

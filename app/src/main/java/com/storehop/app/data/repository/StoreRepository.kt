@@ -14,6 +14,15 @@ interface StoreRepository {
     suspend fun softDelete(id: String)
 
     /**
+     * Undo a previous [softDelete]. Reads the row's current `deletedAt`
+     * timestamp and restores the store row plus every xref + SCO row that
+     * was tombstoned at that exact instant (the cascade was atomic, so all
+     * affected rows share the timestamp). No-op if the row isn't currently
+     * tombstoned.
+     */
+    suspend fun undoSoftDelete(id: String)
+
+    /**
      * Persist a new picker order. [orderedIds] is the full list of live store
      * ids in the desired top-to-bottom order; each row is rewritten with its
      * new displayOrder (its index in the list) and re-flagged pendingSync.

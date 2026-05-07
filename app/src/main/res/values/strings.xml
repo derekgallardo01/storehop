@@ -103,6 +103,13 @@
     <string name="aisle_format">%1$s (aisle %2$d)</string>
     <string name="shop_empty_no_query">No items here yet — add items in the Items tab and tag them to this store</string>
     <string name="shop_empty_with_query">No matches for \"%1$s\"</string>
+    <string name="quick_add_placeholder">Add an item to this store…</string>
+
+    <!-- Snackbar undo. -->
+    <string name="action_undo">Undo</string>
+    <string name="undo_item_purchased">Marked \"%1$s\" purchased.</string>
+    <string name="undo_store_deleted">Deleted \"%1$s\".</string>
+    <string name="undo_item_deleted">Deleted \"%1$s\".</string>
 
     <!-- Store Picker. -->
     <string name="critical_needs_banner_title">Critical items needed</string>
