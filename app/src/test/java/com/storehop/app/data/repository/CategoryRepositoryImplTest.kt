@@ -109,6 +109,103 @@ class CategoryRepositoryImplTest {
         assertThat(live.single().deletedAt).isNull()
     }
 
+    @Test fun `rename updates the name, bumps updatedAt, and flips pendingSync`() = runTest {
+        val produceBefore = db.categoryDao().findById("local-only", "cat_produce")!!
+        // Pre-condition: seeder leaves pendingSync = true on initial insert
+        // (pre-cloud), so we bounce it to false to verify rename re-flips it.
+        db.categoryDao().upsert(produceBefore.copy(pendingSync = false))
+
+        repo.rename("cat_produce", "Fresh produce")
+
+        val after = db.categoryDao().findById("local-only", "cat_produce")!!
+        assertThat(after.name).isEqualTo("Fresh produce")
+        assertThat(after.updatedAt).isEqualTo(50_000L)
+        assertThat(after.pendingSync).isTrue()
+    }
+
+    @Test fun `rename trims whitespace from the new name`() = runTest {
+        repo.rename("cat_produce", "  Fresh produce  ")
+        assertThat(db.categoryDao().findById("local-only", "cat_produce")!!.name)
+            .isEqualTo("Fresh produce")
+    }
+
+    @Test fun `rename is a silent no-op when the id does not exist for this user`() = runTest {
+        repo.rename("does_not_exist", "anything")
+        // No throw; the absent id is treated as a missing precondition, not an
+        // error. (Mirrors how softDelete handles ownership-failed targets.)
+        // Sanity: nothing else changed.
+        val all = repo.observeAll(includeArchived = false).first()
+        assertThat(all.any { it.id == "does_not_exist" }).isFalse()
+    }
+
+    @Test fun `rename is a no-op for a category owned by a different user`() = runTest {
+        val otherRepo = CategoryRepositoryImpl(
+            db = db, dao = db.categoryDao(), itemDao = db.itemDao(),
+            scoDao = db.storeCategoryOrderDao(),
+            ids = object : IdGenerator { override fun newId(): String = UUID.randomUUID().toString() },
+            clock = Clock.fixed(Instant.ofEpochMilli(50_000L), ZoneOffset.UTC),
+            session = FakeSessionProvider("some-other-user"),
+        )
+
+        otherRepo.rename("cat_produce", "HIJACKED")
+
+        // Owner's view: name is unchanged.
+        val produce = db.categoryDao().findById("local-only", "cat_produce")!!
+        assertThat(produce.name).isEqualTo("Produce")
+    }
+
+    @Test fun `undoSoftDelete restores the category, its SCO rows, and the items it had`() = runTest {
+        // Build state: two items in cat_produce; cat_produce has SCO rows at
+        // multiple stores via the seeder.
+        listOf("milk", "bread").forEach { id ->
+            db.itemDao().upsert(
+                com.storehop.app.data.entity.Item(
+                    id = id, name = id, categoryId = "cat_produce", notes = null, quantity = null,
+                    isNeeded = true, lastPurchasedAt = null,
+                    userId = "local-only", createdAt = 1L, updatedAt = 1L, deletedAt = null,
+                ),
+            )
+        }
+        val lidlScoBefore = db.storeCategoryOrderDao().findForStore("store_lidl")
+            .count { it.categoryId == "cat_produce" }
+        assertThat(lidlScoBefore).isEqualTo(1)
+
+        repo.softDelete("cat_produce")
+        // Sanity: items are uncategorized, SCO rows are tombstoned.
+        assertThat(
+            db.itemDao().observeNeeded("local-only").first()
+                .filter { it.id in setOf("milk", "bread") }
+                .all { it.categoryId == null },
+        ).isTrue()
+        assertThat(
+            db.storeCategoryOrderDao().findForStore("store_lidl")
+                .count { it.categoryId == "cat_produce" },
+        ).isEqualTo(0)
+
+        repo.undoSoftDelete("cat_produce")
+
+        // Category itself is alive again.
+        val cat = db.categoryDao().findById("local-only", "cat_produce")!!
+        assertThat(cat.deletedAt).isNull()
+        // Items are re-linked to cat_produce.
+        val items = db.itemDao().observeNeeded("local-only").first()
+            .filter { it.id in setOf("milk", "bread") }
+        assertThat(items.map { it.categoryId }.toSet()).containsExactly("cat_produce")
+        // SCO rows are alive again at every store they were at before.
+        val lidlScoAfter = db.storeCategoryOrderDao().findForStore("store_lidl")
+            .count { it.categoryId == "cat_produce" }
+        assertThat(lidlScoAfter).isEqualTo(1)
+    }
+
+    @Test fun `undoSoftDelete is a silent no-op when the category was never tombstoned`() = runTest {
+        // cat_produce is alive after setup. Calling undo on it should be a
+        // no-op rather than corrupting state.
+        val before = db.categoryDao().findById("local-only", "cat_produce")!!
+        repo.undoSoftDelete("cat_produce")
+        val after = db.categoryDao().findById("local-only", "cat_produce")!!
+        assertThat(after).isEqualTo(before)
+    }
+
     @Test fun `setArchived and softDelete are no-ops for categories the session does not own`() = runTest {
         val otherRepo = CategoryRepositoryImpl(
             db = db,
