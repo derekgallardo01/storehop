@@ -124,6 +124,23 @@ class PurchaseRecordDaoTest {
         assertThat(live.map { it.id }).containsExactly("second")
     }
 
+    @Test fun `softDeleteForItemAtTime tombstones only records with the matching purchasedAt`() = runTest {
+        // Two purchases of the same item at different times. The cascade-undo
+        // passes the exact purchasedAt of the action being undone — verify
+        // it doesn't accidentally tombstone older or unrelated records.
+        dao.insert(record("first", "milk", purchasedAt = 100L))
+        dao.insert(record("second", "milk", purchasedAt = 200L))
+        dao.insert(record("eggs", "eggs", purchasedAt = 200L))
+
+        dao.softDeleteForItemAtTime(TEST_USER_ID, "milk", purchasedAt = 200L, now = 999L)
+
+        val liveMilk = dao.observeForItem(TEST_USER_ID, "milk").first()
+        assertThat(liveMilk.map { it.id }).containsExactly("first")
+        // Same purchasedAt on a different item must not be touched.
+        val liveEggs = dao.observeForItem(TEST_USER_ID, "eggs").first()
+        assertThat(liveEggs.map { it.id }).containsExactly("eggs")
+    }
+
     @Test fun `observePendingPush filters by userId and pendingSync`() = runTest {
         dao.insert(record("p1", "milk", purchasedAt = 100L)) // pendingSync defaults to true
         dao.insert(record("p2", "milk", purchasedAt = 200L))

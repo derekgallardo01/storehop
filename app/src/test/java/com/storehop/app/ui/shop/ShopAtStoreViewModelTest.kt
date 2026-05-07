@@ -21,11 +21,14 @@ import org.junit.Rule
 import org.junit.Test
 
 /**
- * Pins the Shop-at-Store screen's three behaviors that don't fall out of the
+ * Pins the Shop-at-Store screen's behaviors that don't fall out of the
  * repository tests:
  *  - search query filters by name OR brand, case-insensitively
  *  - search filtering does NOT hide critical items from the banner
  *  - togglePurchased routes to the correct repo method based on isNeeded
+ *  - undoPurchase threads the cascade snapshot back to the repo, and is a
+ *    no-op when there's no snapshot in flight (safety guard against stale
+ *    snackbar taps)
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class ShopAtStoreViewModelTest {
@@ -103,9 +106,10 @@ class ShopAtStoreViewModelTest {
         }
     }
 
-    @Test fun `togglePurchased on a needed row marks it purchased at this store only`() = runTest {
+    @Test fun `togglePurchased on a needed row routes to cascade markPurchasedAtStore`() = runTest {
         coEvery { shoppingRepo.shoppingListForStore(any(), any()) } returns rowsFlow
         coEvery { storeRepo.observeById(any()) } returns flowOf(testStore())
+        coEvery { itemRepo.markPurchasedAtStore(any(), any()) } returns 1234L
 
         val vm = newVm()
         vm.togglePurchased(row("milk", "Milk", isNeeded = true))
@@ -115,7 +119,7 @@ class ShopAtStoreViewModelTest {
         coVerify(exactly = 0) { itemRepo.markNeededAtStore(any(), any()) }
     }
 
-    @Test fun `togglePurchased on a purchased row flips it back to needed`() = runTest {
+    @Test fun `togglePurchased on a purchased row flips it back to needed at THIS store only`() = runTest {
         coEvery { shoppingRepo.shoppingListForStore(any(), any()) } returns rowsFlow
         coEvery { storeRepo.observeById(any()) } returns flowOf(testStore())
 
@@ -125,6 +129,32 @@ class ShopAtStoreViewModelTest {
 
         coVerify(exactly = 1) { itemRepo.markNeededAtStore("milk", "store_lidl") }
         coVerify(exactly = 0) { itemRepo.markPurchasedAtStore(any(), any()) }
+    }
+
+    @Test fun `undoPurchase routes to repository undoPurchase with the snapshot from the most recent cascade`() = runTest {
+        coEvery { shoppingRepo.shoppingListForStore(any(), any()) } returns rowsFlow
+        coEvery { storeRepo.observeById(any()) } returns flowOf(testStore())
+        coEvery { itemRepo.markPurchasedAtStore("milk", "store_lidl") } returns 9_999L
+
+        val vm = newVm()
+        vm.togglePurchased(row("milk", "Milk", isNeeded = true))
+        advanceUntilIdle()
+        vm.undoPurchase("milk")
+        advanceUntilIdle()
+
+        coVerify(exactly = 1) { itemRepo.undoPurchase("milk", 9_999L) }
+    }
+
+    @Test fun `undoPurchase is a no-op when no snapshot is in flight`() = runTest {
+        coEvery { shoppingRepo.shoppingListForStore(any(), any()) } returns rowsFlow
+        coEvery { storeRepo.observeById(any()) } returns flowOf(testStore())
+
+        val vm = newVm()
+        // No prior togglePurchased — snapshot is null.
+        vm.undoPurchase("milk")
+        advanceUntilIdle()
+
+        coVerify(exactly = 0) { itemRepo.undoPurchase(any(), any()) }
     }
 
     @Test fun `quickAdd ignores blank input`() = runTest {

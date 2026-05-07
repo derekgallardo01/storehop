@@ -66,6 +66,29 @@ interface PurchaseRecordDao {
     )
     suspend fun restoreCascadeForItem(userId: String, itemId: String, deletedAt: Long, now: Long)
 
+    /**
+     * Soft-delete the live PurchaseRecord(s) for [itemId] whose `purchasedAt`
+     * matches exactly [purchasedAt]. Used by the snackbar-undo path after a
+     * cascade purchase, to roll back history alongside the xref restore.
+     * Filtered by user and live-only so concurrent records or already-tombstoned
+     * ones aren't disturbed.
+     */
+    @Query(
+        """
+        UPDATE purchase_records
+        SET deletedAt = :now, updatedAt = :now, pendingSync = 1
+        WHERE itemId = :itemId AND userId = :userId
+            AND purchasedAt = :purchasedAt
+            AND deletedAt IS NULL
+        """,
+    )
+    suspend fun softDeleteForItemAtTime(
+        userId: String,
+        itemId: String,
+        purchasedAt: Long,
+        now: Long,
+    )
+
     @Query("SELECT * FROM purchase_records WHERE userId = :userId AND pendingSync = 1")
     fun observePendingPush(userId: String): Flow<List<PurchaseRecord>>
 

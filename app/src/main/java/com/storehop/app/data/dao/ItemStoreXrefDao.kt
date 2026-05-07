@@ -143,10 +143,11 @@ interface ItemStoreXrefDao {
     suspend fun markPushed(userId: String, itemId: String, storeId: String)
 
     /**
-     * Mark the (itemId, storeId) row as purchased at THIS store. Doesn't
-     * touch any other store the item is tagged to -- that's the per-store
-     * need-state model. Caller (the repo) writes a [PurchaseRecord] for
-     * exactly this store.
+     * Mark this single (itemId, storeId) xref purchased at this store only.
+     * Used by [markNeededAtStore]'s mirror — the per-store state-correction
+     * path. The Shop-at-Store check-off cascades via
+     * [markPurchasedAcrossAllStores] instead, which writes the same flips to
+     * every store the item is tagged to.
      */
     @Query(
         """
@@ -159,6 +160,29 @@ interface ItemStoreXrefDao {
         """,
     )
     suspend fun markPurchasedAtStore(userId: String, itemId: String, storeId: String, now: Long)
+
+    /**
+     * Cascade-mark every live xref for [itemId] as purchased: a single
+     * shopping trip (one trip to one store) satisfies the need across every
+     * store the item is tagged to. Used by the Shop-at-Store check-off so
+     * that buying mozzarella at Lidl makes it disappear from the Aldi and
+     * Pingo Doce lists too, matching how shopping-list apps usually behave.
+     *
+     * All affected rows share the same `lastPurchasedAt = :now`, which is
+     * the precision marker [restorePurchaseAcrossAllStores] uses to undo a
+     * cascade without touching unrelated history.
+     */
+    @Query(
+        """
+        UPDATE item_store_xref
+        SET isNeeded = 0,
+            lastPurchasedAt = :now,
+            updatedAt = :now,
+            pendingSync = 1
+        WHERE itemId = :itemId AND userId = :userId AND deletedAt IS NULL
+        """,
+    )
+    suspend fun markPurchasedAcrossAllStores(userId: String, itemId: String, now: Long)
 
     /**
      * Restore the (itemId, storeId) row to needed at this store. Used to
@@ -175,4 +199,31 @@ interface ItemStoreXrefDao {
         """,
     )
     suspend fun markNeededAtStore(userId: String, itemId: String, storeId: String, now: Long)
+
+    /**
+     * Inverse of [markPurchasedAcrossAllStores], filtered by exact
+     * `lastPurchasedAt` so concurrent or older purchases of the same item
+     * aren't accidentally restored. Restores the xrefs to `isNeeded = 1`
+     * and clears `lastPurchasedAt`, since the snackbar-undo flow also
+     * deletes the matching `PurchaseRecord` — it's "as if it never
+     * happened," not a state correction.
+     */
+    @Query(
+        """
+        UPDATE item_store_xref
+        SET isNeeded = 1,
+            lastPurchasedAt = NULL,
+            updatedAt = :now,
+            pendingSync = 1
+        WHERE itemId = :itemId AND userId = :userId
+            AND lastPurchasedAt = :lastPurchasedAt
+            AND isNeeded = 0
+        """,
+    )
+    suspend fun restorePurchaseAcrossAllStores(
+        userId: String,
+        itemId: String,
+        lastPurchasedAt: Long,
+        now: Long,
+    )
 }

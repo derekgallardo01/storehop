@@ -2,8 +2,10 @@
 
 A native Android shopping-list app for people who shop at more than one
 store. One master list of items is tagged across multiple stores; each
-store gets its own per-aisle shopping view, and per-store check-off
-keeps each store's list independent.
+store gets its own per-aisle shopping view, and checking an item off
+at one store cascades — buying mozzarella at Lidl drops it from the
+Aldi and Pingo Doce lists too, so a single shopping trip satisfies
+the need.
 
 The app ships with a starter set of stores and categories. Anything not
 on that list (a regional chain, a one-off shop, a category for a
@@ -86,10 +88,12 @@ Every entity carries `id` (UUID), `createdAt`, `updatedAt`, `deletedAt`
 (soft-delete tombstone), `userId`, and `pendingSync`. This shape
 supports offline edits, deterministic merging across devices, and the
 push-side Firestore sync engine in `sync/`. Per-store need state lives
-on `item_store_xref.isNeeded` so checking an item off at one store
-doesn't affect any other store it's tagged to. The Room schema is
-exported to `app/schemas/` and tracked in version control so migrations
-are reviewable.
+on `item_store_xref.isNeeded`; the default check-off cascades across
+every tagged store (one trip clears the list everywhere), and the
+manual `markNeededAtStore` path leaves a per-store override hook for
+later if we ever want to expose it. The Room schema is exported to
+`app/schemas/` and tracked in version control so migrations are
+reviewable.
 
 Seeded stores and categories use stable string IDs (for example
 `store_lidl`, `cat_produce`) rather than generated UUIDs so the seed

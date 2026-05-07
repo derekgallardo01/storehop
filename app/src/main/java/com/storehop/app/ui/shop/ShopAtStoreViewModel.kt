@@ -92,26 +92,44 @@ class ShopAtStoreViewModel @Inject constructor(
     fun setQuery(q: String) { _query.value = q }
 
     /**
-     * Tap behavior on a row, scoped to THIS store only -- per-store need
-     * state means checking off milk at Lidl never touches milk at Aldi.
-     *  - needed -> mark purchased at this store (writes one PurchaseRecord)
-     *  - purchased -> mark needed again at this store (un-checks; no record)
+     * Snapshot timestamp returned by the most recent cascade purchase, kept
+     * around so [undoPurchase] can do a precision rollback. Only the latest
+     * value matters: a new purchase dismisses the prior snackbar (see
+     * ShopAtStoreScreen), so an Undo tap always targets whatever is in here.
+     */
+    private var lastPurchaseSnapshot: Long? = null
+
+    /**
+     * Tap behavior on a row.
+     *  - needed -> cascade-mark purchased: a single shopping trip flips every
+     *    store the item is tagged to, and writes one PurchaseRecord at the
+     *    store the user is currently shopping at.
+     *  - purchased -> mark needed again at THIS store only (manual un-check;
+     *    no PurchaseRecord touched). The snackbar Undo path is the primary
+     *    way to back out a mis-tap.
      */
     fun togglePurchased(row: ShoppingRow) {
         viewModelScope.launch {
-            if (row.isNeeded) itemRepository.markPurchasedAtStore(row.itemId, storeId)
-            else itemRepository.markNeededAtStore(row.itemId, storeId)
+            if (row.isNeeded) {
+                lastPurchaseSnapshot = itemRepository.markPurchasedAtStore(row.itemId, storeId)
+            } else {
+                lastPurchaseSnapshot = null
+                itemRepository.markNeededAtStore(row.itemId, storeId)
+            }
         }
     }
 
     /**
-     * Reverse a freshly-checked-off row. Called from the snackbar UNDO action
-     * after [togglePurchased]. No PurchaseRecord is rolled back -- the record
-     * is harmless to keep (history is append-only) and trying to delete the
-     * exact one we just inserted is fragile.
+     * Reverse the most recent cascade purchase: restores every xref the
+     * cascade flipped (matched by the snapshot timestamp) and soft-deletes
+     * the matching PurchaseRecord, so history shows no purchase at all. No-op
+     * if there's no snapshot in flight (e.g. user tapped Undo on a stale
+     * snackbar that somehow escaped the dismiss-on-next-tap guard).
      */
     fun undoPurchase(itemId: String) {
-        viewModelScope.launch { itemRepository.markNeededAtStore(itemId, storeId) }
+        val snapshot = lastPurchaseSnapshot ?: return
+        lastPurchaseSnapshot = null
+        viewModelScope.launch { itemRepository.undoPurchase(itemId, snapshot) }
     }
 
     /**

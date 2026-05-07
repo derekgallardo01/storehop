@@ -141,23 +141,39 @@ class ItemRepositoryImpl @Inject constructor(
     }
 
     /**
-     * Mark this (item, store) row as purchased. Per-store: only `isx(item,
-     * store).isNeeded` flips -- other stores the item is tagged to are
-     * untouched. Writes exactly one [PurchaseRecord] for the pair (vs. the
-     * old API which wrote one per tagged store and inflated history counts).
+     * Mark this item purchased. Cascades isNeeded=0 + lastPurchasedAt=now to
+     * every store the item is currently tagged to so a single shopping trip
+     * satisfies the need everywhere — Mike-reported in v0.5: "purchased it at
+     * one of the stores, but it still shows up in the other 2." Writes
+     * exactly one PurchaseRecord (the store the user actually bought it at).
      *
      * Verifies the item belongs to the live user before any write so a
      * mid-call session swap can't corrupt cross-table ownership invariants.
+     * Returns the snapshot timestamp so [undoPurchase] can do a precision
+     * rollback by matching `lastPurchasedAt`; returns null when the lookup
+     * fails (no item, or wrong owner).
      */
-    override suspend fun markPurchasedAtStore(itemId: String, storeId: String) = db.withTransaction {
+    override suspend fun markPurchasedAtStore(itemId: String, storeId: String): Long? =
+        db.withTransaction {
+            val userId = requireSignedIn()
+            val now = clock.millis()
+            val current = itemDao.observeById(userId, itemId).first()?.item
+                ?: return@withTransaction null
+            val ownerId = current.userId
+
+            xrefDao.markPurchasedAcrossAllStores(ownerId, itemId, now)
+            purchaseRecordDao.insert(record(itemId, storeId = storeId, ownerId, now))
+            now
+        }
+
+    override suspend fun undoPurchase(itemId: String, snapshotTime: Long) = db.withTransaction {
         val userId = requireSignedIn()
-        val now = clock.millis()
         val current = itemDao.observeById(userId, itemId).first()?.item
             ?: return@withTransaction
         val ownerId = current.userId
-
-        xrefDao.markPurchasedAtStore(ownerId, itemId, storeId, now)
-        purchaseRecordDao.insert(record(itemId, storeId = storeId, ownerId, now))
+        val now = clock.millis()
+        xrefDao.restorePurchaseAcrossAllStores(ownerId, itemId, snapshotTime, now)
+        purchaseRecordDao.softDeleteForItemAtTime(ownerId, itemId, snapshotTime, now)
     }
 
     override suspend fun markNeededAtStore(itemId: String, storeId: String) = db.withTransaction {

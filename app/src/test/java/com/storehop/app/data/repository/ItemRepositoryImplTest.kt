@@ -104,49 +104,121 @@ class ItemRepositoryImplTest {
         assertThat(xrefs.map { it.userId }.toSet()).containsExactly(TEST_USER_ID)
     }
 
-    @Test fun `markPurchasedAtStore flips isNeeded only at that store and writes one PurchaseRecord`() = runTest {
+    @Test fun `markPurchasedAtStore cascades isNeeded=0 to every tagged store and writes one PurchaseRecord`() = runTest {
+        // Mike-reported in v0.5: "I purchased it at one of the stores, but it
+        // still shows up in the other 2." This test pins the cascade fix.
         val itemId = repo.addItem(
-            name = "Milk", categoryId = null,
+            name = "Mozzarella", categoryId = null,
             storeIds = setOf("store_lidl", "store_continente"),
             quantity = null, notes = null,
         )
-        repo.markPurchasedAtStore(itemId, "store_lidl")
 
-        // Per-store: Lidl's xref is now not-needed. Continente's xref is
-        // untouched -- this is the bug-fix the whole migration exists for.
-        val xrefs = db.itemStoreXrefDao().findForItem(itemId)
-            .associateBy { it.storeId }
+        val snapshot = repo.markPurchasedAtStore(itemId, "store_lidl")
+
+        // Both xrefs flipped to not-needed; both stamped with the same
+        // lastPurchasedAt = snapshot, which is the precision marker undo uses.
+        val xrefs = db.itemStoreXrefDao().findForItem(itemId).associateBy { it.storeId }
         assertThat(xrefs.getValue("store_lidl").isNeeded).isFalse()
-        assertThat(xrefs.getValue("store_continente").isNeeded).isTrue()
+        assertThat(xrefs.getValue("store_continente").isNeeded).isFalse()
+        assertThat(xrefs.getValue("store_lidl").lastPurchasedAt).isEqualTo(snapshot)
+        assertThat(xrefs.getValue("store_continente").lastPurchasedAt).isEqualTo(snapshot)
 
-        // Exactly one PurchaseRecord, scoped to the store we marked.
+        // Still exactly one PurchaseRecord, scoped to the store the user
+        // actually bought it at — history reflects the real transaction, not
+        // the cascade fan-out.
         val records = db.purchaseRecordDao().observeForItem(TEST_USER_ID, itemId).first()
         assertThat(records).hasSize(1)
         assertThat(records.single().storeId).isEqualTo("store_lidl")
         assertThat(records.single().userId).isEqualTo(TEST_USER_ID)
     }
 
-    @Test fun `markNeededAtStore restores only the targeted store's xref`() = runTest {
+    @Test fun `markPurchasedAtStore returns the snapshot timestamp callers pass to undoPurchase`() = runTest {
         val itemId = repo.addItem(
             name = "Milk", categoryId = null,
+            storeIds = setOf("store_lidl"),
+            quantity = null, notes = null,
+        )
+
+        val snapshot = repo.markPurchasedAtStore(itemId, "store_lidl")
+
+        assertThat(snapshot).isNotNull()
+        assertThat(snapshot).isEqualTo(50_000L) // fixedClock value
+    }
+
+    @Test fun `markPurchasedAtStore returns null when the item is not owned by the live session`() = runTest {
+        val itemId = repo.addItem(
+            name = "Milk", categoryId = null,
+            storeIds = setOf("store_lidl"),
+            quantity = null, notes = null,
+        )
+        session.setUserId(OTHER_USER_ID)
+
+        val snapshot = repo.markPurchasedAtStore(itemId, "store_lidl")
+
+        assertThat(snapshot).isNull()
+        // No xref state changed.
+        assertThat(
+            db.itemStoreXrefDao().findForItem(itemId).single().isNeeded,
+        ).isTrue()
+    }
+
+    @Test fun `undoPurchase restores every cascaded xref and soft-deletes the PurchaseRecord`() = runTest {
+        val itemId = repo.addItem(
+            name = "Mozzarella", categoryId = null,
+            storeIds = setOf("store_lidl", "store_continente"),
+            quantity = null, notes = null,
+        )
+        val snapshot = checkNotNull(repo.markPurchasedAtStore(itemId, "store_lidl"))
+        // Sanity: cascade fired.
+        assertThat(db.itemStoreXrefDao().findForItem(itemId).all { !it.isNeeded }).isTrue()
+        assertThat(db.purchaseRecordDao().observeForItem(TEST_USER_ID, itemId).first()).hasSize(1)
+
+        repo.undoPurchase(itemId, snapshot)
+
+        val xrefs = db.itemStoreXrefDao().findForItem(itemId).associateBy { it.storeId }
+        // All xrefs back to needed; lastPurchasedAt cleared so the rows look as
+        // if the purchase never happened.
+        assertThat(xrefs.getValue("store_lidl").isNeeded).isTrue()
+        assertThat(xrefs.getValue("store_continente").isNeeded).isTrue()
+        assertThat(xrefs.getValue("store_lidl").lastPurchasedAt).isNull()
+        assertThat(xrefs.getValue("store_continente").lastPurchasedAt).isNull()
+        // PurchaseRecord soft-deleted (observeForItem filters deletedAt IS NULL).
+        assertThat(db.purchaseRecordDao().observeForItem(TEST_USER_ID, itemId).first()).isEmpty()
+    }
+
+    @Test fun `undoPurchase with a stale snapshot is a no-op`() = runTest {
+        val itemId = repo.addItem(
+            name = "Milk", categoryId = null,
+            storeIds = setOf("store_lidl"),
+            quantity = null, notes = null,
+        )
+        val snapshot = checkNotNull(repo.markPurchasedAtStore(itemId, "store_lidl"))
+
+        repo.undoPurchase(itemId, snapshot - 1) // not the timestamp we flipped at
+
+        // Xref still purchased; PurchaseRecord still live.
+        assertThat(db.itemStoreXrefDao().findForItem(itemId).single().isNeeded).isFalse()
+        assertThat(db.purchaseRecordDao().observeForItem(TEST_USER_ID, itemId).first()).hasSize(1)
+    }
+
+    @Test fun `markNeededAtStore restores ONLY the targeted store after a cascade purchase`() = runTest {
+        // Manual un-check path: user purchased at Lidl (cascade fired), then a
+        // beat later realized "actually I still need this at Lidl." Tapping
+        // un-check should restore Lidl only — the user said nothing about
+        // Continente, which they presumably don't need anymore.
+        val itemId = repo.addItem(
+            name = "Mozzarella", categoryId = null,
             storeIds = setOf("store_lidl", "store_continente"),
             quantity = null, notes = null,
         )
         repo.markPurchasedAtStore(itemId, "store_lidl")
-        // Sanity: Lidl's xref is purchased.
-        assertThat(
-            db.itemStoreXrefDao().findForItem(itemId)
-                .single { it.storeId == "store_lidl" }.isNeeded,
-        ).isFalse()
 
         repo.markNeededAtStore(itemId, "store_lidl")
 
-        val xrefs = db.itemStoreXrefDao().findForItem(itemId)
-            .associateBy { it.storeId }
+        val xrefs = db.itemStoreXrefDao().findForItem(itemId).associateBy { it.storeId }
         assertThat(xrefs.getValue("store_lidl").isNeeded).isTrue()
-        assertThat(xrefs.getValue("store_continente").isNeeded).isTrue()
-        // markNeededAtStore is a state correction, NOT a purchase --
-        // no new PurchaseRecord, just the one from the original purchase.
+        assertThat(xrefs.getValue("store_continente").isNeeded).isFalse()
+        // markNeededAtStore is a state correction — no PurchaseRecord touched.
         assertThat(db.purchaseRecordDao().observeForItem(TEST_USER_ID, itemId).first())
             .hasSize(1)
     }

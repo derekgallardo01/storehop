@@ -43,18 +43,32 @@ interface ItemRepository {
     suspend fun undoSoftDelete(id: String)
 
     /**
-     * Mark this item purchased at one specific store. Per-store need state:
-     * checking off milk at Lidl flips only `isx(Lidl, milk).isNeeded` -- the
-     * Aldi xref is untouched, so milk still shows as needed at Aldi. Writes
-     * exactly one [com.storehop.app.data.entity.PurchaseRecord] for the
-     * (item, store) pair.
+     * Mark this item purchased. The user is at one specific [storeId], but
+     * one purchase satisfies the need across every store the item is tagged
+     * to: buying mozzarella at Lidl makes it disappear from the Aldi and
+     * Pingo Doce lists too. Writes exactly one
+     * [com.storehop.app.data.entity.PurchaseRecord] (the actual store of the
+     * purchase) and returns the snapshot timestamp the caller should pass to
+     * [undoPurchase] for a precise reversal. Returns null if the item isn't
+     * owned by the live session.
      */
-    suspend fun markPurchasedAtStore(itemId: String, storeId: String)
+    suspend fun markPurchasedAtStore(itemId: String, storeId: String): Long?
+
+    /**
+     * Reverse the most recent [markPurchasedAtStore] for [itemId] at exactly
+     * [snapshotTime] (the value [markPurchasedAtStore] returned). Restores
+     * every xref the cascade flipped — those whose `lastPurchasedAt` matches
+     * [snapshotTime] — back to needed, and soft-deletes the matching
+     * PurchaseRecord. After undo, history shows no purchase: this is a true
+     * "as if it never happened" rollback, not a state correction.
+     */
+    suspend fun undoPurchase(itemId: String, snapshotTime: Long)
 
     /**
      * Restore the (item, store) row to needed at that store. Used by
-     * Shop-at-Store to un-check a mis-tap. No PurchaseRecord is written --
-     * this is a state correction, not a purchase.
+     * Shop-at-Store to manually un-check a single store after the snackbar
+     * timeout — the cascade-undo above is the primary mis-tap path. No
+     * PurchaseRecord is touched; this is a per-store state correction.
      */
     suspend fun markNeededAtStore(itemId: String, storeId: String)
 }
