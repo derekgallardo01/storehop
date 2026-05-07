@@ -8,6 +8,8 @@ import com.storehop.app.data.repository.PurchaseHistoryRepository
 import com.storehop.app.data.repository.PurchaseHistoryRepositoryImpl
 import com.storehop.app.data.repository.ShoppingRepository
 import com.storehop.app.data.repository.ShoppingRepositoryImpl
+import com.storehop.app.data.repository.StoreCategoryOrderRepository
+import com.storehop.app.data.repository.StoreCategoryOrderRepositoryImpl
 import com.storehop.app.data.repository.StoreRepository
 import com.storehop.app.data.repository.StoreRepositoryImpl
 import dagger.Binds
@@ -34,4 +36,9 @@ abstract class RepositoryModule {
 
     @Binds @Singleton
     abstract fun bindPurchaseHistoryRepository(impl: PurchaseHistoryRepositoryImpl): PurchaseHistoryRepository
+
+    @Binds @Singleton
+    abstract fun bindStoreCategoryOrderRepository(
+        impl: StoreCategoryOrderRepositoryImpl,
+    ): StoreCategoryOrderRepository
 }
