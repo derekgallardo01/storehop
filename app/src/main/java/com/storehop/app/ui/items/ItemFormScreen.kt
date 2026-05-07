@@ -16,7 +16,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -31,6 +30,8 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -58,9 +59,16 @@ fun ItemFormScreen(
     val stores by viewModel.stores.collectAsState()
     val isEdit = viewModel.isEdit
     var showDeleteConfirm by remember { mutableStateOf(false) }
+    val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(state.saved, state.deleted) {
         if (state.saved || state.deleted) onBack()
+    }
+    LaunchedEffect(state.saveError) {
+        // Surface non-validation errors (network/upload failures) as a
+        // snackbar so they're visible even when the user has scrolled --
+        // and so the form's vertical rhythm doesn't shift around.
+        state.saveError?.let { snackbarHostState.showSnackbar(it) }
     }
 
     Scaffold(
@@ -78,9 +86,28 @@ fun ItemFormScreen(
                             Icon(Icons.Filled.Delete, contentDescription = "Delete")
                         }
                     }
+                    // Save lives in the top bar so it's always visible -- the
+                    // form is long enough that a bottom-anchored Save was
+                    // hidden below the fold on first render.
+                    TextButton(
+                        onClick = viewModel::submit,
+                        enabled = !state.isSubmitting,
+                    ) {
+                        if (state.isSubmitting) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.padding(end = 8.dp),
+                                strokeWidth = 2.dp,
+                                color = MaterialTheme.colorScheme.primary,
+                            )
+                            Text("Saving…")
+                        } else {
+                            Text("Save")
+                        }
+                    }
                 },
             )
         },
+        snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { padding ->
         if (state.isLoading) {
             androidx.compose.foundation.layout.Box(
@@ -167,22 +194,8 @@ fun ItemFormScreen(
                 onImagePicked = viewModel::pickLocalImage,
                 onClearImage = viewModel::clearImage,
             )
-
-            state.saveError?.let { msg ->
-                Text(
-                    text = msg,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.error,
-                )
-            }
-
-            Button(
-                onClick = viewModel::submit,
-                enabled = !state.isSubmitting,
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Text(if (state.isSubmitting) "Saving…" else "Save")
-            }
+            // Save action lives in the top app bar (always visible).
+            // saveError is surfaced via Snackbar from the LaunchedEffect above.
         }
     }
 
