@@ -55,6 +55,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.storehop.app.R
 import com.storehop.app.data.entity.Category
+import com.storehop.app.ui.util.SentenceCaps
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -269,6 +270,7 @@ private fun AddCategoryDialog(
                 },
                 label = { Text(stringResource(R.string.add_category_field_label)) },
                 singleLine = true,
+                keyboardOptions = SentenceCaps,
                 isError = error != null,
                 supportingText = error?.let { { Text(it) } },
                 modifier = Modifier.focusRequester(focusRequester),
@@ -318,6 +320,7 @@ private fun RenameCategoryDialog(
                 },
                 label = { Text(stringResource(R.string.add_category_field_label)) },
                 singleLine = true,
+                keyboardOptions = SentenceCaps,
                 isError = error != null,
                 supportingText = error?.let { { Text(it) } },
                 modifier = Modifier.focusRequester(focusRequester),

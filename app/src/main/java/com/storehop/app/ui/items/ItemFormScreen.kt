@@ -48,6 +48,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.storehop.app.R
+import com.storehop.app.ui.util.SentenceCaps
 import com.storehop.app.ui.util.localizedLabel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -144,6 +145,7 @@ fun ItemFormScreen(
                     { Text(stringResource(R.string.form_error_name_required)) }
                 } else null,
                 singleLine = true,
+                keyboardOptions = SentenceCaps,
                 modifier = Modifier.fillMaxWidth(),
             )
 
@@ -152,6 +154,7 @@ fun ItemFormScreen(
                 onValueChange = viewModel::setBrand,
                 label = { Text(stringResource(R.string.form_field_brand_optional)) },
                 singleLine = true,
+                keyboardOptions = SentenceCaps,
                 modifier = Modifier.fillMaxWidth(),
             )
 
