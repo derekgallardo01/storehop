@@ -11,15 +11,16 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.auth.FirebaseAuth
 import com.storehop.app.auth.GoogleSignInUseCase
-import com.storehop.app.data.dao.LocalOnlyMigrationDao
 import com.storehop.app.data.prefs.ThemeMode
 import com.storehop.app.data.prefs.UserPreferencesRepository
+import com.storehop.app.data.util.UserSessionProvider
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
@@ -42,7 +43,7 @@ class SettingsViewModel @Inject constructor(
     private val auth: FirebaseAuth,
     private val googleSignIn: GoogleSignInUseCase,
     private val userPrefs: UserPreferencesRepository,
-    private val migrationDao: LocalOnlyMigrationDao,
+    private val sessionProvider: UserSessionProvider,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(snapshot())
@@ -142,16 +143,15 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch {
             googleSignIn.signIn(activityContext)
                 .onSuccess {
-                    // After the auth flip succeeds, re-stamp any rows still
-                    // under the previous uid onto the active one BEFORE we
-                    // clear the busy flag. SignInBootstrapper would catch
-                    // this asynchronously via its uid-change collector, but
-                    // doing it here gates the "Signed in" state on the data
-                    // already being migrated -- so the user doesn't see a
-                    // brief "where did my stores go?" moment when they
-                    // navigate from Settings to Shop right after sign-in.
-                    auth.currentUser?.uid?.let { uid ->
-                        migrationDao.claimAllOrphanRowsAs(uid)
+                    // Wait until the gated userId flow flips to the new uid.
+                    // FirebaseAuthSessionProvider holds back that flip until
+                    // its claim migration has re-stamped the previous uid's
+                    // rows onto the new one -- so by the time the busy flag
+                    // clears, the Shop screen's next query already sees a
+                    // populated list. No empty-state flicker.
+                    val targetUid = auth.currentUser?.uid
+                    if (targetUid != null) {
+                        sessionProvider.userId.first { it == targetUid }
                     }
                     _state.value = snapshot().copy(busy = false)
                 }
@@ -182,6 +182,15 @@ class SettingsViewModel @Inject constructor(
             try {
                 auth.signOut()
                 auth.signInAnonymously().await()
+                // Same as signInWithGoogle: wait for the gated userId flow
+                // to flip to the new anon uid before clearing busy. Keeps
+                // the Shop screen from rendering empty during the in-flight
+                // claim migration that re-stamps the previous Google uid's
+                // rows onto the fresh anon uid.
+                val targetUid = auth.currentUser?.uid
+                if (targetUid != null) {
+                    sessionProvider.userId.first { it == targetUid }
+                }
                 _state.value = snapshot().copy(busy = false)
             } catch (e: Exception) {
                 _state.value = snapshot().copy(

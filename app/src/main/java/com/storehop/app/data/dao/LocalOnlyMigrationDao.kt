@@ -9,9 +9,10 @@ import com.storehop.app.data.util.LocalOnlyUserSessionProvider
  * One-shot migration that re-stamps every row whose `userId` is the pre-Firebase
  * `"local-only"` sentinel onto the first real Firebase uid the device acquires.
  *
- * Runs from [com.storehop.app.auth.SignInBootstrapper] after the StateFlow's
- * first non-null emission. Idempotent -- subsequent runs find no `local-only`
- * rows and no-op.
+ * Runs from [com.storehop.app.auth.FirebaseAuthSessionProvider] before each
+ * uid change is published to observers, so the public `userId` flow only
+ * flips after the rows have been re-stamped. Idempotent -- subsequent runs
+ * find no `local-only` rows and no-op.
  */
 @Dao
 interface LocalOnlyMigrationDao {

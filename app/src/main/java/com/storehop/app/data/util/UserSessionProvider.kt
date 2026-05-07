@@ -16,7 +16,8 @@ import javax.inject.Inject
  *
  * The `"local-only"` sentinel only existed pre-Firebase. After M2, every
  * row is either tagged with a real Firebase uid or has been migrated by
- * `SignInBootstrapper` to the first uid the device sees.
+ * the [com.storehop.app.auth.FirebaseAuthSessionProvider] gating coroutine
+ * to the active uid before that uid was published to observers.
  */
 interface UserSessionProvider {
     val userId: StateFlow<String?>
