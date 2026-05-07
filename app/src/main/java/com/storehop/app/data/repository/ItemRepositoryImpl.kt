@@ -165,6 +165,13 @@ class ItemRepositoryImpl @Inject constructor(
         }
     }
 
+    override suspend fun markNeeded(id: String) = db.withTransaction {
+        val userId = requireSignedIn()
+        val current = itemDao.observeById(userId, id).first()?.item
+            ?: return@withTransaction
+        itemDao.markNeeded(current.userId, id, clock.millis())
+    }
+
     private fun requireSignedIn(): String =
         session.currentUserId() ?: throw IllegalStateException("Not signed in")
 

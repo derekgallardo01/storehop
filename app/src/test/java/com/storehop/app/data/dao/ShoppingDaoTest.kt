@@ -78,6 +78,36 @@ class ShoppingDaoTest {
         }
     }
 
+    @Test fun `purchased staple stays in the list at the bottom of its category section`() = runTest {
+        // Mark "milk" a staple, mark it purchased -- now it should still appear
+        // in Lidl's list, but pushed below the still-needed Eggs.
+        val now = 200L
+        db.itemDao().upsert(
+            item("milk", "Milk", categoryId = "cat_dairy_eggs").copy(isStaple = true),
+        )
+        db.itemDao().markPurchased(TEST_USER_ID, "milk", now)
+        db.shoppingDao().shoppingListForStore(TEST_USER_ID, "store_lidl").test {
+            val rows = awaitItem()
+            val names = rows.map { it.itemName }
+            // Produce -> Bananas, Tomatoes (needed), Dairy -> Eggs (needed) before Milk (purchased staple).
+            assertThat(names).containsExactly("Bananas", "Tomatoes", "Eggs", "Milk").inOrder()
+            // The purchased staple row carries isNeeded=false so the UI can strike it.
+            assertThat(rows.first { it.itemName == "Milk" }.isNeeded).isFalse()
+            assertThat(rows.first { it.itemName == "Eggs" }.isNeeded).isTrue()
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test fun `purchased non-staple is still filtered out`() = runTest {
+        // Eggs is NOT a staple (default). Purchasing it should still drop it from the list.
+        db.itemDao().markPurchased(TEST_USER_ID, "eggs", now = 100L)
+        db.shoppingDao().shoppingListForStore(TEST_USER_ID, "store_lidl").test {
+            val names = awaitItem().map { it.itemName }
+            assertThat(names).doesNotContain("Eggs")
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
     @Test fun `the query is scoped by userId on both items and item_store_xref`() = runTest {
         // Insert another user's item tagged to the same store and confirm it's invisible.
         runBlockingDb {

@@ -11,11 +11,16 @@ interface ShoppingDao {
 
     /**
      * The cross-cutting query that powers a "Shop at Store" screen.
-     * Filters items to those needed AND tagged to [storeId], with the
-     * store's per-aisle category ordering applied.
      *
-     * Items in categories with no `StoreCategoryOrder` for this store
-     * fall to the bottom (COALESCE to 9999). Ties on displayOrder are
+     * Includes:
+     *  - every item that is currently needed AND tagged to [storeId]
+     *  - every staple tagged to [storeId] regardless of need state, so the
+     *    user sees it struck-through after purchase and can un-check it
+     *
+     * Sort order: needed items first (in this store's aisle order), then
+     * purchased staples at the bottom (also in aisle order). Items in
+     * categories with no `StoreCategoryOrder` for this store fall to the
+     * bottom of their bucket (COALESCE to 9999). Ties on displayOrder are
      * broken deterministically by category name then item name.
      */
     @Query(
@@ -46,9 +51,10 @@ interface ShoppingDao {
               AND sco.deletedAt IS NULL
         WHERE isx.storeId = :storeId
           AND i.deletedAt IS NULL
-          AND i.isNeeded = 1
+          AND (i.isNeeded = 1 OR i.isStaple = 1)
           AND i.userId = :userId
-        ORDER BY COALESCE(sco.displayOrder, 9999),
+        ORDER BY i.isNeeded DESC,
+                 COALESCE(sco.displayOrder, 9999),
                  c.name COLLATE NOCASE,
                  i.name COLLATE NOCASE
         """,

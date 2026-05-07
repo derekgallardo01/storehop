@@ -22,6 +22,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -44,8 +45,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.storehop.app.data.db.relations.ShoppingRow
@@ -123,7 +126,7 @@ fun ShopAtStoreScreen(
                             CategoryHeader(section.categoryName, section.displayOrder)
                         }
                         items(section.rows, key = { it.itemId }) { row ->
-                            ShopAtStoreRow(row, onTap = { viewModel.togglePurchased(row.itemId) })
+                            ShopAtStoreRow(row, onTap = { viewModel.togglePurchased(row) })
                         }
                     }
                 }
@@ -187,14 +190,23 @@ private fun ShopAtStoreRow(
     row: ShoppingRow,
     onTap: () -> Unit,
 ) {
-    val isPriority = row.isPriority
+    // A purchased row in the list can only be a staple, since non-staples are
+    // filtered out of the query once isNeeded = 0.
+    val isPurchasedStaple = !row.isNeeded
+    val isPriority = row.isPriority && !isPurchasedStaple
+    val rowAlpha = if (isPurchasedStaple) 0.6f else 1f
+    val nameDecoration = if (isPurchasedStaple) TextDecoration.LineThrough else TextDecoration.None
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onTap),
+            .clickable(onClick = onTap)
+            .alpha(rowAlpha),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        // Priority side-stripe -- 4dp sage band on the leading edge.
+        // Priority side-stripe -- 4dp sage band on the leading edge. Only
+        // shown for needed-and-priority items; the treatment fades on
+        // purchase since the row also fades.
         Box(
             modifier = Modifier
                 .width(4.dp)
@@ -205,22 +217,33 @@ private fun ShopAtStoreRow(
                     else androidx.compose.ui.graphics.Color.Transparent,
                 ),
         )
-        Checkbox(checked = false, onCheckedChange = { onTap() })
+        Checkbox(checked = isPurchasedStaple, onCheckedChange = { onTap() })
         Column(modifier = Modifier.weight(1f).padding(end = 16.dp, top = 8.dp, bottom = 8.dp)) {
             Text(
                 text = row.itemName,
                 style = MaterialTheme.typography.bodyLarge,
                 fontWeight = if (isPriority) FontWeight.SemiBold else FontWeight.Normal,
+                textDecoration = nameDecoration,
             )
             row.brand?.takeIf { it.isNotBlank() }?.let { brand ->
                 Text(
                     text = brand,
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textDecoration = nameDecoration,
                 )
             }
         }
-        if (isPriority) {
+        if (row.isStaple && isPurchasedStaple) {
+            // Subtle "always on the list" pin so the user knows why this
+            // struck-through row is sticking around.
+            Icon(
+                Icons.Filled.Star,
+                contentDescription = "Always on the list",
+                tint = MaterialTheme.colorScheme.secondary,
+                modifier = Modifier.size(18.dp).padding(end = 16.dp),
+            )
+        } else if (isPriority) {
             Icon(
                 Icons.Filled.Warning,
                 contentDescription = "Critical",

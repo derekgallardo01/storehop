@@ -75,8 +75,16 @@ class ShopAtStoreViewModel @Inject constructor(
 
     fun setQuery(q: String) { _query.value = q }
 
-    fun togglePurchased(itemId: String) {
-        viewModelScope.launch { itemRepository.markPurchased(itemId) }
+    /**
+     * Tap behavior on a row:
+     *  - needed item -> mark purchased (strike-through if staple, disappears if not)
+     *  - purchased staple -> mark needed again (un-checks, returns to top of section)
+     */
+    fun togglePurchased(row: ShoppingRow) {
+        viewModelScope.launch {
+            if (row.isNeeded) itemRepository.markPurchased(row.itemId)
+            else itemRepository.markNeeded(row.itemId)
+        }
     }
 }
 

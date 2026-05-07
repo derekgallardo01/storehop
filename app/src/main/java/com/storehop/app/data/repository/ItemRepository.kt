@@ -37,4 +37,11 @@ interface ItemRepository {
 
     suspend fun softDelete(id: String)
     suspend fun markPurchased(id: String)
+
+    /**
+     * Restore an item to the needed list. Used by Shop-at-Store to un-check a
+     * purchased staple the user wants back on the list. No PurchaseRecord is
+     * written -- this isn't a purchase, it's a state correction.
+     */
+    suspend fun markNeeded(id: String)
 }

@@ -62,6 +62,21 @@ interface ItemDao {
     suspend fun markPurchased(userId: String, id: String, now: Long)
 
     /**
+     * Restore an item to the "needed" list. Used by the Shop-at-Store screen
+     * when the user taps a struck-through purchased staple to put it back on
+     * the list (un-checks it). Does not touch `lastPurchasedAt` -- the prior
+     * purchase still happened.
+     */
+    @Query(
+        """
+        UPDATE items
+        SET isNeeded = 1, updatedAt = :now, pendingSync = 1
+        WHERE id = :id AND userId = :userId
+        """,
+    )
+    suspend fun markNeeded(userId: String, id: String, now: Long)
+
+    /**
      * Clear `categoryId` on every live item that points at a category that's
      * being soft-deleted. Used by the category cascade — without this, items
      * would still resolve their @Relation join to the (tombstoned) category
