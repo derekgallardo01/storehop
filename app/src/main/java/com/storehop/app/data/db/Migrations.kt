@@ -47,3 +47,43 @@ val MIGRATION_2_3 = object : Migration(2, 3) {
         db.execSQL("ALTER TABLE `items` ADD COLUMN `isPriority` INTEGER NOT NULL DEFAULT 0")
     }
 }
+
+/**
+ * v3 -> v4: add a `displayOrder` column to `stores` so the Shop tab's
+ * Store Picker can render the user's preferred order. Drag-and-drop on
+ * that screen rewrites it.
+ *
+ * Backfill: assign sequential displayOrders to live (non-tombstoned) rows
+ * grouped by userId, sorted by name (the order the picker was previously
+ * showing) so existing users see no visible jump on upgrade. Tombstoned
+ * rows keep the column default of 0 -- they're not displayed, and the
+ * resurrect-on-re-add path handles them when they come back.
+ *
+ * Bumps `pendingSync = 1` on every touched row so the new column gets
+ * pushed to Firestore on the next sync.
+ */
+val MIGRATION_3_4 = object : Migration(3, 4) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE `stores` ADD COLUMN `displayOrder` INTEGER NOT NULL DEFAULT 0")
+        // Per-user dense ranking by name. The correlated subquery counts how
+        // many live rows in this user's store list sort strictly before this
+        // one (case-insensitive name, then id as tiebreaker for duplicates
+        // that managed to slip through before the unique index existed).
+        db.execSQL(
+            """
+            UPDATE `stores`
+            SET displayOrder = (
+                SELECT COUNT(*) FROM `stores` AS s2
+                WHERE s2.userId = stores.userId
+                  AND s2.deletedAt IS NULL
+                  AND (
+                        (s2.name COLLATE NOCASE) < (stores.name COLLATE NOCASE)
+                     OR ((s2.name COLLATE NOCASE) = (stores.name COLLATE NOCASE) AND s2.id < stores.id)
+                  )
+            ),
+            pendingSync = 1
+            WHERE deletedAt IS NULL
+            """.trimIndent(),
+        )
+    }
+}

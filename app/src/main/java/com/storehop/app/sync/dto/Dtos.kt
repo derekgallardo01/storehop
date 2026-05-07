@@ -64,6 +64,7 @@ class StoreDto(
     var createdAt: Long = 0L,
     var updatedAt: Long = 0L,
     var deletedAt: Long? = null,
+    var displayOrder: Int = 0,
 )
 
 @Keep

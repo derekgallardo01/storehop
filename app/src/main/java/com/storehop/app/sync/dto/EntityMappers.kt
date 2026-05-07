@@ -55,6 +55,7 @@ fun Store.toDto() = StoreDto(
     createdAt = createdAt,
     updatedAt = updatedAt,
     deletedAt = deletedAt,
+    displayOrder = displayOrder,
 )
 
 fun ItemStoreXref.toDto() = ItemStoreXrefDto(

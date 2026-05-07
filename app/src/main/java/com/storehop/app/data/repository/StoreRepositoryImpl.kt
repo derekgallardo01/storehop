@@ -52,6 +52,10 @@ class StoreRepositoryImpl @Inject constructor(
         when {
             existing == null -> {
                 val id = ids.newId()
+                // New stores append to the end of the picker -- the user drags
+                // them where they want from there. Reads MAX+1 inside the
+                // transaction so concurrent adds get distinct positions.
+                val displayOrder = dao.nextDisplayOrder(userId)
                 dao.upsert(
                     Store(
                         id = id,
@@ -63,6 +67,7 @@ class StoreRepositoryImpl @Inject constructor(
                         createdAt = now,
                         updatedAt = now,
                         deletedAt = null,
+                        displayOrder = displayOrder,
                     ),
                 )
                 id
@@ -71,6 +76,9 @@ class StoreRepositoryImpl @Inject constructor(
                 throw IllegalArgumentException("A store named \"$trimmed\" already exists")
             }
             else -> {
+                // Resurrect: keep the original displayOrder (sync semantic --
+                // the row coming back to life sits where it was on other
+                // devices). If the user wants it elsewhere they can drag.
                 dao.upsert(
                     existing.copy(
                         colorArgb = colorArgb,
@@ -99,6 +107,18 @@ class StoreRepositoryImpl @Inject constructor(
 
     override suspend fun setArchived(id: String, archived: Boolean) {
         dao.setArchived(requireSignedIn(), id, archived, clock.millis())
+    }
+
+    override suspend fun reorderStores(orderedIds: List<String>) = db.withTransaction {
+        val userId = requireSignedIn()
+        val now = clock.millis()
+        // Wrapping in a transaction means a partial reorder (caller cancels,
+        // device dies mid-write) never leaves the picker with mixed old/new
+        // displayOrders. Each setDisplayOrder also flips pendingSync so the
+        // SyncEngine pushes the whole reorder on its next tick.
+        orderedIds.forEachIndexed { index, id ->
+            dao.setDisplayOrder(userId, id, index, now)
+        }
     }
 
     override suspend fun softDelete(id: String) = db.withTransaction {

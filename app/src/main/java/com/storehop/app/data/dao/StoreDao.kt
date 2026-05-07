@@ -14,7 +14,7 @@ interface StoreDao {
         SELECT * FROM stores
         WHERE userId = :userId AND deletedAt IS NULL
           AND (:includeArchived OR isArchived = 0)
-        ORDER BY name COLLATE NOCASE
+        ORDER BY displayOrder ASC, name COLLATE NOCASE
         """,
     )
     fun observeAll(userId: String, includeArchived: Boolean): Flow<List<Store>>
@@ -88,4 +88,33 @@ interface StoreDao {
 
     @Query("UPDATE stores SET pendingSync = 0 WHERE id = :id AND userId = :userId")
     suspend fun markPushed(userId: String, id: String)
+
+    /**
+     * Returns one past the largest live displayOrder for this user, or 0 if
+     * the user has no live stores yet. Used when adding a new store so it
+     * appends to the bottom of the picker -- the user can drag it where they
+     * want from there.
+     */
+    @Query(
+        """
+        SELECT COALESCE(MAX(displayOrder), -1) + 1
+        FROM stores
+        WHERE userId = :userId AND deletedAt IS NULL
+        """,
+    )
+    suspend fun nextDisplayOrder(userId: String): Int
+
+    /**
+     * Set [displayOrder] for one store and re-flag pendingSync so the change
+     * pushes to Firestore on the next sync. Repository wraps a sequence of
+     * these in a transaction to commit a full reorder atomically.
+     */
+    @Query(
+        """
+        UPDATE stores
+        SET displayOrder = :displayOrder, updatedAt = :now, pendingSync = 1
+        WHERE id = :id AND userId = :userId
+        """,
+    )
+    suspend fun setDisplayOrder(userId: String, id: String, displayOrder: Int, now: Long)
 }

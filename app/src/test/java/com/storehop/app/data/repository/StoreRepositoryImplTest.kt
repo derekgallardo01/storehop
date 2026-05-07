@@ -246,6 +246,85 @@ class StoreRepositoryImplTest {
         assertThat(pending).isEqualTo(1)
     }
 
+    @Test fun `seeded stores observe in the order they appear in the seed pack`() = runTest {
+        // The seeder assigns displayOrder = JSON list index. observeAll sorts
+        // by displayOrder ASC, so the picker's initial order matches the seed.
+        val all = repo.observeAll(includeArchived = false).first()
+        // displayOrder values are 0..n-1 with no gaps for the seeded set.
+        assertThat(all.map { it.displayOrder }).isInOrder()
+        assertThat(all.first().displayOrder).isEqualTo(0)
+        assertThat(all.last().displayOrder).isEqualTo(all.size - 1)
+    }
+
+    @Test fun `addStore appends new stores to the bottom (max displayOrder + 1)`() = runTest {
+        val before = repo.observeAll(includeArchived = false).first()
+        val maxBefore = before.maxOf { it.displayOrder }
+
+        repo.addStore("Mercadona", colorArgb = null)
+
+        val after = repo.observeAll(includeArchived = false).first()
+        val mercadona = after.single { it.name == "Mercadona" }
+        // New store sits one slot below the previous max -- end of the picker.
+        assertThat(mercadona.displayOrder).isEqualTo(maxBefore + 1)
+        // Existing rows weren't shifted.
+        assertThat(after.filter { it.id != mercadona.id }.map { it.id })
+            .isEqualTo(before.map { it.id })
+    }
+
+    @Test fun `reorderStores rewrites displayOrder to match the supplied list`() = runTest {
+        val initial = repo.observeAll(includeArchived = false).first()
+        // Reverse the seed-pack order. Pass every live id to mimic what the
+        // drag UI sends (the full visible set).
+        val reversed = initial.map { it.id }.reversed()
+
+        repo.reorderStores(reversed)
+
+        val after = repo.observeAll(includeArchived = false).first()
+        // observeAll sorts by displayOrder ASC, so the post-reorder list IS
+        // the reversed list.
+        assertThat(after.map { it.id }).isEqualTo(reversed)
+        // displayOrder values are 0..n-1 dense.
+        assertThat(after.map { it.displayOrder })
+            .isEqualTo((0 until after.size).toList())
+    }
+
+    @Test fun `reorderStores re-flags pendingSync on every reordered row`() = runTest {
+        val ids = repo.observeAll(includeArchived = false).first().map { it.id }
+        // Mark them all clean (simulate post-push state) before the reorder.
+        ids.forEach { db.storeDao().markPushed("local-only", it) }
+
+        repo.reorderStores(ids.reversed())
+
+        // Every store the repo touched is dirty again.
+        ids.forEach { id ->
+            val pending = db.openHelper.readableDatabase
+                .query(androidx.sqlite.db.SimpleSQLiteQuery(
+                    "SELECT pendingSync FROM stores WHERE id = '$id'"))
+                .use { c -> c.moveToFirst(); c.getInt(0) }
+            assertThat(pending).isEqualTo(1)
+        }
+    }
+
+    @Test fun `reorderStores does not touch stores absent from the supplied list`() = runTest {
+        val initial = repo.observeAll(includeArchived = false).first()
+        // Add a fresh store and capture its displayOrder. Then issue a reorder
+        // that explicitly excludes its id.
+        val keepId = repo.addStore("UntouchedStore", colorArgb = null)
+        val keepBefore = repo.observeById(keepId).first()!!
+        db.storeDao().markPushed("local-only", keepId)
+
+        repo.reorderStores(initial.map { it.id })
+
+        val keepAfter = repo.observeById(keepId).first()!!
+        assertThat(keepAfter.displayOrder).isEqualTo(keepBefore.displayOrder)
+        // pendingSync also untouched -- no spurious sync write for the row.
+        val pending = db.openHelper.readableDatabase
+            .query(androidx.sqlite.db.SimpleSQLiteQuery(
+                "SELECT pendingSync FROM stores WHERE id = '$keepId'"))
+            .use { c -> c.moveToFirst(); c.getInt(0) }
+        assertThat(pending).isEqualTo(0)
+    }
+
     @Test fun `setArchived softDelete and rename are no-ops for stores the session does not own`() = runTest {
         // Build a separate repo whose session is some-other-user, then try to
         // mutate "store_lidl" (which is owned by local-only via the seed).

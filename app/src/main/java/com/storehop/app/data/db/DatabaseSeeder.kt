@@ -40,14 +40,17 @@ class DatabaseSeeder @Inject constructor(
         val stores = json.decodeFromString<List<SeedStore>>(raw)
         db.beginTransaction()
         try {
-            stores.forEach { s ->
+            stores.forEachIndexed { index, s ->
+                // Use the JSON list index as the initial displayOrder so a fresh
+                // install presents the seeded stores in the order the seed pack
+                // was authored. Drag-and-drop on the Store Picker will rewrite it.
                 db.execSQL(
                     """
                     INSERT OR IGNORE INTO stores
-                    (id, name, colorArgb, isArchived, isSeeded, userId, createdAt, updatedAt, deletedAt)
-                    VALUES (?, ?, NULL, 0, 1, ?, ?, ?, NULL)
+                    (id, name, colorArgb, isArchived, isSeeded, userId, createdAt, updatedAt, deletedAt, displayOrder)
+                    VALUES (?, ?, NULL, 0, 1, ?, ?, ?, NULL, ?)
                     """.trimIndent(),
-                    arrayOf<Any?>(s.id, s.name, USER_ID, SEED_TIMESTAMP, SEED_TIMESTAMP),
+                    arrayOf<Any?>(s.id, s.name, USER_ID, SEED_TIMESTAMP, SEED_TIMESTAMP, index),
                 )
             }
             db.setTransactionSuccessful()

@@ -2,7 +2,6 @@ package com.storehop.app.ui.shop
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -15,10 +14,12 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.DragIndicator
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.AssistChipDefaults
@@ -31,8 +32,12 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -41,6 +46,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.storehop.app.data.repository.StorePickerRow
+import sh.calvin.reorderable.ReorderableItem
+import sh.calvin.reorderable.rememberReorderableLazyListState
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -51,18 +58,57 @@ fun StorePickerScreen(
     val rows by viewModel.rows.collectAsState()
     val critical by viewModel.criticalAcrossStores.collectAsState()
 
+    // Local mutable copy so the dragging row visually moves before the DB
+    // round-trip lands (and so the upstream Flow re-emit triggered by our
+    // commit doesn't yank the row back mid-drag). Synced from upstream
+    // whenever the user isn't actively dragging.
+    var localRows by remember { mutableStateOf(rows) }
+    var isDragging by remember { mutableStateOf(false) }
+    LaunchedEffect(rows, isDragging) {
+        if (!isDragging) localRows = rows
+    }
+
+    val lazyListState = rememberLazyListState()
+    val reorderState = rememberReorderableLazyListState(lazyListState) { from, to ->
+        // Lazy-column indices map 1:1 to localRows -- no header items in
+        // this LazyColumn (the critical banner lives outside it). Guard
+        // against out-of-range just in case the lib's edge sentinels poke
+        // in during a fling.
+        localRows = localRows.toMutableList().apply {
+            val fromIndex = from.index.coerceIn(0, lastIndex)
+            val toIndex = to.index.coerceIn(0, lastIndex)
+            add(toIndex, removeAt(fromIndex))
+        }
+    }
+
     Scaffold(topBar = { TopAppBar(title = { Text("Where are you shopping?") }) }) { padding ->
-        LazyColumn(
-            modifier = Modifier.padding(padding).fillMaxSize(),
-            contentPadding = PaddingValues(vertical = 8.dp),
-        ) {
+        Column(modifier = Modifier.padding(padding).fillMaxSize()) {
             if (critical.isNotEmpty()) {
-                item {
-                    CriticalNeedsBanner(critical = critical)
-                }
+                CriticalNeedsBanner(critical = critical)
             }
-            items(rows, key = { it.store.id }) { row ->
-                StorePickerCard(row = row, onClick = { onPickStore(row.store.id) })
+            LazyColumn(
+                state = lazyListState,
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(vertical = 8.dp),
+            ) {
+                items(localRows, key = { it.store.id }) { row ->
+                    ReorderableItem(reorderState, key = row.store.id) { dragging ->
+                        StorePickerCard(
+                            row = row,
+                            isDragging = dragging,
+                            onClick = { onPickStore(row.store.id) },
+                            // Long-press anywhere on the card starts a drag.
+                            // Tap (without long-press) still navigates via onClick.
+                            dragHandleModifier = Modifier.longPressDraggableHandle(
+                                onDragStarted = { isDragging = true },
+                                onDragStopped = {
+                                    isDragging = false
+                                    viewModel.commitOrder(localRows.map { it.store.id })
+                                },
+                            ),
+                        )
+                    }
+                }
             }
         }
     }
@@ -107,7 +153,9 @@ private fun CriticalNeedsBanner(critical: List<String>) {
 @Composable
 private fun StorePickerCard(
     row: StorePickerRow,
+    isDragging: Boolean,
     onClick: () -> Unit,
+    dragHandleModifier: Modifier,
 ) {
     Card(
         modifier = Modifier
@@ -115,6 +163,10 @@ private fun StorePickerCard(
             .padding(horizontal = 16.dp, vertical = 4.dp)
             .clickable(onClick = onClick),
         shape = RoundedCornerShape(12.dp),
+        // Lift the row visually while the user is dragging it.
+        elevation = CardDefaults.cardElevation(
+            defaultElevation = if (isDragging) 8.dp else 1.dp,
+        ),
     ) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(16.dp),
@@ -181,6 +233,17 @@ private fun StorePickerCard(
                 )
                 Spacer(Modifier.width(4.dp))
             }
+            // Drag handle: long-press here (or anywhere on the row -- this
+            // handle is co-located with the row's drag region) to start
+            // reordering. Subtle so it doesn't distract from the chevron.
+            Icon(
+                Icons.Filled.DragIndicator,
+                contentDescription = "Drag to reorder",
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = dragHandleModifier
+                    .size(20.dp)
+                    .padding(end = 4.dp),
+            )
             Icon(
                 Icons.AutoMirrored.Filled.KeyboardArrowRight,
                 contentDescription = null,

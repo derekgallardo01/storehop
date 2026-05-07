@@ -4,16 +4,19 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.storehop.app.data.repository.ShoppingRepository
 import com.storehop.app.data.repository.StorePickerRow
+import com.storehop.app.data.repository.StoreRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
 class StorePickerViewModel @Inject constructor(
     private val shoppingRepository: ShoppingRepository,
+    private val storeRepository: StoreRepository,
     sessionTracker: ShoppingSessionTracker,
 ) : ViewModel() {
 
@@ -38,4 +41,13 @@ class StorePickerViewModel @Inject constructor(
     val criticalAcrossStores: StateFlow<List<String>> = rows
         .map { all -> all.flatMap { it.criticalItemNames }.distinct() }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000L), emptyList())
+
+    /**
+     * Persist the new picker order. Called once when the user releases a
+     * drag, with the full top-to-bottom list of store ids as currently
+     * laid out on screen. Repository wraps the rewrite in a transaction.
+     */
+    fun commitOrder(orderedIds: List<String>) {
+        viewModelScope.launch { storeRepository.reorderStores(orderedIds) }
+    }
 }
