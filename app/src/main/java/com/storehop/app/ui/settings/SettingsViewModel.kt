@@ -1,6 +1,10 @@
 package com.storehop.app.ui.settings
 
+import android.app.LocaleManager
 import android.content.Context
+import android.os.Build
+import android.os.LocaleList
+import android.util.Log
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.os.LocaleListCompat
 import androidx.lifecycle.ViewModel
@@ -10,6 +14,7 @@ import com.storehop.app.auth.GoogleSignInUseCase
 import com.storehop.app.data.prefs.ThemeMode
 import com.storehop.app.data.prefs.UserPreferencesRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -32,6 +37,7 @@ data class AccountState(
 
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
+    @ApplicationContext private val appContext: Context,
     private val auth: FirebaseAuth,
     private val googleSignIn: GoogleSignInUseCase,
     private val userPrefs: UserPreferencesRepository,
@@ -69,26 +75,55 @@ class SettingsViewModel @Inject constructor(
     }
 
     /**
-     * Switch the per-app locale. Pass `""` for "follow system." AppCompat
-     * dispatches to `LocaleManager` on API 33+ and uses its own backport on
-     * older devices; the change is persisted across app restarts.
+     * Switch the per-app locale. Pass `""` for "follow system."
      *
-     * IMPORTANT: the screen MUST call `activity.recreate()` after this -- on
-     * API 33+ the system would normally auto-restart, but with a non-AppCompat
-     * Activity (we use ComponentActivity) the auto-restart is unreliable, so
-     * we force it from the call site to guarantee strings re-resolve.
+     * Goes straight to the system [LocaleManager] on API 33+ -- that's the
+     * authoritative API for per-app languages on modern Android, persists at
+     * the OS level, and auto-recreates the activity. AppCompat is supposed to
+     * delegate here when its host is an AppCompatActivity, but we use
+     * ComponentActivity (Compose-only); going direct skips any AppCompat
+     * preconditions that fail silently in that setup.
+     *
+     * Falls back to AppCompat's backport on API 26-32 (our minSdk floor),
+     * which uses its own SharedPreferences storage on those versions.
      */
     fun setLocale(tag: String) {
-        AppCompatDelegate.setApplicationLocales(
-            if (tag.isBlank()) LocaleListCompat.getEmptyLocaleList()
-            else LocaleListCompat.forLanguageTags(tag),
-        )
+        Log.i(TAG, "setLocale(tag='$tag') sdk=${Build.VERSION.SDK_INT}")
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            val locales = if (tag.isBlank()) {
+                LocaleList.getEmptyLocaleList()
+            } else {
+                LocaleList.forLanguageTags(tag)
+            }
+            // The system service is application-scoped; ApplicationContext is
+            // fine here. Setting locales triggers a configuration change and
+            // automatic activity recreation by the system.
+            val lm = appContext.getSystemService(LocaleManager::class.java)
+            lm.applicationLocales = locales
+            Log.i(TAG, "LocaleManager.applicationLocales set; readback=${lm.applicationLocales.toLanguageTags()}")
+        } else {
+            AppCompatDelegate.setApplicationLocales(
+                if (tag.isBlank()) LocaleListCompat.getEmptyLocaleList()
+                else LocaleListCompat.forLanguageTags(tag),
+            )
+            Log.i(TAG, "AppCompat fallback: setApplicationLocales done")
+        }
         _localeTag.value = tag
     }
 
     private fun readLocaleTag(): String {
-        val locales = AppCompatDelegate.getApplicationLocales()
-        return if (locales.isEmpty) "" else locales.toLanguageTags()
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            val lm = appContext.getSystemService(LocaleManager::class.java)
+            val list = lm.applicationLocales
+            if (list.isEmpty) "" else list.toLanguageTags()
+        } else {
+            val locales = AppCompatDelegate.getApplicationLocales()
+            if (locales.isEmpty) "" else locales.toLanguageTags()
+        }
+    }
+
+    private companion object {
+        const val TAG = "SettingsLocale"
     }
 
     /**
