@@ -19,10 +19,13 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
@@ -67,6 +70,7 @@ fun ItemsListScreen(
     onAddItem: () -> Unit,
     onEditItem: (itemId: String) -> Unit,
     onOpenSettings: () -> Unit,
+    onOpenCategories: () -> Unit,
     viewModel: ItemsListViewModel = hiltViewModel(),
 ) {
     val items by viewModel.items.collectAsState()
@@ -94,6 +98,8 @@ fun ItemsListScreen(
         }
     }
 
+    var overflowOpen by remember { mutableStateOf(false) }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -104,6 +110,26 @@ fun ItemsListScreen(
                             Icons.Filled.Settings,
                             contentDescription = stringResource(R.string.action_settings),
                         )
+                    }
+                    Box {
+                        IconButton(onClick = { overflowOpen = true }) {
+                            Icon(
+                                Icons.Filled.MoreVert,
+                                contentDescription = stringResource(R.string.action_more_options),
+                            )
+                        }
+                        DropdownMenu(
+                            expanded = overflowOpen,
+                            onDismissRequest = { overflowOpen = false },
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.action_manage_categories)) },
+                                onClick = {
+                                    overflowOpen = false
+                                    onOpenCategories()
+                                },
+                            )
+                        }
                     }
                 },
             )

@@ -113,6 +113,24 @@ interface ItemDao {
     )
     suspend fun clearCategoryReferences(userId: String, categoryId: String, now: Long)
 
+    /**
+     * Inverse of [clearCategoryReferences]: re-link items to their previous
+     * category when the user undoes a category soft-delete. Identifies
+     * affected items by `updatedAt = :clearedAt AND categoryId IS NULL`,
+     * which is the unique stamp the cascade-clear left behind. Not a hard
+     * guarantee (an unrelated item update at the exact same ms could match)
+     * but the undo window is seconds, so the collision risk is tiny.
+     */
+    @Query(
+        """
+        UPDATE items
+        SET categoryId = :categoryId, updatedAt = :now, pendingSync = 1
+        WHERE userId = :userId AND categoryId IS NULL
+          AND updatedAt = :clearedAt AND deletedAt IS NULL
+        """,
+    )
+    suspend fun restoreCategoryReferences(userId: String, categoryId: String, clearedAt: Long, now: Long)
+
     @Query("SELECT * FROM items WHERE userId = :userId AND pendingSync = 1")
     fun observePendingPush(userId: String): Flow<List<Item>>
 

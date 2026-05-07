@@ -18,6 +18,13 @@ object Routes {
     const val ITEM_EDIT = "items/edit/{itemId}"
     fun itemEdit(itemId: String) = "items/edit/$itemId"
 
+    /**
+     * Manage Categories screen, reachable from the Items tab top-bar overflow.
+     * Slash-prefixed under `items/` so it counts as an Items-tab route for the
+     * bottom-nav selection logic.
+     */
+    const val ITEMS_CATEGORIES = "items/categories"
+
     /** Routes nested under the Shop tab. Used by the bottom-nav selection logic. */
     fun isShopTabRoute(route: String?): Boolean =
         route != null && (route == SHOP || route.startsWith("shop/"))

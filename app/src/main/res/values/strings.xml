@@ -156,4 +156,21 @@
     <string name="cloud_sync_incomplete">Cloud sync incomplete</string>
     <string name="cloud_sync_retry_explanation">Your data is safe locally. Tap Retry to sync from the cloud.</string>
     <string name="action_retry">Retry</string>
+
+    <!-- v0.5 category management screen, reachable from Items tab overflow. -->
+    <string name="title_manage_categories">Manage categories</string>
+    <string name="action_manage_categories">Manage categories</string>
+    <string name="add_category_dialog_title">New category</string>
+    <string name="add_category_field_label">Category name</string>
+    <string name="rename_category_dialog_title">Rename category</string>
+    <string name="delete_category_dialog_title">Delete \"%1$s\"?</string>
+    <string name="delete_category_dialog_message">Items in this category will become uncategorized. You can undo this from the snackbar.</string>
+    <string name="error_category_name_empty">Category name cannot be empty</string>
+    <string name="error_category_name_duplicate">A category named \"%1$s\" already exists</string>
+    <string name="error_could_not_add_category">Could not add category</string>
+    <string name="error_could_not_rename_category">Could not rename category</string>
+    <string name="undo_category_deleted">Deleted \"%1$s\".</string>
+    <string name="categories_empty_state">No categories yet. Tap + to add one.</string>
+    <string name="category_more_options">More options</string>
+    <string name="action_more_options">More options</string>
 </resources>

@@ -94,6 +94,25 @@ class CategoryRepositoryImpl @Inject constructor(
         scoDao.softDeleteForCategory(userId, id, now)
     }
 
+    override suspend fun undoSoftDelete(id: String) = db.withTransaction {
+        val userId = requireSignedIn()
+        // Find the category regardless of tombstone state, read back the
+        // exact deletedAt it was tombstoned at. Filtering the cascade restore
+        // by that exact ms means a later, separate tombstoning at a different
+        // time isn't accidentally restored too -- mirrors the StoreRepository
+        // pattern for store undo.
+        val category = dao.findAnyById(userId, id) ?: return@withTransaction
+        val deletedAt = category.deletedAt ?: return@withTransaction
+        val now = clock.millis()
+        dao.restoreFromTombstone(userId, id, now)
+        scoDao.restoreCascadeForCategory(userId, id, deletedAt, now)
+        // Re-link items: cascade-clear stamped them with updatedAt = deletedAt
+        // and categoryId = NULL. Symmetrical query restores them in the same
+        // window. See ItemDao.restoreCategoryReferences for the precision
+        // caveat (unrelated item updates at the exact same ms would match).
+        itemDao.restoreCategoryReferences(userId, id, deletedAt, now)
+    }
+
     private fun requireSignedIn(): String =
         session.currentUserId() ?: throw IllegalStateException("Not signed in")
 }

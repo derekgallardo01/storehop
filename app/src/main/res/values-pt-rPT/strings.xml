@@ -158,4 +158,21 @@
     <string name="cloud_sync_incomplete">Sincronização da nuvem incompleta</string>
     <string name="cloud_sync_retry_explanation">Os seus dados estão seguros localmente. Toque em Repetir para sincronizar a partir da nuvem.</string>
     <string name="action_retry">Repetir</string>
+
+    <!-- v0.5 ecrã de gestão de categorias. -->
+    <string name="title_manage_categories">Gerir categorias</string>
+    <string name="action_manage_categories">Gerir categorias</string>
+    <string name="add_category_dialog_title">Nova categoria</string>
+    <string name="add_category_field_label">Nome da categoria</string>
+    <string name="rename_category_dialog_title">Renomear categoria</string>
+    <string name="delete_category_dialog_title">Apagar \"%1$s\"?</string>
+    <string name="delete_category_dialog_message">Os artigos desta categoria ficarão sem categoria. Pode anular esta ação na barra inferior.</string>
+    <string name="error_category_name_empty">O nome da categoria não pode estar vazio</string>
+    <string name="error_category_name_duplicate">Já existe uma categoria chamada \"%1$s\"</string>
+    <string name="error_could_not_add_category">Não foi possível adicionar a categoria</string>
+    <string name="error_could_not_rename_category">Não foi possível renomear a categoria</string>
+    <string name="undo_category_deleted">\"%1$s\" apagada.</string>
+    <string name="categories_empty_state">Sem categorias. Toque em + para adicionar.</string>
+    <string name="category_more_options">Mais opções</string>
+    <string name="action_more_options">Mais opções</string>
 </resources>

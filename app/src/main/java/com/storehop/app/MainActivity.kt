@@ -37,6 +37,7 @@ import com.google.firebase.auth.FirebaseAuth
 import com.storehop.app.data.prefs.ThemeMode
 import com.storehop.app.data.prefs.UserPreferencesRepository
 import com.storehop.app.data.util.UserSessionProvider
+import com.storehop.app.ui.categories.ManageCategoriesScreen
 import com.storehop.app.ui.items.ItemFormScreen
 import com.storehop.app.ui.items.ItemsListScreen
 import com.storehop.app.ui.nav.Routes
@@ -169,7 +170,11 @@ private fun SignedInRoot() {
                     onAddItem = { navController.navigate(Routes.ITEM_ADD) },
                     onEditItem = { id -> navController.navigate(Routes.itemEdit(id)) },
                     onOpenSettings = { navController.navigate(Routes.SETTINGS) },
+                    onOpenCategories = { navController.navigate(Routes.ITEMS_CATEGORIES) },
                 )
+            }
+            composable(Routes.ITEMS_CATEGORIES) {
+                ManageCategoriesScreen(onBack = { navController.popBackStack() })
             }
             composable(Routes.ITEM_ADD) {
                 ItemFormScreen(onBack = { navController.popBackStack() })

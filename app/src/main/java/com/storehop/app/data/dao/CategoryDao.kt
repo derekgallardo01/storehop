@@ -76,6 +76,20 @@ interface CategoryDao {
     )
     suspend fun softDelete(userId: String, id: String, now: Long)
 
+    /** Tombstone-aware lookup. Returns the row regardless of `deletedAt`. */
+    @Query("SELECT * FROM categories WHERE id = :id AND userId = :userId LIMIT 1")
+    suspend fun findAnyById(userId: String, id: String): Category?
+
+    /** Inverse of [softDelete]: clears `deletedAt`, re-flags pendingSync. */
+    @Query(
+        """
+        UPDATE categories
+        SET deletedAt = NULL, updatedAt = :now, pendingSync = 1
+        WHERE id = :id AND userId = :userId
+        """,
+    )
+    suspend fun restoreFromTombstone(userId: String, id: String, now: Long)
+
     @Query("SELECT * FROM categories WHERE userId = :userId AND pendingSync = 1")
     fun observePendingPush(userId: String): Flow<List<Category>>
 

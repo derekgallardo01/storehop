@@ -76,6 +76,16 @@ interface StoreCategoryOrderDao {
     )
     suspend fun softDeleteForCategory(userId: String, categoryId: String, now: Long)
 
+    /** Inverse of [softDeleteForCategory], filtered by exact `deletedAt`. */
+    @Query(
+        """
+        UPDATE store_category_order
+        SET deletedAt = NULL, updatedAt = :now, pendingSync = 1
+        WHERE categoryId = :categoryId AND userId = :userId AND deletedAt = :deletedAt
+        """,
+    )
+    suspend fun restoreCascadeForCategory(userId: String, categoryId: String, deletedAt: Long, now: Long)
+
     /**
      * Atomic replace: tombstone the existing order set for [storeId], upsert the new ordered list.
      * Each entry's `displayOrder` should already be set on the input rows.
