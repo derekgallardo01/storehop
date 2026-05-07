@@ -27,8 +27,69 @@ interface StoreCategoryOrderDao {
     )
     suspend fun findForStore(storeId: String): List<StoreCategoryOrder>
 
+    @Query(
+        """
+        SELECT * FROM store_category_order
+        WHERE storeId = :storeId AND categoryId = :categoryId
+        """,
+    )
+    suspend fun findAnyByPk(storeId: String, categoryId: String): StoreCategoryOrder?
+
+    @Query(
+        """
+        SELECT MAX(displayOrder) FROM store_category_order
+        WHERE storeId = :storeId AND deletedAt IS NULL
+        """,
+    )
+    suspend fun maxDisplayOrderForStore(storeId: String): Int?
+
     @Upsert
     suspend fun upsert(order: StoreCategoryOrder)
+
+    /**
+     * Idempotently make sure (storeId, categoryId) has a live SCO row, so the
+     * category becomes visible/orderable in Edit-aisle for that store. Append
+     * semantics: a brand-new or revived row gets `displayOrder = max + 1`, so
+     * it lands at the bottom of the existing aisle order.
+     *
+     * Called from [com.storehop.app.data.repository.ItemRepositoryImpl] after
+     * an item is saved with a non-null category at one or more stores; until
+     * v0.5.1 this was a UX gap where custom user categories never got an SCO
+     * row and so couldn't be aisle-ordered, even though items in them shopped
+     * fine.
+     */
+    @Transaction
+    suspend fun appendIfMissing(storeId: String, categoryId: String, userId: String, now: Long) {
+        val existing = findAnyByPk(storeId, categoryId)
+        if (existing != null && existing.deletedAt == null) return
+        val nextOrder = (maxDisplayOrderForStore(storeId) ?: -1) + 1
+        if (existing == null) {
+            upsert(
+                StoreCategoryOrder(
+                    storeId = storeId,
+                    categoryId = categoryId,
+                    displayOrder = nextOrder,
+                    isSeeded = false,
+                    userId = userId,
+                    createdAt = now,
+                    updatedAt = now,
+                    deletedAt = null,
+                ),
+            )
+        } else {
+            // Reviving a tombstoned row: reposition to the end so the user can
+            // drag it where they want, rather than having it pop back into a
+            // potentially surprising old slot.
+            upsert(
+                existing.copy(
+                    displayOrder = nextOrder,
+                    updatedAt = now,
+                    deletedAt = null,
+                    pendingSync = true,
+                ),
+            )
+        }
+    }
 
     /**
      * Batch upsert for the pull side. Mappers stamp `pendingSync = false`.

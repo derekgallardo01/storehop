@@ -4,6 +4,7 @@ import androidx.room.withTransaction
 import com.storehop.app.data.dao.ItemDao
 import com.storehop.app.data.dao.ItemStoreXrefDao
 import com.storehop.app.data.dao.PurchaseRecordDao
+import com.storehop.app.data.dao.StoreCategoryOrderDao
 import com.storehop.app.data.db.StorehopDatabase
 import com.storehop.app.data.db.relations.ItemWithCategoryAndStores
 import com.storehop.app.data.entity.Item
@@ -22,6 +23,7 @@ class ItemRepositoryImpl @Inject constructor(
     private val itemDao: ItemDao,
     private val xrefDao: ItemStoreXrefDao,
     private val purchaseRecordDao: PurchaseRecordDao,
+    private val scoDao: StoreCategoryOrderDao,
     private val ids: IdGenerator,
     private val clock: Clock,
     private val session: UserSessionProvider,
@@ -73,6 +75,7 @@ class ItemRepositoryImpl @Inject constructor(
         )
         // Junction inherits userId from the parent we just wrote — ownership invariant.
         xrefDao.setStoresForItem(id, storeIds, userId, now)
+        ensureSCOForCategoryAtStores(categoryId, storeIds, userId, now)
         id
     }
 
@@ -111,6 +114,7 @@ class ItemRepositoryImpl @Inject constructor(
         // source of truth for ownership; using the live session would let a mid-call
         // sign-in/out swap break the cross-table invariant.
         xrefDao.setStoresForItem(id, storeIds, current.userId, now)
+        ensureSCOForCategoryAtStores(categoryId, storeIds, current.userId, now)
     }
 
     override suspend fun softDelete(id: String) = db.withTransaction {
@@ -161,6 +165,27 @@ class ItemRepositoryImpl @Inject constructor(
         val current = itemDao.observeById(userId, itemId).first()?.item
             ?: return@withTransaction
         xrefDao.markNeededAtStore(current.userId, itemId, storeId, clock.millis())
+    }
+
+    /**
+     * After a save, make sure each store the item is tagged at has an SCO row
+     * for the item's category. Without this, custom user-added categories
+     * never become aisle-orderable: Edit-aisle filters categories by SCO row
+     * presence, so the user can shop the items but can't reposition the
+     * category in the aisle order. Idempotent — calling on an existing live
+     * row is a no-op. Items without a category and items tagged at zero
+     * stores skip out trivially.
+     */
+    private suspend fun ensureSCOForCategoryAtStores(
+        categoryId: String?,
+        storeIds: Set<String>,
+        userId: String,
+        now: Long,
+    ) {
+        if (categoryId == null) return
+        for (storeId in storeIds) {
+            scoDao.appendIfMissing(storeId, categoryId, userId, now)
+        }
     }
 
     private fun requireSignedIn(): String =

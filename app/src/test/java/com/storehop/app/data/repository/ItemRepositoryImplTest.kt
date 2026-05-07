@@ -2,7 +2,9 @@ package com.storehop.app.data.repository
 
 import com.google.common.truth.Truth.assertThat
 import com.storehop.app.data.db.StorehopDatabase
+import com.storehop.app.data.entity.Category
 import com.storehop.app.data.entity.Store
+import com.storehop.app.data.entity.StoreCategoryOrder
 import com.storehop.app.data.util.IdGenerator
 import com.storehop.app.testing.FakeSessionProvider
 import com.storehop.app.testing.OTHER_USER_ID
@@ -40,6 +42,7 @@ class ItemRepositoryImplTest {
             itemDao = db.itemDao(),
             xrefDao = db.itemStoreXrefDao(),
             purchaseRecordDao = db.purchaseRecordDao(),
+            scoDao = db.storeCategoryOrderDao(),
             ids = sequentialIds,
             clock = fixedClock,
             session = session,
@@ -351,6 +354,168 @@ class ItemRepositoryImplTest {
             db.itemStoreXrefDao().findForItem(itemId).single().isNeeded,
         ).isFalse()
     }
+
+    @Test fun `addItem with new category auto-creates an SCO row at each tagged store`() = runTest {
+        seedCategory("cat_custom")
+
+        repo.addItem(
+            name = "Feta",
+            categoryId = "cat_custom",
+            storeIds = setOf("store_lidl", "store_continente"),
+            quantity = null, notes = null,
+        )
+
+        val lidlSCOs = db.storeCategoryOrderDao().findForStore("store_lidl")
+        val continenteSCOs = db.storeCategoryOrderDao().findForStore("store_continente")
+        assertThat(lidlSCOs.map { it.categoryId }).containsExactly("cat_custom")
+        assertThat(continenteSCOs.map { it.categoryId }).containsExactly("cat_custom")
+        // First SCO row at a fresh store gets displayOrder = 0.
+        assertThat(lidlSCOs.single().displayOrder).isEqualTo(0)
+        // Auto-created rows are not isSeeded — the seeder is the only writer
+        // that should ever set isSeeded=true.
+        assertThat(lidlSCOs.single().isSeeded).isFalse()
+        // pendingSync=true so the next push tick syncs them to Firestore.
+        assertThat(lidlSCOs.single().pendingSync).isTrue()
+    }
+
+    @Test fun `addItem appends the new SCO row at displayOrder = max + 1`() = runTest {
+        seedCategory("cat_existing")
+        seedCategory("cat_new")
+        // Pre-existing SCO rows at displayOrder 0 and 1.
+        db.storeCategoryOrderDao().upsert(sco("store_lidl", "cat_existing", 0))
+        db.storeCategoryOrderDao().upsert(sco("store_lidl", "cat_new", 1))
+
+        // Use a category not yet in any SCO row.
+        seedCategory("cat_appended")
+        repo.addItem(
+            name = "Olives", categoryId = "cat_appended",
+            storeIds = setOf("store_lidl"),
+            quantity = null, notes = null,
+        )
+
+        val rows = db.storeCategoryOrderDao().findForStore("store_lidl")
+            .sortedBy { it.displayOrder }
+        assertThat(rows.map { it.categoryId })
+            .containsExactly("cat_existing", "cat_new", "cat_appended").inOrder()
+        assertThat(rows.last().displayOrder).isEqualTo(2)
+    }
+
+    @Test fun `addItem with categoryId=null does not touch SCO`() = runTest {
+        // Pre-existing seeded SCO row to make sure our addItem doesn't disturb it.
+        seedCategory("cat_seeded")
+        db.storeCategoryOrderDao().upsert(sco("store_lidl", "cat_seeded", 0, isSeeded = true))
+
+        repo.addItem(
+            name = "Untagged", categoryId = null,
+            storeIds = setOf("store_lidl"),
+            quantity = null, notes = null,
+        )
+
+        val rows = db.storeCategoryOrderDao().findForStore("store_lidl")
+        assertThat(rows).hasSize(1)
+        assertThat(rows.single().categoryId).isEqualTo("cat_seeded")
+        assertThat(rows.single().isSeeded).isTrue()
+    }
+
+    @Test fun `addItem on an already-live SCO row is a no-op (idempotency)`() = runTest {
+        seedCategory("cat_existing")
+        // Seed an SCO row at a non-zero displayOrder so we can assert it's preserved.
+        db.storeCategoryOrderDao().upsert(sco("store_lidl", "cat_existing", 5, isSeeded = true))
+
+        repo.addItem(
+            name = "Bread", categoryId = "cat_existing",
+            storeIds = setOf("store_lidl"),
+            quantity = null, notes = null,
+        )
+
+        val row = db.storeCategoryOrderDao().findForStore("store_lidl").single()
+        assertThat(row.displayOrder).isEqualTo(5)
+        // The seeded flag survives — we don't downgrade an existing seeded row.
+        assertThat(row.isSeeded).isTrue()
+    }
+
+    @Test fun `addItem revives a tombstoned SCO row and repositions it at the end`() = runTest {
+        seedCategory("cat_a")
+        seedCategory("cat_b")
+        // cat_a was at slot 0, then user removed it from this store's aisles.
+        db.storeCategoryOrderDao().upsert(sco("store_lidl", "cat_a", 0).copy(deletedAt = 10L))
+        db.storeCategoryOrderDao().upsert(sco("store_lidl", "cat_b", 1))
+
+        repo.addItem(
+            name = "Bread", categoryId = "cat_a",
+            storeIds = setOf("store_lidl"),
+            quantity = null, notes = null,
+        )
+
+        val live = db.storeCategoryOrderDao().findForStore("store_lidl")
+            .sortedBy { it.displayOrder }
+        // Both rows are alive, with cat_a appended at displayOrder=2 (max+1
+        // computed against the only live row, cat_b at 1).
+        assertThat(live.map { it.categoryId to it.displayOrder })
+            .containsExactly("cat_b" to 1, "cat_a" to 2).inOrder()
+    }
+
+    @Test fun `updateItem adding a category creates the SCO row at the tagged stores`() = runTest {
+        seedCategory("cat_added")
+        val itemId = repo.addItem(
+            name = "Bread", categoryId = null,
+            storeIds = setOf("store_lidl"),
+            quantity = null, notes = null,
+        )
+        // Pre: no SCO rows.
+        assertThat(db.storeCategoryOrderDao().findForStore("store_lidl")).isEmpty()
+
+        repo.updateItem(
+            id = itemId, name = "Bread",
+            categoryId = "cat_added",
+            storeIds = setOf("store_lidl"),
+            quantity = null, notes = null,
+        )
+
+        val rows = db.storeCategoryOrderDao().findForStore("store_lidl")
+        assertThat(rows.map { it.categoryId }).containsExactly("cat_added")
+    }
+
+    @Test fun `updateItem leaves the SCO row alone when the category is removed`() = runTest {
+        // Other items might still use this (store, category) pair, so removing
+        // a category from one item must NOT tombstone the SCO row.
+        seedCategory("cat_kept")
+        val itemId = repo.addItem(
+            name = "Bread", categoryId = "cat_kept",
+            storeIds = setOf("store_lidl"),
+            quantity = null, notes = null,
+        )
+        assertThat(db.storeCategoryOrderDao().findForStore("store_lidl")).hasSize(1)
+
+        repo.updateItem(
+            id = itemId, name = "Bread",
+            categoryId = null,
+            storeIds = setOf("store_lidl"),
+            quantity = null, notes = null,
+        )
+
+        // Row is still live with the original displayOrder.
+        val rows = db.storeCategoryOrderDao().findForStore("store_lidl")
+        assertThat(rows.map { it.categoryId }).containsExactly("cat_kept")
+    }
+
+    private suspend fun seedCategory(id: String) {
+        db.categoryDao().upsert(
+            Category(
+                id = id, name = id, nameKey = null, icon = null,
+                isArchived = false, isSeeded = false, userId = TEST_USER_ID,
+                createdAt = 1L, updatedAt = 1L, deletedAt = null,
+            ),
+        )
+    }
+
+    private fun sco(
+        storeId: String, categoryId: String, displayOrder: Int, isSeeded: Boolean = false,
+    ) = StoreCategoryOrder(
+        storeId = storeId, categoryId = categoryId, displayOrder = displayOrder,
+        isSeeded = isSeeded, userId = TEST_USER_ID,
+        createdAt = 1L, updatedAt = 1L, deletedAt = null,
+    )
 
     /** Deterministic IDs for assertion stability. */
     private class SequentialIdGenerator : IdGenerator {

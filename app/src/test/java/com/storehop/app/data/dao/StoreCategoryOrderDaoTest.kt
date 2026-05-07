@@ -50,6 +50,62 @@ class StoreCategoryOrderDaoTest {
         assertThat(live.map { it.categoryId }).containsExactly("cat_d", "cat_a").inOrder()
     }
 
+    @Test fun `appendIfMissing inserts a new SCO row at displayOrder = max + 1`() = runTest {
+        // Pre: rows at 0 and 1.
+        dao.replaceAllForStore("store_lidl", listOf(
+            sco("cat_a", 0), sco("cat_b", 1),
+        ), now = 100L)
+
+        dao.appendIfMissing("store_lidl", "cat_c", TEST_USER_ID, now = 200L)
+
+        val rows = dao.findForStore("store_lidl").sortedBy { it.displayOrder }
+        assertThat(rows.map { it.categoryId to it.displayOrder })
+            .containsExactly("cat_a" to 0, "cat_b" to 1, "cat_c" to 2).inOrder()
+        val appended = rows.last()
+        assertThat(appended.isSeeded).isFalse()
+        assertThat(appended.pendingSync).isTrue()
+        assertThat(appended.createdAt).isEqualTo(200L)
+        assertThat(appended.updatedAt).isEqualTo(200L)
+    }
+
+    @Test fun `appendIfMissing on the empty store starts at displayOrder = 0`() = runTest {
+        dao.appendIfMissing("store_lidl", "cat_a", TEST_USER_ID, now = 100L)
+
+        val row = dao.findForStore("store_lidl").single()
+        assertThat(row.displayOrder).isEqualTo(0)
+    }
+
+    @Test fun `appendIfMissing is a no-op for a row that already exists alive`() = runTest {
+        dao.replaceAllForStore("store_lidl", listOf(sco("cat_a", 7)), now = 100L)
+        // Bump the seeded flag to verify it isn't downgraded by the no-op.
+        val seededRow = dao.findForStore("store_lidl").single().copy(isSeeded = true)
+        dao.upsert(seededRow)
+
+        dao.appendIfMissing("store_lidl", "cat_a", TEST_USER_ID, now = 200L)
+
+        val row = dao.findForStore("store_lidl").single()
+        assertThat(row.displayOrder).isEqualTo(7)
+        assertThat(row.isSeeded).isTrue()
+        assertThat(row.updatedAt).isEqualTo(100L) // unchanged — confirms no-op
+    }
+
+    @Test fun `appendIfMissing revives a tombstoned row and repositions it at the end`() = runTest {
+        // cat_a was at slot 0, then deleted. cat_b is alive at slot 1.
+        dao.replaceAllForStore("store_lidl", listOf(
+            sco("cat_a", 0), sco("cat_b", 1),
+        ), now = 100L)
+        dao.softDelete("store_lidl", "cat_a", now = 150L)
+
+        dao.appendIfMissing("store_lidl", "cat_a", TEST_USER_ID, now = 200L)
+
+        val live = dao.findForStore("store_lidl").sortedBy { it.displayOrder }
+        assertThat(live.map { it.categoryId to it.displayOrder })
+            .containsExactly("cat_b" to 1, "cat_a" to 2).inOrder()
+        val revived = live.last { it.categoryId == "cat_a" }
+        assertThat(revived.deletedAt).isNull()
+        assertThat(revived.pendingSync).isTrue()
+    }
+
     @Test fun `observeForStore re-emits a single coherent state after replaceAllForStore`() = runTest {
         dao.replaceAllForStore("store_lidl", listOf(
             sco("cat_a", 0), sco("cat_b", 1),
