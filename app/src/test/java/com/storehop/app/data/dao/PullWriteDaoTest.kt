@@ -65,14 +65,21 @@ class PullWriteDaoTest {
             purchaseRecords = listOf(pr),
         )
 
-        // Each table got its row. No need to read all six exhaustively — sample
-        // the parent + a child + a junction to prove the transaction committed.
+        // Assert every one of the six entity types actually landed — this is
+        // the contract the upstream code relies on. Sampling a subset would
+        // miss e.g. categories or purchase records silently dropping.
+        assertThat(db.categoryDao().observeAll(TEST_USER_ID, includeArchived = false).first()
+            .map { it.id }).containsExactly("cat_dairy")
+        assertThat(db.storeDao().observeAll(TEST_USER_ID, includeArchived = false).first()
+            .map { it.id }).containsExactly("store_lidl")
         assertThat(db.itemDao().observeAll(TEST_USER_ID).first().map { it.item.id })
             .containsExactly("item_milk")
         assertThat(db.itemStoreXrefDao().findForItem("item_milk").map { it.storeId })
             .containsExactly("store_lidl")
         assertThat(db.storeCategoryOrderDao().findForStore("store_lidl").map { it.categoryId })
             .containsExactly("cat_dairy")
+        assertThat(db.purchaseRecordDao().observeForItem(TEST_USER_ID, "item_milk").first()
+            .map { it.id }).containsExactly("pr_1")
     }
 
     @Test fun `replaceAllForUid rolls back the entire batch when an FK-violating xref is included`() = runTest {
