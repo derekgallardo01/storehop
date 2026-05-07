@@ -50,4 +50,18 @@ class StorePickerViewModel @Inject constructor(
     fun commitOrder(orderedIds: List<String>) {
         viewModelScope.launch { storeRepository.reorderStores(orderedIds) }
     }
+
+    /**
+     * Add a new store. Returns null on success, or an error message the
+     * dialog can show inline (empty name, duplicate name -- the repo throws
+     * IllegalArgumentException for both, with a user-readable message).
+     * Successful adds append to the bottom of the picker via the repo's
+     * `nextDisplayOrder` allocation; the user can drag from there.
+     */
+    suspend fun addStore(name: String): String? = try {
+        storeRepository.addStore(name = name.trim())
+        null
+    } catch (e: IllegalArgumentException) {
+        e.message ?: "Could not add store"
+    }
 }
