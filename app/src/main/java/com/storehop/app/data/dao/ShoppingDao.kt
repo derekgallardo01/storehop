@@ -14,14 +14,24 @@ interface ShoppingDao {
      *
      * Includes:
      *  - every item that is currently needed AND tagged to [storeId]
-     *  - every staple tagged to [storeId] regardless of need state, so the
-     *    user sees it struck-through after purchase and can un-check it
+     *  - every staple tagged to [storeId] regardless of need state -- staples
+     *    are "always on the list," so a purchased staple stays struck-through
+     *  - every item the user has marked purchased *within the current session*
+     *    (lastPurchasedAt >= [sessionStartMs]). This keeps a tapped non-staple
+     *    visible struck-through while the user is still shopping at this
+     *    store, but drops it from the list on the next visit -- re-opening
+     *    the screen creates a new ViewModel with a fresh `sessionStartMs`,
+     *    and previously purchased non-staples fall outside the window.
      *
      * Sort order: needed items first (in this store's aisle order), then
-     * purchased staples at the bottom (also in aisle order). Items in
+     * purchased rows at the bottom (also in aisle order). Items in
      * categories with no `StoreCategoryOrder` for this store fall to the
      * bottom of their bucket (COALESCE to 9999). Ties on displayOrder are
      * broken deterministically by category name then item name.
+     *
+     * @param sessionStartMs millis since epoch marking when this Shop-at-Store
+     *   ViewModel was constructed. Pass [Long.MAX_VALUE] to disable the
+     *   session window (only needed/staple items appear) -- useful in tests.
      */
     @Query(
         """
@@ -51,7 +61,11 @@ interface ShoppingDao {
               AND sco.deletedAt IS NULL
         WHERE isx.storeId = :storeId
           AND i.deletedAt IS NULL
-          AND (i.isNeeded = 1 OR i.isStaple = 1)
+          AND (
+                i.isNeeded = 1
+             OR i.isStaple = 1
+             OR (i.lastPurchasedAt IS NOT NULL AND i.lastPurchasedAt >= :sessionStartMs)
+          )
           AND i.userId = :userId
         ORDER BY i.isNeeded DESC,
                  COALESCE(sco.displayOrder, 9999),
@@ -59,7 +73,11 @@ interface ShoppingDao {
                  i.name COLLATE NOCASE
         """,
     )
-    fun shoppingListForStore(userId: String, storeId: String): Flow<List<ShoppingRow>>
+    fun shoppingListForStore(
+        userId: String,
+        storeId: String,
+        sessionStartMs: Long,
+    ): Flow<List<ShoppingRow>>
 
     /**
      * Cross-store flat list of every item that is currently needed and tagged

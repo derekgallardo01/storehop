@@ -22,9 +22,17 @@ data class StorePickerRow(
 interface ShoppingRepository {
     /**
      * The shopping list for a single store, in that store's aisle order.
-     * Items already purchased (`isNeeded = 0`) are filtered out by the DAO.
+     *
+     * Includes items that are needed, staples, or purchased within the current
+     * session. The session window (`sessionStartMs`) is supplied by the caller
+     * -- the ViewModel captures it once at construction so re-entering the
+     * screen creates a fresh window and previously purchased non-staples drop
+     * out (cross-store sync semantics: bought somewhere else, no longer shown).
+     *
+     * @param sessionStartMs millis since epoch. Pass [Long.MAX_VALUE] to
+     *   disable the window (only needed/staple items).
      */
-    fun shoppingListForStore(storeId: String): Flow<List<ShoppingRow>>
+    fun shoppingListForStore(storeId: String, sessionStartMs: Long): Flow<List<ShoppingRow>>
 
     /**
      * One row per live store with needed count + priority names. Drives the

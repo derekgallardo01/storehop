@@ -190,12 +190,14 @@ private fun ShopAtStoreRow(
     row: ShoppingRow,
     onTap: () -> Unit,
 ) {
-    // A purchased row in the list can only be a staple, since non-staples are
-    // filtered out of the query once isNeeded = 0.
-    val isPurchasedStaple = !row.isNeeded
-    val isPriority = row.isPriority && !isPurchasedStaple
-    val rowAlpha = if (isPurchasedStaple) 0.6f else 1f
-    val nameDecoration = if (isPurchasedStaple) TextDecoration.LineThrough else TextDecoration.None
+    // Any purchased row -- staple or not -- now stays in the list within the
+    // session window so the user can undo a mis-tap. Non-staples drop out on
+    // the next visit (sessionStartMs in the DAO query); staples stick around
+    // forever struck-through.
+    val isPurchased = !row.isNeeded
+    val isPriorityVisual = row.isPriority && !isPurchased
+    val rowAlpha = if (isPurchased) 0.6f else 1f
+    val nameDecoration = if (isPurchased) TextDecoration.LineThrough else TextDecoration.None
 
     Row(
         modifier = Modifier
@@ -213,16 +215,16 @@ private fun ShopAtStoreRow(
                 .fillMaxHeight()
                 .height(56.dp)
                 .background(
-                    if (isPriority) MaterialTheme.colorScheme.primary
+                    if (isPriorityVisual) MaterialTheme.colorScheme.primary
                     else androidx.compose.ui.graphics.Color.Transparent,
                 ),
         )
-        Checkbox(checked = isPurchasedStaple, onCheckedChange = { onTap() })
+        Checkbox(checked = isPurchased, onCheckedChange = { onTap() })
         Column(modifier = Modifier.weight(1f).padding(end = 16.dp, top = 8.dp, bottom = 8.dp)) {
             Text(
                 text = row.itemName,
                 style = MaterialTheme.typography.bodyLarge,
-                fontWeight = if (isPriority) FontWeight.SemiBold else FontWeight.Normal,
+                fontWeight = if (isPriorityVisual) FontWeight.SemiBold else FontWeight.Normal,
                 textDecoration = nameDecoration,
             )
             row.brand?.takeIf { it.isNotBlank() }?.let { brand ->
@@ -234,16 +236,16 @@ private fun ShopAtStoreRow(
                 )
             }
         }
-        if (row.isStaple && isPurchasedStaple) {
-            // Subtle "always on the list" pin so the user knows why this
-            // struck-through row is sticking around.
+        if (row.isStaple && isPurchased) {
+            // "Always on the list" pin so the user knows why this row will
+            // come back next visit even though they just checked it off.
             Icon(
                 Icons.Filled.Star,
                 contentDescription = "Always on the list",
                 tint = MaterialTheme.colorScheme.secondary,
                 modifier = Modifier.size(18.dp).padding(end = 16.dp),
             )
-        } else if (isPriority) {
+        } else if (isPriorityVisual) {
             Icon(
                 Icons.Filled.Warning,
                 contentDescription = "Critical",
@@ -261,7 +263,7 @@ private fun EmptyState(query: String) {
         contentAlignment = Alignment.Center,
     ) {
         Text(
-            text = if (query.isBlank()) "Nothing left to buy here 🎉"
+            text = if (query.isBlank()) "No items here yet — add items in the Items tab and tag them to this store"
                    else "No matches for \"$query\"",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,

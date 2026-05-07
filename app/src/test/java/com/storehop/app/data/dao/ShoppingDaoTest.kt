@@ -20,8 +20,13 @@ import org.robolectric.RobolectricTestRunner
 /**
  * The cross-cutting query that powers "Shop at Store". The behaviour we care about:
  *  1. Per-store displayOrder differs across stores even when the items are the same.
- *  2. isNeeded = 0 items are filtered out (cross-store completion sync).
+ *  2. isNeeded = 0 items are filtered out (cross-store completion sync) UNLESS
+ *     they're staples or were purchased within the current session window.
  *  3. Items in categories without a StoreCategoryOrder for that store fall to the bottom.
+ *
+ * Tests use `NO_WINDOW = Long.MAX_VALUE` to disable the session window when
+ * exercising the needed/staple paths in isolation, and explicit numeric values
+ * when exercising the session window itself.
  */
 @RunWith(RobolectricTestRunner::class)
 class ShoppingDaoTest {
@@ -35,7 +40,7 @@ class ShoppingDaoTest {
     @After fun tearDown() { db.close() }
 
     @Test fun `Lidl orders Produce before Dairy (items alphabetical within each)`() = runTest {
-        db.shoppingDao().shoppingListForStore(TEST_USER_ID, "store_lidl").test {
+        db.shoppingDao().shoppingListForStore(TEST_USER_ID, "store_lidl", NO_WINDOW).test {
             val rows = awaitItem()
             val names = rows.map { it.itemName }
             // Produce displayOrder=0: Bananas, Tomatoes (alphabetical)
@@ -46,7 +51,7 @@ class ShoppingDaoTest {
     }
 
     @Test fun `Continente orders Dairy before Produce (items alphabetical within each)`() = runTest {
-        db.shoppingDao().shoppingListForStore(TEST_USER_ID, "store_continente").test {
+        db.shoppingDao().shoppingListForStore(TEST_USER_ID, "store_continente", NO_WINDOW).test {
             val rows = awaitItem()
             val names = rows.map { it.itemName }
             assertThat(names).containsExactly("Eggs", "Milk", "Bananas", "Tomatoes").inOrder()
@@ -54,13 +59,13 @@ class ShoppingDaoTest {
         }
     }
 
-    @Test fun `marking an item not-needed removes it from both store views`() = runTest {
+    @Test fun `marking an item not-needed removes it from both store views (outside the session window)`() = runTest {
         db.itemDao().markPurchased(TEST_USER_ID, "milk", now = 100L)
-        db.shoppingDao().shoppingListForStore(TEST_USER_ID, "store_lidl").test {
+        db.shoppingDao().shoppingListForStore(TEST_USER_ID, "store_lidl", NO_WINDOW).test {
             assertThat(awaitItem().map { it.itemName }).doesNotContain("Milk")
             cancelAndIgnoreRemainingEvents()
         }
-        db.shoppingDao().shoppingListForStore(TEST_USER_ID, "store_continente").test {
+        db.shoppingDao().shoppingListForStore(TEST_USER_ID, "store_continente", NO_WINDOW).test {
             assertThat(awaitItem().map { it.itemName }).doesNotContain("Milk")
             cancelAndIgnoreRemainingEvents()
         }
@@ -71,7 +76,7 @@ class ShoppingDaoTest {
         // of the fixture's Continente aisle plan), so it should land at the bottom there.
         db.itemDao().upsert(item("wine", "Wine", categoryId = "cat_alcohol"))
         db.itemStoreXrefDao().upsert(xref("wine", "store_continente"))
-        db.shoppingDao().shoppingListForStore(TEST_USER_ID, "store_continente").test {
+        db.shoppingDao().shoppingListForStore(TEST_USER_ID, "store_continente", NO_WINDOW).test {
             val names = awaitItem().map { it.itemName }
             assertThat(names.last()).isEqualTo("Wine")
             cancelAndIgnoreRemainingEvents()
@@ -80,13 +85,14 @@ class ShoppingDaoTest {
 
     @Test fun `purchased staple stays in the list at the bottom of its category section`() = runTest {
         // Mark "milk" a staple, mark it purchased -- now it should still appear
-        // in Lidl's list, but pushed below the still-needed Eggs.
+        // in Lidl's list, but pushed below the still-needed Eggs. NO_WINDOW
+        // proves the row survives via the isStaple path, not the session path.
         val now = 200L
         db.itemDao().upsert(
             item("milk", "Milk", categoryId = "cat_dairy_eggs").copy(isStaple = true),
         )
         db.itemDao().markPurchased(TEST_USER_ID, "milk", now)
-        db.shoppingDao().shoppingListForStore(TEST_USER_ID, "store_lidl").test {
+        db.shoppingDao().shoppingListForStore(TEST_USER_ID, "store_lidl", NO_WINDOW).test {
             val rows = awaitItem()
             val names = rows.map { it.itemName }
             // Produce -> Bananas, Tomatoes (needed), Dairy -> Eggs (needed) before Milk (purchased staple).
@@ -98,12 +104,31 @@ class ShoppingDaoTest {
         }
     }
 
-    @Test fun `purchased non-staple is still filtered out`() = runTest {
-        // Eggs is NOT a staple (default). Purchasing it should still drop it from the list.
+    @Test fun `purchased non-staple before the session window is filtered out`() = runTest {
+        // Eggs is NOT a staple. lastPurchasedAt(100) < sessionStartMs(200) so
+        // the row falls outside the session window and disappears -- this is
+        // the "next visit shows a clean list" path.
         db.itemDao().markPurchased(TEST_USER_ID, "eggs", now = 100L)
-        db.shoppingDao().shoppingListForStore(TEST_USER_ID, "store_lidl").test {
+        db.shoppingDao().shoppingListForStore(TEST_USER_ID, "store_lidl", sessionStartMs = 200L).test {
             val names = awaitItem().map { it.itemName }
             assertThat(names).doesNotContain("Eggs")
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test fun `purchased non-staple within the session window stays visible struck-through`() = runTest {
+        // lastPurchasedAt(200) >= sessionStartMs(100) so eggs stays in the
+        // list within the session, with isNeeded=false so the UI can strike it.
+        db.itemDao().markPurchased(TEST_USER_ID, "eggs", now = 200L)
+        db.shoppingDao().shoppingListForStore(TEST_USER_ID, "store_lidl", sessionStartMs = 100L).test {
+            val rows = awaitItem()
+            val eggs = rows.firstOrNull { it.itemName == "Eggs" }
+            assertThat(eggs).isNotNull()
+            assertThat(eggs!!.isNeeded).isFalse()
+            // And it's pushed to the bottom of its category section by the
+            // `isNeeded DESC` ordering -- needed items still lead.
+            val names = rows.map { it.itemName }
+            assertThat(names).containsExactly("Bananas", "Tomatoes", "Milk", "Eggs").inOrder()
             cancelAndIgnoreRemainingEvents()
         }
     }
@@ -125,16 +150,21 @@ class ShoppingDaoTest {
                 ),
             )
         }
-        db.shoppingDao().shoppingListForStore(TEST_USER_ID, "store_lidl").test {
+        db.shoppingDao().shoppingListForStore(TEST_USER_ID, "store_lidl", NO_WINDOW).test {
             val names = awaitItem().map { it.itemName }
             assertThat(names).doesNotContain("OtherMilk")
             cancelAndIgnoreRemainingEvents()
         }
         // And the other user only sees their own item.
-        db.shoppingDao().shoppingListForStore("other-user", "store_lidl").test {
+        db.shoppingDao().shoppingListForStore("other-user", "store_lidl", NO_WINDOW).test {
             assertThat(awaitItem().map { it.itemName }).containsExactly("OtherMilk")
             cancelAndIgnoreRemainingEvents()
         }
+    }
+
+    private companion object {
+        /** Disables the session window so only isNeeded/isStaple decide membership. */
+        const val NO_WINDOW = Long.MAX_VALUE
     }
 
     private fun seedFixture() {

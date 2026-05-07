@@ -16,10 +16,13 @@ class ShoppingRepositoryImpl @Inject constructor(
     private val session: UserSessionProvider,
 ) : ShoppingRepository {
 
-    override fun shoppingListForStore(storeId: String): Flow<List<ShoppingRow>> =
+    override fun shoppingListForStore(
+        storeId: String,
+        sessionStartMs: Long,
+    ): Flow<List<ShoppingRow>> =
         session.userId.flatMapLatest { uid ->
             if (uid == null) flowOf(emptyList())
-            else dao.shoppingListForStore(uid, storeId)
+            else dao.shoppingListForStore(uid, storeId, sessionStartMs)
         }
 
     override fun observeStorePickerRows(): Flow<List<StorePickerRow>> =

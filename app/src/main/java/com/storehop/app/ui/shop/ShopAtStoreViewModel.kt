@@ -44,6 +44,17 @@ class ShopAtStoreViewModel @Inject constructor(
     private val storeId: String = checkNotNull(savedStateHandle.get<String>("storeId")) {
         "ShopAtStore route requires a storeId arg"
     }
+
+    /**
+     * Captured once when the ViewModel is constructed -- defines the "current
+     * shopping session" at this store. Items the user marks purchased while
+     * this VM is alive (lastPurchasedAt >= sessionStartMs) stay visible
+     * struck-through and tappable to undo. Re-entering the screen creates a
+     * new VM with a fresh value, so previously purchased non-staples drop
+     * out and the list reads clean again.
+     */
+    private val sessionStartMs: Long = System.currentTimeMillis()
+
     private val _query = MutableStateFlow("")
     val query: StateFlow<String> = _query.asStateFlow()
 
@@ -51,7 +62,7 @@ class ShopAtStoreViewModel @Inject constructor(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000L), null)
 
     private val rows: StateFlow<List<ShoppingRow>> = shoppingRepository
-        .shoppingListForStore(storeId)
+        .shoppingListForStore(storeId, sessionStartMs)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000L), emptyList())
 
     val uiState: StateFlow<ShopAtStoreUiState> =
