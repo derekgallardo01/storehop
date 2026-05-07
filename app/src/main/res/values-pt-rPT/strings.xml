@@ -153,4 +153,9 @@
         <item quantity="one">⚠ %d</item>
         <item quantity="other">⚠ %d</item>
     </plurals>
+
+    <!-- v0.4 pull-side sync banner. -->
+    <string name="cloud_sync_incomplete">Sincronização da nuvem incompleta</string>
+    <string name="cloud_sync_retry_explanation">Os seus dados estão seguros localmente. Toque em Repetir para sincronizar a partir da nuvem.</string>
+    <string name="action_retry">Repetir</string>
 </resources>

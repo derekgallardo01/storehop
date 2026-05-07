@@ -9,9 +9,13 @@ import com.google.firebase.auth.FirebaseUser
 import com.storehop.app.auth.GoogleSignInUseCase
 import com.storehop.app.data.prefs.ThemeMode
 import com.storehop.app.data.prefs.UserPreferencesRepository
+import com.storehop.app.sync.PullCoordinator
+import com.storehop.app.sync.PullState
+import com.storehop.app.sync.PullStateRepository
 import com.storehop.app.testing.FakeSessionProvider
 import com.storehop.app.testing.MainDispatcherRule
 import io.mockk.coEvery
+import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -39,6 +43,10 @@ class SettingsViewModelTest {
     private val googleSignIn: GoogleSignInUseCase = mockk()
     private val userPrefs: UserPreferencesRepository = mockk {
         every { themeMode } returns flowOf(ThemeMode.SYSTEM)
+    }
+    private val pullCoordinator: PullCoordinator = mockk(relaxed = true)
+    private val pullStateRepo: PullStateRepository = mockk(relaxed = true) {
+        every { observe(any()) } returns flowOf(PullState.SUCCEEDED)
     }
 
     @Test fun `signInWithGoogle keeps busy=true until session uid flips to the new uid`() = runTest {
@@ -175,11 +183,83 @@ class SettingsViewModelTest {
         io.mockk.coVerify(exactly = 1) { googleSignIn.signIn(any()) }
     }
 
+    @Test fun `pullState reflects the active uid's stored state`() = runTest {
+        every { auth.currentUser } returns mockk(relaxed = true) {
+            every { uid } returns "google-uid"
+            every { isAnonymous } returns false
+            every { email } returns "u@x.com"
+            every { displayName } returns "U"
+            every { photoUrl } returns null
+        }
+        every { pullStateRepo.observe("google-uid") } returns flowOf(PullState.FAILED)
+
+        val vm = newVm(FakeSessionProvider(initial = "google-uid"))
+        vm.pullState.test {
+            // Initial value before flow connects.
+            awaitItem()
+            advanceUntilIdle()
+            assertThat(expectMostRecentItem()).isEqualTo(PullState.FAILED)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test fun `retryPull invokes PullCoordinator with the current uid`() = runTest {
+        every { auth.currentUser } returns mockk(relaxed = true) {
+            every { uid } returns "google-uid"
+            every { isAnonymous } returns false
+            every { email } returns "u@x.com"
+            every { displayName } returns "U"
+            every { photoUrl } returns null
+        }
+        coEvery { pullCoordinator.pullForUid("google-uid") } returns
+            PullCoordinator.PullResult.Success(0, 0, 0, 0, 0, 0)
+
+        val vm = newVm(FakeSessionProvider(initial = "google-uid"))
+        vm.retryPull()
+        advanceUntilIdle()
+
+        coVerify(exactly = 1) { pullCoordinator.pullForUid("google-uid") }
+        // State transitions IN_PROGRESS -> SUCCEEDED on retry success.
+        coVerify { pullStateRepo.set("google-uid", PullState.IN_PROGRESS) }
+        coVerify { pullStateRepo.set("google-uid", PullState.SUCCEEDED) }
+    }
+
+    @Test fun `retryPull writes FAILED state when pull fails`() = runTest {
+        every { auth.currentUser } returns mockk(relaxed = true) {
+            every { uid } returns "google-uid"
+            every { isAnonymous } returns false
+            every { email } returns null
+            every { displayName } returns null
+            every { photoUrl } returns null
+        }
+        coEvery { pullCoordinator.pullForUid("google-uid") } returns
+            PullCoordinator.PullResult.Failure(RuntimeException("network"))
+
+        val vm = newVm(FakeSessionProvider(initial = "google-uid"))
+        vm.retryPull()
+        advanceUntilIdle()
+
+        coVerify { pullStateRepo.set("google-uid", PullState.IN_PROGRESS) }
+        coVerify { pullStateRepo.set("google-uid", PullState.FAILED) }
+    }
+
+    @Test fun `retryPull is a no-op when no uid is signed in`() = runTest {
+        every { auth.currentUser } returns null
+        val vm = newVm(FakeSessionProvider(initial = null))
+        vm.retryPull()
+        advanceUntilIdle()
+
+        coVerify(exactly = 0) { pullCoordinator.pullForUid(any()) }
+        coVerify(exactly = 0) { pullStateRepo.set(any(), any()) }
+    }
+
     private fun newVm(session: FakeSessionProvider) = SettingsViewModel(
         appContext = context,
         auth = auth,
         googleSignIn = googleSignIn,
         userPrefs = userPrefs,
         sessionProvider = session,
+        pullCoordinator = pullCoordinator,
+        pullStateRepo = pullStateRepo,
     )
 }

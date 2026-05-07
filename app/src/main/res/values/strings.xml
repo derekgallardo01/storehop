@@ -150,4 +150,10 @@
         <item quantity="one">⚠ %d</item>
         <item quantity="other">⚠ %d</item>
     </plurals>
+
+    <!-- v0.4 pull-side sync banner. Shown on the Settings screen when the
+         most recent pull failed (network, permission, etc.). -->
+    <string name="cloud_sync_incomplete">Cloud sync incomplete</string>
+    <string name="cloud_sync_retry_explanation">Your data is safe locally. Tap Retry to sync from the cloud.</string>
+    <string name="action_retry">Retry</string>
 </resources>

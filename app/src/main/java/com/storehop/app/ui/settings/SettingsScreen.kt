@@ -57,6 +57,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import com.storehop.app.R
 import com.storehop.app.data.prefs.ThemeMode
+import com.storehop.app.sync.PullState
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -67,6 +68,7 @@ fun SettingsScreen(
     val state by viewModel.state.collectAsState()
     val themeMode by viewModel.themeMode.collectAsState()
     val currentLocaleTag by viewModel.currentLocaleTag.collectAsState()
+    val pullState by viewModel.pullState.collectAsState()
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
 
@@ -101,6 +103,9 @@ fun SettingsScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
+            if (pullState == PullState.FAILED) {
+                CloudSyncBanner(onRetry = viewModel::retryPull)
+            }
             AccountCard(
                 state = state,
                 onSignIn = { viewModel.signInWithGoogle(context) },
@@ -178,6 +183,48 @@ private fun LanguageCard(
                 selected = selectedTag.equals("pt-PT", ignoreCase = true),
                 onClick = { onSelect("pt-PT") },
             )
+        }
+    }
+}
+
+/**
+ * Banner shown above the Account section when the most recent cloud-sync
+ * pull failed (network, permission, etc.). Tapping Retry kicks off another
+ * pull via [SettingsViewModel.retryPull]; on success the banner disappears.
+ *
+ * Uses the error-container palette so it's visually distinct from the
+ * success-state cards underneath without screaming red.
+ */
+@Composable
+private fun CloudSyncBanner(onRetry: () -> Unit) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.errorContainer,
+        ),
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = stringResource(R.string.cloud_sync_incomplete),
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onErrorContainer,
+                )
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    text = stringResource(R.string.cloud_sync_retry_explanation),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onErrorContainer,
+                )
+            }
+            Spacer(Modifier.width(12.dp))
+            Button(onClick = onRetry) {
+                Text(stringResource(R.string.action_retry))
+            }
         }
     }
 }

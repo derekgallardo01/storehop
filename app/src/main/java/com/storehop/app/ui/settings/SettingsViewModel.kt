@@ -14,13 +14,19 @@ import com.storehop.app.auth.GoogleSignInUseCase
 import com.storehop.app.data.prefs.ThemeMode
 import com.storehop.app.data.prefs.UserPreferencesRepository
 import com.storehop.app.data.util.UserSessionProvider
+import com.storehop.app.sync.PullCoordinator
+import com.storehop.app.sync.PullState
+import com.storehop.app.sync.PullStateRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
@@ -44,6 +50,8 @@ class SettingsViewModel @Inject constructor(
     private val googleSignIn: GoogleSignInUseCase,
     private val userPrefs: UserPreferencesRepository,
     private val sessionProvider: UserSessionProvider,
+    private val pullCoordinator: PullCoordinator,
+    private val pullStateRepo: PullStateRepository,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(snapshot())
@@ -52,6 +60,21 @@ class SettingsViewModel @Inject constructor(
     /** Theme-mode pref for the Theme section's selection state. */
     val themeMode: StateFlow<ThemeMode> = userPrefs.themeMode
         .stateIn(viewModelScope, SharingStarted.Eagerly, ThemeMode.SYSTEM)
+
+    /**
+     * v0.4: per-uid sync state for the cloud-sync banner. Tracks the most
+     * recent peek/pull outcome for the active uid. The Settings screen shows
+     * a "Cloud sync incomplete" banner when this is [PullState.FAILED].
+     *
+     * Resolves to [PullState.SUCCEEDED] when there's no signed-in uid -- the
+     * banner only makes sense for an authenticated session.
+     */
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val pullState: StateFlow<PullState> = sessionProvider.userId
+        .flatMapLatest { uid ->
+            if (uid == null) flowOf(PullState.SUCCEEDED) else pullStateRepo.observe(uid)
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000L), PullState.SUCCEEDED)
 
     /**
      * Current per-app locale tag ("en", "pt-PT", or empty for "follow system").
@@ -202,6 +225,27 @@ class SettingsViewModel @Inject constructor(
     }
 
     fun clearError() { _state.update { it.copy(error = null) } }
+
+    /**
+     * Retry the cloud-sync pull for the currently signed-in user. Wired to
+     * the "Retry" button on the cloud-sync banner. Mutex-guarded inside
+     * [PullCoordinator] so a double-tap can't race itself.
+     *
+     * No-op when there's no active uid (banner shouldn't be visible in that
+     * case anyway; defensive guard).
+     */
+    fun retryPull() {
+        val uid = sessionProvider.userId.value ?: return
+        viewModelScope.launch {
+            pullStateRepo.set(uid, PullState.IN_PROGRESS)
+            val result = pullCoordinator.pullForUid(uid)
+            pullStateRepo.set(
+                uid,
+                if (result is PullCoordinator.PullResult.Success) PullState.SUCCEEDED
+                else PullState.FAILED,
+            )
+        }
+    }
 
     private fun snapshot(): AccountState {
         val user = auth.currentUser
