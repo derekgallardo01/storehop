@@ -62,12 +62,12 @@ class ImportExportRepositoryImpl @Inject constructor(
         val importedCategoryIds = mutableListOf<String>()
         val importedStoreIds = mutableListOf<String>()
         val errors = parsed.errors.toMutableList()
-        var itemsSkipped = 0
+        var duplicatesSkipped = 0
 
         for (row in parsed.rows) {
             // Hard constraint: never modify an existing alive item. Skip the row.
             if (itemDao.findByName(userId, row.name) != null) {
-                itemsSkipped++
+                duplicatesSkipped++
                 continue
             }
 
@@ -97,7 +97,7 @@ class ImportExportRepositoryImpl @Inject constructor(
 
         ImportResult(
             itemsImported = importedItemIds.size,
-            itemsSkipped = itemsSkipped,
+            duplicatesSkipped = duplicatesSkipped,
             categoriesImported = importedCategoryIds.size,
             storesImported = importedStoreIds.size,
             errors = errors,
@@ -112,11 +112,15 @@ class ImportExportRepositoryImpl @Inject constructor(
         val parsed = parseCategoryCsv(content)
         val importedCategoryIds = mutableListOf<String>()
         val errors = parsed.errors.toMutableList()
+        var duplicatesSkipped = 0
 
         for (row in parsed.rows) {
             // Reuse existing alive row by name; otherwise call addCategory which
             // resurrects a tombstone or inserts new.
-            if (categoryDao.findByName(userId, row.name) != null) continue
+            if (categoryDao.findByName(userId, row.name) != null) {
+                duplicatesSkipped++
+                continue
+            }
             try {
                 val id = categoryRepository.addCategory(name = row.name, icon = row.icon)
                 importedCategoryIds += id
@@ -127,6 +131,7 @@ class ImportExportRepositoryImpl @Inject constructor(
 
         ImportResult.Empty.copy(
             categoriesImported = importedCategoryIds.size,
+            duplicatesSkipped = duplicatesSkipped,
             errors = errors,
             importedCategoryIds = importedCategoryIds,
         )

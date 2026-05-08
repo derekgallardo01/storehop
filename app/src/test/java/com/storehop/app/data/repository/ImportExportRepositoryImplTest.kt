@@ -83,7 +83,7 @@ class ImportExportRepositoryImplTest {
         val result = repo.importItemsCsv(csv)
 
         assertThat(result.itemsImported).isEqualTo(2)
-        assertThat(result.itemsSkipped).isEqualTo(0)
+        assertThat(result.duplicatesSkipped).isEqualTo(0)
         assertThat(result.categoriesImported).isEqualTo(2) // Bakery + Produce
         assertThat(result.storesImported).isEqualTo(2)     // Aldi + Lidl
         assertThat(result.errors).isEmpty()
@@ -121,7 +121,7 @@ class ImportExportRepositoryImplTest {
         val result = repo.importItemsCsv(csv)
 
         assertThat(result.itemsImported).isEqualTo(1) // Bread only
-        assertThat(result.itemsSkipped).isEqualTo(1)  // Milk skipped
+        assertThat(result.duplicatesSkipped).isEqualTo(1)  // Milk skipped
 
         // Existing Milk is byte-for-byte unchanged.
         val milk = db.itemDao().findAnyById(TEST_USER_ID, "milk-1")!!
@@ -151,7 +151,7 @@ class ImportExportRepositoryImplTest {
         val result = repo.importItemsCsv("name,brand\nmilk,DIFFERENT_BRAND\n")
 
         assertThat(result.itemsImported).isEqualTo(0)
-        assertThat(result.itemsSkipped).isEqualTo(1)
+        assertThat(result.duplicatesSkipped).isEqualTo(1)
         // Pre-existing alive Milk is unchanged — the brand was NOT overwritten.
         assertThat(db.itemDao().findAnyById(TEST_USER_ID, "milk-1")!!.brand)
             .isEqualTo("ExistingBrand")
@@ -239,6 +239,12 @@ class ImportExportRepositoryImplTest {
         // Bakery resurrected (counted as imported); Produce already alive (skipped);
         // Beverages newly inserted.
         assertThat(result.categoriesImported).isEqualTo(2)
+        // Produce was the alive duplicate — it must show up in the rolled-up
+        // duplicate-skip count so the snackbar reads correctly. Pre-v0.5.3 the
+        // categories-import path silently `continue`-d on duplicates without
+        // tracking the count; the snackbar said "Skipped 0" even with a
+        // genuine duplicate. Pin the new behavior so it doesn't regress.
+        assertThat(result.duplicatesSkipped).isEqualTo(1)
         assertThat(db.categoryDao().findAnyById(TEST_USER_ID, tombId)!!.deletedAt).isNull()
         assertThat(db.categoryDao().findAnyById(TEST_USER_ID, aliveId)!!.deletedAt).isNull()
         assertThat(

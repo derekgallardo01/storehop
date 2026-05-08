@@ -7,6 +7,18 @@ project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 For the high-level roadmap and earlier-than-0.5.0 history, see the
 "Roadmap" section in the [README](README.md).
 
+## [0.5.3] - 2026-05-08
+
+### Fixed
+
+- The snackbar after a CSV categories import now correctly shows the
+  number of duplicate categories that were skipped. Before, importing
+  a categories CSV that contained a name that already existed would
+  correctly skip the duplicate (preserving your existing category
+  unchanged) but the snackbar still read "Skipped 0 duplicates,"
+  which was misleading. The skip itself always worked; only the
+  reported count was wrong.
+
 ## [0.5.2] - 2026-05-08
 
 ### Added

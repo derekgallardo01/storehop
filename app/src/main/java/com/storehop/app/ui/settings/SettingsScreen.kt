@@ -235,7 +235,7 @@ private fun DataCard(
     val r = latestImport
     val message = if (r != null) stringResource(
         R.string.import_result_summary,
-        r.itemsImported, r.categoriesImported, r.storesImported, r.itemsSkipped,
+        r.itemsImported, r.categoriesImported, r.storesImported, r.duplicatesSkipped,
     ) else null
     LaunchedEffect(latestImport) {
         if (r == null || message == null) return@LaunchedEffect

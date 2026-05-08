@@ -54,7 +54,14 @@ interface ImportExportRepository {
  */
 data class ImportResult(
     val itemsImported: Int,
-    val itemsSkipped: Int,
+    /**
+     * Total CSV rows that were skipped because a duplicate already existed.
+     * Items import increments this for name-matched alive items;
+     * categories import increments it for name-matched alive categories.
+     * The snackbar shows a single rolled-up "Skipped N duplicates" so users
+     * see the right count regardless of which import flow they ran.
+     */
+    val duplicatesSkipped: Int,
     val categoriesImported: Int,
     val storesImported: Int,
     val errors: List<String>,
@@ -64,7 +71,7 @@ data class ImportResult(
 ) {
     companion object {
         val Empty = ImportResult(
-            itemsImported = 0, itemsSkipped = 0,
+            itemsImported = 0, duplicatesSkipped = 0,
             categoriesImported = 0, storesImported = 0,
             errors = emptyList(),
             importedItemIds = emptyList(),
