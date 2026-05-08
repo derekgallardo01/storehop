@@ -114,4 +114,51 @@ final class CategoryRepositoryTests: XCTestCase {
             XCTAssertEqual(name, "Dairy")
         }
     }
+
+    // MARK: - rename (v6 tombstone fix)
+
+    func testRenameAllowsReusingNameOfTombstonedCategory() async throws {
+        let s = try setup()
+        let oldId = try await s.repo.addCategory(name: "Pets Plus")
+        try await s.repo.softDelete(id: oldId)
+
+        let pet = try await s.repo.addCategory(name: "Pet")
+        // Mike's bug: pre-v6 the UNIQUE index counted the tombstoned
+        // "Pets Plus" row, so renaming "Pet" → "Pets Plus" failed. After
+        // v6 the tombstone doesn't block reuse.
+        try await s.repo.rename(id: pet, name: "Pets Plus")
+
+        let live = try await s.db.queue.read { conn in
+            try Category.fetchAll(conn, sql: """
+                SELECT * FROM categories
+                WHERE name = 'Pets Plus' AND deletedAt IS NULL
+                """)
+        }
+        XCTAssertEqual(live.count, 1)
+        XCTAssertEqual(live.first?.id, pet)
+    }
+
+    func testRenameRejectsCollisionWithLiveCategory() async throws {
+        let s = try setup()
+        _ = try await s.repo.addCategory(name: "Bakery")
+        let dairyId = try await s.repo.addCategory(name: "Dairy")
+
+        do {
+            try await s.repo.rename(id: dairyId, name: "Bakery")
+            XCTFail("Expected duplicateName error against the live row")
+        } catch CategoryRepositoryError.duplicateName(let n) {
+            XCTAssertEqual(n, "Bakery")
+        }
+    }
+
+    func testRenameAllowsCaseOnlyChangeOfOwnName() async throws {
+        let s = try setup()
+        let id = try await s.repo.addCategory(name: "Dairy")
+        try await s.repo.rename(id: id, name: "DAIRY")
+
+        let cat = try await s.db.queue.read { conn in
+            try Category.fetchOne(conn, sql: "SELECT * FROM categories WHERE id = ?", arguments: [id])
+        }
+        XCTAssertEqual(cat?.name, "DAIRY")
+    }
 }

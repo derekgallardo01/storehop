@@ -163,6 +163,25 @@ enum Migrations {
             try db.execute(sql: "CREATE INDEX index_purchase_records_deletedAt ON purchase_records (deletedAt)")
         }
 
+        // Mirrors Android MIGRATION_5_6 (v0.5.5).
+        //
+        // Drops the UNIQUE constraint on `(userId, name)` for stores and
+        // categories, replacing each index with a plain non-unique
+        // counterpart of the same name. The UNIQUE index counted
+        // tombstoned rows, so a previously soft-deleted "Pets" blocked
+        // renaming a live "Pet" → "Pets". Repository-layer rename now
+        // does an alive-only collision check via `findByName`, so the
+        // schema doesn't need to enforce uniqueness.
+        //
+        // No row data changes; no `pendingSync` bump. Firestore docs
+        // aren't affected by local index topology.
+        migrator.registerMigration("v6_drop_unique_name_indexes") { db in
+            try db.execute(sql: "DROP INDEX IF EXISTS index_categories_userId_name")
+            try db.execute(sql: "CREATE INDEX index_categories_userId_name ON categories (userId, name)")
+            try db.execute(sql: "DROP INDEX IF EXISTS index_stores_userId_name")
+            try db.execute(sql: "CREATE INDEX index_stores_userId_name ON stores (userId, name)")
+        }
+
         return migrator
     }
 }

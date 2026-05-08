@@ -135,4 +135,51 @@ final class StoreRepositoryTests: XCTestCase {
         }
         XCTAssertEqual(names, ["Pingo Doce", "Aldi", "Lidl"])
     }
+
+    // MARK: - rename (v6 tombstone fix)
+
+    func testRenameAllowsReusingNameOfTombstonedStore() async throws {
+        let s = try setup()
+        let oldId = try await s.repo.addStore(name: "Pets Plus")
+        try await s.repo.softDelete(id: oldId)
+
+        let pet = try await s.repo.addStore(name: "Pet")
+        // Pre-v6 this throws because the UNIQUE(userId, name) index counts
+        // the tombstoned "Pets Plus" row. After v6 the tombstone doesn't
+        // block reuse — repo's alive-only collision check passes.
+        try await s.repo.rename(id: pet, name: "Pets Plus")
+
+        let live = try await s.db.queue.read { conn in
+            try Store.fetchAll(conn, sql: """
+                SELECT * FROM stores
+                WHERE name = 'Pets Plus' AND deletedAt IS NULL
+                """)
+        }
+        XCTAssertEqual(live.count, 1)
+        XCTAssertEqual(live.first?.id, pet)
+    }
+
+    func testRenameRejectsCollisionWithLiveStore() async throws {
+        let s = try setup()
+        _ = try await s.repo.addStore(name: "Aldi")
+        let lidlId = try await s.repo.addStore(name: "Lidl")
+
+        do {
+            try await s.repo.rename(id: lidlId, name: "Aldi")
+            XCTFail("Expected duplicateName error against the live row")
+        } catch StoreRepositoryError.duplicateName(let n) {
+            XCTAssertEqual(n, "Aldi")
+        }
+    }
+
+    func testRenameAllowsCaseOnlyChangeOfOwnName() async throws {
+        let s = try setup()
+        let id = try await s.repo.addStore(name: "Lidl")
+        try await s.repo.rename(id: id, name: "LIDL")
+
+        let store = try await s.db.queue.read { conn in
+            try Store.fetchOne(conn, sql: "SELECT * FROM stores WHERE id = ?", arguments: [id])
+        }
+        XCTAssertEqual(store?.name, "LIDL")
+    }
 }

@@ -60,11 +60,22 @@ struct CategoryRepository: Sendable {
     }
 
     func rename(id: String, name: String) async throws {
-        let userId = try await session.requireSignedIn()
         let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else {
+            throw CategoryRepositoryError.emptyName
+        }
+        let userId = try await session.requireSignedIn()
         let now = clock.nowMs()
         try await writer.write { db in
             guard var current = try CategoryDao.findById(on: db, userId: userId, id: id) else { return }
+            // Alive-only collision check — the v6 fix. The UNIQUE index
+            // counted tombstones, so a previously deleted "Pets" blocked
+            // renaming "Pet" → "Pets". Now we reject only when an alive
+            // row holds the target. Same-id case changes pass through.
+            if let collision = try CategoryDao.findByName(on: db, userId: userId, name: trimmed),
+               collision.id != current.id {
+                throw CategoryRepositoryError.duplicateName(trimmed)
+            }
             current.name = trimmed
             current.updatedAt = now
             current.pendingSync = true
