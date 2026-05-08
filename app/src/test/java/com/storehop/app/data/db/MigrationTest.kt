@@ -32,10 +32,10 @@ class MigrationTest {
 
     private val helperFactory = FrameworkSQLiteOpenHelperFactory()
 
-    @Test fun `full v1 to v5 pipeline preserves rows and applies expected defaults`() {
+    @Test fun `full v1 to v6 pipeline preserves rows and applies expected defaults`() {
         withV1Db { db ->
             seedV1Cohort(db)
-        }.migrateTo(5).use { db ->
+        }.migrateTo(6).use { db ->
             // Every entity still has its row.
             db.assertCount("items", 1)
             db.assertCount("stores", 2)
@@ -65,6 +65,10 @@ class MigrationTest {
                 assertThat(c.getInt(0)).isEqualTo(1)
                 assertThat(c.getLong(1)).isEqualTo(500L)
             }
+            // v5->v6 dropped UNIQUE on (userId, name) for both categories
+            // and stores -- they're now plain non-unique indices.
+            assertThat(readIndexUnique(db, "categories", "index_categories_userId_name")).isFalse()
+            assertThat(readIndexUnique(db, "stores", "index_stores_userId_name")).isFalse()
         }
     }
 
@@ -111,6 +115,57 @@ class MigrationTest {
                 assertThat(c.getInt(0)).isEqualTo(0)
             }
         }
+    }
+
+    @Test fun `v5 to v6 drops unique indices on categories and stores`() {
+        // After v6, name uniqueness is no longer enforced at the DB level
+        // (see MIGRATION_5_6's docblock for why -- tombstones blocked name
+        // reuse). Verify PRAGMA shows the named indices are now non-unique
+        // AND that a duplicate-name insert succeeds at the SQLite level so
+        // tombstones can coexist with alive same-name rows.
+        withV1Db { db ->
+            db.execSQL("INSERT INTO categories(id,name,nameKey,icon,isArchived,isSeeded,userId,createdAt,updatedAt,deletedAt) " +
+                "VALUES('c1','Pets',NULL,NULL,0,0,'u',1,1,NULL)")
+            db.execSQL("INSERT INTO stores(id,name,colorArgb,isArchived,isSeeded,userId,createdAt,updatedAt,deletedAt) " +
+                "VALUES('s1','Lidl',NULL,0,0,'u',1,1,NULL)")
+        }.migrateTo(6).use { db ->
+            assertThat(readIndexUnique(db, "categories", "index_categories_userId_name")).isFalse()
+            assertThat(readIndexUnique(db, "stores", "index_stores_userId_name")).isFalse()
+
+            // Insert a tombstoned twin of each row -- post-v6 this must
+            // succeed without throwing. Pre-v6 this would have hit a UNIQUE
+            // constraint violation. The two rows live alongside each other:
+            // one alive, one tombstoned, both named "Pets".
+            db.execSQL("INSERT INTO categories(id,name,nameKey,icon,isArchived,isSeeded,userId,createdAt,updatedAt,deletedAt,pendingSync) " +
+                "VALUES('c1_tomb','Pets',NULL,NULL,0,0,'u',1,1,99,1)")
+            db.execSQL("INSERT INTO stores(id,name,colorArgb,isArchived,isSeeded,userId,createdAt,updatedAt,deletedAt,pendingSync,displayOrder) " +
+                "VALUES('s1_tomb','Lidl',NULL,0,0,'u',1,1,99,1,5)")
+            db.assertCount("categories", 2)
+            db.assertCount("stores", 2)
+
+            // Existing row data preserved across the migration.
+            db.queryRow("SELECT name FROM categories WHERE id='c1'") { c ->
+                assertThat(c.getString(0)).isEqualTo("Pets")
+            }
+            db.queryRow("SELECT name FROM stores WHERE id='s1'") { c ->
+                assertThat(c.getString(0)).isEqualTo("Lidl")
+            }
+        }
+    }
+
+    private fun readIndexUnique(
+        db: SupportSQLiteDatabase,
+        tableName: String,
+        indexName: String,
+    ): Boolean {
+        db.query("PRAGMA index_list(`$tableName`)").use { c ->
+            while (c.moveToNext()) {
+                if (c.getString(c.getColumnIndexOrThrow("name")) == indexName) {
+                    return c.getInt(c.getColumnIndexOrThrow("unique")) == 1
+                }
+            }
+        }
+        error("index $indexName not found on $tableName")
     }
 
     @Test fun `v4 to v5 backfills xref isNeeded and lastPurchasedAt from the parent item`() {
@@ -194,7 +249,7 @@ class MigrationTest {
         var db: SupportSQLiteDatabase,
     ) {
         fun migrateTo(targetVersion: Int): DbHandle {
-            val migrations = listOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
+            val migrations = listOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
             val needed = migrations.filter { it.endVersion <= targetVersion }
             needed.forEach { it.migrate(db) }
             return this

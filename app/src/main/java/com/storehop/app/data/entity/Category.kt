@@ -8,7 +8,17 @@ import androidx.room.PrimaryKey
 @Entity(
     tableName = "categories",
     indices = [
-        Index(value = ["userId", "name"], unique = true),
+        // Non-unique on (userId, name) -- the index is here for query speed
+        // (findByName / findAnyByName lookups are hot during CSV import and
+        // every add/rename). DB-level uniqueness was intentionally dropped at
+        // schema v6: the old UNIQUE index counted tombstones, so a deleted
+        // "Pets" blocked the user from renaming a different category to
+        // "Pets" -- a real bug Mike hit after his v0.5.4 import. Uniqueness is
+        // now enforced at the application layer (`CategoryRepositoryImpl`'s
+        // add/rename guards + the `withTransaction` wrap that serializes
+        // concurrent mutations); cross-device sync conflicts have always been
+        // handled separately by the pull-side merge engine.
+        Index(value = ["userId", "name"]),
         Index("userId"),
         Index("deletedAt"),
     ],

@@ -78,6 +78,18 @@ class ManageCategoriesViewModelTest {
         coVerify(exactly = 1) { categoryRepo.rename("id", "Bakery") }
     }
 
+    @Test fun `renameCategory maps IllegalArgumentException to localized duplicate error`() = runTest {
+        coEvery { categoryRepo.rename("id", "Bakery") } throws IllegalArgumentException("dup")
+        val vm = newVm()
+        assertThat(vm.renameCategory("id", "Bakery")).isEqualTo("ENAME_DUPE")
+    }
+
+    @Test fun `renameCategory maps unexpected exceptions to a generic error`() = runTest {
+        coEvery { categoryRepo.rename("id", "Bakery") } throws RuntimeException("io")
+        val vm = newVm()
+        assertThat(vm.renameCategory("id", "Bakery")).isEqualTo("ECOULDNT_RENAME")
+    }
+
     @Test fun `deleteCategory and undoDeleteCategory plumb to the repo`() = runTest {
         val vm = newVm()
         vm.deleteCategory("cat_x")

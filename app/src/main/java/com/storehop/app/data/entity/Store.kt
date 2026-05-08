@@ -8,7 +8,15 @@ import androidx.room.PrimaryKey
 @Entity(
     tableName = "stores",
     indices = [
-        Index(value = ["userId", "name"], unique = true),
+        // Non-unique on (userId, name) -- mirror of categories. DB-level
+        // uniqueness was dropped at schema v6 because the old UNIQUE index
+        // included tombstones, blocking name reuse after a soft-delete.
+        // Application-layer guards in `StoreRepositoryImpl` (add: rejects
+        // alive collisions, resurrects tombstones; rename: rejects alive
+        // collisions only) plus the `withTransaction` serialization keep
+        // single-device state consistent. See Category.kt for the full
+        // rationale.
+        Index(value = ["userId", "name"]),
         Index("userId"),
         Index("deletedAt"),
     ],

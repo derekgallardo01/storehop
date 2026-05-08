@@ -89,6 +89,48 @@ val MIGRATION_3_4 = object : Migration(3, 4) {
 }
 
 /**
+ * v5 -> v6: drop the UNIQUE constraint on `(userId, name)` for `categories`
+ * and `stores`. Recreate as plain non-unique indices (still useful for
+ * findByName lookups during CSV import + add/rename).
+ *
+ * Why: the old UNIQUE index counted tombstoned (soft-deleted) rows. A user
+ * who deleted a category named "Pets" and later tried to rename a different
+ * category to "Pets" hit a `SQLiteConstraintException` because the dead row
+ * still owned the name. Mike reported exactly this on v0.5.4 after importing
+ * hundreds of categories from his old shopping-list app -- many rename
+ * attempts collided with phantom tombstones.
+ *
+ * SQLite's @Index annotation can't express partial indices (`WHERE deletedAt
+ * IS NULL`), and Room's schema validator rejects extra indices that aren't
+ * declared on the entity, so the cleanest answer is to drop DB-level
+ * uniqueness entirely. Application-layer guards already enforce uniqueness
+ * for alive rows: `addCategory` / `addStore` reject same-name alive rows and
+ * resurrect tombstones; `rename` (post-v0.5.5) rejects alive collisions but
+ * lets tombstones pass. All three paths are wrapped in `withTransaction` so
+ * concurrent mutations serialize correctly.
+ *
+ * No row data changes -- only the index definition. No `pendingSync` bump:
+ * Firestore docs aren't affected by local index topology.
+ */
+val MIGRATION_5_6 = object : Migration(5, 6) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        // categories: drop the UNIQUE variant, recreate non-unique with the
+        // same name so Room's schema validator finds the index it expects.
+        db.execSQL("DROP INDEX IF EXISTS `index_categories_userId_name`")
+        db.execSQL(
+            "CREATE INDEX IF NOT EXISTS `index_categories_userId_name` " +
+                "ON `categories` (`userId`, `name`)",
+        )
+        // stores: same shape.
+        db.execSQL("DROP INDEX IF EXISTS `index_stores_userId_name`")
+        db.execSQL(
+            "CREATE INDEX IF NOT EXISTS `index_stores_userId_name` " +
+                "ON `stores` (`userId`, `name`)",
+        )
+    }
+}
+
+/**
  * v4 -> v5: move per-store need state from `items` to `item_store_xref`.
  *
  * The old model had `items.isNeeded` and `items.lastPurchasedAt` -- a single

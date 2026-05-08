@@ -97,7 +97,9 @@ class CategoryDaoTest {
     }
 
     @Test fun `NONA-8 two different users can each have a category named the same`() = runTest {
-        // The (userId, name) unique index is per-user, not global. Document.
+        // The (userId, name) index is per-user. (DB uniqueness was dropped
+        // in v6; the per-user scoping is still meaningful for query speed
+        // and as a contract for the application-layer add/rename guards.)
         dao.upsert(cat("cat_user_a", "Wine").copy(userId = "user-A"))
         dao.upsert(cat("cat_user_b", "Wine").copy(userId = "user-B"))
         assertThat(dao.observeAll("user-A", includeArchived = false).first().map { it.name })

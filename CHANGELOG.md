@@ -7,6 +7,25 @@ project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 For the high-level roadmap and earlier-than-0.5.0 history, see the
 "Roadmap" section in the [README](README.md).
 
+## [0.5.5] - 2026-05-08
+
+### Fixed
+
+- Renaming a category or store now works even when the target name
+  was previously used by something you've since deleted. Mike
+  reported this after his CSV import: trying to rename "Pet" → "Pets"
+  failed with a vague "Could not rename" error because a long-deleted
+  "Pets" category was still owning the name behind the scenes
+  (Storehop keeps soft-deleted rows around for cloud sync). The
+  database constraint that caused the conflict has been replaced —
+  deleted entries no longer block name reuse. Bumps schema to v6
+  with a one-time migration that's a no-op for your data.
+- The rename dialog also now shows a clear "A category named \"X\"
+  already exists" inline message when the target name collides with
+  one of your **existing** categories or stores, instead of the
+  generic failure message. A case-only change of a row's own name
+  (e.g. "Pets" → "pets") is still allowed.
+
 ## [0.5.4] - 2026-05-08
 
 ### Fixed
