@@ -87,6 +87,10 @@
     <string name="form_error_name_required">O nome é obrigatório</string>
     <string name="delete_item_title">Eliminar artigo?</string>
     <string name="delete_item_message">Isto remove \"%1$s\" da lista de todas as lojas.</string>
+    <string name="discard_changes_title">Descartar alterações?</string>
+    <string name="discard_changes_message">As tuas alterações a este artigo serão perdidas.</string>
+    <string name="action_discard">Descartar</string>
+    <string name="action_keep_editing">Continuar a editar</string>
     <string name="badge_always_on_list">Sempre na lista</string>
     <string name="badge_critical">Crítico</string>
 
@@ -181,4 +185,14 @@
     <string name="action_edit_aisles">Editar corredores</string>
     <string name="aisle_order_empty_state">Sem corredores para reordenar. Adicione um artigo a esta loja para definir a ordem.</string>
     <string name="aisle_order_helper">Mantenha premida a pega para arrastar. Solta ao largar.</string>
+
+    <!-- v0.5.2 Definições → Dados: importar / exportar CSV. -->
+    <string name="settings_data_section_title">Dados</string>
+    <string name="settings_data_section_subtitle">Mover artigos e categorias entre dispositivos ou aplicações.</string>
+    <string name="action_export_items">Exportar artigos</string>
+    <string name="action_export_categories">Exportar categorias</string>
+    <string name="action_import_items">Importar artigos</string>
+    <string name="action_import_categories">Importar categorias</string>
+    <string name="import_result_summary">Importados %1$d artigos, %2$d categorias, %3$d lojas. %4$d duplicados ignorados.</string>
+    <string name="import_undo_label">Anular</string>
 </resources>
