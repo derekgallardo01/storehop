@@ -1,5 +1,6 @@
 package com.storehop.app.ui.shop
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
@@ -9,6 +10,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -23,6 +25,8 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DragIndicator
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Warning
@@ -84,7 +88,7 @@ fun StorePickerScreen(
     viewModel: StorePickerViewModel = hiltViewModel(),
 ) {
     val rows by viewModel.rows.collectAsState()
-    val critical by viewModel.criticalAcrossStores.collectAsState()
+    val criticalSummary by viewModel.criticalSummary.collectAsState()
 
     // Local mutable copy so the dragging row visually moves before the DB
     // round-trip lands (and so the upstream Flow re-emit triggered by our
@@ -145,9 +149,7 @@ fun StorePickerScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) { Snackbar(it) } },
     ) { padding ->
         Column(modifier = Modifier.padding(padding).fillMaxSize()) {
-            if (critical.isNotEmpty()) {
-                CriticalNeedsBanner(critical = critical)
-            }
+            criticalSummary?.let { CriticalNeedsBanner(state = it) }
             LazyColumn(
                 state = lazyListState,
                 modifier = Modifier.fillMaxSize(),
@@ -290,36 +292,85 @@ private fun AddStoreDialog(
 }
 
 @Composable
-private fun CriticalNeedsBanner(critical: List<String>) {
+private fun CriticalNeedsBanner(state: CriticalBannerState) {
+    var expanded by remember { mutableStateOf(false) }
+    val onContainer = MaterialTheme.colorScheme.onPrimaryContainer
     Card(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp)
+            .clickable { expanded = !expanded },
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.primaryContainer,
         ),
     ) {
-        Row(
-            modifier = Modifier.padding(12.dp),
-            verticalAlignment = Alignment.Top,
-        ) {
-            Icon(
-                Icons.Filled.Warning,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onPrimaryContainer,
-            )
-            Spacer(Modifier.width(12.dp))
-            Column(modifier = Modifier.fillMaxWidth()) {
-                Text(
-                    text = stringResource(R.string.critical_needs_banner_title),
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+        Column(modifier = Modifier.padding(12.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    Icons.Filled.Warning,
+                    contentDescription = null,
+                    tint = onContainer,
                 )
-                Spacer(Modifier.size(4.dp))
-                Text(
-                    text = critical.joinToString(", "),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                Spacer(Modifier.width(12.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = pluralStringResource(
+                            R.plurals.critical_banner_count,
+                            state.totalCount,
+                            state.totalCount,
+                        ),
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.SemiBold,
+                        color = onContainer,
+                    )
+                    Spacer(Modifier.height(2.dp))
+                    Text(
+                        text = if (state.singleStore) {
+                            stringResource(
+                                R.string.critical_banner_all_at,
+                                state.topStoreName,
+                            )
+                        } else {
+                            stringResource(
+                                R.string.critical_banner_most_at,
+                                state.topStoreName,
+                                state.topStoreCount,
+                            )
+                        },
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = onContainer,
+                    )
+                }
+                Icon(
+                    imageVector = if (expanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
+                    contentDescription = stringResource(
+                        if (expanded) R.string.critical_banner_collapse_cd
+                        else R.string.critical_banner_expand_cd,
+                    ),
+                    tint = onContainer,
                 )
+            }
+            AnimatedVisibility(visible = expanded) {
+                Column(modifier = Modifier.padding(top = 8.dp, start = 36.dp)) {
+                    state.byStore.forEach { (storeName, items) ->
+                        Text(
+                            text = stringResource(
+                                R.string.critical_banner_store_section,
+                                storeName,
+                                items.size,
+                            ),
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            color = onContainer,
+                        )
+                        Text(
+                            text = items.joinToString(", "),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = onContainer,
+                        )
+                        Spacer(Modifier.height(6.dp))
+                    }
+                }
             }
         }
     }
