@@ -79,11 +79,22 @@ struct StoreRepository: Sendable {
     // MARK: - Update
 
     func rename(id: String, name: String) async throws {
-        let userId = try await session.requireSignedIn()
         let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else {
+            throw StoreRepositoryError.emptyName
+        }
+        let userId = try await session.requireSignedIn()
         let now = clock.nowMs()
         try await writer.write { db in
             guard var current = try StoreDao.findById(on: db, userId: userId, id: id) else { return }
+            // Alive-only collision check. Schema v6 dropped the UNIQUE
+            // constraint on (userId, name) so tombstoned rows don't block
+            // name reuse. Same-id case-only changes ("Aldi" → "ALDI")
+            // pass through because findByName returns the same row.
+            if let collision = try StoreDao.findByName(on: db, userId: userId, name: trimmed),
+               collision.id != current.id {
+                throw StoreRepositoryError.duplicateName(trimmed)
+            }
             current.name = trimmed
             current.updatedAt = now
             current.pendingSync = true
