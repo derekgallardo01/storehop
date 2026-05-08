@@ -44,3 +44,23 @@ app/google-services.json
 keystore.properties
 *.jks
 *.keystore
+
+# iOS / Xcode
+ios/Storehop.xcodeproj/
+ios/Storehop.xcworkspace/
+ios/build/
+ios/DerivedData/
+ios/*.ipa
+ios/*.xcarchive
+ios/Pods/
+ios/Podfile.lock
+.swiftpm/
+xcuserdata/
+*.xcuserstate
+*.xcworkspace/xcuserdata/
+
+# Firebase iOS config — same rule as Android: never auto-commit
+ios/Storehop/Resources/GoogleService-Info.plist
+
+# macOS clutter
+.DS_Store

@@ -1,0 +1,239 @@
+import XCTest
+import UIKit
+@testable import Storehop
+
+@MainActor
+final class ItemFormViewModelTests: XCTestCase {
+
+    private struct Setup {
+        let db: StorehopDatabase
+        let viewModel: ItemFormViewModel
+        let undoEventBus: UndoEventBus
+    }
+
+    private func makeSetup(itemId: String? = nil, uid: String = "u1") async throws -> Setup {
+        let db = try StorehopDatabase.inMemoryForTests()
+        try db.seed(
+            stores: [
+                TestFixtures.store(id: "s_lidl", name: "Lidl", userId: uid),
+                TestFixtures.store(id: "s_aldi", name: "Aldi", userId: uid),
+            ],
+            categories: [
+                TestFixtures.category(id: "c_dairy", name: "Dairy", userId: uid),
+            ]
+        )
+        let session = LocalOnlyUserSessionProvider(uid: uid)
+        let clock = MutableClock(nowMs: 1_000)
+        let writer = db.queue
+        let itemRepo = ItemRepository(
+            writer: writer,
+            itemDao: ItemDao(writer: writer),
+            xrefDao: ItemStoreXrefDao(writer: writer),
+            scoDao: StoreCategoryOrderDao(writer: writer),
+            purchaseDao: PurchaseRecordDao(writer: writer),
+            session: session,
+            clock: clock,
+            ids: SequenceIdGenerator()
+        )
+        let categoryRepo = CategoryRepository(
+            writer: writer,
+            categoryDao: CategoryDao(writer: writer),
+            itemDao: ItemDao(writer: writer),
+            scoDao: StoreCategoryOrderDao(writer: writer),
+            session: session,
+            clock: clock,
+            ids: SequenceIdGenerator()
+        )
+        let storeRepo = StoreRepository(
+            writer: writer,
+            storeDao: StoreDao(writer: writer),
+            xrefDao: ItemStoreXrefDao(writer: writer),
+            scoDao: StoreCategoryOrderDao(writer: writer),
+            session: session,
+            clock: clock,
+            ids: SequenceIdGenerator()
+        )
+        let undoBus = UndoEventBus()
+        let vm = ItemFormViewModel(
+            itemId: itemId,
+            itemRepository: itemRepo,
+            categoryRepository: categoryRepo,
+            storeRepository: storeRepo,
+            imageUploader: NoOpImageUploader(),
+            undoEventBus: undoBus,
+            session: session
+        )
+        vm.bind()
+        try await Task.sleep(nanoseconds: 50_000_000)
+        return Setup(db: db, viewModel: vm, undoEventBus: undoBus)
+    }
+
+    func testValidateRejectsEmptyName() async throws {
+        let s = try await makeSetup()
+        s.viewModel.name = "   "
+        s.viewModel.submit()
+        XCTAssertTrue(s.viewModel.nameError)
+        XCTAssertFalse(s.viewModel.saved)
+    }
+
+    func testSubmitAddSavesItemTaggedToSelectedStores() async throws {
+        let s = try await makeSetup()
+        s.viewModel.name = "Mozzarella"
+        s.viewModel.brand = "Galbani"
+        s.viewModel.categoryId = "c_dairy"
+        s.viewModel.toggleStore("s_lidl")
+        s.viewModel.toggleStore("s_aldi")
+
+        s.viewModel.submit()
+        try await waitForCondition { s.viewModel.saved }
+
+        let count = try await s.db.queue.read { conn in
+            try Int.fetchOne(conn, sql: "SELECT COUNT(*) FROM items WHERE name = 'Mozzarella'") ?? 0
+        }
+        XCTAssertEqual(count, 1)
+
+        let xrefCount = try await s.db.queue.read { conn in
+            try Int.fetchOne(conn, sql: """
+                SELECT COUNT(*) FROM item_store_xref isx
+                INNER JOIN items i ON i.id = isx.itemId
+                WHERE i.name = 'Mozzarella' AND isx.deletedAt IS NULL
+                """) ?? 0
+        }
+        XCTAssertEqual(xrefCount, 2, "Item should be tagged to both selected stores")
+    }
+
+    func testSubmitWithLocalImageRunsUploaderAndPatchesUrl() async throws {
+        let s = try await makeSetup()
+        s.viewModel.name = "Bread"
+        s.viewModel.toggleStore("s_lidl")
+        s.viewModel.pickImage(UIImage())  // empty image — NoOpImageUploader returns a fake URL
+
+        s.viewModel.submit()
+        try await waitForCondition(timeout: 2.0) { s.viewModel.saved }
+
+        let storedUrl = try await s.db.queue.read { conn in
+            try String.fetchOne(conn, sql: "SELECT imageUrl FROM items WHERE name = 'Bread'")
+        }
+        XCTAssertNotNil(storedUrl ?? nil)
+        XCTAssertTrue(storedUrl?.contains("storehop/items/") ?? false)
+    }
+
+    func testEditModeLoadsExistingItemFields() async throws {
+        let setupAdd = try await makeSetup()
+        setupAdd.viewModel.name = "Milk"
+        setupAdd.viewModel.brand = "Mimosa"
+        setupAdd.viewModel.toggleStore("s_lidl")
+        setupAdd.viewModel.submit()
+        try await waitForCondition { setupAdd.viewModel.saved }
+
+        // Look up the saved item id by name.
+        let id = try await setupAdd.db.queue.read { conn in
+            try String.fetchOne(conn, sql: "SELECT id FROM items WHERE name = 'Milk'")
+        } ?? ""
+        XCTAssertFalse(id.isEmpty)
+
+        // Build a second VM in edit mode against the SAME database.
+        let session = LocalOnlyUserSessionProvider(uid: "u1")
+        let clock = MutableClock(nowMs: 1_000)
+        let writer = setupAdd.db.queue
+        let itemRepo = ItemRepository(
+            writer: writer,
+            itemDao: ItemDao(writer: writer),
+            xrefDao: ItemStoreXrefDao(writer: writer),
+            scoDao: StoreCategoryOrderDao(writer: writer),
+            purchaseDao: PurchaseRecordDao(writer: writer),
+            session: session, clock: clock, ids: SequenceIdGenerator()
+        )
+        let editVm = ItemFormViewModel(
+            itemId: id,
+            itemRepository: itemRepo,
+            categoryRepository: CategoryRepository(
+                writer: writer, categoryDao: CategoryDao(writer: writer),
+                itemDao: ItemDao(writer: writer), scoDao: StoreCategoryOrderDao(writer: writer),
+                session: session, clock: clock, ids: SequenceIdGenerator()
+            ),
+            storeRepository: StoreRepository(
+                writer: writer, storeDao: StoreDao(writer: writer),
+                xrefDao: ItemStoreXrefDao(writer: writer), scoDao: StoreCategoryOrderDao(writer: writer),
+                session: session, clock: clock, ids: SequenceIdGenerator()
+            ),
+            imageUploader: NoOpImageUploader(),
+            undoEventBus: UndoEventBus(),
+            session: session
+        )
+        editVm.bind()
+        try await waitForCondition(timeout: 1.0) { !editVm.isLoading }
+
+        XCTAssertEqual(editVm.name, "Milk")
+        XCTAssertEqual(editVm.brand, "Mimosa")
+        XCTAssertEqual(editVm.storeIds, ["s_lidl"])
+    }
+
+    func testDeleteEmitsUndoEventAndSetsDeletedFlag() async throws {
+        // Add an item first.
+        let s = try await makeSetup()
+        s.viewModel.name = "Bread"
+        s.viewModel.toggleStore("s_lidl")
+        s.viewModel.submit()
+        try await waitForCondition { s.viewModel.saved }
+
+        let id = try await s.db.queue.read { conn in
+            try String.fetchOne(conn, sql: "SELECT id FROM items WHERE name = 'Bread'")
+        } ?? ""
+
+        // Build an edit-mode VM and listen for the undo event.
+        let session = LocalOnlyUserSessionProvider(uid: "u1")
+        let clock = MutableClock(nowMs: 1_000)
+        let writer = s.db.queue
+        let undoBus = UndoEventBus()
+
+        var receivedEvent: UndoEvent?
+        let listenerTask = Task {
+            for await event in await undoBus.events() {
+                receivedEvent = event
+                break
+            }
+        }
+
+        let editVm = ItemFormViewModel(
+            itemId: id,
+            itemRepository: ItemRepository(
+                writer: writer, itemDao: ItemDao(writer: writer),
+                xrefDao: ItemStoreXrefDao(writer: writer),
+                scoDao: StoreCategoryOrderDao(writer: writer),
+                purchaseDao: PurchaseRecordDao(writer: writer),
+                session: session, clock: clock, ids: SequenceIdGenerator()
+            ),
+            categoryRepository: CategoryRepository(
+                writer: writer, categoryDao: CategoryDao(writer: writer),
+                itemDao: ItemDao(writer: writer), scoDao: StoreCategoryOrderDao(writer: writer),
+                session: session, clock: clock, ids: SequenceIdGenerator()
+            ),
+            storeRepository: StoreRepository(
+                writer: writer, storeDao: StoreDao(writer: writer),
+                xrefDao: ItemStoreXrefDao(writer: writer), scoDao: StoreCategoryOrderDao(writer: writer),
+                session: session, clock: clock, ids: SequenceIdGenerator()
+            ),
+            imageUploader: NoOpImageUploader(),
+            undoEventBus: undoBus,
+            session: session
+        )
+        editVm.bind()
+        try await waitForCondition(timeout: 1.0) { !editVm.isLoading }
+
+        editVm.delete()
+        try await waitForCondition(timeout: 1.0) { editVm.deleted }
+
+        // Allow the bus to deliver.
+        try await Task.sleep(nanoseconds: 50_000_000)
+        listenerTask.cancel()
+
+        XCTAssertNotNil(receivedEvent)
+        if case .itemDeleted(let eventId, let name) = receivedEvent {
+            XCTAssertEqual(eventId, id)
+            XCTAssertEqual(name, "Bread")
+        } else {
+            XCTFail("Expected .itemDeleted event")
+        }
+    }
+}
