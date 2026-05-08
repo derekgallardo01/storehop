@@ -7,6 +7,30 @@ project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 For the high-level roadmap and earlier-than-0.5.0 history, see the
 "Roadmap" section in the [README](README.md).
 
+## [0.5.2] - 2026-05-08
+
+### Added
+
+- CSV import + export of items and categories from Settings → Data.
+  Pick a destination via the system file picker and Storehop writes a
+  documented CSV (`name, category, stores, brand, notes, quantity,
+  isStaple, isPriority` for items; `name, icon` for categories).
+  Import is **non-destructive**: any item whose name already exists
+  is skipped — your current data is never modified or deleted by an
+  import. A snackbar reports `"Imported X items, Y categories,
+  Z stores. Skipped N duplicates."` with an Undo action that
+  soft-deletes only the rows just inserted.
+
+### Changed
+
+- Item, brand, store, and category name fields now auto-capitalize
+  every word as you type, not just the first letter (was Sentences in
+  v0.5.1, now Words). Mike asked for proper Title Case on his
+  multi-word item names.
+- The item-edit back arrow now shows a "Discard changes? / Keep
+  editing" confirmation when you have unsaved edits, so a stray tap
+  doesn't lose your work.
+
 ## [0.5.1] - 2026-05-07
 
 ### Changed
