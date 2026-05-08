@@ -212,6 +212,84 @@ class ItemFormViewModelTest {
         coVerify(exactly = 1) { itemRepo.softDelete("id") }
     }
 
+    @Test fun `isDirty starts false in Add mode`() = runTest {
+        val vm = newAddVm()
+        advanceUntilIdle()
+        assertThat(vm.isDirty.value).isFalse()
+    }
+
+    @Test fun `isDirty becomes true after typing into Add-mode form`() = runTest {
+        val vm = newAddVm()
+        advanceUntilIdle()
+        vm.setName("M")
+        advanceUntilIdle()
+        assertThat(vm.isDirty.value).isTrue()
+    }
+
+    @Test fun `isDirty returns to false when an Add-mode edit is reverted`() = runTest {
+        val vm = newAddVm()
+        advanceUntilIdle()
+        vm.setName("Milk")
+        advanceUntilIdle()
+        assertThat(vm.isDirty.value).isTrue()
+        vm.setName("")  // back to the empty baseline
+        advanceUntilIdle()
+        assertThat(vm.isDirty.value).isFalse()
+    }
+
+    @Test fun `isDirty starts false in Edit mode after the item loads`() = runTest {
+        val existing = ItemWithCategoryAndStores(
+            item = Item(
+                id = "id", name = "Milk", categoryId = "cat", notes = null,
+                quantity = null, isNeeded = true, lastPurchasedAt = null,
+                userId = "u", createdAt = 1L, updatedAt = 1L, deletedAt = null,
+                brand = "Mimosa", imageUrl = null,
+                isStaple = false, isPriority = false,
+            ),
+            category = null,
+            stores = emptyList(),
+        )
+        val vm = newEditVm("id", existing)
+        advanceUntilIdle()
+        assertThat(vm.isDirty.value).isFalse()
+    }
+
+    @Test fun `isDirty becomes true after editing a loaded Edit-mode item`() = runTest {
+        val existing = ItemWithCategoryAndStores(
+            item = Item(
+                id = "id", name = "Milk", categoryId = null, notes = null,
+                quantity = null, isNeeded = true, lastPurchasedAt = null,
+                userId = "u", createdAt = 1L, updatedAt = 1L, deletedAt = null,
+            ),
+            category = null,
+            stores = emptyList(),
+        )
+        val vm = newEditVm("id", existing)
+        advanceUntilIdle()
+        vm.setName("Skim Milk")
+        advanceUntilIdle()
+        assertThat(vm.isDirty.value).isTrue()
+    }
+
+    @Test fun `isDirty returns to false after a successful save resets the baseline`() = runTest {
+        coEvery {
+            itemRepo.addItem(any(), any(), any(), any(), any(), any(), any(), any(), any(), any())
+        } returns "new-id"
+
+        val vm = newAddVm()
+        advanceUntilIdle()
+        vm.setName("Milk")
+        advanceUntilIdle()
+        assertThat(vm.isDirty.value).isTrue()
+
+        vm.submit()
+        advanceUntilIdle()
+
+        // The baseline snapshot resets to current state on successful save —
+        // the user can keep editing without an immediate "discard?" prompt.
+        assertThat(vm.isDirty.value).isFalse()
+    }
+
     @Test fun `submit catches IllegalArgumentException from the repo as a save error`() = runTest {
         coEvery {
             itemRepo.addItem(any(), any(), any(), any(), any(), any(), any(), any(), any(), any())
