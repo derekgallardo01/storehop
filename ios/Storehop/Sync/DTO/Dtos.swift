@@ -4,9 +4,10 @@ import Foundation
 ///
 /// Mirrors Android `Dtos.kt` field-for-field — same names, same types, same
 /// nullability — so a document written from either platform decodes
-/// correctly on the other. Encoded via `FirebaseFirestoreSwift`'s Codable
-/// integration; field names are the property names by default (no
-/// keyEncodingStrategy override needed).
+/// correctly on the other. Encoded via `FirebaseFirestore`'s Codable
+/// integration (Firebase 11+ folded the former `FirebaseFirestoreSwift`
+/// product into the main module); field names are the property names by
+/// default, no keyEncodingStrategy override needed.
 ///
 /// `pendingSync` is intentionally **omitted** — it's a local-only flag
 /// tracking what hasn't been pushed yet. The cloud doesn't care.
