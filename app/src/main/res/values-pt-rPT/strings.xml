@@ -119,7 +119,15 @@
     <string name="undo_item_deleted">\"%1$s\" eliminado.</string>
 
     <!-- Selector de lojas. -->
-    <string name="critical_needs_banner_title">Artigos críticos em falta</string>
+    <plurals name="critical_banner_count">
+        <item quantity="one">%d artigo crítico em falta</item>
+        <item quantity="other">%d artigos críticos em falta</item>
+    </plurals>
+    <string name="critical_banner_all_at">Todos em %s</string>
+    <string name="critical_banner_most_at">Maioria em %1$s (%2$d)</string>
+    <string name="critical_banner_store_section">%1$s (%2$d)</string>
+    <string name="critical_banner_expand_cd">Mostrar artigos críticos por loja</string>
+    <string name="critical_banner_collapse_cd">Ocultar artigos críticos por loja</string>
     <string name="store_nothing_needed">Nada em falta</string>
     <string name="store_all_set">✓ Tudo pronto</string>
     <string name="add_store_dialog_title">Adicionar uma loja</string>

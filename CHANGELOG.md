@@ -7,6 +7,20 @@ project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 For the high-level roadmap and earlier-than-0.5.0 history, see the
 "Roadmap" section in the [README](README.md).
 
+## [0.5.6] - 2026-05-08
+
+### Changed
+
+- The "Critical items needed" banner on the Shop screen now tells you
+  *where to go first* instead of listing every priority item by name.
+  Collapsed, it shows the total count plus the store that covers the
+  most criticals — e.g. "5 critical items needed / Most at Pingo (3)"
+  — so you can decide where to shop without scanning the per-store ⚠
+  chips and comparing. Tap the banner to expand a per-store breakdown
+  with the names. Also fixes the previous layout that grew unbounded
+  once you had ~10+ criticals, eating the screen before any store rows
+  were visible. Ties on count fall back to your manual store order.
+
 ## [0.5.5] - 2026-05-08
 
 ### Fixed

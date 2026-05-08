@@ -23,7 +23,7 @@ import org.junit.Test
 /**
  * Coverage for the picker VM's three responsibilities the repo tests don't
  * exercise:
- *  - flowing critical names across all stores into the banner (dedup)
+ *  - composing the banner's CriticalBannerState (counts, top store, dedup)
  *  - addStore / renameStore localized validation paths
  *  - reorder + delete + undo plumbing into the repo
  */
@@ -57,19 +57,112 @@ class StorePickerViewModelTest {
         )
     }
 
-    @Test fun `criticalAcrossStores dedupes by name across rows`() = runTest {
+    @Test fun `criticalSummary is null when no rows have criticals`() = runTest {
         rowsFlow.value = listOf(
-            pickerRow("store_lidl", critical = listOf("Milk", "Eggs")),
-            pickerRow("store_aldi", critical = listOf("Milk")), // also tagged here
-            pickerRow("store_continente", critical = emptyList()),
+            pickerRow("store_lidl", critical = emptyList()),
+            pickerRow("store_aldi", critical = emptyList()),
         )
 
         val vm = newVm()
 
-        vm.criticalAcrossStores.test {
-            awaitItem() // initial empty
+        vm.criticalSummary.test {
+            // Initial value is null (no criticals); the mapped emission is also
+            // null, so we just confirm the current value rather than awaiting a
+            // duplicate.
             advanceUntilIdle()
-            assertThat(awaitItem()).containsExactly("Milk", "Eggs")
+            assertThat(expectMostRecentItem()).isNull()
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test fun `criticalSummary marks singleStore when only one row has criticals`() = runTest {
+        rowsFlow.value = listOf(
+            pickerRow("store_lidl", critical = listOf("Milk", "Eggs", "Bread")),
+            pickerRow("store_aldi", critical = emptyList()),
+        )
+
+        val vm = newVm()
+
+        vm.criticalSummary.test {
+            advanceUntilIdle()
+            val state = expectMostRecentItem()!!
+            assertThat(state.singleStore).isTrue()
+            assertThat(state.topStoreName).isEqualTo("store_lidl")
+            assertThat(state.topStoreCount).isEqualTo(3)
+            assertThat(state.totalCount).isEqualTo(3)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test fun `criticalSummary picks the row with the most criticals as top store`() = runTest {
+        rowsFlow.value = listOf(
+            pickerRow("store_aldi", critical = listOf("Milk")),
+            pickerRow("store_lidl", critical = listOf("Eggs", "Bread", "Cheese")),
+            pickerRow("store_continente", critical = listOf("Pickles", "Yogurt")),
+        )
+
+        val vm = newVm()
+
+        vm.criticalSummary.test {
+            advanceUntilIdle()
+            val state = expectMostRecentItem()!!
+            assertThat(state.singleStore).isFalse()
+            assertThat(state.topStoreName).isEqualTo("store_lidl")
+            assertThat(state.topStoreCount).isEqualTo(3)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test fun `criticalSummary breaks ties by row order (which is displayOrder)`() = runTest {
+        // Both stores have 2 criticals; the row that appears first in the
+        // upstream Flow wins -- since rows are sorted by displayOrder ASC,
+        // this is the user's manual drag order.
+        rowsFlow.value = listOf(
+            pickerRow("store_pingo", critical = listOf("Milk", "Eggs")),
+            pickerRow("store_aldi", critical = listOf("Bread", "Cheese")),
+        )
+
+        val vm = newVm()
+
+        vm.criticalSummary.test {
+            advanceUntilIdle()
+            assertThat(expectMostRecentItem()!!.topStoreName).isEqualTo("store_pingo")
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test fun `criticalSummary totalCount dedupes items flagged at multiple stores`() = runTest {
+        rowsFlow.value = listOf(
+            pickerRow("store_lidl", critical = listOf("Milk", "Eggs")),
+            pickerRow("store_aldi", critical = listOf("Milk", "Bread")), // Milk repeats
+        )
+
+        val vm = newVm()
+
+        vm.criticalSummary.test {
+            advanceUntilIdle()
+            // Distinct items across all stores: Milk, Eggs, Bread = 3.
+            assertThat(expectMostRecentItem()!!.totalCount).isEqualTo(3)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test fun `criticalSummary byStore preserves displayOrder and skips empty rows`() = runTest {
+        rowsFlow.value = listOf(
+            pickerRow("store_pingo", critical = listOf("Milk")),
+            pickerRow("store_aldi", critical = emptyList()),
+            pickerRow("store_continente", critical = listOf("Bread", "Cheese")),
+        )
+
+        val vm = newVm()
+
+        vm.criticalSummary.test {
+            advanceUntilIdle()
+            val byStore = expectMostRecentItem()!!.byStore
+            assertThat(byStore).containsExactly(
+                "store_pingo" to listOf("Milk"),
+                "store_continente" to listOf("Bread", "Cheese"),
+            ).inOrder()
             cancelAndIgnoreRemainingEvents()
         }
     }

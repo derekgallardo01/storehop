@@ -16,6 +16,19 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+/**
+ * Snapshot of the critical-needs banner's state. Composed by the VM and
+ * consumed by the banner composable. `byStore` lists only stores that have at
+ * least one critical item, in displayOrder.
+ */
+data class CriticalBannerState(
+    val totalCount: Int,
+    val topStoreName: String,
+    val topStoreCount: Int,
+    val singleStore: Boolean,
+    val byStore: List<Pair<String, List<String>>>,
+)
+
 @HiltViewModel
 class StorePickerViewModel @Inject constructor(
     @ApplicationContext private val appContext: Context,
@@ -38,13 +51,29 @@ class StorePickerViewModel @Inject constructor(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000L), emptyList())
 
     /**
-     * The cross-store critical-needs list — every priority+needed item that's
-     * tagged to ANY store, deduplicated by name. Drives the banner above the
-     * picker list. Empty when nothing critical is needed.
+     * Routing-aware summary of priority+needed items across stores. Null when
+     * nothing critical is needed (banner hidden). When present, names the
+     * single store that covers the most criticals so the user knows where to
+     * shop first; ties resolve to whichever store comes earlier in the user's
+     * manual drag order, since `rows` arrives sorted by displayOrder and
+     * maxByOrNull picks the first match on equal counts. The full per-store
+     * breakdown is carried for the banner's tap-to-expand detail view.
      */
-    val criticalAcrossStores: StateFlow<List<String>> = rows
-        .map { all -> all.flatMap { it.criticalItemNames }.distinct() }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000L), emptyList())
+    val criticalSummary: StateFlow<CriticalBannerState?> = rows
+        .map { all ->
+            val withCriticals = all.filter { it.criticalItemNames.isNotEmpty() }
+            if (withCriticals.isEmpty()) return@map null
+            val total = withCriticals.flatMap { it.criticalItemNames }.distinct().size
+            val top = withCriticals.maxByOrNull { it.criticalItemNames.size }!!
+            CriticalBannerState(
+                totalCount = total,
+                topStoreName = top.store.name,
+                topStoreCount = top.criticalItemNames.size,
+                singleStore = withCriticals.size == 1,
+                byStore = withCriticals.map { it.store.name to it.criticalItemNames },
+            )
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000L), null)
 
     /**
      * Persist the new picker order. Called once when the user releases a
