@@ -1,0 +1,89 @@
+name: iOS CI
+
+# Validates the Swift port. Triggered on pushes that touch ios/ and on PRs
+# to main. Uses GitHub-provided macOS runners (free tier — 2000 min/month
+# for public repos, ~200 effective min/month for private since macOS time
+# counts 10x).
+#
+# What this catches:
+#   - All compile errors
+#   - SWIFT_STRICT_CONCURRENCY: complete warnings/errors (per project.yml)
+#   - Every unit test in StorehopTests/
+#   - xcstrings parse failures, malformed Asset Catalog JSON
+#
+# What this DOES NOT catch:
+#   - Firebase runtime behavior (no live project; tests use mocks)
+#   - UI tests beyond launch (need GoogleService-Info.plist past
+#     FirebaseApp.configure())
+#   - Cross-platform sync verification — that's a manual TestFlight pass
+
+on:
+  push:
+    branches: ['**']
+    paths:
+      - 'ios/**'
+      - '.github/workflows/ios-ci.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'ios/**'
+      - '.github/workflows/ios-ci.yml'
+  workflow_dispatch: {}
+
+jobs:
+  build-and-test:
+    runs-on: macos-14
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: ios
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Show toolchain versions
+        run: |
+          xcodebuild -version
+          swift --version
+          sw_vers
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        run: xcodegen generate
+
+      - name: Resolve SwiftPM dependencies
+        run: |
+          xcodebuild -resolvePackageDependencies \
+            -project Storehop.xcodeproj \
+            -scheme Storehop
+
+      - name: Build (simulator, no code signing)
+        run: |
+          xcodebuild build \
+            -project Storehop.xcodeproj \
+            -scheme Storehop \
+            -destination 'platform=iOS Simulator,name=iPhone 15,OS=latest' \
+            CODE_SIGNING_ALLOWED=NO \
+            -resultBundlePath build/build.xcresult
+
+      - name: Test (unit tests only)
+        run: |
+          xcodebuild test \
+            -project Storehop.xcodeproj \
+            -scheme Storehop \
+            -destination 'platform=iOS Simulator,name=iPhone 15,OS=latest' \
+            -resultBundlePath build/test.xcresult \
+            -only-testing:StorehopTests \
+            CODE_SIGNING_ALLOWED=NO
+
+      - name: Upload xcresult bundles
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: xcresult-${{ github.run_id }}
+          path: ios/build/*.xcresult
+          retention-days: 7
+          if-no-files-found: ignore
