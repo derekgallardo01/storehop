@@ -132,6 +132,33 @@ class ImportExportRepositoryImplTest {
         assertThat(milkStores).containsExactly("store_lidl")
     }
 
+    @Test fun `importItemsCsv duplicate-skip is case-insensitive`() = runTest {
+        // Pre-populate "Milk" (capitalized).
+        db.itemDao().upsert(
+            Item(
+                id = "milk-1", name = "Milk", categoryId = null, notes = null,
+                quantity = null, isNeeded = true, lastPurchasedAt = null,
+                userId = TEST_USER_ID, createdAt = 1L, updatedAt = 1L, deletedAt = null,
+                brand = "ExistingBrand", imageUrl = null,
+                isStaple = false, isPriority = false,
+            ),
+        )
+
+        // CSV uses "milk" (lowercase) — same item, different case. Must be
+        // treated as a duplicate, not a new row, so the existing one is
+        // preserved unchanged. Case-insensitive matching is intentional;
+        // dropping the COLLATE NOCASE in ItemDao.findByName must fail this test.
+        val result = repo.importItemsCsv("name,brand\nmilk,DIFFERENT_BRAND\n")
+
+        assertThat(result.itemsImported).isEqualTo(0)
+        assertThat(result.itemsSkipped).isEqualTo(1)
+        // Pre-existing alive Milk is unchanged — the brand was NOT overwritten.
+        assertThat(db.itemDao().findAnyById(TEST_USER_ID, "milk-1")!!.brand)
+            .isEqualTo("ExistingBrand")
+        // No second "Milk" row was created.
+        assertThat(db.itemDao().observeAll(TEST_USER_ID).first()).hasSize(1)
+    }
+
     @Test fun `importItemsCsv resurrects a tombstoned category by name`() = runTest {
         // Tombstoned "Bakery" with a stable id.
         val bakeryId = "tombstoned-bakery"
@@ -170,7 +197,13 @@ class ImportExportRepositoryImplTest {
         val all = db.categoryDao().observeAll(TEST_USER_ID, includeArchived = false).first()
         assertThat(all.map { it.name }).containsExactly("Bakery")
         val items = db.itemDao().observeAll(TEST_USER_ID).first()
-        assertThat(items.all { it.item.categoryId == bakeryId }).isTrue()
+        // Both items must exist AND must link to the existing Bakery row;
+        // the .all check on an empty list passes vacuously, so we assert size
+        // explicitly. Without the alive-category short-circuit in
+        // resolveCategory, addCategory throws on duplicate-name and items end
+        // up with categoryId=null — this asserts that's NOT what happens.
+        assertThat(items).hasSize(2)
+        assertThat(items.map { it.item.categoryId }).containsExactly(bakeryId, bakeryId)
     }
 
     @Test fun `importItemsCsv with a header-error CSV is a clean no-op`() = runTest {
@@ -245,6 +278,39 @@ class ImportExportRepositoryImplTest {
         assertThat(csv).contains("Dairy")
         // Stores joined into a single quoted field
         assertThat(csv).contains("\"Aldi,Lidl\"")
+    }
+
+    @Test fun `exportCategoriesCsv emits header + one row per alive category, skipping tombstones`() = runTest {
+        // Two alive categories + one tombstoned. Export should include only the alive ones.
+        listOf(
+            "alive-bakery" to "Bakery",
+            "alive-produce" to "Produce",
+        ).forEach { (id, name) ->
+            db.categoryDao().upsert(
+                com.storehop.app.data.entity.Category(
+                    id = id, name = name, nameKey = null, icon = null,
+                    isArchived = false, isSeeded = false, userId = TEST_USER_ID,
+                    createdAt = 1L, updatedAt = 1L, deletedAt = null,
+                ),
+            )
+        }
+        db.categoryDao().upsert(
+            com.storehop.app.data.entity.Category(
+                id = "tomb", name = "Tombstoned", nameKey = null, icon = null,
+                isArchived = false, isSeeded = false, userId = TEST_USER_ID,
+                createdAt = 1L, updatedAt = 1L, deletedAt = 100L,
+            ),
+        )
+
+        val csv = repo.exportCategoriesCsv()
+
+        // Header row + 2 data rows + trailing newline → 3 lines.
+        val lines = csv.lineSequence().filter { it.isNotEmpty() }.toList()
+        assertThat(lines.first()).isEqualTo("name,icon")
+        assertThat(lines).hasSize(3)
+        assertThat(csv).contains("Bakery")
+        assertThat(csv).contains("Produce")
+        assertThat(csv).doesNotContain("Tombstoned")
     }
 
     @Test fun `undoImport soft-deletes exactly the ids the import returned`() = runTest {
