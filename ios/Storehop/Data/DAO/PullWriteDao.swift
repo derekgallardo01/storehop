@@ -27,12 +27,30 @@ struct PullWriteDao: Sendable {
         purchaseRecords: [PurchaseRecord]
     ) async throws {
         try await writer.write { db in
-            for category in categories { try category.upsert(db) }
-            for store in stores { try store.upsert(db) }
-            for item in items { try item.upsert(db) }
-            for xref in xrefs { try xref.upsert(db) }
-            for sco in scoOrders { try sco.upsert(db) }
-            for record in purchaseRecords { try record.upsert(db) }
+            for c in categories {
+                var copy = c
+                try copy.upsert(db)
+            }
+            for s in stores {
+                var copy = s
+                try copy.upsert(db)
+            }
+            for i in items {
+                var copy = i
+                try copy.upsert(db)
+            }
+            for x in xrefs {
+                var copy = x
+                try copy.upsert(db)
+            }
+            for sco in scoOrders {
+                var copy = sco
+                try copy.upsert(db)
+            }
+            for record in purchaseRecords {
+                var copy = record
+                try copy.upsert(db)
+            }
         }
     }
 }

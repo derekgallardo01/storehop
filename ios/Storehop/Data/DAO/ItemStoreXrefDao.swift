@@ -50,11 +50,17 @@ struct ItemStoreXrefDao: Sendable {
     // MARK: - Writes
 
     func upsert(_ xref: ItemStoreXref) async throws {
-        try await writer.write { db in try xref.upsert(db) }
+        try await writer.write { db in
+            var copy = xref
+            try copy.upsert(db)
+        }
     }
 
     func upsertFromCloud(_ rows: [ItemStoreXref], on db: Database) throws {
-        for row in rows { try row.upsert(db) }
+        for row in rows {
+            var copy = row
+            try copy.upsert(db)
+        }
     }
 
     func softDelete(userId: String, itemId: String, storeId: String, now: Int64) async throws {

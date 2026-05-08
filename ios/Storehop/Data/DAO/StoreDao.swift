@@ -107,11 +107,17 @@ struct StoreDao: Sendable {
     // MARK: - Writes
 
     func upsert(_ store: Store) async throws {
-        try await writer.write { db in try store.upsert(db) }
+        try await writer.write { db in
+            var copy = store
+            try copy.upsert(db)
+        }
     }
 
     func upsertFromCloud(_ rows: [Store], on db: Database) throws {
-        for row in rows { try row.upsert(db) }
+        for row in rows {
+            var copy = row
+            try copy.upsert(db)
+        }
     }
 
     func setArchived(userId: String, id: String, archived: Bool, now: Int64) async throws {

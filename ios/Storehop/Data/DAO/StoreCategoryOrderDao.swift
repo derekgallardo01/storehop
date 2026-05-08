@@ -67,11 +67,17 @@ struct StoreCategoryOrderDao: Sendable {
     // MARK: - Writes
 
     func upsert(_ order: StoreCategoryOrder) async throws {
-        try await writer.write { db in try order.upsert(db) }
+        try await writer.write { db in
+            var copy = order
+            try copy.upsert(db)
+        }
     }
 
     func upsertFromCloud(_ rows: [StoreCategoryOrder], on db: Database) throws {
-        for row in rows { try row.upsert(db) }
+        for row in rows {
+            var copy = row
+            try copy.upsert(db)
+        }
     }
 
     /// Idempotently make sure `(storeId, categoryId)` has a live SCO row.

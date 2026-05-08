@@ -46,7 +46,10 @@ struct PurchaseRecordDao: Sendable {
     /// Pull-side path uses upsert because the same record can legitimately
     /// arrive twice — once from a previous push, once from a re-pull.
     func upsertFromCloud(_ rows: [PurchaseRecord], on db: Database) throws {
-        for row in rows { try row.upsert(db) }
+        for row in rows {
+            var copy = row
+            try copy.upsert(db)
+        }
     }
 
     func softDelete(userId: String, id: String, now: Int64) async throws {

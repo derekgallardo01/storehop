@@ -75,11 +75,17 @@ struct CategoryDao: Sendable {
     // MARK: - Writes
 
     func upsert(_ category: Category) async throws {
-        try await writer.write { db in try category.upsert(db) }
+        try await writer.write { db in
+            var copy = category
+            try copy.upsert(db)
+        }
     }
 
     func upsertFromCloud(_ rows: [Category], on db: Database) throws {
-        for row in rows { try row.upsert(db) }
+        for row in rows {
+            var copy = row
+            try copy.upsert(db)
+        }
     }
 
     func setArchived(userId: String, id: String, archived: Bool, now: Int64) async throws {

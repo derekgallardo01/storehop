@@ -45,7 +45,7 @@ struct StoreRepository: Sendable {
             switch existing {
             case .none:
                 let displayOrder = try StoreDao.nextDisplayOrder(on: db, userId: userId)
-                var store = Store(
+                var newStore = Store(
                     id: newId,
                     name: trimmed,
                     colorArgb: colorArgb,
@@ -58,7 +58,7 @@ struct StoreRepository: Sendable {
                     pendingSync: true,
                     displayOrder: displayOrder
                 )
-                try store.upsert(db)
+                try newStore.upsert(db)
                 return newId
             case .some(let row) where row.deletedAt == nil:
                 throw StoreRepositoryError.duplicateName(trimmed)
