@@ -60,14 +60,19 @@ struct StoreDao: Sendable {
     }
 
     func findByName(userId: String, name: String) async throws -> Store? {
-        try await writer.read { db in
-            try Store.fetchOne(db, sql: """
-                SELECT * FROM stores
-                WHERE userId = ? AND deletedAt IS NULL
-                  AND name = ? COLLATE NOCASE
-                LIMIT 1
-                """, arguments: [userId, name])
-        }
+        try await writer.read { db in try Self.findByName(on: db, userId: userId, name: name) }
+    }
+
+    /// Live-only by-name lookup. Used inside repository transactions
+    /// (e.g. rename) to detect collisions without including tombstoned
+    /// rows — the v6 (Android v0.5.5) fix.
+    static func findByName(on db: Database, userId: String, name: String) throws -> Store? {
+        try Store.fetchOne(db, sql: """
+            SELECT * FROM stores
+            WHERE userId = ? AND deletedAt IS NULL
+              AND name = ? COLLATE NOCASE
+            LIMIT 1
+            """, arguments: [userId, name])
     }
 
     /// Tombstone-aware lookup; powers the resurrect-on-re-add path.
