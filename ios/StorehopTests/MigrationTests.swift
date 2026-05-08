@@ -11,13 +11,13 @@ final class MigrationTests: XCTestCase {
         try StorehopDatabase.inMemoryForTests()
     }
 
-    func testMigratorAppliesV5InitialOnFreshDatabase() throws {
+    func testMigratorAppliesAllMigrationsOnFreshDatabase() throws {
         let queue = try DatabaseQueue()
         try Migrations.migrator().migrate(queue)
         let applied = try queue.read { db in
             try Migrations.migrator().appliedMigrations(db)
         }
-        XCTAssertEqual(applied, ["v5_initial"])
+        XCTAssertEqual(applied, ["v5_initial", "v6_drop_unique_name_indexes"])
     }
 
     func testAllSixTablesExistAfterMigration() throws {
@@ -81,31 +81,53 @@ final class MigrationTests: XCTestCase {
         )
     }
 
-    func testStoresHasUniqueIndexOnUserIdName() throws {
+    func testStoresAllowsDuplicateUserIdNamePostV6() throws {
+        // Schema v6 dropped the UNIQUE constraint on (userId, name). Two
+        // rows with the same name must coexist at the schema level so a
+        // tombstoned row doesn't block renaming a live row to the same
+        // name. The repository layer enforces "no two LIVE rows" via an
+        // alive-only collision check on rename / addStore.
         let database = try makeDatabase()
         try database.queue.write { db in
             try db.execute(sql: """
                 INSERT INTO stores (id, name, isArchived, isSeeded, userId, createdAt, updatedAt)
                 VALUES ('a', 'Lidl', 0, 0, 'u1', 0, 0)
                 """)
-            XCTAssertThrowsError(try db.execute(sql: """
+            XCTAssertNoThrow(try db.execute(sql: """
                 INSERT INTO stores (id, name, isArchived, isSeeded, userId, createdAt, updatedAt)
                 VALUES ('b', 'Lidl', 0, 0, 'u1', 0, 0)
                 """))
         }
     }
 
-    func testCategoriesHasUniqueIndexOnUserIdName() throws {
+    func testCategoriesAllowsDuplicateUserIdNamePostV6() throws {
         let database = try makeDatabase()
         try database.queue.write { db in
             try db.execute(sql: """
                 INSERT INTO categories (id, name, isArchived, isSeeded, userId, createdAt, updatedAt)
                 VALUES ('a', 'Produce', 0, 0, 'u1', 0, 0)
                 """)
-            XCTAssertThrowsError(try db.execute(sql: """
+            XCTAssertNoThrow(try db.execute(sql: """
                 INSERT INTO categories (id, name, isArchived, isSeeded, userId, createdAt, updatedAt)
                 VALUES ('b', 'Produce', 0, 0, 'u1', 0, 0)
                 """))
+        }
+    }
+
+    func testV6IndexesAreNonUnique() throws {
+        let database = try makeDatabase()
+        try database.queue.read { db in
+            for (table, expectedIndexName) in [
+                ("categories", "index_categories_userId_name"),
+                ("stores", "index_stores_userId_name"),
+            ] {
+                let rows = try Row.fetchAll(db, sql: "PRAGMA index_list(\(table))")
+                let entry = rows.first { ($0["name"] as String?) == expectedIndexName }
+                XCTAssertNotNil(entry, "Index \(expectedIndexName) must exist on \(table)")
+                let unique: Int? = entry?["unique"]
+                XCTAssertEqual(unique, 0,
+                               "Post-v6 the \(table)(userId, name) index must be non-unique")
+            }
         }
     }
 
