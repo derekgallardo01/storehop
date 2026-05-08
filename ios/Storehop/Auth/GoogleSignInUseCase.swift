@@ -1,7 +1,7 @@
 import Foundation
 import UIKit
-import FirebaseCore
-import GoogleSignIn
+@preconcurrency import FirebaseCore
+@preconcurrency import GoogleSignIn
 
 /// "Continue with Google" flow. Mirrors Android `GoogleSignInUseCase`:
 ///

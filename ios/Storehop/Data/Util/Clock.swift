@@ -10,7 +10,10 @@ struct SystemClock: Clock {
     }
 }
 
+/// Fixed-instant clock for previews and tests. The protocol requires a
+/// method named `nowMs()`, so the stored property uses a different name.
 struct FixedClock: Clock {
-    let nowMs: Int64
-    func nowMs() -> Int64 { nowMs }
+    private let instant: Int64
+    init(nowMs: Int64) { self.instant = nowMs }
+    func nowMs() -> Int64 { instant }
 }

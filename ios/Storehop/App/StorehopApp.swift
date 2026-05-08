@@ -1,5 +1,5 @@
 import SwiftUI
-import FirebaseCore
+@preconcurrency import FirebaseCore
 
 @main
 struct StorehopApp: App {

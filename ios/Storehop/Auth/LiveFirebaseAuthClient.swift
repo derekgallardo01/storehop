@@ -1,5 +1,6 @@
 import Foundation
-import FirebaseAuth
+// See FirebaseImageUploader for the @preconcurrency rationale.
+@preconcurrency import FirebaseAuth
 
 /// Concrete `FirebaseAuthClient` backed by the Firebase iOS SDK.
 ///

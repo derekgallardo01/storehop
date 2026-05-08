@@ -1,4 +1,5 @@
 import Foundation
+import GRDB
 
 /// Helper for the Kotlin Flow `flatMapLatest` pattern: re-subscribe to a
 /// per-uid stream whenever the session uid changes. ViewModels call

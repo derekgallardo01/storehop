@@ -1,6 +1,10 @@
 import Foundation
 import UIKit
-import FirebaseStorage
+// Firebase types aren't formally Sendable yet (Auth/Storage/Firestore are
+// thread-safe in practice — they do their own internal serialization).
+// @preconcurrency suppresses the strict-concurrency warnings until
+// Firebase SDK adopts Swift 6 sendability annotations.
+@preconcurrency import FirebaseStorage
 
 /// Production `ImageUploader` backed by Firebase Storage.
 ///

@@ -1,5 +1,6 @@
 import Foundation
-import FirebaseFirestore
+// See FirebaseImageUploader for the @preconcurrency rationale.
+@preconcurrency import FirebaseFirestore
 
 /// Production `FirestoreClient` backed by the Firebase Firestore iOS SDK.
 ///
