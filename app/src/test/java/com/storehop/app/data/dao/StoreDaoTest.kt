@@ -62,9 +62,13 @@ class StoreDaoTest {
 
     @Test fun `findAnyByName returns tombstones for the resurrect path`() = runTest {
         // The resurrect-on-re-add codepath needs to find a soft-deleted row
-        // with the same name so it can revive it instead of tripping the
-        // unique (userId, name) index. findAnyByName MUST return tombstones
-        // for that to work.
+        // with the same name so it can revive the original row (preserving
+        // its id for sync) instead of inserting a brand-new row with a
+        // different id. findAnyByName MUST return tombstones for that to
+        // work. (Pre-v6 the unique index also enforced this from below by
+        // rejecting duplicate inserts; post-v6 it's purely an application
+        // contract -- duplicates would be silently created if addCategory /
+        // addStore ever skipped the lookup.)
         dao.upsert(store("dead", "Lidl", deletedAt = 99L))
 
         val found = dao.findAnyByName(TEST_USER_ID, "Lidl")

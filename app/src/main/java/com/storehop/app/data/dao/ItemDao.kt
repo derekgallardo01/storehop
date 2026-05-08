@@ -64,6 +64,25 @@ interface ItemDao {
     @Query("SELECT * FROM items WHERE id = :id AND userId = :userId LIMIT 1")
     suspend fun findAnyById(userId: String, id: String): Item?
 
+    /**
+     * Live, case-insensitive name lookup. Used by the CSV import duplicate
+     * guard: if an alive item with the same name already exists, the import
+     * skips that row to preserve the user's existing data per the
+     * "don't erase anything" hard constraint. Items aren't UNIQUE on name
+     * in the schema (you can have a "Milk" from Lidl and another "Milk"
+     * from Mimosa), so this is a soft dedup just for import.
+     */
+    @Query(
+        """
+        SELECT * FROM items
+        WHERE userId = :userId
+          AND name = :name COLLATE NOCASE
+          AND deletedAt IS NULL
+        LIMIT 1
+        """,
+    )
+    suspend fun findByName(userId: String, name: String): Item?
+
     /** Inverse of [softDelete]: clears `deletedAt`, re-flags pendingSync. */
     @Query(
         """

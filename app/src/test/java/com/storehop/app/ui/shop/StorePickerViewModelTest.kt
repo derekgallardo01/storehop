@@ -111,6 +111,18 @@ class StorePickerViewModelTest {
         coVerify(exactly = 1) { storeRepo.rename("id", "Mercadona") }
     }
 
+    @Test fun `renameStore maps IllegalArgumentException to localized duplicate error`() = runTest {
+        coEvery { storeRepo.rename("id", "Aldi") } throws IllegalArgumentException("dup")
+        val vm = newVm()
+        assertThat(vm.renameStore("id", "Aldi")).isEqualTo("ENAME_DUPE")
+    }
+
+    @Test fun `renameStore maps unexpected exceptions to a generic error`() = runTest {
+        coEvery { storeRepo.rename("id", "Aldi") } throws RuntimeException("io")
+        val vm = newVm()
+        assertThat(vm.renameStore("id", "Aldi")).isEqualTo("ECOULDNT_RENAME")
+    }
+
     @Test fun `commitOrder forwards full ordered ids to the repo`() = runTest {
         val vm = newVm()
         vm.commitOrder(listOf("store_aldi", "store_lidl", "store_continente"))

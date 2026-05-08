@@ -1,0 +1,6 @@
+name,category,stores,brand,notes,quantity,isStaple,isPriority
+Bread,Bakery,"Aldi,Lidl",Bimbo,,1 loaf,true,false
+Shredded Mozzarella,Dairy & Eggs,"Aldi,Lidl,Pingo Doce",Lactalis,For pizza,250 g,false,false
+Apples,Produce,Aldi,,Granny Smith,1 kg,true,false
+"Olive oil, extra virgin",Pantry,"Lidl,Pingo Doce",Gallo,Cold-pressed,500 ml,true,false
+Dishwasher tablets,Household & Cleaning,Lidl,Finish,,40 ct,true,false

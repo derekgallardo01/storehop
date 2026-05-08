@@ -68,7 +68,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.storehop.app.R
 import com.storehop.app.data.db.relations.ShoppingRow
-import com.storehop.app.ui.util.SentenceCaps
+import com.storehop.app.ui.util.WordCaps
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -245,7 +245,7 @@ private fun QuickAddBar(onAdd: (String) -> Unit) {
                 placeholder = { Text(stringResource(R.string.quick_add_placeholder)) },
                 singleLine = true,
                 modifier = Modifier.weight(1f),
-                keyboardOptions = SentenceCaps.copy(imeAction = ImeAction.Done),
+                keyboardOptions = WordCaps.copy(imeAction = ImeAction.Done),
                 keyboardActions = KeyboardActions(onDone = { submit() }),
             )
             Spacer(Modifier.width(8.dp))

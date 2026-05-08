@@ -138,6 +138,71 @@ class CategoryRepositoryImplTest {
         assertThat(all.any { it.id == "does_not_exist" }).isFalse()
     }
 
+    @Test fun `rename rejects a duplicate name (case-insensitive) of an alive category with IllegalArgumentException`() {
+        // The unique index on (userId, name) covers tombstones too, so an
+        // unguarded upsert on rename hits SQLiteConstraintException and
+        // surfaces the generic "Could not rename" error. Mike hit this after
+        // importing hundreds of categories from his old app -- v0.5.5 fix.
+        assertThrows(IllegalArgumentException::class.java) {
+            kotlinx.coroutines.runBlocking { repo.rename("cat_produce", "Bakery") }
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            kotlinx.coroutines.runBlocking { repo.rename("cat_produce", "bakery") }
+        }
+        // Sanity: cat_produce keeps its original name.
+        kotlinx.coroutines.runBlocking {
+            assertThat(db.categoryDao().findById("local-only", "cat_produce")!!.name)
+                .isEqualTo("Produce")
+        }
+    }
+
+    @Test fun `rename succeeds when the target name is held only by a tombstoned category`() = runTest {
+        // Tombstone "Bakery" (still in the table as a soft-delete), then
+        // rename Produce -> Bakery. Pre-v6 the UNIQUE index counted
+        // tombstones and this rename failed with SQLiteConstraintException.
+        // Post-v6 the index is non-unique, application-layer collision check
+        // is alive-only, so the rename succeeds and the tombstoned Bakery
+        // stays tombstoned (still hidden from observeAll). This is the bug
+        // Mike hit on v0.5.4 -- can't rename "Pet" -> "Pets" because a
+        // deleted "Pets" remnant was in the way.
+        repo.softDelete("cat_bakery")
+        repo.rename("cat_produce", "Bakery")
+
+        val produce = db.categoryDao().findById("local-only", "cat_produce")!!
+        assertThat(produce.name).isEqualTo("Bakery")
+        assertThat(produce.deletedAt).isNull()
+        // The tombstoned Bakery row is still present (and still tombstoned)
+        // -- we didn't touch it. observeAll(includeArchived=false) excludes
+        // tombstones, so the user sees only one alive "Bakery" (the renamed
+        // Produce). There are now two rows in the table with name="Bakery"
+        // (one alive, one tombstoned) -- legal post-v6.
+        val baked = db.categoryDao().findAnyById("local-only", "cat_bakery")!!
+        assertThat(baked.deletedAt).isNotNull()
+        val visible = repo.observeAll(includeArchived = false).first()
+            .filter { it.name.equals("Bakery", ignoreCase = true) }
+        assertThat(visible).hasSize(1)
+        assertThat(visible.single().id).isEqualTo("cat_produce")
+    }
+
+    @Test fun `rename allows a case-only change of the row's own name`() = runTest {
+        // "Produce" -> "produce" is the same row keeping its id; the unique
+        // index doesn't reject because we're upserting the same primary key.
+        // The collision lookup finds the same row, so the same-id check
+        // permits the rename through.
+        repo.rename("cat_produce", "produce")
+        assertThat(db.categoryDao().findById("local-only", "cat_produce")!!.name)
+            .isEqualTo("produce")
+    }
+
+    @Test fun `rename rejects an empty or whitespace-only name`() {
+        assertThrows(IllegalArgumentException::class.java) {
+            kotlinx.coroutines.runBlocking { repo.rename("cat_produce", "") }
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            kotlinx.coroutines.runBlocking { repo.rename("cat_produce", "   ") }
+        }
+    }
+
     @Test fun `rename is a no-op for a category owned by a different user`() = runTest {
         val otherRepo = CategoryRepositoryImpl(
             db = db, dao = db.categoryDao(), itemDao = db.itemDao(),

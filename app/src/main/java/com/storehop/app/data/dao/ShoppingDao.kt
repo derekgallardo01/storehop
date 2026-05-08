@@ -27,6 +27,19 @@ interface ShoppingDao {
      *    it on the next visit -- a new ViewModel anchors a fresh window and
      *    previously purchased non-staples fall outside it.
      *
+     * TODO(0.6): isStaple does not auto-renew at session boundaries. The OR
+     * clause keeps the row visible across sessions, but `isx.isNeeded` stays
+     * at 0 from the prior trip's check-off, so the row appears as "purchased"
+     * (checkbox on, optionally struck) instead of "needed again." Worse,
+     * `observeStorePickerItems` (the badge query) lacks the staple OR-clause
+     * entirely, so the Lidl badge shows "Nothing needed" while the per-store
+     * list still has the staple row. Verified end-to-end on emulator
+     * 2026-05-08. Planned fix for v0.6: a `renewStaplesForNewSession(uid,
+     * sessionStartMs)` DAO method that flips `isNeeded=1` on every xref where
+     * the linked item is a staple AND `lastPurchasedAt < sessionStartMs`,
+     * called once per process start from `ShoppingSessionTracker`. Don't
+     * surprise-fix in unrelated work — see memory project_isstaple_session_renewal.md.
+     *
      * Sort order: needed rows first (in this store's aisle order), then
      * purchased rows at the bottom. Items in categories with no
      * `StoreCategoryOrder` for this store fall to the bottom of their
