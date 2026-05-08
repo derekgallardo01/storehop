@@ -32,7 +32,11 @@ on:
 
 jobs:
   build-and-test:
-    runs-on: macos-14
+    # macos-15 ships Xcode 16+, which is required because xcodegen emits
+    # project format 77 (a "future format" rejected by Xcode 15.4 on
+    # macos-14). Pinning to macos-15 also matches the project's iOS 17+
+    # deployment target, which Xcode 16 fully supports.
+    runs-on: macos-15
     timeout-minutes: 30
     defaults:
       run:
@@ -65,7 +69,7 @@ jobs:
           xcodebuild build \
             -project Storehop.xcodeproj \
             -scheme Storehop \
-            -destination 'platform=iOS Simulator,name=iPhone 15,OS=latest' \
+            -destination 'platform=iOS Simulator,name=iPhone 16,OS=latest' \
             CODE_SIGNING_ALLOWED=NO \
             -resultBundlePath build/build.xcresult
 
@@ -74,7 +78,7 @@ jobs:
           xcodebuild test \
             -project Storehop.xcodeproj \
             -scheme Storehop \
-            -destination 'platform=iOS Simulator,name=iPhone 15,OS=latest' \
+            -destination 'platform=iOS Simulator,name=iPhone 16,OS=latest' \
             -resultBundlePath build/test.xcresult \
             -only-testing:StorehopTests \
             CODE_SIGNING_ALLOWED=NO
