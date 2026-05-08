@@ -13,12 +13,15 @@ specific household) is added or renamed by the user.
 
 ## Status
 
-v0.3.4. Shipping to Google Play Internal testing. Feature-complete for
-single-user v1: anonymous-first onboarding, optional Google Sign-In with
-cloud sync (Firestore + Storage), Shop and Items tabs, item photos,
-share-list-as-text, theme + language picker, drag-reorder stores. See
-[`docs/play-store-submission.md`](docs/play-store-submission.md) for the
-Play Console listing answers and
+v0.5.5. Shipping to Google Play Closed testing. Feature-complete for
+single-user v1: anonymous-first onboarding with optional Google
+Sign-In, two-way Firestore + Storage cloud sync (push and pull), Shop
+and Items tabs with item photos, share-list-as-text, theme + language
+picker, drag-reorder stores, per-store aisle ordering, cross-store
+check-off cascade, Manage Categories, and CSV import / export of items
+and categories. See
+[`docs/play-store-submission.md`](docs/play-store-submission.md) for
+the Play Console listing answers and
 [`docs/privacy-policy.md`](docs/privacy-policy.md) for the privacy
 policy hosted at the Play listing's required URL.
 
@@ -28,7 +31,7 @@ policy hosted at the Play listing's required URL.
 - Single-activity Compose Navigation; Hilt for DI
 - Room 2.6 (KSP) for local persistence; sync-ready schema
 - Firebase: Authentication (anonymous + Google via Credential Manager),
-  Firestore push sync, Storage for item photos
+  Firestore push + pull sync, Storage for item photos
 - Coil for image loading; DataStore Preferences for theme + locale state
 - Min SDK 26, target and compile SDK 35
 - Gradle 9.5, Android Gradle Plugin 8.10
@@ -101,9 +104,40 @@ pack remains stable across devices and across reseeds.
 
 ## Roadmap
 
-- v0.1  Data layer schema and theme foundation; placeholder MainActivity.
-- v0.2  Shop, Items, Add/Edit, item photos, share-list-as-text.
-- v0.3  Anonymous-first auth, Google Sign-In, Firestore + Storage sync,
-        per-store need state, drag-reorder stores, settings (theme +
-        language), undo + haptics, Play Store submission.
-- v0.4+ Pull-side sync, purchase history view, sign-out / wipe flow.
+- v0.1   Data layer schema and theme foundation; placeholder
+         MainActivity.
+- v0.2   Shop, Items, Add/Edit, item photos, share-list-as-text.
+- v0.3   Anonymous-first auth, Google Sign-In, Firestore + Storage
+         push sync, per-store need state, drag-reorder stores, settings
+         (theme + language), undo + haptics, Play Store submission.
+- v0.4.0 Pull-side Firestore sync (cold-launch rehydrate before push
+         jobs run) and a Settings cloud-sync banner with Retry action.
+- v0.5.0 Manage Categories screen (add / rename / soft-delete / undo)
+         from the Items overflow menu, and per-store Edit Aisles
+         drag-reorder for category order in Shop-at-Store. Settings →
+         bottom-nav routing fix so Items / Shop tabs land deterministically.
+- v0.5.1 Cross-store check-off cascade with full Undo (one shopping
+         trip clears the item from every tagged store); first-letter
+         auto-cap on item / brand / store / category name fields;
+         custom user-added categories appear in a store's Edit Aisles
+         as soon as they're tagged.
+- v0.5.2 CSV import / export of items and categories from Settings →
+         Data, with a non-destructive import (duplicates skipped) and a
+         snackbar + Undo. Words-level Title Case auto-cap on name
+         fields. "Discard changes? / Keep editing" confirmation on the
+         item-edit back arrow.
+- v0.5.3 Categories-import snackbar correctly counts skipped duplicates
+         (was always reporting "Skipped 0 duplicates" even when the
+         skip itself was working).
+- v0.5.4 Settings → Data: the four import / export buttons stack
+         vertically at full card width instead of squeezing into a 2x2
+         grid with mismatched button heights.
+- v0.5.5 Renaming a category or store no longer fails when a long-
+         deleted row is still holding the target name. Schema v6 drops
+         the UNIQUE(userId, name) index that was counting tombstones,
+         with an alive-collision-only guard at the application layer
+         and a clear inline error on the rename dialog when the
+         collision is with an existing row.
+- v0.6+  Polish follow-ups (e.g. tightening the in-session staple
+         flag's renewal behavior) and a v2 home-screen widget that
+         actually does something useful.
