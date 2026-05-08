@@ -251,38 +251,37 @@ private fun DataCard(
     }
 
     SettingsCard(title = stringResource(R.string.settings_data_section_title)) {
-        Column {
+        // Stacked full-width buttons: longer labels ("Export categories" /
+        // "Import categories") wrap to two lines when squeezed into a 50%-
+        // width 2x2 grid, leaving the buttons visibly mismatched. One column
+        // keeps every action on a single line at the same width and height.
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(
                 text = stringResource(R.string.settings_data_section_subtitle),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            Spacer(Modifier.height(12.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedButton(
-                    onClick = { exportItems.launch("storehop-items.csv") },
-                    enabled = !busy,
-                    modifier = Modifier.weight(1f),
-                ) { Text(stringResource(R.string.action_export_items)) }
-                OutlinedButton(
-                    onClick = { exportCategories.launch("storehop-categories.csv") },
-                    enabled = !busy,
-                    modifier = Modifier.weight(1f),
-                ) { Text(stringResource(R.string.action_export_categories)) }
-            }
-            Spacer(Modifier.height(8.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedButton(
-                    onClick = { importItems.launch(arrayOf("text/*", "application/octet-stream")) },
-                    enabled = !busy,
-                    modifier = Modifier.weight(1f),
-                ) { Text(stringResource(R.string.action_import_items)) }
-                OutlinedButton(
-                    onClick = { importCategories.launch(arrayOf("text/*", "application/octet-stream")) },
-                    enabled = !busy,
-                    modifier = Modifier.weight(1f),
-                ) { Text(stringResource(R.string.action_import_categories)) }
-            }
+            Spacer(Modifier.height(4.dp))
+            OutlinedButton(
+                onClick = { exportItems.launch("storehop-items.csv") },
+                enabled = !busy,
+                modifier = Modifier.fillMaxWidth(),
+            ) { Text(stringResource(R.string.action_export_items)) }
+            OutlinedButton(
+                onClick = { exportCategories.launch("storehop-categories.csv") },
+                enabled = !busy,
+                modifier = Modifier.fillMaxWidth(),
+            ) { Text(stringResource(R.string.action_export_categories)) }
+            OutlinedButton(
+                onClick = { importItems.launch(arrayOf("text/*", "application/octet-stream")) },
+                enabled = !busy,
+                modifier = Modifier.fillMaxWidth(),
+            ) { Text(stringResource(R.string.action_import_items)) }
+            OutlinedButton(
+                onClick = { importCategories.launch(arrayOf("text/*", "application/octet-stream")) },
+                enabled = !busy,
+                modifier = Modifier.fillMaxWidth(),
+            ) { Text(stringResource(R.string.action_import_categories)) }
         }
     }
 }

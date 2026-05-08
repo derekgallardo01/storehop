@@ -7,6 +7,17 @@ project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 For the high-level roadmap and earlier-than-0.5.0 history, see the
 "Roadmap" section in the [README](README.md).
 
+## [0.5.4] - 2026-05-08
+
+### Fixed
+
+- Settings → Data: the four import / export buttons now stack
+  vertically at full card width instead of squeezing into a 2x2 grid.
+  Mike-reported: "Export categories" and "Import categories" wrapped
+  to two lines while "Export items" / "Import items" stayed on one,
+  leaving the buttons visibly mismatched. Stacking gives every action
+  a single line at the same width and height.
+
 ## [0.5.3] - 2026-05-08
 
 ### Fixed
