@@ -84,6 +84,10 @@
     <string name="form_error_name_required">Name is required</string>
     <string name="delete_item_title">Delete item?</string>
     <string name="delete_item_message">This removes \"%1$s\" from every store\'s list.</string>
+    <string name="discard_changes_title">Discard changes?</string>
+    <string name="discard_changes_message">Your edits to this item will be lost.</string>
+    <string name="action_discard">Discard</string>
+    <string name="action_keep_editing">Keep editing</string>
     <string name="badge_always_on_list">Always on the list</string>
     <string name="badge_critical">Critical</string>
 
@@ -179,4 +183,14 @@
     <string name="action_edit_aisles">Edit aisles</string>
     <string name="aisle_order_empty_state">No aisles to reorder yet. Add an item to this store to set its aisle order.</string>
     <string name="aisle_order_helper">Long-press the drag handle to reorder. Released when you let go.</string>
+
+    <!-- v0.5.2 Settings → Data section: CSV import / export. -->
+    <string name="settings_data_section_title">Data</string>
+    <string name="settings_data_section_subtitle">Move your items and categories between devices or apps.</string>
+    <string name="action_export_items">Export items</string>
+    <string name="action_export_categories">Export categories</string>
+    <string name="action_import_items">Import items</string>
+    <string name="action_import_categories">Import categories</string>
+    <string name="import_result_summary">Imported %1$d items, %2$d categories, %3$d stores. Skipped %4$d duplicates.</string>
+    <string name="import_undo_label">Undo</string>
 </resources>

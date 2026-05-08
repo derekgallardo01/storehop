@@ -141,11 +141,16 @@ class StoreRepositoryImplTest {
     }
 
     @Test fun `concurrent addStore with the same name only succeeds once`() = runTest {
-        // Without withTransaction wrapping addStore, two coroutines could both pass
-        // findByName == null and then upsert, with the second silently no-opping
-        // (Room @Upsert IGNOREs the unique-index conflict). Wrapping in
-        // withTransaction serializes the read+write so the second call sees the
-        // first's row and the require() check throws. Stress this:
+        // Schema v6 dropped the DB-level UNIQUE constraint on (userId, name)
+        // (see Migrations.kt's MIGRATION_5_6 rationale). That puts the full
+        // burden of single-name uniqueness on the application layer, which
+        // means addStore's findAnyByName + upsert pair MUST execute inside a
+        // single serialized transaction. Without the withTransaction wrap,
+        // two coroutines could both pass findAnyByName == null and then both
+        // insert, leaving two alive rows with the same name (pre-v6 the
+        // second insert at least silently no-opped via Room's @Upsert
+        // ignore-on-conflict; post-v6 there's no DB safety net). Stress
+        // the serialization here:
         val results: List<Result<String>> = coroutineScope {
             val deferreds: List<Deferred<Result<String>>> = (0 until 100).map {
                 async(Dispatchers.Default) {
@@ -229,6 +234,53 @@ class StoreRepositoryImplTest {
         db.storeDao().markPushed("local-only", newId)
         repo.setArchived(newId, archived = true)
         assertThat(pendingSyncOf(newId)).isEqualTo(1)
+    }
+
+    @Test fun `rename rejects a duplicate name (case-insensitive) of an alive store with IllegalArgumentException`() {
+        // Mirror of CategoryRepositoryImplTest's rename-duplicate test. The
+        // unique index on (userId, name) covers tombstones too -- the repo
+        // guard surfaces a clear error before the upsert hits a constraint.
+        assertThrows(IllegalArgumentException::class.java) {
+            kotlinx.coroutines.runBlocking { repo.rename("store_lidl", "Aldi") }
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            kotlinx.coroutines.runBlocking { repo.rename("store_lidl", "aldi") }
+        }
+        kotlinx.coroutines.runBlocking {
+            assertThat(db.storeDao().findById("local-only", "store_lidl")!!.name)
+                .isEqualTo("Lidl")
+        }
+    }
+
+    @Test fun `rename succeeds when the target name is held only by a tombstoned store`() = runTest {
+        // Mirror of the categories tombstone-reuse test. Schema v6 dropped
+        // the UNIQUE index, so a tombstoned "Aldi" doesn't block renaming
+        // Lidl -> Aldi. The deleted Aldi row stays tombstoned and the user
+        // sees only one alive "Aldi" (the renamed Lidl).
+        repo.softDelete("store_aldi")
+        repo.rename("store_lidl", "Aldi")
+
+        val lidl = db.storeDao().findById("local-only", "store_lidl")!!
+        assertThat(lidl.name).isEqualTo("Aldi")
+        val visible = repo.observeAll(includeArchived = false).first()
+            .filter { it.name.equals("Aldi", ignoreCase = true) }
+        assertThat(visible).hasSize(1)
+        assertThat(visible.single().id).isEqualTo("store_lidl")
+    }
+
+    @Test fun `rename allows a case-only change of the row's own name`() = runTest {
+        repo.rename("store_lidl", "lidl")
+        assertThat(db.storeDao().findById("local-only", "store_lidl")!!.name)
+            .isEqualTo("lidl")
+    }
+
+    @Test fun `rename rejects an empty or whitespace-only name`() {
+        assertThrows(IllegalArgumentException::class.java) {
+            kotlinx.coroutines.runBlocking { repo.rename("store_lidl", "") }
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            kotlinx.coroutines.runBlocking { repo.rename("store_lidl", "   ") }
+        }
     }
 
     @Test fun `addStore resurrection path re-flags pendingSync=1 on the resurrected row`() = runTest {

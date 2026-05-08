@@ -93,10 +93,21 @@ class StoreRepositoryImpl @Inject constructor(
         }
     }
 
-    override suspend fun rename(id: String, name: String) {
+    override suspend fun rename(id: String, name: String) = db.withTransaction {
+        val trimmed = name.trim()
+        require(trimmed.isNotEmpty()) { "Store name cannot be empty" }
         val userId = requireSignedIn()
-        val current = dao.findById(userId, id) ?: return
-        dao.upsert(current.copy(name = name.trim(), updatedAt = clock.millis(), pendingSync = true))
+        val current = dao.findById(userId, id) ?: return@withTransaction
+        // Alive-only collision check. Schema v6 dropped the UNIQUE constraint
+        // on (userId, name) so tombstoned rows don't block name reuse.
+        // Same-id case changes ("Aldi" -> "ALDI") are allowed because the
+        // findByName lookup returns the same row. Mirrors
+        // CategoryRepositoryImpl.rename.
+        val collision = dao.findByName(userId, trimmed)
+        if (collision != null && collision.id != current.id) {
+            throw IllegalArgumentException("A store named \"$trimmed\" already exists")
+        }
+        dao.upsert(current.copy(name = trimmed, updatedAt = clock.millis(), pendingSync = true))
     }
 
     override suspend fun setColor(id: String, colorArgb: Int?) {

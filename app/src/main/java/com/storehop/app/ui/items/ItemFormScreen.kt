@@ -1,5 +1,6 @@
 package com.storehop.app.ui.items
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -48,7 +49,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.storehop.app.R
-import com.storehop.app.ui.util.SentenceCaps
+import com.storehop.app.ui.util.WordCaps
 import com.storehop.app.ui.util.localizedLabel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -60,9 +61,21 @@ fun ItemFormScreen(
     val state by viewModel.state.collectAsState()
     val categories by viewModel.categories.collectAsState()
     val stores by viewModel.stores.collectAsState()
+    val isDirty by viewModel.isDirty.collectAsState()
     val isEdit = viewModel.isEdit
     var showDeleteConfirm by remember { mutableStateOf(false) }
+    var showDiscardConfirm by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
+
+    // Routed through both the AppBar nav arrow and the system back gesture
+    // (via BackHandler below). When the form has unsaved edits, intercepts
+    // and shows a confirmation; otherwise just pops.
+    val attemptBack = { if (isDirty) showDiscardConfirm = true else onBack() }
+
+    // BackHandler is enabled only when the user has unsaved edits — a clean
+    // form lets the system default consume the back press without our
+    // composable getting in the way.
+    BackHandler(enabled = isDirty) { attemptBack() }
 
     LaunchedEffect(state.saved, state.deleted) {
         if (state.saved || state.deleted) onBack()
@@ -81,7 +94,7 @@ fun ItemFormScreen(
                     Text(stringResource(if (isEdit) R.string.title_edit_item else R.string.title_add_item))
                 },
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
+                    IconButton(onClick = attemptBack) {
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = stringResource(R.string.action_back),
@@ -145,7 +158,7 @@ fun ItemFormScreen(
                     { Text(stringResource(R.string.form_error_name_required)) }
                 } else null,
                 singleLine = true,
-                keyboardOptions = SentenceCaps,
+                keyboardOptions = WordCaps,
                 modifier = Modifier.fillMaxWidth(),
             )
 
@@ -154,7 +167,7 @@ fun ItemFormScreen(
                 onValueChange = viewModel::setBrand,
                 label = { Text(stringResource(R.string.form_field_brand_optional)) },
                 singleLine = true,
-                keyboardOptions = SentenceCaps,
+                keyboardOptions = WordCaps,
                 modifier = Modifier.fillMaxWidth(),
             )
 
@@ -228,6 +241,25 @@ fun ItemFormScreen(
             dismissButton = {
                 TextButton(onClick = { showDeleteConfirm = false }) {
                     Text(stringResource(R.string.action_cancel))
+                }
+            },
+        )
+    }
+
+    if (showDiscardConfirm) {
+        AlertDialog(
+            onDismissRequest = { showDiscardConfirm = false },
+            title = { Text(stringResource(R.string.discard_changes_title)) },
+            text = { Text(stringResource(R.string.discard_changes_message)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    showDiscardConfirm = false
+                    onBack()
+                }) { Text(stringResource(R.string.action_discard)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDiscardConfirm = false }) {
+                    Text(stringResource(R.string.action_keep_editing))
                 }
             },
         )

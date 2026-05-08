@@ -59,6 +59,8 @@ class ManageCategoriesViewModel @Inject constructor(
         return try {
             categoryRepository.rename(id, trimmed)
             null
+        } catch (e: IllegalArgumentException) {
+            appContext.getString(R.string.error_category_name_duplicate, trimmed)
         } catch (e: Exception) {
             appContext.getString(R.string.error_could_not_rename_category)
         }

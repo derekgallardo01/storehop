@@ -17,6 +17,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -70,6 +71,29 @@ class ItemFormViewModel @Inject constructor(
     private val _state = MutableStateFlow(ItemFormState(isLoading = isEdit))
     val state: StateFlow<ItemFormState> = _state.asStateFlow()
 
+    /**
+     * Snapshot of the user-input fields at "no edits since last save" — used to
+     * derive [isDirty] for the discard-changes prompt on back. Null while an
+     * Edit-mode load is still in flight; once set, any divergence between the
+     * current state and this snapshot means the user has unsaved changes.
+     *
+     * Reset to the current state after a successful save so the user can keep
+     * editing without immediately re-prompting.
+     */
+    private val _initialFormData = MutableStateFlow<ItemFormState?>(
+        if (isEdit) null else ItemFormState().userFields(),
+    )
+
+    /**
+     * True when the user has changed something since opening the form (Add)
+     * or since the last save (Edit). Drives the back-arrow confirmation in
+     * [com.storehop.app.ui.items.ItemFormScreen].
+     */
+    val isDirty: StateFlow<Boolean> =
+        combine(_state, _initialFormData) { current, initial ->
+            initial != null && current.userFields() != initial
+        }.stateIn(viewModelScope, SharingStarted.Eagerly, false)
+
     val categories: StateFlow<List<Category>> = categoryRepository
         .observeAll(includeArchived = false)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000L), emptyList())
@@ -93,6 +117,9 @@ class ItemFormViewModel @Inject constructor(
                         imageUrl = row.item.imageUrl,
                         isLoading = false,
                     )
+                    // Capture the just-loaded form as the "no edits yet"
+                    // baseline; isDirty stays false until the user types.
+                    _initialFormData.value = _state.value.userFields()
                 } else {
                     _state.value = _state.value.copy(isLoading = false, saveError = "Item not found")
                 }
@@ -185,6 +212,9 @@ class ItemFormViewModel @Inject constructor(
                     isUploadingImage = false,
                     saved = true,
                 )
+                // Reset the dirty baseline so the user can keep editing
+                // post-save without an immediate "discard?" prompt.
+                _initialFormData.value = _state.value.userFields()
             } catch (e: IllegalArgumentException) {
                 _state.value = _state.value.copy(
                     isSubmitting = false,
@@ -202,6 +232,22 @@ class ItemFormViewModel @Inject constructor(
             }
         }
     }
+
+    /**
+     * Strip transient UI flags (loading / submitting / errors / saved /
+     * deleted) so the dirty-state comparison is over actual user input only.
+     * Without this, every flick of `isSubmitting` or every `nameError` clear
+     * would register as "dirty."
+     */
+    private fun ItemFormState.userFields(): ItemFormState = copy(
+        isLoading = false,
+        isSubmitting = false,
+        isUploadingImage = false,
+        nameError = false,
+        saveError = null,
+        saved = false,
+        deleted = false,
+    )
 
     fun delete() {
         val id = itemId ?: return

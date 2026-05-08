@@ -74,10 +74,23 @@ class CategoryRepositoryImpl @Inject constructor(
         }
     }
 
-    override suspend fun rename(id: String, name: String) {
+    override suspend fun rename(id: String, name: String) = db.withTransaction {
+        val trimmed = name.trim()
+        require(trimmed.isNotEmpty()) { "Category name cannot be empty" }
         val userId = requireSignedIn()
-        val current = dao.findById(userId, id) ?: return
-        dao.upsert(current.copy(name = name.trim(), updatedAt = clock.millis(), pendingSync = true))
+        val current = dao.findById(userId, id) ?: return@withTransaction
+        // Alive-only collision check. Schema v6 dropped the UNIQUE constraint
+        // on (userId, name) precisely so deleted rows don't block name reuse:
+        // pre-v6 the unique index counted tombstones, and Mike couldn't
+        // rename "Pet" -> "Pets" because a previously deleted "Pets" still
+        // owned the name. We now reject only when an alive row holds the
+        // target. Same-id case changes ("Pets" -> "pets" of the row's own
+        // name) pass through because findByName returns the same row.
+        val collision = dao.findByName(userId, trimmed)
+        if (collision != null && collision.id != current.id) {
+            throw IllegalArgumentException("A category named \"$trimmed\" already exists")
+        }
+        dao.upsert(current.copy(name = trimmed, updatedAt = clock.millis(), pendingSync = true))
     }
 
     override suspend fun setArchived(id: String, archived: Boolean) {

@@ -70,7 +70,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.storehop.app.R
 import com.storehop.app.data.repository.StorePickerRow
-import com.storehop.app.ui.util.SentenceCaps
+import com.storehop.app.ui.util.WordCaps
 import kotlinx.coroutines.launch
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
@@ -267,7 +267,7 @@ private fun AddStoreDialog(
                 label = { Text(stringResource(R.string.add_store_field_label)) },
                 placeholder = { Text(stringResource(R.string.add_store_field_placeholder)) },
                 singleLine = true,
-                keyboardOptions = SentenceCaps,
+                keyboardOptions = WordCaps,
                 isError = error != null,
                 supportingText = error?.let { { Text(it) } },
                 modifier = Modifier.focusRequester(focusRequester),
@@ -520,7 +520,7 @@ private fun RenameStoreDialog(
                 },
                 label = { Text(stringResource(R.string.add_store_field_label)) },
                 singleLine = true,
-                keyboardOptions = SentenceCaps,
+                keyboardOptions = WordCaps,
                 isError = error != null,
                 supportingText = error?.let { { Text(it) } },
                 modifier = Modifier.focusRequester(focusRequester),
