@@ -66,8 +66,16 @@ class AppUpdateController(
      *  3. UPDATE_AVAILABLE and no install activity yet — launch the flow.
      */
     fun checkForUpdate(launcher: ActivityResultLauncher<IntentSenderRequest>) {
+        Log.i(TAG, "checkForUpdate(): probing Play")
         appUpdateManager.appUpdateInfo
             .addOnSuccessListener { info ->
+                Log.i(
+                    TAG,
+                    "appUpdateInfo: installStatus=${info.installStatus()} " +
+                        "updateAvailability=${info.updateAvailability()} " +
+                        "availableVersionCode=${info.availableVersionCode()} " +
+                        "flexibleAllowed=${info.isUpdateTypeAllowed(AppUpdateType.FLEXIBLE)}",
+                )
                 when (info.installStatus()) {
                     InstallStatus.DOWNLOADED -> {
                         _isUpdateReadyToInstall.value = true
@@ -83,17 +91,21 @@ class AppUpdateController(
                 if (info.updateAvailability() == UpdateAvailability.UPDATE_AVAILABLE &&
                     info.isUpdateTypeAllowed(AppUpdateType.FLEXIBLE)
                 ) {
+                    Log.i(TAG, "Launching FLEXIBLE update flow for vc=${info.availableVersionCode()}")
                     appUpdateManager.startUpdateFlowForResult(
                         info,
                         launcher,
                         AppUpdateOptions.newBuilder(AppUpdateType.FLEXIBLE).build(),
                     )
+                } else {
+                    Log.i(TAG, "No update prompt: availability says no update, or flexible not allowed.")
                 }
             }
             .addOnFailureListener { e ->
                 // Sideloaded / debug builds throw RuntimeException("App is not
-                // owned by any user on this device"); just shrug.
-                Log.d(TAG, "appUpdateInfo failed (expected on non-Play builds)", e)
+                // owned by any user on this device"). Logged at WARN now so
+                // it's visible without a debug-level filter.
+                Log.w(TAG, "appUpdateInfo failed (typical on sideloaded / non-Play installs): ${e.message}")
             }
     }
 

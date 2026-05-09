@@ -13,7 +13,7 @@ specific household) is added or renamed by the user.
 
 ## Status
 
-v0.5.13. Shipping to Google Play Closed testing. Feature-complete for
+v0.5.14. Shipping to Google Play Closed testing. Feature-complete for
 single-user v1: anonymous-first onboarding with optional Google
 Sign-In, two-way Firestore + Storage cloud sync (push and pull), Shop
 and Items tabs with item photos, share-list-as-text, theme + language
@@ -187,6 +187,10 @@ pack remains stable across devices and across reseeds.
          duration issue we already fixed on the Shop screens.
 - v0.5.13 Same `UndoBar` migration on Manage Categories'
          deleted-category undo prompt.
+- v0.5.14 Edit-aisles screen drag UX: removed the drag-handle icon;
+         long-press anywhere on a category tile starts the drag.
+         Plus AppUpdateController logs at INFO/WARN now so the
+         in-app-update flow's state is visible in Logcat.
 - v0.6+  Polish follow-ups (e.g. tightening the in-session staple
          flag's renewal behavior) and a v2 home-screen widget that
          actually does something useful.

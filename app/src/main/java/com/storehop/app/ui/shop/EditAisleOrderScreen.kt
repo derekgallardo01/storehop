@@ -15,7 +15,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.DragIndicator
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -156,7 +155,12 @@ private fun CategoryAisleCard(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 4.dp),
+            .padding(horizontal = 16.dp, vertical = 4.dp)
+            // Long-press anywhere on the tile starts a drag. Same beta
+            // feedback as the Store picker (v0.5.7): the small drag-handle
+            // icon wasn't discoverable, so the whole card is the gesture
+            // surface now and the icon is gone.
+            .then(dragHandleModifier),
         elevation = CardDefaults.cardElevation(
             defaultElevation = if (isDragging) 8.dp else 1.dp,
         ),
@@ -170,12 +174,6 @@ private fun CategoryAisleCard(
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Medium,
                 modifier = Modifier.weight(1f),
-            )
-            Icon(
-                Icons.Filled.DragIndicator,
-                contentDescription = stringResource(R.string.action_drag_to_reorder),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = dragHandleModifier.size(24.dp),
             )
         }
     }

@@ -7,6 +7,30 @@ project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 For the high-level roadmap and earlier-than-0.5.0 history, see the
 "Roadmap" section in the [README](README.md).
 
+## [0.5.14] - 2026-05-09
+
+### Changed
+
+- **Edit aisles screen: long-press anywhere on a category tile to
+  drag-reorder.** Same migration the Store-picker tiles got in
+  v0.5.7: the small drag-handle icon is gone (beta feedback that it
+  wasn't discoverable), and the whole tile is the gesture surface
+  now. Long-press to start dragging; release to drop.
+
+### Fixed
+
+- **In-app update controller now logs visibly when Play Core
+  reports an update state.** v0.5.7's controller logged at DEBUG
+  on success/failure — invisible without a debug-level Logcat
+  filter. Bumped to INFO for the normal path and WARN for the
+  sideload-failure path so you can confirm in `adb logcat -s
+  AppUpdateController` whether Play returned UPDATE_AVAILABLE,
+  UPDATE_NOT_AVAILABLE, or threw "App is not owned by any user on
+  this device" (the sideload signature). No behavior change — the
+  prompt only fires when Play has a newer-than-installed version
+  available, and only for Play-installed builds (not sideloaded
+  APKs).
+
 ## [0.5.13] - 2026-05-09
 
 ### Changed
