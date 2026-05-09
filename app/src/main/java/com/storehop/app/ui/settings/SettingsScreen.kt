@@ -192,6 +192,18 @@ private fun LanguageCard(
                 selected = selectedTag.equals("pt-PT", ignoreCase = true),
                 onClick = { onSelect("pt-PT") },
             )
+            RadioRow(
+                label = stringResource(R.string.settings_language_es),
+                selected = selectedTag.equals("es", ignoreCase = true) ||
+                    selectedTag.startsWith("es-", ignoreCase = true),
+                onClick = { onSelect("es") },
+            )
+            RadioRow(
+                label = stringResource(R.string.settings_language_it),
+                selected = selectedTag.equals("it", ignoreCase = true) ||
+                    selectedTag.startsWith("it-", ignoreCase = true),
+                onClick = { onSelect("it") },
+            )
         }
     }
 }

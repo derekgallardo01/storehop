@@ -79,6 +79,8 @@ struct SettingsView: View {
                     Text(String(localized: "settings_language_system")).tag("")
                     Text(String(localized: "settings_language_english")).tag("en")
                     Text(String(localized: "settings_language_pt_pt")).tag("pt-PT")
+                    Text(String(localized: "settings_language_es")).tag("es")
+                    Text(String(localized: "settings_language_it")).tag("it")
                 }
                 .pickerStyle(.inline)
                 .labelsHidden()

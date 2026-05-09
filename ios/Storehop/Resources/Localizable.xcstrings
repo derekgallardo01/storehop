@@ -15,6 +15,18 @@
             "state": "translated",
             "value": "Local-only on this device. Sign in to back up + sync your list across devices."
           }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Solo en este dispositivo. Inicia sesión para hacer copia de seguridad y sincronizar tu lista entre dispositivos."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Solo su questo dispositivo. Accedi per fare il backup e sincronizzare la tua lista tra dispositivi."
+          }
         }
       }
     },
@@ -31,6 +43,18 @@
           "stringUnit": {
             "state": "translated",
             "value": "Anonymous account"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cuenta anónima"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Account anonimo"
           }
         }
       }
@@ -49,6 +73,18 @@
             "state": "translated",
             "value": "Your existing items, stores, and photos transfer to your Google account when you sign in — no data loss."
           }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tus artículos, tiendas y fotos existentes se transfieren a tu cuenta de Google al iniciar sesión, sin pérdida de datos."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "I tuoi articoli, negozi e foto esistenti vengono trasferiti al tuo account Google quando accedi, senza perdere dati."
+          }
         }
       }
     },
@@ -65,6 +101,18 @@
           "stringUnit": {
             "state": "translated",
             "value": "Signing out clears the cloud-synced view on this device. Your cloud data stays safe under your Google account and reappears when you sign in again."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cerrar sesión elimina la vista sincronizada con la nube de este dispositivo. Tus datos en la nube permanecen seguros en tu cuenta de Google y reaparecen al iniciar sesión de nuevo."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Uscire rimuove la vista sincronizzata con il cloud da questo dispositivo. I tuoi dati nel cloud restano al sicuro nel tuo account Google e ricompaiono al successivo accesso."
           }
         }
       }
@@ -83,6 +131,18 @@
             "state": "translated",
             "value": "Signed in"
           }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sesión iniciada"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Accesso effettuato"
+          }
         }
       }
     },
@@ -96,6 +156,18 @@
           }
         },
         "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Account"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cuenta"
+          }
+        },
+        "it": {
           "stringUnit": {
             "state": "translated",
             "value": "Account"
@@ -117,6 +189,18 @@
             "state": "translated",
             "value": "Add"
           }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Añadir"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aggiungi"
+          }
         }
       }
     },
@@ -133,6 +217,18 @@
           "stringUnit": {
             "state": "translated",
             "value": "New category"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nueva categoría"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nuova categoria"
           }
         }
       }
@@ -151,6 +247,18 @@
             "state": "translated",
             "value": "Add item"
           }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Añadir artículo"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aggiungi articolo"
+          }
         }
       }
     },
@@ -167,6 +275,18 @@
           "stringUnit": {
             "state": "translated",
             "value": "Add store"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Añadir tienda"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aggiungi negozio"
           }
         }
       }
@@ -185,6 +305,18 @@
             "state": "translated",
             "value": "Adding…"
           }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Añadiendo…"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aggiunta in corso…"
+          }
         }
       }
     },
@@ -201,6 +333,18 @@
           "stringUnit": {
             "state": "translated",
             "value": "Back"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Atrás"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Indietro"
           }
         }
       }
@@ -219,6 +363,18 @@
             "state": "translated",
             "value": "Cancel"
           }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cancelar"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Annulla"
+          }
         }
       }
     },
@@ -235,6 +391,18 @@
           "stringUnit": {
             "state": "translated",
             "value": "Close"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cerrar"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chiudi"
           }
         }
       }
@@ -253,6 +421,18 @@
             "state": "translated",
             "value": "Delete"
           }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Eliminar"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Elimina"
+          }
         }
       }
     },
@@ -269,6 +449,18 @@
           "stringUnit": {
             "state": "translated",
             "value": "Delete item"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Eliminar artículo"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Elimina articolo"
           }
         }
       }
@@ -287,6 +479,18 @@
             "state": "translated",
             "value": "Done"
           }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hecho"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fatto"
+          }
         }
       }
     },
@@ -303,6 +507,18 @@
           "stringUnit": {
             "state": "translated",
             "value": "Drag to reorder"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Arrastra para reordenar"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Trascina per riordinare"
           }
         }
       }
@@ -321,6 +537,18 @@
             "state": "translated",
             "value": "Edit aisles"
           }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Editar pasillos"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Modifica corsie"
+          }
         }
       }
     },
@@ -337,6 +565,18 @@
           "stringUnit": {
             "state": "translated",
             "value": "Exportar categorias"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Exportar categorías"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Esporta categorie"
           }
         }
       }
@@ -355,6 +595,18 @@
             "state": "translated",
             "value": "Exportar artigos"
           }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Exportar artículos"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Esporta articoli"
+          }
         }
       }
     },
@@ -371,6 +623,18 @@
           "stringUnit": {
             "state": "translated",
             "value": "Hide checked-off items"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ocultar artículos marcados"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nascondi articoli segnati"
           }
         }
       }
@@ -389,6 +653,18 @@
             "state": "translated",
             "value": "Importar categorias"
           }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Importar categorías"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Importa categorie"
+          }
         }
       }
     },
@@ -405,6 +681,18 @@
           "stringUnit": {
             "state": "translated",
             "value": "Importar artigos"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Importar artículos"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Importa articoli"
           }
         }
       }
@@ -423,6 +711,18 @@
             "state": "translated",
             "value": "Manage categories"
           }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gestionar categorías"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gestisci categorie"
+          }
         }
       }
     },
@@ -439,6 +739,18 @@
           "stringUnit": {
             "state": "translated",
             "value": "Pick a photo"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Elegir una foto"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Scegli una foto"
           }
         }
       }
@@ -457,6 +769,18 @@
             "state": "translated",
             "value": "Remove photo"
           }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Quitar foto"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rimuovi foto"
+          }
         }
       }
     },
@@ -473,6 +797,18 @@
           "stringUnit": {
             "state": "translated",
             "value": "Rename"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Renombrar"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rinomina"
           }
         }
       }
@@ -491,6 +827,18 @@
             "state": "translated",
             "value": "Retry"
           }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reintentar"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Riprova"
+          }
         }
       }
     },
@@ -507,6 +855,18 @@
           "stringUnit": {
             "state": "translated",
             "value": "Save"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Guardar"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Salva"
           }
         }
       }
@@ -525,6 +885,18 @@
             "state": "translated",
             "value": "Saving…"
           }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Guardando…"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Salvataggio…"
+          }
         }
       }
     },
@@ -541,6 +913,18 @@
           "stringUnit": {
             "state": "translated",
             "value": "Settings"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ajustes"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Impostazioni"
           }
         }
       }
@@ -559,6 +943,18 @@
             "state": "translated",
             "value": "Show checked-off items"
           }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mostrar artículos marcados"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mostra articoli segnati"
+          }
         }
       }
     },
@@ -575,6 +971,18 @@
           "stringUnit": {
             "state": "translated",
             "value": "Sign in with Google"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Iniciar sesión con Google"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Accedi con Google"
           }
         }
       }
@@ -593,6 +1001,18 @@
             "state": "translated",
             "value": "Sign out"
           }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cerrar sesión"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Esci"
+          }
         }
       }
     },
@@ -609,6 +1029,18 @@
           "stringUnit": {
             "state": "translated",
             "value": "Undo"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Deshacer"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Annulla"
           }
         }
       }
@@ -627,6 +1059,18 @@
             "state": "translated",
             "value": "New category"
           }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nueva categoría"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nuova categoria"
+          }
         }
       }
     },
@@ -643,6 +1087,18 @@
           "stringUnit": {
             "state": "translated",
             "value": "Category name"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nombre de la categoría"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nome della categoria"
           }
         }
       }
@@ -661,6 +1117,18 @@
             "state": "translated",
             "value": "Add item"
           }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Añadir artículo"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aggiungi articolo"
+          }
         }
       }
     },
@@ -677,6 +1145,18 @@
           "stringUnit": {
             "state": "translated",
             "value": "Add a store"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Añadir una tienda"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aggiungi un negozio"
           }
         }
       }
@@ -695,6 +1175,18 @@
             "state": "translated",
             "value": "Store name"
           }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nombre de la tienda"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nome del negozio"
+          }
         }
       }
     },
@@ -712,6 +1204,18 @@
             "state": "translated",
             "value": "e.g. Local Butcher"
           }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "p. ej. Carnicería del barrio"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "es. Macelleria del quartiere"
+          }
         }
       }
     },
@@ -725,6 +1229,18 @@
           }
         },
         "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Storehop"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Storehop"
+          }
+        },
+        "it": {
           "stringUnit": {
             "state": "translated",
             "value": "Storehop"
@@ -746,6 +1262,18 @@
             "state": "translated",
             "value": "Alcohol"
           }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bebidas Alcohólicas"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alcolici"
+          }
         }
       }
     },
@@ -762,6 +1290,18 @@
           "stringUnit": {
             "state": "translated",
             "value": "Baby"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bebé"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bebè"
           }
         }
       }
@@ -780,6 +1320,18 @@
             "state": "translated",
             "value": "Bakery"
           }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Panadería"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Panetteria"
+          }
         }
       }
     },
@@ -796,6 +1348,18 @@
           "stringUnit": {
             "state": "translated",
             "value": "Beverages"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bebidas"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bevande"
           }
         }
       }
@@ -814,6 +1378,18 @@
             "state": "translated",
             "value": "Clothing"
           }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ropa"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Abbigliamento"
+          }
         }
       }
     },
@@ -830,6 +1406,18 @@
           "stringUnit": {
             "state": "translated",
             "value": "Dairy & Eggs"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lácteos y Huevos"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Latticini e Uova"
           }
         }
       }
@@ -848,6 +1436,18 @@
             "state": "translated",
             "value": "Electronics"
           }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Electrónica"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Elettronica"
+          }
         }
       }
     },
@@ -864,6 +1464,18 @@
           "stringUnit": {
             "state": "translated",
             "value": "Frozen"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Congelados"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Surgelati"
           }
         }
       }
@@ -882,6 +1494,18 @@
             "state": "translated",
             "value": "Garden"
           }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Jardín"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Giardino"
+          }
         }
       }
     },
@@ -898,6 +1522,18 @@
           "stringUnit": {
             "state": "translated",
             "value": "Hardware & DIY"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bricolaje"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bricolage"
           }
         }
       }
@@ -916,6 +1552,18 @@
             "state": "translated",
             "value": "Home & Decor"
           }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hogar y Decoración"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Casa e Arredamento"
+          }
         }
       }
     },
@@ -932,6 +1580,18 @@
           "stringUnit": {
             "state": "translated",
             "value": "Household & Cleaning"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hogar y Limpieza"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Casa e Pulizia"
           }
         }
       }
@@ -950,6 +1610,18 @@
             "state": "translated",
             "value": "Meat & Fish"
           }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Carne y Pescado"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Carne e Pesce"
+          }
         }
       }
     },
@@ -966,6 +1638,18 @@
           "stringUnit": {
             "state": "translated",
             "value": "Other"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Otros"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Altro"
           }
         }
       }
@@ -984,6 +1668,18 @@
             "state": "translated",
             "value": "Pantry"
           }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Despensa"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dispensa"
+          }
         }
       }
     },
@@ -1000,6 +1696,18 @@
           "stringUnit": {
             "state": "translated",
             "value": "Personal Care"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Higiene Personal"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Igiene Personale"
           }
         }
       }
@@ -1018,6 +1726,18 @@
             "state": "translated",
             "value": "Pet"
           }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mascotas"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Animali"
+          }
         }
       }
     },
@@ -1034,6 +1754,18 @@
           "stringUnit": {
             "state": "translated",
             "value": "Pharmacy"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Farmacia"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Farmacia"
           }
         }
       }
@@ -1052,6 +1784,18 @@
             "state": "translated",
             "value": "Produce"
           }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Frutas y Verduras"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Frutta e Verdura"
+          }
         }
       }
     },
@@ -1068,6 +1812,18 @@
           "stringUnit": {
             "state": "translated",
             "value": "Snacks"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aperitivos"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Snack"
           }
         }
       }
@@ -1086,6 +1842,18 @@
             "state": "translated",
             "value": "Stationery"
           }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Papelería"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cancelleria"
+          }
         }
       }
     },
@@ -1102,6 +1870,18 @@
           "stringUnit": {
             "state": "translated",
             "value": "No categories yet. Tap + to add one."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aún no hay categorías. Pulsa + para añadir una."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ancora nessuna categoria. Tocca + per aggiungerne una."
           }
         }
       }
@@ -1120,6 +1900,18 @@
             "state": "translated",
             "value": "Built-in"
           }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Predefinida"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Predefinita"
+          }
         }
       }
     },
@@ -1136,6 +1928,18 @@
           "stringUnit": {
             "state": "translated",
             "value": "Cloud sync incomplete"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sincronización en la nube incompleta"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sincronizzazione cloud incompleta"
           }
         }
       }
@@ -1154,6 +1958,18 @@
             "state": "translated",
             "value": "Your data is safe locally. Tap Retry to sync from the cloud."
           }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tus datos están a salvo localmente. Pulsa Reintentar para sincronizar desde la nube."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "I tuoi dati sono al sicuro localmente. Tocca Riprova per sincronizzare dal cloud."
+          }
         }
       }
     },
@@ -1170,6 +1986,18 @@
           "stringUnit": {
             "state": "translated",
             "value": "Critical items needed"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Artículos críticos necesarios"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Articoli critici necessari"
           }
         }
       }
@@ -1188,6 +2016,18 @@
             "state": "translated",
             "value": "Sexta-feira"
           }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Viernes"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Venerdì"
+          }
         }
       }
     },
@@ -1204,6 +2044,18 @@
           "stringUnit": {
             "state": "translated",
             "value": "Segunda-feira"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lunes"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lunedì"
           }
         }
       }
@@ -1222,6 +2074,18 @@
             "state": "translated",
             "value": "Sábado"
           }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sábado"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sabato"
+          }
         }
       }
     },
@@ -1238,6 +2102,18 @@
           "stringUnit": {
             "state": "translated",
             "value": "Domingo"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Domingo"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Domenica"
           }
         }
       }
@@ -1256,6 +2132,18 @@
             "state": "translated",
             "value": "Quinta-feira"
           }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Jueves"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Giovedì"
+          }
         }
       }
     },
@@ -1272,6 +2160,18 @@
           "stringUnit": {
             "state": "translated",
             "value": "Terça-feira"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Martes"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Martedì"
           }
         }
       }
@@ -1290,6 +2190,18 @@
             "state": "translated",
             "value": "Quarta-feira"
           }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Miércoles"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mercoledì"
+          }
         }
       }
     },
@@ -1306,6 +2218,18 @@
           "stringUnit": {
             "state": "translated",
             "value": "Items in this category will become uncategorized. You can undo this from the snackbar."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Los artículos de esta categoría quedarán sin categoría. Puedes deshacerlo desde el aviso inferior."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gli articoli di questa categoria resteranno senza categoria. Puoi annullare dall\\'avviso in basso."
           }
         }
       }
@@ -1324,6 +2248,18 @@
             "state": "translated",
             "value": "Delete '%@'?"
           }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "¿Eliminar \"%@\"?"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Eliminare \"%@\"?"
+          }
         }
       }
     },
@@ -1340,6 +2276,18 @@
           "stringUnit": {
             "state": "translated",
             "value": "This removes the item from every store's list. You can undo this from the snackbar."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Esto elimina el artículo de la lista de todas las tiendas. Puedes deshacerlo desde el aviso inferior."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Questo rimuove l'articolo dalla lista di ogni negozio. Puoi annullare dall'avviso in basso."
           }
         }
       }
@@ -1358,6 +2306,18 @@
             "state": "translated",
             "value": "Delete item?"
           }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "¿Eliminar artículo?"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Eliminare l\\'articolo?"
+          }
         }
       }
     },
@@ -1374,6 +2334,18 @@
           "stringUnit": {
             "state": "translated",
             "value": "Items tagged to this store will lose the tag but stay in your list. This can't be undone from inside the app."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Los artículos asignados a esta tienda perderán la asignación pero seguirán en tu lista. Esta acción no se puede deshacer dentro de la app."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gli articoli associati a questo negozio perderanno l'associazione ma resteranno nella tua lista. L'azione non può essere annullata dall'app."
           }
         }
       }
@@ -1392,6 +2364,18 @@
             "state": "translated",
             "value": "Delete '%@'?"
           }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "¿Eliminar \"%@\"?"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Eliminare \"%@\"?"
+          }
         }
       }
     },
@@ -1408,6 +2392,18 @@
           "stringUnit": {
             "state": "translated",
             "value": "No aisles to reorder yet. Add an item to this store to set its aisle order."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aún no hay pasillos para reordenar. Añade un artículo a esta tienda para definir el orden."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ancora nessuna corsia da riordinare. Aggiungi un articolo a questo negozio per impostare l\\'ordine."
           }
         }
       }
@@ -1426,6 +2422,18 @@
             "state": "translated",
             "value": "Drag the handle to reorder."
           }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Arrastra el asa para reordenar."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Trascina la maniglia per riordinare."
+          }
         }
       }
     },
@@ -1442,6 +2450,18 @@
           "stringUnit": {
             "state": "translated",
             "value": "Aisles for %@"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pasillos: %@"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Corsie: %@"
           }
         }
       }
@@ -1460,6 +2480,18 @@
             "state": "translated",
             "value": "Edit item"
           }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Editar artículo"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Modifica articolo"
+          }
         }
       }
     },
@@ -1476,6 +2508,18 @@
           "stringUnit": {
             "state": "translated",
             "value": "A category named '%@' already exists"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ya existe una categoría con el nombre \"%@\""
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Esiste già una categoria con il nome \"%@\""
           }
         }
       }
@@ -1494,6 +2538,18 @@
             "state": "translated",
             "value": "Category name cannot be empty"
           }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "El nombre de la categoría no puede estar vacío"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Il nome della categoria non può essere vuoto"
+          }
         }
       }
     },
@@ -1510,6 +2566,18 @@
           "stringUnit": {
             "state": "translated",
             "value": "Could not add category"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No se pudo añadir la categoría"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Impossibile aggiungere la categoria"
           }
         }
       }
@@ -1528,6 +2596,18 @@
             "state": "translated",
             "value": "Could not add store"
           }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No se pudo añadir la tienda"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Impossibile aggiungere il negozio"
+          }
         }
       }
     },
@@ -1544,6 +2624,18 @@
           "stringUnit": {
             "state": "translated",
             "value": "Could not delete"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No se pudo eliminar"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Impossibile eliminare"
           }
         }
       }
@@ -1562,6 +2654,18 @@
             "state": "translated",
             "value": "Could not rename category"
           }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No se pudo renombrar la categoría"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Impossibile rinominare la categoria"
+          }
         }
       }
     },
@@ -1578,6 +2682,18 @@
           "stringUnit": {
             "state": "translated",
             "value": "Could not rename store"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No se pudo renombrar la tienda"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Impossibile rinominare il negozio"
           }
         }
       }
@@ -1596,6 +2712,18 @@
             "state": "translated",
             "value": "Could not save"
           }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No se pudo guardar"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Impossibile salvare"
+          }
         }
       }
     },
@@ -1612,6 +2740,18 @@
           "stringUnit": {
             "state": "translated",
             "value": "Could not sign in"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No se pudo iniciar sesión"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Impossibile accedere"
           }
         }
       }
@@ -1630,6 +2770,18 @@
             "state": "translated",
             "value": "Could not sign out"
           }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No se pudo cerrar sesión"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Impossibile uscire"
+          }
         }
       }
     },
@@ -1646,6 +2798,18 @@
           "stringUnit": {
             "state": "translated",
             "value": "Name is required"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "El nombre es obligatorio"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Il nome è obbligatorio"
           }
         }
       }
@@ -1664,6 +2828,18 @@
             "state": "translated",
             "value": "Item not found"
           }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Artículo no encontrado"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Articolo non trovato"
+          }
         }
       }
     },
@@ -1680,6 +2856,18 @@
           "stringUnit": {
             "state": "translated",
             "value": "A store named '%@' already exists"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ya existe una tienda con el nombre \"%@\""
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Esiste già un negozio con il nome \"%@\""
           }
         }
       }
@@ -1698,6 +2886,18 @@
             "state": "translated",
             "value": "Store name cannot be empty"
           }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "El nombre de la tienda no puede estar vacío"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Il nome del negozio non può essere vuoto"
+          }
         }
       }
     },
@@ -1714,6 +2914,18 @@
           "stringUnit": {
             "state": "translated",
             "value": "Saving…"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Guardando…"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Salvataggio…"
           }
         }
       }
@@ -1732,6 +2944,18 @@
             "state": "translated",
             "value": "Uploading photo…"
           }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Subiendo foto…"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Caricamento foto…"
+          }
         }
       }
     },
@@ -1748,6 +2972,18 @@
           "stringUnit": {
             "state": "translated",
             "value": "Importados %1$lld artigos, %2$lld categorias, %3$lld lojas. %4$lld duplicados ignorados."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Importados %1$lld artículos, %2$lld categorías, %3$lld tiendas. %4$lld duplicados omitidos."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Importati %1$lld articoli, %2$lld categorie, %3$lld negozi. %4$lld duplicati ignorati."
           }
         }
       }
@@ -1766,6 +3002,18 @@
             "state": "translated",
             "value": "Anular"
           }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Deshacer"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Annulla"
+          }
         }
       }
     },
@@ -1782,6 +3030,18 @@
           "stringUnit": {
             "state": "translated",
             "value": "Brand (optional)"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Marca (opcional)"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Marca (opzionale)"
           }
         }
       }
@@ -1800,6 +3060,18 @@
             "state": "translated",
             "value": "Category"
           }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Categoría"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Categoria"
+          }
         }
       }
     },
@@ -1816,6 +3088,18 @@
           "stringUnit": {
             "state": "translated",
             "value": "(none)"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "(ninguna)"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "(nessuna)"
           }
         }
       }
@@ -1834,6 +3118,18 @@
             "state": "translated",
             "value": "Name"
           }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nombre"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nome"
+          }
         }
       }
     },
@@ -1850,6 +3146,18 @@
           "stringUnit": {
             "state": "translated",
             "value": "No stores yet. Add stores from the Shop tab to tag items here."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aún no hay tiendas. Añade tiendas desde la pestaña Tiendas para asignarlas aquí."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ancora nessun negozio. Aggiungili dalla scheda Negozi per associarli qui."
           }
         }
       }
@@ -1868,6 +3176,18 @@
             "state": "translated",
             "value": "No photo yet"
           }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aún no hay foto"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ancora nessuna foto"
+          }
         }
       }
     },
@@ -1884,6 +3204,18 @@
           "stringUnit": {
             "state": "translated",
             "value": "Photo"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Foto"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Foto"
           }
         }
       }
@@ -1902,6 +3234,18 @@
             "state": "translated",
             "value": "Highlights this item across every store's list when needed."
           }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Resalta este artículo en la lista de cada tienda cuando es necesario."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Evidenzia questo articolo nella lista di ogni negozio quando serve."
+          }
         }
       }
     },
@@ -1918,6 +3262,18 @@
           "stringUnit": {
             "state": "translated",
             "value": "Critical — don't let me forget this"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Crítico — no me dejes olvidarlo"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Critico — non farmelo dimenticare"
           }
         }
       }
@@ -1936,6 +3292,18 @@
             "state": "translated",
             "value": "Stays visible even after you mark it purchased."
           }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Permanece visible incluso después de marcarlo como comprado."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Resta visibile anche dopo averlo segnato come acquistato."
+          }
         }
       }
     },
@@ -1952,6 +3320,18 @@
           "stringUnit": {
             "state": "translated",
             "value": "Always on the list"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Siempre en la lista"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sempre nella lista"
           }
         }
       }
@@ -1970,6 +3350,18 @@
             "state": "translated",
             "value": "Stores"
           }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tiendas"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Negozi"
+          }
         }
       }
     },
@@ -1986,6 +3378,18 @@
           "stringUnit": {
             "state": "translated",
             "value": "No items yet — tap + to add one"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aún no hay artículos: pulsa + para añadir uno"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ancora nessun articolo: tocca + per aggiungerne uno"
           }
         }
       }
@@ -2004,6 +3408,18 @@
             "state": "translated",
             "value": "No items match '%@'"
           }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ningún artículo coincide con \"%@\""
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nessun articolo corrisponde a \"%@\""
+          }
         }
       }
     },
@@ -2020,6 +3436,18 @@
           "stringUnit": {
             "state": "translated",
             "value": "Search items by name or brand"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Buscar artículos por nombre o marca"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cerca articoli per nome o marca"
           }
         }
       }
@@ -2038,6 +3466,18 @@
             "state": "translated",
             "value": "Items"
           }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Artículos"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Articoli"
+          }
         }
       }
     },
@@ -2054,6 +3494,18 @@
           "stringUnit": {
             "state": "translated",
             "value": "Shop"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tiendas"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Negozi"
           }
         }
       }
@@ -2072,6 +3524,18 @@
             "state": "translated",
             "value": "Rename category"
           }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Renombrar categoría"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rinomina categoria"
+          }
         }
       }
     },
@@ -2088,6 +3552,18 @@
           "stringUnit": {
             "state": "translated",
             "value": "Rename store"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Renombrar tienda"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rinomina negozio"
           }
         }
       }
@@ -2106,6 +3582,18 @@
             "state": "translated",
             "value": "Mover artigos e categorias entre dispositivos ou aplicações."
           }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mueve tus artículos y categorías entre dispositivos o aplicaciones."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sposta i tuoi articoli e categorie tra dispositivi o app."
+          }
         }
       }
     },
@@ -2123,6 +3611,18 @@
             "state": "translated",
             "value": "Dados"
           }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Datos"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dati"
+          }
         }
       }
     },
@@ -2136,6 +3636,18 @@
           }
         },
         "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "English"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "English"
+          }
+        },
+        "it": {
           "stringUnit": {
             "state": "translated",
             "value": "English"
@@ -2157,6 +3669,18 @@
             "state": "translated",
             "value": "Português (Portugal)"
           }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Português (Portugal)"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Português (Portugal)"
+          }
         }
       }
     },
@@ -2173,6 +3697,18 @@
           "stringUnit": {
             "state": "translated",
             "value": "System default"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Predeterminado del sistema"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Predefinita di sistema"
           }
         }
       }
@@ -2191,6 +3727,18 @@
             "state": "translated",
             "value": "Language"
           }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Idioma"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lingua"
+          }
         }
       }
     },
@@ -2207,6 +3755,18 @@
           "stringUnit": {
             "state": "translated",
             "value": "Dark"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Oscuro"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Scuro"
           }
         }
       }
@@ -2225,6 +3785,18 @@
             "state": "translated",
             "value": "Light"
           }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Claro"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chiaro"
+          }
         }
       }
     },
@@ -2241,6 +3813,18 @@
           "stringUnit": {
             "state": "translated",
             "value": "Follow system"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Seguir el sistema"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Segui il sistema"
           }
         }
       }
@@ -2259,6 +3843,18 @@
             "state": "translated",
             "value": "Theme"
           }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tema"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tema"
+          }
         }
       }
     },
@@ -2275,6 +3871,18 @@
           "stringUnit": {
             "state": "translated",
             "value": "Add an item…"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Añadir un artículo…"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aggiungi un articolo…"
           }
         }
       }
@@ -2293,6 +3901,18 @@
             "state": "translated",
             "value": "Search this store's list"
           }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Buscar en la lista de esta tienda"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cerca nella lista di questo negozio"
+          }
         }
       }
     },
@@ -2309,6 +3929,18 @@
           "stringUnit": {
             "state": "translated",
             "value": "Marked '%@' purchased."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "\"%@\" marcado como comprado."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "\"%@\" segnato come acquistato."
           }
         }
       }
@@ -2327,6 +3959,18 @@
             "state": "translated",
             "value": "Adicione alguns artigos e marque-os à medida que compra. As suas estatísticas aparecem aqui."
           }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Añade algunos artículos y márcalos a medida que compras. Tus estadísticas aparecerán aquí."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aggiungi qualche articolo e segnalo a mano a mano che fai la spesa. Le tue statistiche appariranno qui."
+          }
         }
       }
     },
@@ -2343,6 +3987,18 @@
           "stringUnit": {
             "state": "translated",
             "value": "Ainda sem dados"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aún no hay datos"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ancora nessun dato"
           }
         }
       }
@@ -2361,6 +4017,18 @@
             "state": "translated",
             "value": "Críticos"
           }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Críticos"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Critici"
+          }
         }
       }
     },
@@ -2377,6 +4045,18 @@
           "stringUnit": {
             "state": "translated",
             "value": "Sempre na lista"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Siempre en la lista"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sempre nella lista"
           }
         }
       }
@@ -2395,6 +4075,18 @@
             "state": "translated",
             "value": "Total"
           }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Total"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Totale"
+          }
         }
       }
     },
@@ -2411,6 +4103,18 @@
           "stringUnit": {
             "state": "translated",
             "value": "Dia mais ativo: %@"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Día más activo: %@"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Giorno più attivo: %@"
           }
         }
       }
@@ -2429,6 +4133,18 @@
             "state": "translated",
             "value": "Mais frequentada: %@ (%lld compras)"
           }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Más visitada: %@ (%lld compras)"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Più frequentato: %@ (%lld acquisti)"
+          }
         }
       }
     },
@@ -2445,6 +4161,18 @@
           "stringUnit": {
             "state": "translated",
             "value": "Atividade"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Actividad"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Attività"
           }
         }
       }
@@ -2463,6 +4191,18 @@
             "state": "translated",
             "value": "Categorias"
           }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Categorías"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Categorie"
+          }
         }
       }
     },
@@ -2479,6 +4219,18 @@
           "stringUnit": {
             "state": "translated",
             "value": "Artigos"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Artículos"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Articoli"
           }
         }
       }
@@ -2497,6 +4249,18 @@
             "state": "translated",
             "value": "Lojas"
           }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tiendas"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Negozi"
+          }
         }
       }
     },
@@ -2513,6 +4277,18 @@
           "stringUnit": {
             "state": "translated",
             "value": "Veja os seus padrões de compras num relance"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mira tus patrones de compra de un vistazo"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vedi i tuoi modelli di spesa a colpo d\\'occhio"
           }
         }
       }
@@ -2531,6 +4307,18 @@
             "state": "translated",
             "value": "há %lld dias"
           }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "hace %lld días"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld giorni fa"
+          }
         }
       }
     },
@@ -2547,6 +4335,18 @@
           "stringUnit": {
             "state": "translated",
             "value": "Há tempo que não compra"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hace tiempo que no compras"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Da tempo non acquistati"
           }
         }
       }
@@ -2565,6 +4365,18 @@
             "state": "translated",
             "value": "Artigos sem compras nos últimos 60 dias. Considere arquivar os que já não precisa."
           }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Artículos no comprados en los últimos 60 días. Considera archivar los que ya no necesitas."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Articoli non acquistati negli ultimi 60 giorni. Considera di archiviare quelli che non ti servono più."
+          }
         }
       }
     },
@@ -2581,6 +4393,18 @@
           "stringUnit": {
             "state": "translated",
             "value": "Estatísticas"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Estadísticas"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Statistiche"
           }
         }
       }
@@ -2599,6 +4423,18 @@
             "state": "translated",
             "value": "Mais comprados"
           }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Más comprados"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Più acquistati"
+          }
         }
       }
     },
@@ -2615,6 +4451,18 @@
           "stringUnit": {
             "state": "translated",
             "value": "Total"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Total"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Totale"
           }
         }
       }
@@ -2633,6 +4481,18 @@
             "state": "translated",
             "value": "Desde sempre"
           }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Desde siempre"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sempre"
+          }
         }
       }
     },
@@ -2649,6 +4509,18 @@
           "stringUnit": {
             "state": "translated",
             "value": "Lojas ativas"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tiendas activas"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Negozi attivi"
           }
         }
       }
@@ -2667,6 +4539,18 @@
             "state": "translated",
             "value": "Atividade diária (últimas 12 semanas)"
           }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Actividad diaria (últimas 12 semanas)"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Attività giornaliera (ultime 12 settimane)"
+          }
         }
       }
     },
@@ -2683,6 +4567,18 @@
           "stringUnit": {
             "state": "translated",
             "value": "Sem categoria"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sin categoría"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Senza categoria"
           }
         }
       }
@@ -2701,6 +4597,18 @@
             "state": "translated",
             "value": "✓ All set"
           }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "✓ Todo listo"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "✓ Tutto fatto"
+          }
         }
       }
     },
@@ -2717,6 +4625,18 @@
           "stringUnit": {
             "state": "translated",
             "value": "%lld items"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld artículos"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld articoli"
           }
         }
       }
@@ -2735,6 +4655,18 @@
             "state": "translated",
             "value": "Nothing needed"
           }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nada necesario"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nulla da prendere"
+          }
         }
       }
     },
@@ -2751,6 +4683,18 @@
           "stringUnit": {
             "state": "translated",
             "value": "Items"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Artículos"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Articoli"
           }
         }
       }
@@ -2769,6 +4713,18 @@
             "state": "translated",
             "value": "Manage categories"
           }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gestionar categorías"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gestisci categorie"
+          }
         }
       }
     },
@@ -2785,6 +4741,18 @@
           "stringUnit": {
             "state": "translated",
             "value": "Settings"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ajustes"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Impostazioni"
           }
         }
       }
@@ -2803,6 +4771,18 @@
             "state": "translated",
             "value": "Where are you shopping?"
           }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "¿Dónde vas a comprar?"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dove fai la spesa?"
+          }
         }
       }
     },
@@ -2819,6 +4799,18 @@
           "stringUnit": {
             "state": "translated",
             "value": "Deleted '%@'."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "\"%@\" eliminada."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "\"%@\" eliminata."
           }
         }
       }
@@ -2837,6 +4829,18 @@
             "state": "translated",
             "value": "Deleted '%@'."
           }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "\"%@\" eliminado."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "\"%@\" eliminato."
+          }
         }
       }
     },
@@ -2853,6 +4857,18 @@
           "stringUnit": {
             "state": "translated",
             "value": "Deleted '%@'."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "\"%@\" eliminada."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "\"%@\" eliminato."
           }
         }
       }

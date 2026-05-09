@@ -1,0 +1,250 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <string name="app_name">StoreHop</string>
+    <string name="placeholder_screen_title">StoreHop</string>
+
+    <!-- Etiquetas de las categorías predefinidas. -->
+    <string name="cat_produce">Frutas y Verduras</string>
+    <string name="cat_bakery">Panadería</string>
+    <string name="cat_dairy_eggs">Lácteos y Huevos</string>
+    <string name="cat_meat_fish">Carne y Pescado</string>
+    <string name="cat_frozen">Congelados</string>
+    <string name="cat_pantry">Despensa</string>
+    <string name="cat_snacks">Aperitivos</string>
+    <string name="cat_beverages">Bebidas</string>
+    <string name="cat_alcohol">Bebidas Alcohólicas</string>
+    <string name="cat_household">Hogar y Limpieza</string>
+    <string name="cat_personal_care">Higiene Personal</string>
+    <string name="cat_pharmacy">Farmacia</string>
+    <string name="cat_baby">Bebé</string>
+    <string name="cat_pet">Mascotas</string>
+    <string name="cat_hardware">Bricolaje</string>
+    <string name="cat_garden">Jardín</string>
+    <string name="cat_home_decor">Hogar y Decoración</string>
+    <string name="cat_electronics">Electrónica</string>
+    <string name="cat_stationery">Papelería</string>
+    <string name="cat_clothing">Ropa</string>
+    <string name="cat_other">Otros</string>
+
+    <!-- Títulos de las barras superiores. -->
+    <string name="title_shop">¿Dónde vas a comprar?</string>
+    <string name="title_items">Artículos</string>
+    <string name="title_settings">Ajustes</string>
+    <string name="title_add_item">Añadir artículo</string>
+    <string name="title_edit_item">Editar artículo</string>
+
+    <!-- Etiquetas de la navegación inferior. -->
+    <string name="nav_shop">Tiendas</string>
+    <string name="nav_items">Artículos</string>
+
+    <!-- Acciones comunes. -->
+    <string name="action_back">Atrás</string>
+    <string name="action_save">Guardar</string>
+    <string name="action_saving">Guardando…</string>
+    <string name="action_cancel">Cancelar</string>
+    <string name="action_close">Cerrar</string>
+    <string name="action_delete">Eliminar</string>
+    <string name="action_add_store">Añadir tienda</string>
+    <string name="action_add_item">Añadir artículo</string>
+    <string name="action_settings">Ajustes</string>
+
+    <!-- Sección de cuenta. -->
+    <string name="account_title">Cuenta</string>
+    <string name="account_anonymous_label">Cuenta anónima</string>
+    <string name="account_anonymous_description">Solo en este dispositivo. Inicia sesión para hacer copia de seguridad y sincronizar tu lista entre dispositivos.</string>
+    <string name="account_signed_in_default">Sesión iniciada</string>
+    <string name="action_sign_in_with_google">Iniciar sesión con Google</string>
+    <string name="account_sign_in_helper">Tus artículos, tiendas y fotos existentes se transfieren a tu cuenta de Google al iniciar sesión, sin pérdida de datos.</string>
+    <string name="action_sign_out">Cerrar sesión</string>
+    <string name="account_sign_out_helper">Cerrar sesión elimina la vista sincronizada con la nube de este dispositivo y vuelve a una cuenta anónima local. Tus datos en la nube permanecen seguros en tu cuenta de Google y reaparecen al iniciar sesión de nuevo.</string>
+
+    <!-- Ajustes. -->
+    <string name="settings_theme_title">Tema</string>
+    <string name="settings_theme_system">Seguir el sistema</string>
+    <string name="settings_theme_light">Claro</string>
+    <string name="settings_theme_dark">Oscuro</string>
+    <string name="settings_language_title">Idioma</string>
+    <string name="settings_language_system">Predeterminado del sistema</string>
+    <string name="settings_language_english">English</string>
+    <string name="settings_language_pt_pt">Português (Portugal)</string>
+    <string name="settings_language_es">Español</string>
+    <string name="settings_language_it">Italiano</string>
+
+    <!-- Lista y formulario de artículos. -->
+    <string name="search_items_placeholder">Buscar artículos por nombre o marca</string>
+    <string name="items_empty_no_query">Aún no hay artículos: pulsa + para añadir uno</string>
+    <string name="items_empty_with_query">Ningún artículo coincide con \"%1$s\"</string>
+    <string name="form_field_name">Nombre</string>
+    <string name="form_field_brand_optional">Marca (opcional)</string>
+    <string name="form_field_category">Categoría</string>
+    <string name="form_field_category_none">(ninguna)</string>
+    <string name="form_field_category_pick">Elegir una categoría</string>
+    <string name="form_field_stores">Tiendas</string>
+    <string name="form_toggle_staple">Siempre en la lista</string>
+    <string name="form_toggle_staple_subtitle">Permanece visible incluso después de marcarlo como comprado</string>
+    <string name="form_toggle_priority">Crítico: no me dejes olvidarlo</string>
+    <string name="form_toggle_priority_subtitle">Resalta este artículo en la lista de cada tienda cuando es necesario</string>
+    <string name="form_error_name_required">El nombre es obligatorio</string>
+    <string name="delete_item_title">¿Eliminar artículo?</string>
+    <string name="delete_item_message">Esto elimina \"%1$s\" de la lista de todas las tiendas.</string>
+    <string name="discard_changes_title">¿Descartar cambios?</string>
+    <string name="discard_changes_message">Se perderán las modificaciones de este artículo.</string>
+    <string name="action_discard">Descartar</string>
+    <string name="action_keep_editing">Seguir editando</string>
+    <string name="badge_always_on_list">Siempre en la lista</string>
+    <string name="badge_critical">Crítico</string>
+
+    <!-- Selector de fotos. -->
+    <string name="photo_section_label">Foto</string>
+    <string name="photo_section_title">Foto del artículo</string>
+    <string name="photo_take">Hacer foto</string>
+    <string name="photo_choose_from_gallery">Elegir de la galería</string>
+    <string name="photo_remove">Quitar foto</string>
+    <string name="photo_add">Añadir foto</string>
+    <string name="photo_item">Foto del artículo</string>
+
+    <!-- Compras en la tienda. -->
+    <string name="action_more">Más</string>
+    <string name="action_share_list">Compartir lista</string>
+    <string name="action_show_purchased">Mostrar artículos marcados</string>
+    <string name="action_hide_purchased">Ocultar artículos marcados</string>
+    <string name="search_store_placeholder">Buscar en la lista de esta tienda</string>
+    <string name="aisle_format">%1$s (pasillo %2$d)</string>
+    <string name="shop_empty_no_query">Aún no hay artículos aquí: añade artículos en la pestaña Artículos y asígnalos a esta tienda</string>
+    <string name="shop_empty_with_query">Sin coincidencias para \"%1$s\"</string>
+    <string name="quick_add_placeholder">Añadir un artículo…</string>
+
+    <!-- Actualizaciones de la app. -->
+    <string name="update_ready_message">Actualización lista</string>
+    <string name="update_ready_action">Reiniciar ahora</string>
+
+    <!-- Snackbar de deshacer. -->
+    <string name="action_undo">Deshacer</string>
+    <string name="undo_item_purchased">\"%1$s\" marcado como comprado.</string>
+    <string name="undo_store_deleted">\"%1$s\" eliminada.</string>
+    <string name="undo_item_deleted">\"%1$s\" eliminado.</string>
+
+    <!-- Selector de tiendas. -->
+    <plurals name="critical_banner_count">
+        <item quantity="one">%d artículo crítico necesario</item>
+        <item quantity="other">%d artículos críticos necesarios</item>
+    </plurals>
+    <string name="critical_banner_all_at">Todos en %s</string>
+    <string name="critical_banner_most_at">La mayoría en %1$s (%2$d)</string>
+    <string name="critical_banner_store_section">%1$s (%2$d)</string>
+    <string name="critical_banner_expand_cd">Mostrar artículos críticos por tienda</string>
+    <string name="critical_banner_collapse_cd">Ocultar artículos críticos por tienda</string>
+    <string name="store_nothing_needed">Nada necesario</string>
+    <string name="store_all_set">✓ Todo listo</string>
+    <string name="add_store_dialog_title">Añadir una tienda</string>
+    <string name="add_store_field_label">Nombre de la tienda</string>
+    <string name="add_store_field_placeholder">p. ej. Carnicería del barrio</string>
+    <string name="action_adding">Añadiendo…</string>
+    <string name="action_add">Añadir</string>
+    <string name="rename_store_dialog_title">Renombrar tienda</string>
+    <string name="action_rename">Renombrar</string>
+    <string name="delete_store_dialog_title">¿Eliminar \"%1$s\"?</string>
+    <string name="delete_store_dialog_message">Los artículos asignados a esta tienda perderán la asignación pero seguirán en tu lista. Esta acción no se puede deshacer dentro de la app.</string>
+    <string name="error_store_name_empty">El nombre de la tienda no puede estar vacío</string>
+    <string name="error_store_name_duplicate">Ya existe una tienda con el nombre \"%1$s\"</string>
+    <string name="error_could_not_add_store">No se pudo añadir la tienda</string>
+    <string name="error_could_not_rename_store">No se pudo renombrar la tienda</string>
+    <string name="store_more_options">Opciones de la tienda</string>
+    <string name="action_drag_to_reorder">Arrastra para reordenar</string>
+
+    <!-- Contenido de la lista compartida. -->
+    <string name="share_list_header">StoreHop — comprando en %1$s</string>
+    <string name="share_list_subject">Comprando en %1$s</string>
+    <string name="share_list_chooser_title">Compartir lista de la compra</string>
+    <string name="share_list_default_store">esta tienda</string>
+
+    <!-- Plurales. -->
+    <plurals name="store_items_needed">
+        <item quantity="one">%d artículo</item>
+        <item quantity="other">%d artículos</item>
+    </plurals>
+    <plurals name="critical_at_this_store">
+        <item quantity="one">%d artículo crítico en esta tienda</item>
+        <item quantity="other">%d artículos críticos en esta tienda</item>
+    </plurals>
+    <plurals name="store_critical_chip">
+        <item quantity="one">⚠ %d</item>
+        <item quantity="other">⚠ %d</item>
+    </plurals>
+
+    <!-- v0.4 banner de sincronización con la nube. -->
+    <string name="cloud_sync_incomplete">Sincronización en la nube incompleta</string>
+    <string name="cloud_sync_retry_explanation">Tus datos están a salvo localmente. Pulsa Reintentar para sincronizar desde la nube.</string>
+    <string name="action_retry">Reintentar</string>
+
+    <!-- v0.5 pantalla de gestión de categorías. -->
+    <string name="title_manage_categories">Gestionar categorías</string>
+    <string name="action_manage_categories">Gestionar categorías</string>
+    <string name="add_category_dialog_title">Nueva categoría</string>
+    <string name="add_category_field_label">Nombre de la categoría</string>
+    <string name="rename_category_dialog_title">Renombrar categoría</string>
+    <string name="delete_category_dialog_title">¿Eliminar \"%1$s\"?</string>
+    <string name="delete_category_dialog_message">Los artículos de esta categoría quedarán sin categoría. Puedes deshacerlo desde el aviso inferior.</string>
+    <string name="error_category_name_empty">El nombre de la categoría no puede estar vacío</string>
+    <string name="error_category_name_duplicate">Ya existe una categoría con el nombre \"%1$s\"</string>
+    <string name="error_could_not_add_category">No se pudo añadir la categoría</string>
+    <string name="error_could_not_rename_category">No se pudo renombrar la categoría</string>
+    <string name="undo_category_deleted">\"%1$s\" eliminada.</string>
+    <string name="categories_empty_state">Aún no hay categorías. Pulsa + para añadir una.</string>
+    <string name="category_more_options">Más opciones</string>
+    <string name="action_more_options">Más opciones</string>
+
+    <!-- v0.5 reordenación de pasillos por tienda. -->
+    <string name="title_edit_aisles">Editar pasillos: %1$s</string>
+    <string name="action_edit_aisles">Editar pasillos</string>
+    <string name="aisle_order_empty_state">Aún no hay pasillos para reordenar. Añade un artículo a esta tienda para definir el orden.</string>
+    <string name="aisle_order_helper">Mantén pulsado el asa de arrastre para reordenar. Suéltalo cuando termines.</string>
+
+    <!-- v0.5.2 Ajustes → Datos: importar / exportar CSV. -->
+    <string name="settings_data_section_title">Datos</string>
+    <string name="settings_data_section_subtitle">Mueve tus artículos y categorías entre dispositivos o aplicaciones.</string>
+    <string name="action_export_items">Exportar artículos</string>
+    <string name="action_export_categories">Exportar categorías</string>
+    <string name="action_import_items">Importar artículos</string>
+    <string name="action_import_categories">Importar categorías</string>
+    <string name="import_result_summary">Importados %1$d artículos, %2$d categorías, %3$d tiendas. %4$d duplicados omitidos.</string>
+    <string name="import_undo_label">Deshacer</string>
+
+    <!-- Pantalla de Estadísticas, accesible desde Ajustes. -->
+    <string name="statistics_title">Estadísticas</string>
+    <string name="statistics_settings_link_subtitle">Mira tus patrones de compra de un vistazo</string>
+    <string name="statistics_empty_title">Aún no hay datos</string>
+    <string name="statistics_empty_body">Añade algunos artículos y márcalos a medida que compras. Tus estadísticas aparecerán aquí.</string>
+    <string name="statistics_section_activity">Actividad</string>
+    <string name="statistics_total_purchases">Desde siempre</string>
+    <string name="statistics_last_30_days">Últimos 30 días</string>
+    <string name="statistics_last_7_days">Últimos 7 días</string>
+    <string name="statistics_trend_label">Actividad diaria (últimas 12 semanas)</string>
+    <string name="statistics_most_active_day_format">Día más activo: %1$s</string>
+    <string name="statistics_section_items">Artículos</string>
+    <string name="statistics_library_total">Total</string>
+    <string name="statistics_library_staples">Siempre en la lista</string>
+    <string name="statistics_library_priority">Críticos</string>
+    <string name="statistics_top_items">Más comprados</string>
+    <string name="statistics_stale_items">Hace tiempo que no compras</string>
+    <string name="statistics_stale_items_subtitle">Artículos no comprados en los últimos 60 días. Considera archivar los que ya no necesitas.</string>
+    <string name="statistics_stale_days_format">hace %1$d días</string>
+    <string name="statistics_section_stores">Tiendas</string>
+    <string name="statistics_total_stores">Tiendas activas</string>
+    <string name="statistics_most_shopped_format">Más visitada: %1$s (%2$d compras)</string>
+    <string name="statistics_section_categories">Categorías</string>
+    <string name="statistics_total_categories">Total</string>
+    <string name="statistics_uncategorised">Sin categoría</string>
+
+    <!-- Días de la semana para la línea "día más activo". Índices alineados
+         con strftime('%w', …) de SQLite: 0 = domingo, 6 = sábado. -->
+    <string-array name="statistics_days_of_week">
+        <item>Domingo</item>
+        <item>Lunes</item>
+        <item>Martes</item>
+        <item>Miércoles</item>
+        <item>Jueves</item>
+        <item>Viernes</item>
+        <item>Sábado</item>
+    </string-array>
+</resources>

@@ -5,10 +5,13 @@
   support when the in-app language picker calls
   AppCompatDelegate.setApplicationLocales.
 
-  Order: en (default), pt-PT (European Portuguese, not pt-BR).
-  When adding a locale, also drop a values-XX/strings.xml under res/.
+  Order: en (default), pt-PT (European Portuguese, not pt-BR), es
+  (Castilian Spanish), it (Italian). When adding a locale, also
+  drop a values-XX/strings.xml under res/.
 -->
 <locale-config xmlns:android="http://schemas.android.com/apk/res/android">
     <locale android:name="en" />
     <locale android:name="pt-PT" />
+    <locale android:name="es" />
+    <locale android:name="it" />
 </locale-config>

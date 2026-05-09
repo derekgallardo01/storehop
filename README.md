@@ -13,16 +13,16 @@ specific household) is added or renamed by the user.
 
 ## Status
 
-v0.5.7. Shipping to Google Play Closed testing. Feature-complete for
+v0.5.8. Shipping to Google Play Closed testing. Feature-complete for
 single-user v1: anonymous-first onboarding with optional Google
 Sign-In, two-way Firestore + Storage cloud sync (push and pull), Shop
 and Items tabs with item photos, share-list-as-text, theme + language
-picker, drag-reorder stores (long-press on any tile), per-store aisle
-ordering, cross-store check-off cascade, Manage Categories, hide /
-show checked-off items toggle, QuickAdd autocomplete against the
-master Items library, in-app update prompt via Play Core, CSV import
-/ export of items and categories, and a Statistics screen with a
-12-week trend chart. See
+picker (English, European Portuguese, Spanish, Italian), drag-reorder
+stores (long-press on any tile), per-store aisle ordering, cross-store
+check-off cascade, Manage Categories, hide / show checked-off items
+toggle, QuickAdd autocomplete against the master Items library, in-app
+update prompt via Play Core, CSV import / export of items and
+categories, and a Statistics screen with a 12-week trend chart. See
 [`docs/play-store-submission.md`](docs/play-store-submission.md) for
 the Play Console listing answers and
 [`docs/privacy-policy.md`](docs/privacy-policy.md) for the privacy
@@ -161,6 +161,11 @@ pack remains stable across devices and across reseeds.
          store tile to reorder (drag-handle icon retired);
          Statistics → Activity card simplified to all-time + trend
          chart only.
+- v0.5.8 Spanish (Castilian) and Italian language support. Settings →
+         Language picker now offers four locales: English, European
+         Portuguese, Spanish, Italian. First-pass translations are
+         machine-quality; native-speaker review pending before any
+         public Play Store promotion.
 - v0.6+  Polish follow-ups (e.g. tightening the in-session staple
          flag's renewal behavior) and a v2 home-screen widget that
          actually does something useful.

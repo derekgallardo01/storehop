@@ -70,6 +70,8 @@
     <string name="settings_language_system">Predefinição do sistema</string>
     <string name="settings_language_english">English</string>
     <string name="settings_language_pt_pt">Português (Portugal)</string>
+    <string name="settings_language_es">Español</string>
+    <string name="settings_language_it">Italiano</string>
 
     <!-- Lista e formulário de artigos. -->
     <string name="search_items_placeholder">Procurar artigos por nome ou marca</string>

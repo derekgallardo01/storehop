@@ -7,6 +7,23 @@ project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 For the high-level roadmap and earlier-than-0.5.0 history, see the
 "Roadmap" section in the [README](README.md).
 
+## [0.5.8] - 2026-05-09
+
+### Added
+
+- **Spanish (Castilian) and Italian language support.** The Settings →
+  Language picker now offers **Español** and **Italiano** in addition
+  to English and European Portuguese. All ~180 strings (including
+  category labels, action verbs, dialog messages, plurals, and the
+  Statistics screen day-of-week labels) have been translated. The iOS
+  port mirrors the same four-locale coverage in
+  `Localizable.xcstrings`.
+
+  These first-pass translations are machine-quality and consistent in
+  register, but a native-speaker review is still pending before any
+  public Play Store track promotion. Beta testers using es/it: please
+  flag wording that reads awkwardly.
+
 ## [0.5.7] - 2026-05-09
 
 ### Added
