@@ -31,8 +31,8 @@ android {
         applicationId = "com.storehop.app"
         minSdk = 26
         targetSdk = 35
-        versionCode = 30
-        versionName = "0.5.10"
+        versionCode = 31
+        versionName = "0.5.11"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables { useSupportLibrary = true }
@@ -90,6 +90,19 @@ android {
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
+        }
+    }
+
+    // AAB splits resources by language by default; Play Store then delivers
+    // only the language packs matching the user's preinstalled system
+    // locales. On Pixel devices the user's "Languages" list might be just
+    // English, in which case Play strips the other locale resources from
+    // their on-device install -- our in-app picker can no longer find
+    // values-it/, values-pt-rPT/, etc. Disable the language split so the
+    // base APK in the AAB always carries every locale we ship.
+    bundle {
+        language {
+            enableSplit = false
         }
     }
 }

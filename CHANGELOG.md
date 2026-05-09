@@ -7,6 +7,27 @@ project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 For the high-level roadmap and earlier-than-0.5.0 history, see the
 "Roadmap" section in the [README](README.md).
 
+## [0.5.11] - 2026-05-09
+
+### Fixed
+
+- **Italian and Portuguese now actually apply when installed via
+  Play Store.** Real root cause for the issue I'd been chasing
+  through 0.5.8 → 0.5.10: AAB language splits. Play Store's default
+  delivery splits the AAB by language and only ships locale resource
+  packs matching the user's preinstalled system locales. On Pixel
+  devices with just English in the system languages list, Play was
+  stripping `values-it/` and `values-pt-rPT/` from the on-device
+  install — the in-app picker would set the locale tag, the activity
+  would recreate, but `getString(...)` had no Italian / Portuguese
+  resources to look up, so it fell back to `values/` (English).
+  Sideloaded APKs never had this problem because APKs aren't split.
+  Spanish appeared to work because Pixel devices ship `es-*` locale
+  data preinstalled, so Play delivered that split too.
+  Fix: `bundle { language { enableSplit = false } }` in
+  `app/build.gradle.kts`. The base APK now always carries every
+  locale we ship, regardless of what's on the user's device.
+
 ## [0.5.10] - 2026-05-09
 
 ### Fixed

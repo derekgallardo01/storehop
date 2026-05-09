@@ -13,7 +13,7 @@ specific household) is added or renamed by the user.
 
 ## Status
 
-v0.5.10. Shipping to Google Play Closed testing. Feature-complete for
+v0.5.11. Shipping to Google Play Closed testing. Feature-complete for
 single-user v1: anonymous-first onboarding with optional Google
 Sign-In, two-way Firestore + Storage cloud sync (push and pull), Shop
 and Items tabs with item photos, share-list-as-text, theme + language
@@ -174,6 +174,13 @@ pack remains stable across devices and across reseeds.
          working again under the in-app picker. Italian and
          Portuguese-not-applying on Pixel under per-app locale is a
          separate issue still being investigated.
+- v0.5.11 Found the actual root cause: AAB language splits. Play Store
+         was stripping non-preinstalled locale resource packs from
+         on-device installs (Pixel ships `es-*` data preinstalled but
+         not Italian or Portuguese, so those splits weren't delivered
+         even though they were in the AAB). Disabled the language
+         split via `bundle { language { enableSplit = false } }` so
+         the base APK always carries every locale.
 - v0.6+  Polish follow-ups (e.g. tightening the in-session staple
          flag's renewal behavior) and a v2 home-screen widget that
          actually does something useful.
