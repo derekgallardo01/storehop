@@ -13,7 +13,7 @@ specific household) is added or renamed by the user.
 
 ## Status
 
-v0.5.9. Shipping to Google Play Closed testing. Feature-complete for
+v0.5.10. Shipping to Google Play Closed testing. Feature-complete for
 single-user v1: anonymous-first onboarding with optional Google
 Sign-In, two-way Firestore + Storage cloud sync (push and pull), Shop
 and Items tabs with item photos, share-list-as-text, theme + language
@@ -166,13 +166,14 @@ pack remains stable across devices and across reseeds.
          Portuguese, Spanish, Italian. First-pass translations are
          machine-quality; native-speaker review pending before any
          public Play Store promotion.
-- v0.5.9 Locale apply path fix: Italian and Portuguese were silently
-         failing to take effect on Pixel devices because the v0.5.8
-         code went straight to `LocaleManager` on API 33+, which on
-         Pixel drops locales not enabled in the OS-level language
-         list. Routed through `AppCompatDelegate` instead so locales
-         declared in `locales_config.xml` apply regardless of system
-         enablement.
+- v0.5.9 [yanked] Tried `AppCompatDelegate`-only locale apply path
+         to fix Italian / Portuguese not applying on Pixel; that
+         regression broke Spanish too (no language switched at all).
+         Reverted in 0.5.10.
+- v0.5.10 Reverted v0.5.9's locale-apply path. Spanish + English
+         working again under the in-app picker. Italian and
+         Portuguese-not-applying on Pixel under per-app locale is a
+         separate issue still being investigated.
 - v0.6+  Polish follow-ups (e.g. tightening the in-session staple
          flag's renewal behavior) and a v2 home-screen widget that
          actually does something useful.

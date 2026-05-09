@@ -7,24 +7,30 @@ project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 For the high-level roadmap and earlier-than-0.5.0 history, see the
 "Roadmap" section in the [README](README.md).
 
-## [0.5.9] - 2026-05-09
+## [0.5.10] - 2026-05-09
 
 ### Fixed
 
-- **Italian and European Portuguese now actually apply when picked
-  from Settings → Language.** v0.5.8 added Spanish + Italian to the
-  picker, but Pixel devices reported Italian and Portuguese silently
-  failing to load translations even though the radio button selected
-  correctly. Spanish worked because it was already enabled in the
-  user's system language list; Italian and Portuguese weren't, and
-  the v0.5.8 code routed straight to `LocaleManager.applicationLocales`
-  on API 33+, which on Pixel silently dropped per-app locales not in
-  the user's system language list. Fixed by routing through
-  `AppCompatDelegate.setApplicationLocales` on every API level.
-  AppCompat respects the locales declared in `xml/locales_config.xml`
-  regardless of which languages are enabled at the OS level —
-  matches the documented Android per-app-language pattern more
-  closely.
+- **Reverted v0.5.9's locale-apply-path change.** v0.5.9 tried
+  routing every locale switch through `AppCompatDelegate` to work
+  around Italian / Portuguese silently failing to apply on Pixel,
+  but that regressed Spanish (which had been working) — no language
+  switched at all. The original `LocaleManager`-direct path on API
+  33+ is back; this restores Spanish + English working under the
+  in-app picker. Italian + Portuguese-not-applying on Pixel is a
+  separate issue still being investigated.
+
+## [0.5.9] - 2026-05-09 [yanked]
+
+### Fixed (regressed — see 0.5.10)
+
+- Tried routing locale switches through
+  `AppCompatDelegate.setApplicationLocales` on every API level to
+  fix Italian and Portuguese not applying on Pixel. Regression: this
+  also broke Spanish (which had been working) — the comment in the
+  v0.5.7 setLocale() about AppCompat failing silently under
+  ComponentActivity was right, and the AppCompat-only path doesn't
+  hold under Compose-only hosts on this device. Reverted in 0.5.10.
 
 ## [0.5.8] - 2026-05-09
 
