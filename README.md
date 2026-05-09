@@ -13,7 +13,7 @@ specific household) is added or renamed by the user.
 
 ## Status
 
-v0.5.12. Shipping to Google Play Closed testing. Feature-complete for
+v0.5.13. Shipping to Google Play Closed testing. Feature-complete for
 single-user v1: anonymous-first onboarding with optional Google
 Sign-In, two-way Firestore + Storage cloud sync (push and pull), Shop
 and Items tabs with item photos, share-list-as-text, theme + language
@@ -185,6 +185,8 @@ pack remains stable across devices and across reseeds.
          `UndoBar` (× close, swipe, 3s auto-dismiss). Replaces the
          Material3 `SnackbarHost` that had the same indefinite-
          duration issue we already fixed on the Shop screens.
+- v0.5.13 Same `UndoBar` migration on Manage Categories'
+         deleted-category undo prompt.
 - v0.6+  Polish follow-ups (e.g. tightening the in-session staple
          flag's renewal behavior) and a v2 home-screen widget that
          actually does something useful.

@@ -28,10 +28,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Snackbar
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -55,6 +51,8 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.storehop.app.R
 import com.storehop.app.data.entity.Category
+import com.storehop.app.ui.util.UndoBar
+import com.storehop.app.ui.util.UndoBarState
 import com.storehop.app.ui.util.WordCaps
 import kotlinx.coroutines.launch
 
@@ -70,10 +68,8 @@ fun ManageCategoriesScreen(
     var pendingRename by remember { mutableStateOf<Category?>(null) }
     var pendingDelete by remember { mutableStateOf<Category?>(null) }
 
-    val scope = rememberCoroutineScope()
     val haptics = LocalHapticFeedback.current
-    val snackbarHostState = remember { SnackbarHostState() }
-    val undoLabel = stringResource(R.string.action_undo)
+    var undoState: UndoBarState? by remember { mutableStateOf(null) }
     val undoTemplate = stringResource(R.string.undo_category_deleted)
 
     Scaffold(
@@ -97,7 +93,9 @@ fun ManageCategoriesScreen(
                 text = { Text(stringResource(R.string.add_category_dialog_title)) },
             )
         },
-        snackbarHost = { SnackbarHost(snackbarHostState) { Snackbar(it) } },
+        bottomBar = {
+            UndoBar(state = undoState, onDismiss = { undoState = null })
+        },
     ) { padding ->
         if (categories.isEmpty()) {
             Box(
@@ -149,16 +147,13 @@ fun ManageCategoriesScreen(
                 haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                 viewModel.deleteCategory(id)
                 pendingDelete = null
-                scope.launch {
-                    snackbarHostState.currentSnackbarData?.dismiss()
-                    val result = snackbarHostState.showSnackbar(
-                        message = undoTemplate.format(name),
-                        actionLabel = undoLabel,
-                    )
-                    if (result == SnackbarResult.ActionPerformed) {
-                        viewModel.undoDeleteCategory(id)
-                    }
-                }
+                // Setting a fresh UndoBarState resets the auto-dismiss timer,
+                // so a rapid second delete just replaces the prompt instead of
+                // queuing two.
+                undoState = UndoBarState(
+                    message = undoTemplate.format(name),
+                    onUndo = { viewModel.undoDeleteCategory(id) },
+                )
             },
         )
     }

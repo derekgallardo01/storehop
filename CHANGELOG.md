@@ -7,6 +7,16 @@ project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 For the high-level roadmap and earlier-than-0.5.0 history, see the
 "Roadmap" section in the [README](README.md).
 
+## [0.5.13] - 2026-05-09
+
+### Changed
+
+- **Manage Categories: deleted-category undo bar gets the same
+  treatment.** When you delete a category from Items → Manage
+  categories, the "Deleted X" undo prompt now uses the shared
+  `UndoBar` (3-second auto-dismiss, × close button, swipe-to-dismiss).
+  Same migration as v0.5.12 did for the Items list.
+
 ## [0.5.12] - 2026-05-09
 
 ### Changed
