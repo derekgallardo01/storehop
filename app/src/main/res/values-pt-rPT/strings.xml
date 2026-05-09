@@ -203,4 +203,42 @@
     <string name="action_import_categories">Importar categorias</string>
     <string name="import_result_summary">Importados %1$d artigos, %2$d categorias, %3$d lojas. %4$d duplicados ignorados.</string>
     <string name="import_undo_label">Anular</string>
+
+    <!-- Ecrã de Estatísticas, acessível pelas Definições. -->
+    <string name="statistics_title">Estatísticas</string>
+    <string name="statistics_settings_link_subtitle">Veja os seus padrões de compras num relance</string>
+    <string name="statistics_empty_title">Ainda sem dados</string>
+    <string name="statistics_empty_body">Adicione alguns artigos e marque-os à medida que compra. As suas estatísticas aparecem aqui.</string>
+    <string name="statistics_section_activity">Atividade</string>
+    <string name="statistics_total_purchases">Desde sempre</string>
+    <string name="statistics_last_30_days">Últimos 30 dias</string>
+    <string name="statistics_last_7_days">Últimos 7 dias</string>
+    <string name="statistics_trend_label">Atividade diária (últimas 12 semanas)</string>
+    <string name="statistics_most_active_day_format">Dia mais ativo: %1$s</string>
+    <string name="statistics_section_items">Artigos</string>
+    <string name="statistics_library_total">Total</string>
+    <string name="statistics_library_staples">Sempre na lista</string>
+    <string name="statistics_library_priority">Críticos</string>
+    <string name="statistics_top_items">Mais comprados</string>
+    <string name="statistics_stale_items">Há tempo que não compra</string>
+    <string name="statistics_stale_items_subtitle">Artigos sem compras nos últimos 60 dias. Considere arquivar os que já não precisa.</string>
+    <string name="statistics_stale_days_format">há %1$d dias</string>
+    <string name="statistics_section_stores">Lojas</string>
+    <string name="statistics_total_stores">Lojas ativas</string>
+    <string name="statistics_most_shopped_format">Mais frequentada: %1$s (%2$d compras)</string>
+    <string name="statistics_section_categories">Categorias</string>
+    <string name="statistics_total_categories">Total</string>
+    <string name="statistics_uncategorised">Sem categoria</string>
+
+    <!-- Dias da semana para a linha "Dia mais ativo". Índices alinhados com
+         strftime('%w', …) do SQLite: 0 = domingo, 6 = sábado. -->
+    <string-array name="statistics_days_of_week">
+        <item>Domingo</item>
+        <item>Segunda-feira</item>
+        <item>Terça-feira</item>
+        <item>Quarta-feira</item>
+        <item>Quinta-feira</item>
+        <item>Sexta-feira</item>
+        <item>Sábado</item>
+    </string-array>
 </resources>
