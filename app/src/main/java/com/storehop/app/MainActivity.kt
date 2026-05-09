@@ -42,6 +42,7 @@ import com.storehop.app.ui.items.ItemFormScreen
 import com.storehop.app.ui.items.ItemsListScreen
 import com.storehop.app.ui.nav.Routes
 import com.storehop.app.ui.settings.SettingsScreen
+import com.storehop.app.ui.statistics.StatisticsScreen
 import com.storehop.app.ui.shop.EditAisleOrderScreen
 import com.storehop.app.ui.shop.ShopAtStoreScreen
 import com.storehop.app.ui.shop.StorePickerScreen
@@ -195,7 +196,13 @@ private fun SignedInRoot() {
             }
 
             composable(Routes.SETTINGS) {
-                SettingsScreen(onBack = { navController.popBackStack() })
+                SettingsScreen(
+                    onBack = { navController.popBackStack() },
+                    onOpenStatistics = { navController.navigate(Routes.STATISTICS) },
+                )
+            }
+            composable(Routes.STATISTICS) {
+                StatisticsScreen(onBack = { navController.popBackStack() })
             }
         }
     }
@@ -220,6 +227,11 @@ private fun navigateToTab(
     currentRoute: String?,
 ) {
     if (currentRoute == Routes.SETTINGS) {
+        navController.popBackStack(Routes.SETTINGS, inclusive = true)
+    } else if (currentRoute == Routes.STATISTICS) {
+        // Statistics is reachable only via Settings, so popping it inclusively
+        // also clears the Settings underneath — same reason as the Settings
+        // case above (peer-of-tabs back-stack quirk in Compose Navigation).
         navController.popBackStack(Routes.SETTINGS, inclusive = true)
     }
     navController.navigate(tabRoute) {

@@ -201,4 +201,42 @@
     <string name="action_import_categories">Import categories</string>
     <string name="import_result_summary">Imported %1$d items, %2$d categories, %3$d stores. Skipped %4$d duplicates.</string>
     <string name="import_undo_label">Undo</string>
+
+    <!-- Statistics screen, reachable from Settings. -->
+    <string name="statistics_title">Statistics</string>
+    <string name="statistics_settings_link_subtitle">See your shopping patterns at a glance</string>
+    <string name="statistics_empty_title">No data yet</string>
+    <string name="statistics_empty_body">Add a few items and check them off as you shop. Your statistics will show up here.</string>
+    <string name="statistics_section_activity">Activity</string>
+    <string name="statistics_total_purchases">All-time</string>
+    <string name="statistics_last_30_days">Last 30 days</string>
+    <string name="statistics_last_7_days">Last 7 days</string>
+    <string name="statistics_trend_label">Daily activity (last 12 weeks)</string>
+    <string name="statistics_most_active_day_format">Most active day: %1$s</string>
+    <string name="statistics_section_items">Items</string>
+    <string name="statistics_library_total">Total</string>
+    <string name="statistics_library_staples">Staples</string>
+    <string name="statistics_library_priority">Critical</string>
+    <string name="statistics_top_items">Most purchased</string>
+    <string name="statistics_stale_items">Haven\'t bought in a while</string>
+    <string name="statistics_stale_items_subtitle">Items not purchased in the last 60 days. Consider archiving the ones you don\'t need anymore.</string>
+    <string name="statistics_stale_days_format">%1$d days ago</string>
+    <string name="statistics_section_stores">Stores</string>
+    <string name="statistics_total_stores">Active stores</string>
+    <string name="statistics_most_shopped_format">Most shopped: %1$s (%2$d purchases)</string>
+    <string name="statistics_section_categories">Categories</string>
+    <string name="statistics_total_categories">Total</string>
+    <string name="statistics_uncategorised">Uncategorised</string>
+
+    <!-- Day-of-week labels for the "most active day" line. Indices match
+         SQLite's strftime('%w', …): 0 = Sunday, 6 = Saturday. -->
+    <string-array name="statistics_days_of_week">
+        <item>Sunday</item>
+        <item>Monday</item>
+        <item>Tuesday</item>
+        <item>Wednesday</item>
+        <item>Thursday</item>
+        <item>Friday</item>
+        <item>Saturday</item>
+    </string-array>
 </resources>
