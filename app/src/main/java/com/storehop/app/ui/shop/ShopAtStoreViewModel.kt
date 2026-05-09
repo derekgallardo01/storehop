@@ -3,8 +3,10 @@ package com.storehop.app.ui.shop
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.storehop.app.data.db.relations.ItemWithCategoryAndStores
 import com.storehop.app.data.db.relations.ShoppingRow
 import com.storehop.app.data.entity.Store
+import com.storehop.app.data.prefs.UserPreferencesRepository
 import com.storehop.app.data.repository.ItemRepository
 import com.storehop.app.data.repository.ShoppingRepository
 import com.storehop.app.data.repository.StoreRepository
@@ -25,6 +27,21 @@ data class ShopAtStoreUiState(
     val rowsByCategory: List<CategorySection> = emptyList(),
     val criticalNames: List<String> = emptyList(),
     val query: String = "",
+    val showPurchased: Boolean = true,
+)
+
+/**
+ * One row in the QuickAddBar's autocomplete. Keeps just what the suggestion
+ * list needs to render (id + name + brand + category + staple flag) so the
+ * VM doesn't leak the whole [com.storehop.app.data.db.relations.ItemWithCategoryAndStores]
+ * surface to the screen.
+ */
+data class QuickAddSuggestion(
+    val itemId: String,
+    val name: String,
+    val brand: String?,
+    val categoryName: String?,
+    val isStaple: Boolean,
 )
 
 data class CategorySection(
@@ -42,6 +59,7 @@ data class CategorySection(
 class ShopAtStoreViewModel @Inject constructor(
     private val shoppingRepository: ShoppingRepository,
     private val itemRepository: ItemRepository,
+    private val preferencesRepository: UserPreferencesRepository,
     sessionTracker: ShoppingSessionTracker,
     storeRepository: StoreRepository,
     savedStateHandle: SavedStateHandle,
@@ -63,6 +81,9 @@ class ShopAtStoreViewModel @Inject constructor(
     private val _query = MutableStateFlow("")
     val query: StateFlow<String> = _query.asStateFlow()
 
+    private val _quickAddInput = MutableStateFlow("")
+    val quickAddInput: StateFlow<String> = _quickAddInput.asStateFlow()
+
     val store: StateFlow<Store?> = storeRepository.observeById(storeId)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000L), null)
 
@@ -71,25 +92,84 @@ class ShopAtStoreViewModel @Inject constructor(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000L), emptyList())
 
     val uiState: StateFlow<ShopAtStoreUiState> =
-        combine(store, rows, _query) { st, allRows, q ->
+        combine(
+            store,
+            rows,
+            _query,
+            preferencesRepository.showPurchased,
+        ) { st, allRows, q, showP ->
+            // When showP is false, hide every checked-off row regardless of
+            // staple status -- "checked off" is a single concept to the user.
+            val visible = if (showP) allRows else allRows.filter { it.isNeeded }
             val needle = q.trim()
-            val filtered = if (needle.isEmpty()) allRows else allRows.filter {
+            val filtered = if (needle.isEmpty()) visible else visible.filter {
                 it.itemName.contains(needle, ignoreCase = true) ||
                     (it.brand?.contains(needle, ignoreCase = true) == true)
             }
             ShopAtStoreUiState(
                 store = st,
                 rowsByCategory = filtered.groupByCategory(),
-                // Critical names come from the unfiltered list -- the search shouldn't
-                // hide critical needs from the banner.
+                // Critical names come from the unfiltered list -- neither the
+                // search nor the visibility toggle should hide critical needs
+                // from the banner.
                 criticalNames = allRows.filter { it.isPriority }.map { it.itemName },
                 query = q,
+                showPurchased = showP,
             )
         }.stateIn(
             viewModelScope, SharingStarted.WhileSubscribed(5_000L), ShopAtStoreUiState(),
         )
 
     fun setQuery(q: String) { _query.value = q }
+
+    fun setQuickAddInput(value: String) { _quickAddInput.value = value }
+
+    fun setShowPurchased(value: Boolean) {
+        viewModelScope.launch { preferencesRepository.setShowPurchased(value) }
+    }
+
+    /**
+     * Suggestions for the QuickAddBar autocomplete. Only populated once the
+     * user starts typing — empty input yields an empty list (the bar stays
+     * unobtrusive until you ask for it). Filters the master Items library
+     * by name + brand substring (case-insensitive), prefix matches first,
+     * capped at 8. Items already needed at this store are excluded so the
+     * list isn't showing things you already have on the list.
+     */
+    val quickAddSuggestions: StateFlow<List<QuickAddSuggestion>> =
+        combine(
+            _quickAddInput,
+            itemRepository.observeAll(),
+            rows,
+        ) { input, allItems, currentRows ->
+            val needle = input.trim()
+            if (needle.isEmpty()) return@combine emptyList()
+            val neededHere: Set<String> = currentRows
+                .asSequence()
+                .filter { it.isNeeded }
+                .map { it.itemId }
+                .toSet()
+            allItems.asSequence()
+                .filter { it.item.id !in neededHere }
+                .filter { row ->
+                    row.item.name.contains(needle, ignoreCase = true) ||
+                        (row.item.brand?.contains(needle, ignoreCase = true) == true)
+                }
+                .sortedWith(
+                    compareBy<ItemWithCategoryAndStores> { row ->
+                        // Prefix matches on name rank first, then prefix on
+                        // brand, then everything else (substring matches).
+                        when {
+                            row.item.name.startsWith(needle, ignoreCase = true) -> 0
+                            row.item.brand?.startsWith(needle, ignoreCase = true) == true -> 1
+                            else -> 2
+                        }
+                    }.thenBy { it.item.name.lowercase() },
+                )
+                .take(8)
+                .map { it.toSuggestion() }
+                .toList()
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000L), emptyList())
 
     /**
      * Snapshot timestamp returned by the most recent cascade purchase, kept
@@ -133,23 +213,41 @@ class ShopAtStoreViewModel @Inject constructor(
     }
 
     /**
-     * Add a new item from the bottom quick-add bar: name only, auto-tagged
-     * to this store, defaults for everything else (no brand/category/photo,
-     * not a staple, not priority). Lets the user capture an item without
-     * leaving the shopping flow.
+     * Submit the current QuickAdd input. Routes to
+     * [ItemRepository.addItemFromQuickAdd] which dedupes by case-insensitive
+     * name match before creating: existing master-list items get re-tagged
+     * to this store instead of duplicated. Clears the input on success.
+     * No-op for whitespace-only input.
      */
-    fun quickAdd(name: String) {
-        val trimmed = name.trim()
+    fun submitQuickAddText() {
+        val trimmed = _quickAddInput.value.trim()
         if (trimmed.isEmpty()) return
         viewModelScope.launch {
-            itemRepository.addItem(
-                name = trimmed,
-                categoryId = null,
-                storeIds = setOf(storeId),
-            )
+            itemRepository.addItemFromQuickAdd(trimmed, storeId)
+            _quickAddInput.value = ""
+        }
+    }
+
+    /**
+     * The user tapped a suggestion in the QuickAdd autocomplete. Tag the
+     * existing master-list item to this store (idempotent for items already
+     * tagged) and clear the input.
+     */
+    fun pickExistingItem(itemId: String) {
+        viewModelScope.launch {
+            itemRepository.tagItemToStore(itemId, storeId)
+            _quickAddInput.value = ""
         }
     }
 }
+
+private fun ItemWithCategoryAndStores.toSuggestion() = QuickAddSuggestion(
+    itemId = item.id,
+    name = item.name,
+    brand = item.brand,
+    categoryName = category?.name,
+    isStaple = item.isStaple,
+)
 
 private fun List<ShoppingRow>.groupByCategory(): List<CategorySection> {
     // Group by displayOrder + category name; preserve incoming order which is

@@ -71,4 +71,30 @@ interface ItemRepository {
      * PurchaseRecord is touched; this is a per-store state correction.
      */
     suspend fun markNeededAtStore(itemId: String, storeId: String)
+
+    /**
+     * Idempotently mark an existing item as needed at the given store.
+     * Creates the xref if missing, upserts a live row when one exists (incl.
+     * restoring from a tombstone), and flips `isNeeded` to true if it was
+     * false. Used by the Shop-at-Store autocomplete: when the user picks an
+     * existing item from the suggestion list, this is the action that
+     * actually tags the item to the store. Also ensures the per-store
+     * StoreCategoryOrder row exists so the category sorts into aisle order.
+     */
+    suspend fun tagItemToStore(itemId: String, storeId: String)
+
+    /**
+     * Find-or-create entry point used by the Shop-at-Store QuickAdd bar.
+     * Trims input, then case-insensitive name-match against the user's
+     * master library:
+     *   - hit  → [tagItemToStore] for the existing id; returns that id.
+     *   - miss → [addItem] with `storeIds = {storeId}`; returns the new id.
+     *
+     * Fixes the v0.5.6 bug where typing a name in the QuickAdd bar that
+     * already existed created a duplicate Item in the master library
+     * (uncategorized). [addItem]'s "always creates" semantics are preserved
+     * for non-QuickAdd callers (ItemFormScreen, CSV import); the dedupe
+     * lives only here.
+     */
+    suspend fun addItemFromQuickAdd(name: String, storeId: String): String
 }

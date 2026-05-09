@@ -3,14 +3,18 @@ package com.storehop.app.ui.shop
 import androidx.lifecycle.SavedStateHandle
 import app.cash.turbine.test
 import com.google.common.truth.Truth.assertThat
+import com.storehop.app.data.db.relations.ItemWithCategoryAndStores
 import com.storehop.app.data.db.relations.ShoppingRow
+import com.storehop.app.data.entity.Item
 import com.storehop.app.data.entity.Store
+import com.storehop.app.data.prefs.UserPreferencesRepository
 import com.storehop.app.data.repository.ItemRepository
 import com.storehop.app.data.repository.ShoppingRepository
 import com.storehop.app.data.repository.StoreRepository
 import com.storehop.app.testing.MainDispatcherRule
 import io.mockk.coVerify
 import io.mockk.coEvery
+import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -40,6 +44,10 @@ class ShopAtStoreViewModelTest {
     private val storeRepo: StoreRepository = mockk()
     private val sessionTracker: ShoppingSessionTracker = mockk {
         coEvery { sessionStartMs() } returns 1_000L
+    }
+    private val showPurchasedFlow = MutableStateFlow(true)
+    private val prefsRepo: UserPreferencesRepository = mockk(relaxed = true) {
+        every { showPurchased } returns showPurchasedFlow
     }
 
     private val rowsFlow = MutableStateFlow<List<ShoppingRow>>(emptyList())
@@ -157,45 +165,190 @@ class ShopAtStoreViewModelTest {
         coVerify(exactly = 0) { itemRepo.undoPurchase(any(), any()) }
     }
 
-    @Test fun `quickAdd ignores blank input`() = runTest {
+    @Test fun `showPurchased=false hides every checked-off row regardless of staple status`() = runTest {
+        rowsFlow.value = listOf(
+            row("milk", "Milk", isNeeded = true),                     // needed -> visible
+            row("rice", "Rice", isNeeded = true, isStaple = true),    // needed staple -> visible
+            row("bread", "Bread", isNeeded = false),                  // purchased non-staple -> hidden
+            row("eggs", "Eggs", isNeeded = false, isStaple = true),   // purchased staple -> hidden
+        )
         coEvery { shoppingRepo.shoppingListForStore(any(), any()) } returns rowsFlow
         coEvery { storeRepo.observeById(any()) } returns flowOf(testStore())
+        showPurchasedFlow.value = false
 
         val vm = newVm()
-        vm.quickAdd("   ")
-        advanceUntilIdle()
-
-        coVerify(exactly = 0) { itemRepo.addItem(any(), any(), any(), any(), any(), any(), any(), any(), any(), any()) }
+        vm.uiState.test {
+            awaitItem()
+            advanceUntilIdle()
+            val visibleNames = expectMostRecentItem().rowsByCategory
+                .flatMap { it.rows }.map { it.itemName }
+            assertThat(visibleNames).containsExactly("Milk", "Rice")
+            cancelAndIgnoreRemainingEvents()
+        }
     }
 
-    @Test fun `quickAdd auto-tags the new item to the current store`() = runTest {
+    @Test fun `criticalNames is unaffected by the visibility toggle`() = runTest {
+        // The critical-needs banner is sourced from the unfiltered rows, so
+        // hiding checked-off items must never drop a critical item from the
+        // banner.
+        rowsFlow.value = listOf(
+            row("milk", "Milk", isPriority = true, isNeeded = true),
+            row("bread", "Bread", isNeeded = false),
+        )
+        coEvery { shoppingRepo.shoppingListForStore(any(), any()) } returns rowsFlow
+        coEvery { storeRepo.observeById(any()) } returns flowOf(testStore())
+        showPurchasedFlow.value = false
+
+        val vm = newVm()
+        vm.uiState.test {
+            awaitItem()
+            advanceUntilIdle()
+            val state = expectMostRecentItem()
+            assertThat(state.criticalNames).containsExactly("Milk")
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test fun `submitQuickAddText is a no-op on whitespace input`() = runTest {
         coEvery { shoppingRepo.shoppingListForStore(any(), any()) } returns rowsFlow
         coEvery { storeRepo.observeById(any()) } returns flowOf(testStore())
 
         val vm = newVm()
-        vm.quickAdd("  Yogurt  ")
+        vm.setQuickAddInput("   ")
+        vm.submitQuickAddText()
         advanceUntilIdle()
 
-        coVerify(exactly = 1) {
-            itemRepo.addItem(
-                name = "Yogurt",
-                categoryId = null,
-                storeIds = setOf("store_lidl"),
-                // Defaulted args we don't care about here:
-                quantity = any(),
-                notes = any(),
-                isNeeded = any(),
-                brand = any(),
-                imageUrl = any(),
-                isStaple = any(),
-                isPriority = any(),
-            )
+        coVerify(exactly = 0) { itemRepo.addItemFromQuickAdd(any(), any()) }
+    }
+
+    @Test fun `submitQuickAddText routes to addItemFromQuickAdd with trimmed name`() = runTest {
+        coEvery { shoppingRepo.shoppingListForStore(any(), any()) } returns rowsFlow
+        coEvery { storeRepo.observeById(any()) } returns flowOf(testStore())
+        coEvery { itemRepo.addItemFromQuickAdd(any(), any()) } returns "new_id"
+
+        val vm = newVm()
+        vm.setQuickAddInput("  Yogurt  ")
+        vm.submitQuickAddText()
+        advanceUntilIdle()
+
+        coVerify(exactly = 1) { itemRepo.addItemFromQuickAdd("Yogurt", "store_lidl") }
+        // Input should be cleared after a successful submit so the field is
+        // ready for the next entry.
+        assertThat(vm.quickAddInput.value).isEmpty()
+    }
+
+    @Test fun `pickExistingItem routes to tagItemToStore`() = runTest {
+        coEvery { shoppingRepo.shoppingListForStore(any(), any()) } returns rowsFlow
+        coEvery { storeRepo.observeById(any()) } returns flowOf(testStore())
+
+        val vm = newVm()
+        vm.setQuickAddInput("mil")
+        vm.pickExistingItem("milk")
+        advanceUntilIdle()
+
+        coVerify(exactly = 1) { itemRepo.tagItemToStore("milk", "store_lidl") }
+        assertThat(vm.quickAddInput.value).isEmpty()
+    }
+
+    @Test fun `quickAddSuggestions empty when input is empty even if staples exist`() = runTest {
+        // The bar stays unobtrusive until the user starts typing. Empty
+        // input always yields empty suggestions, regardless of how many
+        // staples or items exist in the master library.
+        val masterLibrary = listOf(
+            itemRow("eggs", "Eggs", isStaple = true),
+            itemRow("bread", "Bread", isStaple = true),
+            itemRow("popcorn", "Popcorn", isStaple = false),
+        )
+        rowsFlow.value = emptyList()
+        coEvery { shoppingRepo.shoppingListForStore(any(), any()) } returns rowsFlow
+        coEvery { storeRepo.observeById(any()) } returns flowOf(testStore())
+        coEvery { itemRepo.observeAll() } returns flowOf(masterLibrary)
+
+        // StateFlow seed is already empty and stays empty, so there's no
+        // post-collection emission for Turbine to await -- read .value after
+        // letting coroutines run instead.
+        val vm = newVm()
+        // Cold-collect briefly so the upstream combine actually evaluates.
+        vm.quickAddSuggestions.test {
+            awaitItem()
+            advanceUntilIdle()
+            cancelAndIgnoreRemainingEvents()
+        }
+        assertThat(vm.quickAddSuggestions.value).isEmpty()
+    }
+
+    @Test fun `quickAddSuggestions filters by name substring case-insensitively when input is non-empty`() = runTest {
+        val masterLibrary = listOf(
+            itemRow("milk", "Milk"),
+            itemRow("almond_milk", "Almond Milk"),
+            itemRow("eggs", "Eggs"),
+        )
+        rowsFlow.value = emptyList()
+        coEvery { shoppingRepo.shoppingListForStore(any(), any()) } returns rowsFlow
+        coEvery { storeRepo.observeById(any()) } returns flowOf(testStore())
+        coEvery { itemRepo.observeAll() } returns flowOf(masterLibrary)
+
+        val vm = newVm()
+        vm.setQuickAddInput("MIL")
+        vm.quickAddSuggestions.test {
+            awaitItem()
+            advanceUntilIdle()
+            val names = expectMostRecentItem().map { it.name }
+            // Both milks match (case-insensitive substring); prefix-on-name
+            // ranks "Milk" before "Almond Milk".
+            assertThat(names).containsExactly("Milk", "Almond Milk").inOrder()
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test fun `quickAddSuggestions matches brand too`() = runTest {
+        val masterLibrary = listOf(
+            itemRow("milk_mimosa", "Milk", brand = "Mimosa"),
+            itemRow("oat_drink", "Oat Drink", brand = null),
+        )
+        rowsFlow.value = emptyList()
+        coEvery { shoppingRepo.shoppingListForStore(any(), any()) } returns rowsFlow
+        coEvery { storeRepo.observeById(any()) } returns flowOf(testStore())
+        coEvery { itemRepo.observeAll() } returns flowOf(masterLibrary)
+
+        val vm = newVm()
+        vm.setQuickAddInput("mim")
+        vm.quickAddSuggestions.test {
+            awaitItem()
+            advanceUntilIdle()
+            val names = expectMostRecentItem().map { it.name }
+            assertThat(names).containsExactly("Milk")
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test fun `quickAddSuggestions excludes items already needed at this store`() = runTest {
+        val masterLibrary = listOf(
+            itemRow("milk", "Milk"),
+            itemRow("almond_milk", "Almond Milk"),
+        )
+        // "milk" is already needed at this store -- shouldn't appear even if
+        // it matches the typed substring.
+        rowsFlow.value = listOf(row("milk", "Milk", isNeeded = true))
+        coEvery { shoppingRepo.shoppingListForStore(any(), any()) } returns rowsFlow
+        coEvery { storeRepo.observeById(any()) } returns flowOf(testStore())
+        coEvery { itemRepo.observeAll() } returns flowOf(masterLibrary)
+
+        val vm = newVm()
+        vm.setQuickAddInput("mil")
+        vm.quickAddSuggestions.test {
+            awaitItem()
+            advanceUntilIdle()
+            val names = expectMostRecentItem().map { it.name }
+            assertThat(names).containsExactly("Almond Milk")
+            cancelAndIgnoreRemainingEvents()
         }
     }
 
     private fun newVm() = ShopAtStoreViewModel(
         shoppingRepository = shoppingRepo,
         itemRepository = itemRepo,
+        preferencesRepository = prefsRepo,
         sessionTracker = sessionTracker,
         storeRepository = storeRepo,
         savedStateHandle = SavedStateHandle(mapOf("storeId" to "store_lidl")),
@@ -207,6 +360,7 @@ class ShopAtStoreViewModelTest {
         brand: String? = null,
         isNeeded: Boolean = true,
         isPriority: Boolean = false,
+        isStaple: Boolean = false,
     ) = ShoppingRow(
         itemId = id,
         itemName = name,
@@ -216,7 +370,7 @@ class ShopAtStoreViewModelTest {
         brand = brand,
         imageUrl = null,
         isPriority = isPriority,
-        isStaple = false,
+        isStaple = isStaple,
         categoryId = "cat_dairy_eggs",
         categoryName = "Dairy & Eggs",
         categoryNameKey = "cat_dairy_eggs",
@@ -228,5 +382,32 @@ class ShopAtStoreViewModelTest {
         id = "store_lidl", name = "Lidl", colorArgb = null,
         isArchived = false, isSeeded = true, userId = "u",
         createdAt = 1L, updatedAt = 1L, deletedAt = null,
+    )
+
+    private fun itemRow(
+        id: String,
+        name: String,
+        brand: String? = null,
+        isStaple: Boolean = false,
+    ) = ItemWithCategoryAndStores(
+        item = Item(
+            id = id,
+            name = name,
+            categoryId = null,
+            notes = null,
+            quantity = null,
+            isNeeded = true,
+            lastPurchasedAt = null,
+            userId = "u",
+            createdAt = 1L,
+            updatedAt = 1L,
+            deletedAt = null,
+            brand = brand,
+            imageUrl = null,
+            isStaple = isStaple,
+            isPriority = false,
+        ),
+        category = null,
+        stores = emptyList(),
     )
 }

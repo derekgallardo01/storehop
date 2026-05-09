@@ -38,6 +38,7 @@ final class AppContainer {
     let shoppingRepository: ShoppingRepository
     let storeCategoryOrderRepository: StoreCategoryOrderRepository
     let purchaseHistoryRepository: PurchaseHistoryRepository
+    let importExportRepository: ImportExportRepository
 
     // Singletons that span ViewModel lifetimes.
     let shoppingSessionTracker: ShoppingSessionTracker
@@ -122,6 +123,16 @@ final class AppContainer {
             purchaseDao: purchaseRecordDao,
             session: session,
             clock: clock
+        )
+        self.importExportRepository = ImportExportRepository(
+            writer: writer,
+            categoryDao: categoryDao,
+            storeDao: storeDao,
+            itemDao: itemDao,
+            categoryRepository: categoryRepository,
+            storeRepository: storeRepository,
+            itemRepository: itemRepository,
+            session: session
         )
 
         self.shoppingSessionTracker = ShoppingSessionTracker(clock: clock)

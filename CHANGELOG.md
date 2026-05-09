@@ -7,6 +7,83 @@ project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 For the high-level roadmap and earlier-than-0.5.0 history, see the
 "Roadmap" section in the [README](README.md).
 
+## [0.5.7] - 2026-05-09
+
+### Added
+
+- **Hide / Show checked-off items toggle.** A check-circle icon in
+  the Shop-at-Store top app bar that hides everything you've already
+  checked off the list — both items you just bought *and* "always
+  on the list" staples that aren't currently needed. Default is
+  Show, preserving the existing behavior; the setting persists
+  across launches. Mike reported that with several screens of
+  struck-through rows above each unchecked item, the list was hard
+  to use as a checklist while walking the aisles.
+- **QuickAdd autocomplete.** The "Add an item…" field at the bottom
+  of a store's list now searches your master Items library as you
+  type. Tap a suggestion to tag the existing item to this store —
+  no duplicate created. Hit Done with text that doesn't match
+  anything → new master item created (existing behavior). Hit Done
+  with text that exactly matches an existing item → silently
+  re-tags the existing one. Mike-reported: typing a name that
+  already existed in the master list was creating uncategorised
+  duplicates; this fixes it at the data layer too.
+- **In-app update prompt.** When you open StoreHop and a newer
+  version is available on Play, the Play update sheet appears right
+  inside the app — no need to navigate to the Play Store listing.
+  Tap Update; the new build downloads in the background while you
+  keep using your current shopping list. When it's ready, a small
+  "Update ready · Restart now" bar appears at the bottom of the
+  screen — tap it to install and relaunch in two seconds.
+
+### Changed
+
+- **Custom undo bar replaces the Material3 snackbar.** The
+  "Marked X purchased / Undo" bar (Shop-at-Store) and the
+  "Deleted X / Undo" bar (Store picker, after deleting a store)
+  now share a hand-rolled component with three ways to dismiss:
+  auto-dismiss after 3 seconds, a × close button, and swipe
+  horizontally. Mike reported the previous Material3 snackbar wasn't
+  auto-dismissing reliably across devices — accessibility services
+  scaled the duration up by 5–10×, making a 4-second `Short`
+  snackbar feel persistent. The 3-second timer is enforced
+  manually so accessibility settings can't extend it.
+- **Long-press anywhere on a store tile to reorder.** The previous
+  6-dot drag-handle icon on each store tile is gone. Beta feedback:
+  the icon wasn't discoverable ("she didn't know that's what that
+  does"). Tap continues to navigate into the store; long-press on
+  any part of the tile starts a drag-to-reorder.
+- **Statistics → Activity card simplified.** Dropped the "Last 30
+  days" and "Last 7 days" tiles. For users with under a month of
+  history they all matched the all-time count, which made the card
+  look broken. The 12-week trend chart already carries the recency
+  signal much better than three rolling counters.
+- **Shorter QuickAdd placeholder** — "Add an item…" instead of
+  "Add an item to this store…" so the field doesn't wrap on smaller
+  screens.
+
+### Fixed
+
+- The "Marked X purchased" undo snackbar lingered indefinitely on
+  some devices because Material3 silently switches to an
+  Indefinite duration whenever a snackbar has an action button.
+  See "Custom undo bar" above for the replacement.
+- In-app update flow no longer re-prompts when the activity returns
+  to foreground after the user has already accepted Play's update
+  sheet (was forcing a second tap to start the download).
+- "Update ready · Restart now" bar now respects the Pixel
+  gesture-nav inset; the button isn't covered by the system bar
+  anymore.
+
+### iOS
+
+The iOS port (in development; not yet on the App Store) catches up
+to Android parity for: the new undo bar (× + swipe + 3s),
+QuickAdd autocomplete with the same name-match dedupe, CSV import /
+export of items + categories, and a full Statistics screen with the
+12-week trend chart (Charts framework). The hide-checked-off
+toggle was added to iOS earlier in the day.
+
 ## [0.5.6] - 2026-05-08
 
 ### Changed

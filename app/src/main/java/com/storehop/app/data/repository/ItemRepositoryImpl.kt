@@ -8,6 +8,7 @@ import com.storehop.app.data.dao.StoreCategoryOrderDao
 import com.storehop.app.data.db.StorehopDatabase
 import com.storehop.app.data.db.relations.ItemWithCategoryAndStores
 import com.storehop.app.data.entity.Item
+import com.storehop.app.data.entity.ItemStoreXref
 import com.storehop.app.data.entity.PurchaseRecord
 import com.storehop.app.data.util.IdGenerator
 import com.storehop.app.data.util.UserSessionProvider
@@ -181,6 +182,51 @@ class ItemRepositoryImpl @Inject constructor(
         val current = itemDao.observeById(userId, itemId).first()?.item
             ?: return@withTransaction
         xrefDao.markNeededAtStore(current.userId, itemId, storeId, clock.millis())
+    }
+
+    override suspend fun tagItemToStore(itemId: String, storeId: String) = db.withTransaction {
+        val userId = requireSignedIn()
+        val current = itemDao.observeById(userId, itemId).first()?.item
+            ?: return@withTransaction
+        val ownerId = current.userId
+        val now = clock.millis()
+        val aliveXref = xrefDao.findForItem(itemId).firstOrNull { it.storeId == storeId }
+        if (aliveXref != null) {
+            // Live xref already exists -- just ensure isNeeded=true. Idempotent;
+            // no-op when the row was already needed.
+            xrefDao.markNeededAtStore(ownerId, itemId, storeId, now)
+        } else {
+            // Either no xref exists or only a tombstoned one. Upsert by primary
+            // key (itemId, storeId) replaces a tombstone or inserts fresh; either
+            // way the result is a live row with isNeeded=true.
+            xrefDao.upsert(
+                ItemStoreXref(
+                    itemId = itemId,
+                    storeId = storeId,
+                    userId = ownerId,
+                    createdAt = now,
+                    updatedAt = now,
+                    deletedAt = null,
+                    isNeeded = true,
+                ),
+            )
+        }
+        // Mirror addItem's behavior: ensure the SCO row exists so the category
+        // can be aisle-ordered at this store.
+        ensureSCOForCategoryAtStores(current.categoryId, setOf(storeId), ownerId, now)
+    }
+
+    override suspend fun addItemFromQuickAdd(name: String, storeId: String): String {
+        val userId = requireSignedIn()
+        val trimmed = name.trim()
+        require(trimmed.isNotEmpty()) { "name must be non-empty" }
+        val existing = itemDao.findByName(userId, trimmed)
+        return if (existing != null) {
+            tagItemToStore(existing.id, storeId)
+            existing.id
+        } else {
+            addItem(name = trimmed, categoryId = null, storeIds = setOf(storeId))
+        }
     }
 
     /**

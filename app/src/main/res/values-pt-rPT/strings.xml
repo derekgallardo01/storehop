@@ -45,6 +45,7 @@
     <string name="action_save">Guardar</string>
     <string name="action_saving">A guardar…</string>
     <string name="action_cancel">Cancelar</string>
+    <string name="action_close">Fechar</string>
     <string name="action_delete">Eliminar</string>
     <string name="action_add_store">Adicionar loja</string>
     <string name="action_add_item">Adicionar artigo</string>
@@ -106,11 +107,17 @@
     <!-- Compras na loja. -->
     <string name="action_more">Mais</string>
     <string name="action_share_list">Partilhar lista</string>
+    <string name="action_show_purchased">Mostrar artigos marcados</string>
+    <string name="action_hide_purchased">Ocultar artigos marcados</string>
     <string name="search_store_placeholder">Procurar na lista desta loja</string>
     <string name="aisle_format">%1$s (corredor %2$d)</string>
     <string name="shop_empty_no_query">Ainda sem artigos aqui — adicione artigos no separador Artigos e associe-os a esta loja</string>
     <string name="shop_empty_with_query">Sem resultados para \"%1$s\"</string>
-    <string name="quick_add_placeholder">Adicionar um artigo a esta loja…</string>
+    <string name="quick_add_placeholder">Adicionar um artigo…</string>
+
+    <!-- Atualização da app. -->
+    <string name="update_ready_message">Atualização pronta</string>
+    <string name="update_ready_action">Reiniciar agora</string>
 
     <!-- Snackbar de anular. -->
     <string name="action_undo">Anular</string>

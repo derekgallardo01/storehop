@@ -44,10 +44,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Snackbar
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -74,6 +70,8 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.storehop.app.R
 import com.storehop.app.data.repository.StorePickerRow
+import com.storehop.app.ui.util.UndoBar
+import com.storehop.app.ui.util.UndoBarState
 import com.storehop.app.ui.util.WordCaps
 import kotlinx.coroutines.launch
 import sh.calvin.reorderable.ReorderableItem
@@ -119,10 +117,8 @@ fun StorePickerScreen(
     var pendingRename by remember { mutableStateOf<StorePickerRow?>(null) }
     var pendingDelete by remember { mutableStateOf<StorePickerRow?>(null) }
 
-    val scope = rememberCoroutineScope()
     val haptics = LocalHapticFeedback.current
-    val snackbarHostState = remember { SnackbarHostState() }
-    val undoLabel = stringResource(R.string.action_undo)
+    var undoState: UndoBarState? by remember { mutableStateOf(null) }
     val undoTemplate = stringResource(R.string.undo_store_deleted)
 
     Scaffold(
@@ -146,7 +142,9 @@ fun StorePickerScreen(
                 text = { Text(stringResource(R.string.action_add_store)) },
             )
         },
-        snackbarHost = { SnackbarHost(snackbarHostState) { Snackbar(it) } },
+        bottomBar = {
+            UndoBar(state = undoState, onDismiss = { undoState = null })
+        },
     ) { padding ->
         Column(modifier = Modifier.padding(padding).fillMaxSize()) {
             criticalSummary?.let { CriticalNeedsBanner(state = it) }
@@ -214,18 +212,13 @@ fun StorePickerScreen(
                 haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                 viewModel.deleteStore(storeId)
                 pendingDelete = null
-                // Offer undo via snackbar. Cancel any in-flight snackbar so a
-                // rapid second delete doesn't queue up two prompts.
-                scope.launch {
-                    snackbarHostState.currentSnackbarData?.dismiss()
-                    val result = snackbarHostState.showSnackbar(
-                        message = undoTemplate.format(storeName),
-                        actionLabel = undoLabel,
-                    )
-                    if (result == SnackbarResult.ActionPerformed) {
-                        viewModel.undoDeleteStore(storeId)
-                    }
-                }
+                // Offer undo via the shared bar. Setting a fresh UndoBarState
+                // resets the auto-dismiss timer so a rapid second delete just
+                // replaces the prompt instead of queuing two.
+                undoState = UndoBarState(
+                    message = undoTemplate.format(storeName),
+                    onUndo = { viewModel.undoDeleteStore(storeId) },
+                )
             },
         )
     }
@@ -392,6 +385,11 @@ private fun StorePickerCard(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 4.dp)
+            // Long-press anywhere on the tile starts a drag-to-reorder.
+            // Beta tester feedback: the small drag-handle icon wasn't
+            // intuitive ("she didn't know that's what that does"). Tap
+            // continues to navigate via the .clickable below.
+            .then(dragHandleModifier)
             .clickable(onClick = onClick),
         shape = RoundedCornerShape(12.dp),
         // Lift the row visually while the user is dragging it.
@@ -472,14 +470,9 @@ private fun StorePickerCard(
                 )
                 Spacer(Modifier.width(4.dp))
             }
-            // Drag handle: long-press here to start reordering. Co-located
-            // with the trailing actions; the rest of the row is tap = navigate.
-            Icon(
-                Icons.Filled.DragIndicator,
-                contentDescription = stringResource(R.string.action_drag_to_reorder),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = dragHandleModifier.size(20.dp),
-            )
+            // (The dedicated drag-handle icon was removed — long-press on
+            // the whole tile starts a drag now, per beta feedback that the
+            // 6-dot indicator wasn't discoverable.)
             // Overflow menu: Rename / Delete. Wrapped in a Box so the
             // DropdownMenu anchors here rather than at the screen edge.
             Box {

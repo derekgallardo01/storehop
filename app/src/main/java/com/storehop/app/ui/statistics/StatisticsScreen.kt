@@ -154,26 +154,15 @@ private fun SectionCard(
 @Composable
 private fun ActivitySection(state: StatisticsUiState.Ready) {
     SectionCard(title = stringResource(R.string.statistics_section_activity)) {
-        Row(
+        // The 30-day / 7-day tiles were removed: for users with under a
+        // month of history they all matched the all-time count, which made
+        // the card look broken. The 12-week trend chart below carries the
+        // recency signal much better than three rolling counters.
+        StatTile(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            StatTile(
-                modifier = Modifier.weight(1f),
-                label = stringResource(R.string.statistics_total_purchases),
-                value = state.totalPurchases.toString(),
-            )
-            StatTile(
-                modifier = Modifier.weight(1f),
-                label = stringResource(R.string.statistics_last_30_days),
-                value = state.purchasesLast30Days.toString(),
-            )
-            StatTile(
-                modifier = Modifier.weight(1f),
-                label = stringResource(R.string.statistics_last_7_days),
-                value = state.purchasesLast7Days.toString(),
-            )
-        }
+            label = stringResource(R.string.statistics_total_purchases),
+            value = state.totalPurchases.toString(),
+        )
         if (state.purchasesPerDay.isNotEmpty()) {
             Text(
                 text = stringResource(R.string.statistics_trend_label),

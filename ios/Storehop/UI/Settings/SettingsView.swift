@@ -83,6 +83,24 @@ struct SettingsView: View {
                 .pickerStyle(.inline)
                 .labelsHidden()
             }
+
+            // CSV import / export.
+            DataSettingsSection()
+
+            // Statistics.
+            Section {
+                NavigationLink {
+                    StatisticsView()
+                } label: {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(String(localized: "statistics_title"))
+                            .font(StorehopTypography.titleMedium)
+                        Text(String(localized: "statistics_settings_link_subtitle"))
+                            .font(StorehopTypography.bodySmall)
+                            .foregroundStyle(StorehopColors.onSurfaceVariant)
+                    }
+                }
+            }
         }
         .navigationTitle(String(localized: "title_settings"))
         .navigationBarTitleDisplayMode(.inline)

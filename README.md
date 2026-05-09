@@ -13,17 +13,26 @@ specific household) is added or renamed by the user.
 
 ## Status
 
-v0.5.5. Shipping to Google Play Closed testing. Feature-complete for
+v0.5.7. Shipping to Google Play Closed testing. Feature-complete for
 single-user v1: anonymous-first onboarding with optional Google
 Sign-In, two-way Firestore + Storage cloud sync (push and pull), Shop
 and Items tabs with item photos, share-list-as-text, theme + language
-picker, drag-reorder stores, per-store aisle ordering, cross-store
-check-off cascade, Manage Categories, and CSV import / export of items
-and categories. See
+picker, drag-reorder stores (long-press on any tile), per-store aisle
+ordering, cross-store check-off cascade, Manage Categories, hide /
+show checked-off items toggle, QuickAdd autocomplete against the
+master Items library, in-app update prompt via Play Core, CSV import
+/ export of items and categories, and a Statistics screen with a
+12-week trend chart. See
 [`docs/play-store-submission.md`](docs/play-store-submission.md) for
 the Play Console listing answers and
 [`docs/privacy-policy.md`](docs/privacy-policy.md) for the privacy
 policy hosted at the Play listing's required URL.
+
+An iOS port lives in [`ios/`](ios/) — SwiftUI + GRDB + Firebase iOS
+SDK, mirroring the Android architecture 1:1. As of v0.5.7 it's
+caught up to feature parity (with the natural exception of the
+in-app update prompt, since the App Store has no equivalent API).
+Not yet shipped to TestFlight or the App Store.
 
 ## Tech stack
 
@@ -138,6 +147,20 @@ pack remains stable across devices and across reseeds.
          with an alive-collision-only guard at the application layer
          and a clear inline error on the rename dialog when the
          collision is with an existing row.
+- v0.5.6 The "Critical items needed" banner on the Shop screen now
+         routes you to the right store first instead of listing every
+         priority item by name — collapsed view shows the count plus
+         the single store covering the most criticals; tap to expand
+         a per-store breakdown.
+- v0.5.7 Hide / show checked-off items toggle in the Shop-at-Store top
+         bar; QuickAdd autocomplete against the master Items library
+         (with name-match dedupe to fix duplicate-creation on existing
+         items); in-app update prompt via Play Core (no more Play
+         Store visits between iterations); custom undo bar with
+         × button and swipe-to-dismiss; long-press anywhere on a
+         store tile to reorder (drag-handle icon retired);
+         Statistics → Activity card simplified to all-time + trend
+         chart only.
 - v0.6+  Polish follow-ups (e.g. tightening the in-session staple
          flag's renewal behavior) and a v2 home-screen widget that
          actually does something useful.

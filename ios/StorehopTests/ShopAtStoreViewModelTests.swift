@@ -6,10 +6,16 @@ final class ShopAtStoreViewModelTests: XCTestCase {
 
     private struct Setup {
         let db: StorehopDatabase
+        let prefs: any UserPreferencesRepository
+        let itemRepository: ItemRepository
         let viewModel: ShopAtStoreViewModel
     }
 
-    private func makeSetup(uid: String = "u1", storeId: String = "s_lidl") async throws -> Setup {
+    private func makeSetup(
+        uid: String = "u1",
+        storeId: String = "s_lidl",
+        showPurchased: Bool = true
+    ) async throws -> Setup {
         let db = try StorehopDatabase.inMemoryForTests()
         try db.seed(
             stores: [TestFixtures.store(id: storeId, name: "Lidl", userId: uid)],
@@ -19,18 +25,23 @@ final class ShopAtStoreViewModelTests: XCTestCase {
         let clock = MutableClock(nowMs: 1_000)
         let writer = db.queue
         let repos = makeRepositories(writer: writer, session: session, clock: clock)
+        // Fresh UserDefaults suite per test so toggle state doesn't leak.
+        let suite = UserDefaults(suiteName: "test-\(UUID().uuidString)")!
+        let prefs = LiveUserPreferencesRepository(defaults: suite)
+        prefs.setShowPurchased(showPurchased)
         let vm = ShopAtStoreViewModel(
             storeId: storeId,
             shoppingRepository: repos.shopping,
             itemRepository: repos.item,
             storeRepository: repos.store,
+            preferencesRepository: prefs,
             session: session,
             sessionTracker: ShoppingSessionTracker(clock: clock)
         )
         vm.bind()
         // Let the binder spin up its initial subscription.
         try await Task.sleep(nanoseconds: 50_000_000)
-        return Setup(db: db, viewModel: vm)
+        return Setup(db: db, prefs: prefs, itemRepository: repos.item, viewModel: vm)
     }
 
     // MARK: - quickAdd
@@ -109,6 +120,73 @@ final class ShopAtStoreViewModelTests: XCTestCase {
         }
     }
 
+    // MARK: - visibility toggles
+
+    func testShowPurchasedFalseHidesPurchasedNonStaples() async throws {
+        let s = try await makeSetup(showPurchased: false)
+        s.viewModel.quickAdd(name: "Milk")  // needed -> visible
+        s.viewModel.quickAdd(name: "Bread") // will be checked off -> hidden
+        try await waitForCondition {
+            s.viewModel.sections.flatMap(\.rows).count >= 2
+        }
+        let bread = s.viewModel.sections.flatMap(\.rows).first { $0.itemName == "Bread" }!
+        s.viewModel.togglePurchased(row: bread)
+        try await waitForCondition {
+            !s.viewModel.sections.flatMap(\.rows).contains { $0.itemName == "Bread" }
+        }
+        let visible = s.viewModel.sections.flatMap(\.rows).map(\.itemName)
+        XCTAssertEqual(visible, ["Milk"])
+    }
+
+    func testShowPurchasedFalseAlsoHidesPurchasedStaples() async throws {
+        // The single toggle should hide every checked-off row regardless of
+        // staple status -- "checked off" is one user-facing concept.
+        let s = try await makeSetup(showPurchased: false)
+        _ = try await s.itemRepository.addItem(
+            name: "Eggs",
+            categoryId: nil,
+            storeIds: ["s_lidl"],
+            quantity: nil,
+            notes: nil,
+            brand: nil,
+            imageUrl: nil,
+            isStaple: true,
+            isPriority: false
+        )
+        try await waitForCondition {
+            s.viewModel.sections.flatMap(\.rows).contains { $0.itemName == "Eggs" }
+        }
+        let eggs = s.viewModel.sections.flatMap(\.rows).first { $0.itemName == "Eggs" }!
+        // Needed staple is visible.
+        XCTAssertTrue(s.viewModel.sections.flatMap(\.rows).contains { $0.itemName == "Eggs" })
+        // Check it off -> purchased staple, should also be hidden under the
+        // single toggle.
+        s.viewModel.togglePurchased(row: eggs)
+        try await waitForCondition {
+            !s.viewModel.sections.flatMap(\.rows).contains { $0.itemName == "Eggs" }
+        }
+    }
+
+    func testToggleUpdatesLiveWhenSetterCalled() async throws {
+        let s = try await makeSetup(showPurchased: true)
+        s.viewModel.quickAdd(name: "Bread")
+        try await waitForCondition {
+            s.viewModel.sections.flatMap(\.rows).contains { $0.itemName == "Bread" }
+        }
+        let bread = s.viewModel.sections.flatMap(\.rows).first { $0.itemName == "Bread" }!
+        s.viewModel.togglePurchased(row: bread)
+        try await waitForCondition {
+            s.viewModel.sections.flatMap(\.rows).first { $0.itemName == "Bread" }?.isNeeded == false
+        }
+        // Bread is purchased and visible (showPurchased=true).
+        XCTAssertTrue(s.viewModel.sections.flatMap(\.rows).contains { $0.itemName == "Bread" })
+        // Flip the toggle -> Bread should disappear.
+        s.viewModel.setShowPurchased(false)
+        try await waitForCondition {
+            !s.viewModel.sections.flatMap(\.rows).contains { $0.itemName == "Bread" }
+        }
+    }
+
     // MARK: - search filter
 
     func testQueryFiltersRowsButNotCriticalNames() async throws {
@@ -123,6 +201,79 @@ final class ShopAtStoreViewModelTests: XCTestCase {
         // refreshSections is sync via didSet
         let visibleNames = s.viewModel.sections.flatMap(\.rows).map(\.itemName)
         XCTAssertEqual(visibleNames, ["Mozzarella"])
+    }
+
+    // MARK: - QuickAdd autocomplete
+
+    func testSubmitQuickAddTextDedupesWhenNameMatchesExisting() async throws {
+        // Master library already has "Milk". Typing "Milk" in the QuickAdd
+        // bar of a different store should NOT create a duplicate -- the
+        // existing item gets re-tagged. (Mike's reported v0.5.6 bug.)
+        let s = try await makeSetup()
+        let firstId = try await s.itemRepository.addItem(
+            name: "Milk",
+            categoryId: nil,
+            storeIds: [],  // master only, not tagged anywhere yet
+            quantity: nil,
+            notes: nil,
+            brand: nil,
+            imageUrl: nil,
+            isStaple: false,
+            isPriority: false
+        )
+
+        s.viewModel.quickAddInput = "Milk"
+        s.viewModel.submitQuickAddText()
+        try await waitForCondition {
+            s.viewModel.sections.flatMap(\.rows).contains { $0.itemName == "Milk" }
+        }
+        // Items table still has exactly one "Milk" entry.
+        let count = try await s.db.queue.read { conn in
+            try Int.fetchOne(conn, sql: "SELECT COUNT(*) FROM items WHERE name = ? COLLATE NOCASE AND deletedAt IS NULL", arguments: ["Milk"]) ?? -1
+        }
+        XCTAssertEqual(count, 1, "addItemFromQuickAdd must not duplicate existing names")
+        // The Milk on the shopping list is the SAME item we created above.
+        let row = s.viewModel.sections.flatMap(\.rows).first { $0.itemName == "Milk" }!
+        XCTAssertEqual(row.itemId, firstId)
+        // Input was cleared after submit.
+        try await waitForCondition { s.viewModel.quickAddInput.isEmpty }
+    }
+
+    func testQuickAddSuggestionsFiltersByNameSubstring() async throws {
+        let s = try await makeSetup()
+        _ = try await s.itemRepository.addItem(name: "Milk", categoryId: nil, storeIds: [], quantity: nil, notes: nil, brand: nil, imageUrl: nil, isStaple: false, isPriority: false)
+        _ = try await s.itemRepository.addItem(name: "Almond Milk", categoryId: nil, storeIds: [], quantity: nil, notes: nil, brand: nil, imageUrl: nil, isStaple: false, isPriority: false)
+        _ = try await s.itemRepository.addItem(name: "Eggs", categoryId: nil, storeIds: [], quantity: nil, notes: nil, brand: nil, imageUrl: nil, isStaple: false, isPriority: false)
+
+        // Wait for the master-items observation to feed through.
+        try await waitForCondition { !s.viewModel.quickAddSuggestions.isEmpty || s.viewModel.quickAddInput == "MIL" }
+
+        s.viewModel.quickAddInput = "MIL"
+        try await waitForCondition {
+            !s.viewModel.quickAddSuggestions.isEmpty
+        }
+        let names = s.viewModel.quickAddSuggestions.map(\.name)
+        // Both milks match (case-insensitive substring); prefix-on-name
+        // ranks "Milk" before "Almond Milk".
+        XCTAssertEqual(names, ["Milk", "Almond Milk"])
+    }
+
+    func testPickExistingItemTagsToStoreWithoutDuplicating() async throws {
+        let s = try await makeSetup()
+        let milkId = try await s.itemRepository.addItem(
+            name: "Milk", categoryId: nil, storeIds: [], quantity: nil,
+            notes: nil, brand: nil, imageUrl: nil, isStaple: false, isPriority: false
+        )
+
+        s.viewModel.pickExistingItem(itemId: milkId)
+        try await waitForCondition {
+            s.viewModel.sections.flatMap(\.rows).contains { $0.itemName == "Milk" }
+        }
+        // Items table still has exactly one Milk.
+        let count = try await s.db.queue.read { conn in
+            try Int.fetchOne(conn, sql: "SELECT COUNT(*) FROM items WHERE deletedAt IS NULL", arguments: []) ?? -1
+        }
+        XCTAssertEqual(count, 1)
     }
 
     // MARK: - Helpers
@@ -151,6 +302,20 @@ final class ShopAtStoreViewModelTests: XCTestCase {
         )
         let shopping = ShoppingRepository(shoppingDao: shoppingDao, storeDao: storeDao, session: session)
         return (shopping, item, store)
+    }
+}
+
+// MARK: - Test shims
+
+/// Backward-compat shim for tests written against the old `quickAdd(name:)`
+/// API. The production VM now hoists input into `quickAddInput` and exposes
+/// `submitQuickAddText()` for the IME-Done path; this helper composes the
+/// two so existing test cases keep working with their original wording.
+@MainActor
+extension ShopAtStoreViewModel {
+    func quickAdd(name: String) {
+        quickAddInput = name
+        submitQuickAddText()
     }
 }
 

@@ -42,6 +42,7 @@
     <string name="action_save">Save</string>
     <string name="action_saving">Saving…</string>
     <string name="action_cancel">Cancel</string>
+    <string name="action_close">Close</string>
     <string name="action_delete">Delete</string>
     <string name="action_add_store">Add store</string>
     <string name="action_add_item">Add item</string>
@@ -103,11 +104,17 @@
     <!-- Shop-at-Store. -->
     <string name="action_more">More</string>
     <string name="action_share_list">Share list</string>
+    <string name="action_show_purchased">Show checked-off items</string>
+    <string name="action_hide_purchased">Hide checked-off items</string>
     <string name="search_store_placeholder">Search this store\'s list</string>
     <string name="aisle_format">%1$s (aisle %2$d)</string>
     <string name="shop_empty_no_query">No items here yet — add items in the Items tab and tag them to this store</string>
     <string name="shop_empty_with_query">No matches for \"%1$s\"</string>
-    <string name="quick_add_placeholder">Add an item to this store…</string>
+    <string name="quick_add_placeholder">Add an item…</string>
+
+    <!-- In-app updates. -->
+    <string name="update_ready_message">Update ready</string>
+    <string name="update_ready_action">Restart now</string>
 
     <!-- Snackbar undo. -->
     <string name="action_undo">Undo</string>

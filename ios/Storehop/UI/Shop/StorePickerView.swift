@@ -108,12 +108,9 @@ struct StorePickerView: View {
             .padding(20)
 
             if let undoMessage, let undoStoreId {
-                UndoSnackbar(
+                UndoBar(
                     message: undoMessage,
-                    onUndo: {
-                        viewModel.undoDeleteStore(id: undoStoreId)
-                        clearUndo()
-                    },
+                    onUndo: { viewModel.undoDeleteStore(id: undoStoreId) },
                     onDismiss: clearUndo
                 )
                 .padding(.horizontal, 16)
@@ -159,12 +156,8 @@ struct StorePickerView: View {
     private func showUndo(for row: StorePickerRow) {
         undoStoreId = row.store.id
         undoMessage = String(format: String(localized: "undo_store_deleted %@"), row.store.name)
-        Task {
-            try? await Task.sleep(nanoseconds: 5_000_000_000)
-            if undoStoreId == row.store.id {
-                clearUndo()
-            }
-        }
+        // Auto-dismiss is owned by UndoBar's internal `.task` (3s); no
+        // parent-side timer needed.
     }
 
     private func clearUndo() {
@@ -307,28 +300,6 @@ private struct FloatingAddButton: View {
             .foregroundStyle(StorehopColors.onPrimary)
             .shadow(radius: 4, y: 2)
         }
-    }
-}
-
-private struct UndoSnackbar: View {
-    let message: String
-    let onUndo: () -> Void
-    let onDismiss: () -> Void
-
-    var body: some View {
-        HStack {
-            Text(message)
-                .font(StorehopTypography.bodyMedium)
-                .foregroundStyle(StorehopColors.onSurface)
-            Spacer()
-            Button(String(localized: "action_undo"), action: onUndo)
-                .font(StorehopTypography.labelLarge)
-                .foregroundStyle(StorehopColors.primary)
-        }
-        .padding()
-        .background(StorehopColors.surface, in: RoundedRectangle(cornerRadius: StorehopShape.cornerMedium))
-        .shadow(radius: 4, y: 2)
-        .transition(.move(edge: .bottom).combined(with: .opacity))
     }
 }
 

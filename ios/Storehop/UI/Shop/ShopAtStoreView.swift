@@ -6,7 +6,6 @@ struct ShopAtStoreView: View {
 
     @Environment(AppContainer.self) private var container
     @State private var viewModel: ShopAtStoreViewModel?
-    @State private var quickAddText = ""
     @FocusState private var quickAddFocused: Bool
 
     var body: some View {
@@ -24,6 +23,7 @@ struct ShopAtStoreView: View {
                     shoppingRepository: container.shoppingRepository,
                     itemRepository: container.itemRepository,
                     storeRepository: container.storeRepository,
+                    preferencesRepository: container.userPreferences,
                     session: container.session,
                     sessionTracker: container.shoppingSessionTracker
                 )
@@ -71,6 +71,18 @@ struct ShopAtStoreView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        viewModel.setShowPurchased(!viewModel.showPurchased)
+                    } label: {
+                        Image(systemName: viewModel.showPurchased
+                              ? "checkmark.circle.fill"
+                              : "checkmark.circle")
+                    }
+                    .accessibilityLabel(String(localized: viewModel.showPurchased
+                        ? "action_hide_purchased"
+                        : "action_show_purchased"))
+                }
+                ToolbarItem(placement: .topBarTrailing) {
                     Menu {
                         Button(String(localized: "action_edit_aisles"), systemImage: "list.number", action: onEditAisles)
                     } label: {
@@ -82,13 +94,11 @@ struct ShopAtStoreView: View {
 
             VStack(spacing: 0) {
                 if let snackbarName = viewModel.lastPurchaseDisplayName {
-                    PurchasedSnackbar(
-                        name: snackbarName,
+                    UndoBar(
+                        message: String(format: String(localized: "snackbar_purchased %@"), snackbarName),
                         onUndo: {
                             // Undo targets the most recent snapshot regardless of which
                             // row produced it — see ShopAtStoreViewModel.lastPurchaseSnapshot.
-                            // We need the itemId; pass through the rawRows or pass it
-                            // via the snackbar's bound row. Here we walk the sections.
                             if let rowItemId = findLastPurchasedItemId(in: viewModel) {
                                 viewModel.undoLastPurchase(itemId: rowItemId)
                             } else {
@@ -100,9 +110,17 @@ struct ShopAtStoreView: View {
                     .padding(.horizontal, 16)
                     .padding(.bottom, 4)
                 }
-                QuickAddBar(text: $quickAddText, focused: $quickAddFocused) {
-                    viewModel.quickAdd(name: quickAddText)
-                    quickAddText = ""
+                if !viewModel.quickAddSuggestions.isEmpty {
+                    QuickAddSuggestionsList(
+                        suggestions: viewModel.quickAddSuggestions,
+                        onPick: { itemId in
+                            viewModel.pickExistingItem(itemId: itemId)
+                            quickAddFocused = false
+                        }
+                    )
+                }
+                QuickAddBar(text: $vm.quickAddInput, focused: $quickAddFocused) {
+                    viewModel.submitQuickAddText()
                     quickAddFocused = false
                 }
             }
@@ -251,28 +269,59 @@ private struct QuickAddBar: View {
     }
 }
 
-private struct PurchasedSnackbar: View {
-    let name: String
-    let onUndo: () -> Void
-    let onDismiss: () -> Void
+/// Autocomplete list shown above [QuickAddBar] while the user is adding an
+/// item. Tap a row → tag that existing master-Items entry to this store
+/// (no duplicate). Capped height so the list never pushes the input field
+/// off-screen on small devices.
+private struct QuickAddSuggestionsList: View {
+    let suggestions: [QuickAddSuggestion]
+    let onPick: (String) -> Void
 
     var body: some View {
-        HStack {
-            Text(String(format: String(localized: "snackbar_purchased %@"), name))
-                .font(StorehopTypography.bodyMedium)
-                .foregroundStyle(StorehopColors.onSurface)
-            Spacer()
-            Button(String(localized: "action_undo"), action: onUndo)
-                .font(StorehopTypography.labelLarge)
-                .foregroundStyle(StorehopColors.primary)
+        ScrollView {
+            LazyVStack(spacing: 0) {
+                ForEach(suggestions) { suggestion in
+                    Button {
+                        onPick(suggestion.itemId)
+                    } label: {
+                        HStack {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(suggestion.name)
+                                    .font(StorehopTypography.bodyLarge)
+                                    .foregroundStyle(StorehopColors.onSurface)
+                                let secondary = [
+                                    suggestion.brand?.nilIfEmpty,
+                                    suggestion.categoryName?.nilIfEmpty,
+                                ]
+                                .compactMap { $0 }
+                                .joined(separator: " · ")
+                                if !secondary.isEmpty {
+                                    Text(secondary)
+                                        .font(StorehopTypography.bodySmall)
+                                        .foregroundStyle(StorehopColors.onSurfaceVariant)
+                                }
+                            }
+                            Spacer()
+                            if suggestion.isStaple {
+                                Image(systemName: "pin.fill")
+                                    .foregroundStyle(StorehopColors.secondary)
+                                    .imageScale(.small)
+                            }
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 10)
+                    }
+                    .buttonStyle(.plain)
+                    Divider().padding(.leading, 16)
+                }
+            }
         }
-        .padding()
-        .background(StorehopColors.surface, in: RoundedRectangle(cornerRadius: StorehopShape.cornerMedium))
-        .shadow(radius: 4, y: 2)
-        .transition(.move(edge: .bottom).combined(with: .opacity))
-        .task {
-            try? await Task.sleep(nanoseconds: 5_000_000_000)
-            onDismiss()
-        }
+        .frame(maxHeight: 240)
+        .background(StorehopColors.surface)
     }
 }
+
+private extension String {
+    var nilIfEmpty: String? { isEmpty ? nil : self }
+}
+

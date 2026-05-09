@@ -28,6 +28,7 @@ coil = "2.7.0"
 reorderable = "2.4.3"
 datastore = "1.1.1"
 appcompat = "1.7.0"
+appUpdate = "2.1.0"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -82,6 +83,11 @@ coil-compose = { group = "io.coil-kt", name = "coil-compose", version.ref = "coi
 reorderable = { group = "sh.calvin.reorderable", name = "reorderable", version.ref = "reorderable" }
 androidx-datastore-preferences = { group = "androidx.datastore", name = "datastore-preferences", version.ref = "datastore" }
 androidx-appcompat = { group = "androidx.appcompat", name = "appcompat", version.ref = "appcompat" }
+
+# In-app updates: lets the app prompt the user to update from Play
+# without leaving the app. Flexible flow downloads in the background
+# and surfaces a "restart" snackbar; immediate flow blocks UI.
+play-app-update-ktx = { group = "com.google.android.play", name = "app-update-ktx", version.ref = "appUpdate" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

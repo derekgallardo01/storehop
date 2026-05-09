@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -22,11 +23,13 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
@@ -35,13 +38,10 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconToggleButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Snackbar
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Surface
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.Text
@@ -68,6 +68,8 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.storehop.app.R
 import com.storehop.app.data.db.relations.ShoppingRow
+import com.storehop.app.ui.util.UndoBar
+import com.storehop.app.ui.util.UndoBarState
 import com.storehop.app.ui.util.WordCaps
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -79,14 +81,16 @@ fun ShopAtStoreScreen(
     viewModel: ShopAtStoreViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsState()
+    val quickAddInput by viewModel.quickAddInput.collectAsState()
+    val quickAddSuggestions by viewModel.quickAddSuggestions.collectAsState()
     val context = LocalContext.current
     val haptics = LocalHapticFeedback.current
     val scope = rememberCoroutineScope()
-    val snackbarHostState = remember { SnackbarHostState() }
     var menuOpen by remember { mutableStateOf(false) }
 
+    var undoState: UndoBarState? by remember { mutableStateOf(null) }
+
     val defaultStoreLabel = stringResource(R.string.share_list_default_store)
-    val undoLabel = stringResource(R.string.action_undo)
     val undoTemplate = stringResource(R.string.undo_item_purchased)
     Scaffold(
         topBar = {
@@ -101,6 +105,23 @@ fun ShopAtStoreScreen(
                     }
                 },
                 actions = {
+                    // Toggle: show / hide every checked-off row (purchased
+                    // non-staples AND not-needed staples). Filled check icon
+                    // = currently showing; outlined = hidden.
+                    IconToggleButton(
+                        checked = state.showPurchased,
+                        onCheckedChange = viewModel::setShowPurchased,
+                    ) {
+                        Icon(
+                            imageVector = if (state.showPurchased)
+                                Icons.Filled.CheckCircle
+                            else Icons.Outlined.CheckCircle,
+                            contentDescription = stringResource(
+                                if (state.showPurchased) R.string.action_hide_purchased
+                                else R.string.action_show_purchased,
+                            ),
+                        )
+                    }
                     val canShare = state.rowsByCategory.isNotEmpty()
                     IconButton(onClick = { menuOpen = true }, enabled = canShare) {
                         Icon(
@@ -129,9 +150,24 @@ fun ShopAtStoreScreen(
             )
         },
         bottomBar = {
-            QuickAddBar(onAdd = viewModel::quickAdd)
+            Column {
+                UndoBar(
+                    state = undoState,
+                    onDismiss = { undoState = null },
+                )
+                if (quickAddSuggestions.isNotEmpty()) {
+                    QuickAddSuggestions(
+                        suggestions = quickAddSuggestions,
+                        onPick = viewModel::pickExistingItem,
+                    )
+                }
+                QuickAddBar(
+                    value = quickAddInput,
+                    onValueChange = viewModel::setQuickAddInput,
+                    onSubmit = viewModel::submitQuickAddText,
+                )
+            }
         },
-        snackbarHost = { SnackbarHost(snackbarHostState) { Snackbar(it) } },
     ) { padding ->
         Column(modifier = Modifier.padding(padding).fillMaxSize()) {
             if (state.criticalNames.isNotEmpty()) {
@@ -184,20 +220,14 @@ fun ShopAtStoreScreen(
                                     // physical feel consistent.
                                     haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                                     if (wasNeeded) {
-                                        // User just checked it off; offer a 5s undo via snackbar.
-                                        val itemName = row.itemName
-                                        scope.launch {
-                                            // Cancel any prior snackbar so a flurry of
-                                            // taps doesn't queue up multiple undos.
-                                            snackbarHostState.currentSnackbarData?.dismiss()
-                                            val result = snackbarHostState.showSnackbar(
-                                                message = undoTemplate.format(itemName),
-                                                actionLabel = undoLabel,
-                                            )
-                                            if (result == SnackbarResult.ActionPerformed) {
-                                                viewModel.undoPurchase(row.itemId)
-                                            }
-                                        }
+                                        // Show the undo bar. UndoBarState's default `stamp`
+                                        // ensures consecutive taps reset the auto-dismiss
+                                        // timer (LaunchedEffect inside UndoBar restarts).
+                                        val itemId = row.itemId
+                                        undoState = UndoBarState(
+                                            message = undoTemplate.format(row.itemName),
+                                            onUndo = { viewModel.undoPurchase(itemId) },
+                                        )
                                     }
                                 })
                             }
@@ -210,25 +240,18 @@ fun ShopAtStoreScreen(
 }
 
 /**
- * Bottom-anchored quick-add row: type a name, tap Add (or hit IME Done) and
- * the item is created with default everything, auto-tagged to the current
- * store, and isNeeded=true. Lets the user capture an item without leaving
- * the shopping flow to navigate to the Items tab.
- *
- * The local `name` state is cleared on submit so the field is ready for the
- * next entry.
+ * Bottom-anchored quick-add row: controlled component. Caller owns the input
+ * value and the submit action; this Composable just renders the field and
+ * the Add button. Submit fires when the user hits IME Done or taps Add, and
+ * is a no-op for blank/whitespace input (the caller is also defensive).
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun QuickAddBar(onAdd: (String) -> Unit) {
-    var name by remember { mutableStateOf("") }
-    val submit = {
-        val trimmed = name.trim()
-        if (trimmed.isNotEmpty()) {
-            onAdd(trimmed)
-            name = ""
-        }
-    }
+private fun QuickAddBar(
+    value: String,
+    onValueChange: (String) -> Unit,
+    onSubmit: () -> Unit,
+) {
     Surface(
         tonalElevation = 2.dp,
         modifier = Modifier.fillMaxWidth(),
@@ -240,24 +263,98 @@ private fun QuickAddBar(onAdd: (String) -> Unit) {
             verticalAlignment = Alignment.CenterVertically,
         ) {
             OutlinedTextField(
-                value = name,
-                onValueChange = { name = it },
+                value = value,
+                onValueChange = onValueChange,
                 placeholder = { Text(stringResource(R.string.quick_add_placeholder)) },
                 singleLine = true,
                 modifier = Modifier.weight(1f),
                 keyboardOptions = WordCaps.copy(imeAction = ImeAction.Done),
-                keyboardActions = KeyboardActions(onDone = { submit() }),
+                keyboardActions = KeyboardActions(onDone = { onSubmit() }),
             )
             Spacer(Modifier.width(8.dp))
             IconButton(
-                onClick = submit,
-                enabled = name.isNotBlank(),
+                onClick = onSubmit,
+                enabled = value.isNotBlank(),
             ) {
                 Icon(
                     Icons.Filled.Add,
                     contentDescription = stringResource(R.string.action_add),
                 )
             }
+        }
+    }
+}
+
+/**
+ * Autocomplete list shown above the [QuickAddBar] while the user is adding
+ * an item. Each row is a master-Items entry; tap to tag it to this store.
+ * Items already needed at this store are filtered out by the ViewModel
+ * before they get here. Capped height so the list never pushes the input
+ * field off-screen on small devices; `LazyColumn` scrolls if there are
+ * more rows than fit.
+ */
+@Composable
+private fun QuickAddSuggestions(
+    suggestions: List<QuickAddSuggestion>,
+    onPick: (itemId: String) -> Unit,
+) {
+    Surface(
+        tonalElevation = 1.dp,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(max = 240.dp),
+        ) {
+            items(suggestions, key = { it.itemId }) { suggestion ->
+                QuickAddSuggestionRow(
+                    suggestion = suggestion,
+                    onClick = { onPick(suggestion.itemId) },
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun QuickAddSuggestionRow(
+    suggestion: QuickAddSuggestion,
+    onClick: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = suggestion.name,
+                style = MaterialTheme.typography.bodyLarge,
+            )
+            // Secondary line: brand · category. Falls back gracefully when
+            // either is absent. If both are absent, no line is drawn.
+            val secondaryParts = listOfNotNull(
+                suggestion.brand?.takeIf { it.isNotBlank() },
+                suggestion.categoryName?.takeIf { it.isNotBlank() },
+            )
+            if (secondaryParts.isNotEmpty()) {
+                Text(
+                    text = secondaryParts.joinToString(" · "),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+        if (suggestion.isStaple) {
+            Icon(
+                Icons.Filled.Star,
+                contentDescription = stringResource(R.string.badge_always_on_list),
+                tint = MaterialTheme.colorScheme.secondary,
+                modifier = Modifier.size(18.dp),
+            )
         }
     }
 }

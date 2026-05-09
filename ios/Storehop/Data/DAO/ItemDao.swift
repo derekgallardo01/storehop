@@ -62,6 +62,20 @@ struct ItemDao: Sendable {
             """, arguments: [id, userId])
     }
 
+    /// Live, case-insensitive name lookup. Used by the Shop-at-Store
+    /// QuickAdd flow to dedupe before creating: typing "Milk" when "Milk"
+    /// already exists must re-tag the existing item, not duplicate it.
+    /// Mirrors Android's `ItemDao.findByName` (`COLLATE NOCASE`).
+    static func findByName(on db: Database, userId: String, name: String) throws -> Item? {
+        try Item.fetchOne(db, sql: """
+            SELECT * FROM items
+            WHERE userId = ?
+              AND name = ? COLLATE NOCASE
+              AND deletedAt IS NULL
+            LIMIT 1
+            """, arguments: [userId, name])
+    }
+
     // MARK: - Writes
 
     func upsert(_ item: Item) async throws {

@@ -224,6 +224,87 @@ struct ItemRepository: Sendable {
         }
     }
 
+    /// Idempotently mark an existing item as needed at the given store.
+    /// Creates the xref if missing, restores from a tombstone via upsert if
+    /// only a tombstoned row exists, and flips `isNeeded` to true if a live
+    /// xref already exists. Mirrors Android's `tagItemToStore` — the action
+    /// behind the QuickAdd autocomplete's "tap a suggestion" flow.
+    func tagItemToStore(itemId: String, storeId: String) async throws {
+        let userId = try await session.requireSignedIn()
+        let now = clock.nowMs()
+        try await writer.write { db in
+            guard let current = try ItemDao.findLiveById(on: db, userId: userId, id: itemId) else { return }
+            let ownerId = current.userId
+            let aliveXrefs = try ItemStoreXrefDao.findForItem(on: db, itemId: itemId)
+            if aliveXrefs.contains(where: { $0.storeId == storeId }) {
+                // Live xref already exists -- just ensure isNeeded=true.
+                try ItemStoreXrefDao.markNeededAtStore(on: db, userId: ownerId, itemId: itemId, storeId: storeId, now: now)
+            } else {
+                // Either missing or only tombstoned. Upsert by primary key
+                // (itemId, storeId) replaces a tombstone or inserts fresh.
+                var xref = ItemStoreXref(
+                    itemId: itemId,
+                    storeId: storeId,
+                    userId: ownerId,
+                    createdAt: now,
+                    updatedAt: now,
+                    deletedAt: nil,
+                    pendingSync: true,
+                    isNeeded: true,
+                    lastPurchasedAt: nil
+                )
+                try xref.upsert(db)
+            }
+            // Mirror addItem's behavior: ensure the SCO row exists so the
+            // category sorts into aisle order at this store.
+            try Self.ensureSCOForCategoryAtStores(
+                on: db,
+                categoryId: current.categoryId,
+                storeIds: [storeId],
+                userId: ownerId,
+                now: now
+            )
+        }
+    }
+
+    /// Find-or-create entry point used by the Shop-at-Store QuickAdd bar.
+    /// Trims input, then case-insensitive name-match against the user's
+    /// master library:
+    ///   - hit  → `tagItemToStore(existing.id, storeId)`; returns that id.
+    ///   - miss → `addItem(name, storeIds: [storeId])`; returns the new id.
+    ///
+    /// Fixes the v0.5.6 bug where typing a name in the QuickAdd bar that
+    /// already existed created a duplicate Item (uncategorized). `addItem`'s
+    /// "always creates" semantics stay intact for non-QuickAdd callers; the
+    /// dedupe lives only here.
+    @discardableResult
+    func addItemFromQuickAdd(name: String, storeId: String) async throws -> String {
+        let userId = try await session.requireSignedIn()
+        let trimmed = name.trim()
+        precondition(!trimmed.isEmpty, "name must be non-empty")
+        // One-shot read for the dedupe lookup. The downstream call (either
+        // tagItemToStore or addItem) opens its own writer transaction; no
+        // need to wrap them together since each is atomic.
+        let existing = try await writer.read { db in
+            try ItemDao.findByName(on: db, userId: userId, name: trimmed)
+        }
+        if let existing {
+            try await tagItemToStore(itemId: existing.id, storeId: storeId)
+            return existing.id
+        }
+        return try await addItem(
+            name: trimmed,
+            categoryId: nil,
+            storeIds: [storeId],
+            quantity: nil,
+            notes: nil,
+            brand: nil,
+            imageUrl: nil,
+            isStaple: false,
+            isPriority: false
+        )
+    }
+
     // MARK: - Helpers
 
     /// After a save, make sure each store the item is tagged at has a live

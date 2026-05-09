@@ -4,9 +4,12 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.IntentSenderRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.List
@@ -15,11 +18,17 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Snackbar
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -27,12 +36,15 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.google.android.play.core.appupdate.AppUpdateManagerFactory
 import com.google.firebase.auth.FirebaseAuth
 import com.storehop.app.data.prefs.ThemeMode
 import com.storehop.app.data.prefs.UserPreferencesRepository
@@ -49,15 +61,30 @@ import com.storehop.app.ui.shop.StorePickerScreen
 import androidx.navigation.NavType
 import androidx.navigation.navArgument
 import com.storehop.app.ui.theme.StorehopTheme
+import com.storehop.app.update.AppUpdateController
 import dagger.hilt.android.AndroidEntryPoint
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
+
+    private val appUpdateController by lazy {
+        AppUpdateController(AppUpdateManagerFactory.create(this))
+    }
+
+    /**
+     * Launcher for Play's flexible-update bottom sheet. Result is ignored:
+     * if the user cancels we fall through, if they accept the download
+     * starts in the background and the install-state listener picks it up.
+     */
+    private val updateFlowLauncher =
+        registerForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) { /* no-op */ }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        appUpdateController.start()
         setContent {
             // RootViewModel hands us the theme-mode pref. We resolve SYSTEM
             // against isSystemInDarkTheme() at composition time so a theme
@@ -72,10 +99,63 @@ class MainActivity : ComponentActivity() {
             }
             StorehopTheme(darkTheme = isDark) {
                 Surface(modifier = Modifier.fillMaxSize()) {
+                    val updateReady by appUpdateController.isUpdateReadyToInstall.collectAsState()
                     AppRoot(rootViewModel)
+                    UpdateReadyOverlay(
+                        visible = updateReady,
+                        onRestart = { appUpdateController.completeUpdate() },
+                    )
                 }
             }
         }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        appUpdateController.checkForUpdate(updateFlowLauncher)
+    }
+
+    override fun onDestroy() {
+        appUpdateController.stop()
+        super.onDestroy()
+    }
+}
+
+/**
+ * Top-level overlay snackbar shown when Play has finished downloading a
+ * newer version of the app. Composed above [AppRoot] so it appears on
+ * every screen. Tapping "Restart" hands off to Play, which installs and
+ * relaunches us.
+ */
+@Composable
+private fun UpdateReadyOverlay(visible: Boolean, onRestart: () -> Unit) {
+    if (!visible) return
+    val hostState = remember { SnackbarHostState() }
+    val message = stringResource(R.string.update_ready_message)
+    val action = stringResource(R.string.update_ready_action)
+    LaunchedEffect(Unit) {
+        // Indefinite by design: the user should make an explicit decision
+        // about restarting; we don't want to flash this and miss the moment.
+        val result = hostState.showSnackbar(
+            message = message,
+            actionLabel = action,
+            duration = androidx.compose.material3.SnackbarDuration.Indefinite,
+        )
+        if (result == SnackbarResult.ActionPerformed) {
+            onRestart()
+        }
+    }
+    // `enableEdgeToEdge()` makes the Activity draw under the gesture-nav
+    // bar, so this top-level overlay (which lives outside any Scaffold)
+    // has to add the inset itself or the snackbar gets clipped by the
+    // Pixel back/home/recents row.
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .navigationBarsPadding(),
+        contentAlignment = Alignment.BottomCenter,
+    ) {
+        SnackbarHost(hostState) { Snackbar(it) }
     }
 }
 

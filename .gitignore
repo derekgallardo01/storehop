@@ -10,6 +10,9 @@ build/
 .vscode/
 local.properties
 
+# Claude Code per-project state (hooks, plans, scratch files)
+.claude/
+
 # Android
 captures/
 .externalNativeBuild/

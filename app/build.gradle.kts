@@ -31,8 +31,8 @@ android {
         applicationId = "com.storehop.app"
         minSdk = 26
         targetSdk = 35
-        versionCode = 16
-        versionName = "0.5.6"
+        versionCode = 27
+        versionName = "0.5.7"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables { useSupportLibrary = true }
@@ -146,6 +146,7 @@ dependencies {
     implementation(libs.reorderable)
     implementation(libs.androidx.datastore.preferences)
     implementation(libs.androidx.appcompat)
+    implementation(libs.play.app.update.ktx)
 
     testImplementation(libs.junit)
     testImplementation(libs.truth)

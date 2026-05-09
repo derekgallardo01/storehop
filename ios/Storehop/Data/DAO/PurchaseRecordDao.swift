@@ -111,4 +111,142 @@ struct PurchaseRecordDao: Sendable {
             try db.execute(sql: "UPDATE purchase_records SET pendingSync = 0 WHERE id = ? AND userId = ?", arguments: [id, userId])
         }
     }
+
+    // MARK: - Statistics aggregates
+
+    /// Read-only observations that power the Settings → Statistics screen.
+    /// All filter by userId + deletedAt IS NULL so tombstones and other
+    /// users' history never leak into visible totals.
+
+    func observeTotalCount(userId: String) -> AsyncValueObservation<Int> {
+        ValueObservation
+            .tracking { db in
+                try Int.fetchOne(db, sql: """
+                    SELECT COUNT(*) FROM purchase_records
+                    WHERE userId = ? AND deletedAt IS NULL
+                    """, arguments: [userId]) ?? 0
+            }
+            .values(in: writer)
+    }
+
+    func observeCountSince(userId: String, sinceMillis: Int64) -> AsyncValueObservation<Int> {
+        ValueObservation
+            .tracking { db in
+                try Int.fetchOne(db, sql: """
+                    SELECT COUNT(*) FROM purchase_records
+                    WHERE userId = ? AND deletedAt IS NULL AND purchasedAt >= ?
+                    """, arguments: [userId, sinceMillis]) ?? 0
+            }
+            .values(in: writer)
+    }
+
+    func observePurchasesPerDay(userId: String, sinceMillis: Int64) -> AsyncValueObservation<[DayCount]> {
+        ValueObservation
+            .tracking { db in
+                try DayCount.fetchAll(db, sql: """
+                    SELECT date(purchasedAt / 1000, 'unixepoch', 'localtime') AS day,
+                           COUNT(*) AS count
+                    FROM purchase_records
+                    WHERE userId = ? AND deletedAt IS NULL AND purchasedAt >= ?
+                    GROUP BY day
+                    ORDER BY day ASC
+                    """, arguments: [userId, sinceMillis])
+            }
+            .values(in: writer)
+    }
+
+    func observePurchasesByDayOfWeek(userId: String) -> AsyncValueObservation<[DayOfWeekCount]> {
+        ValueObservation
+            .tracking { db in
+                try DayOfWeekCount.fetchAll(db, sql: """
+                    SELECT CAST(strftime('%w', purchasedAt / 1000, 'unixepoch', 'localtime') AS INTEGER) AS dayOfWeek,
+                           COUNT(*) AS count
+                    FROM purchase_records
+                    WHERE userId = ? AND deletedAt IS NULL
+                    GROUP BY dayOfWeek
+                    ORDER BY count DESC
+                    """, arguments: [userId])
+            }
+            .values(in: writer)
+    }
+
+    func observeTopItems(userId: String, limit: Int) -> AsyncValueObservation<[ItemPurchaseCount]> {
+        ValueObservation
+            .tracking { db in
+                try ItemPurchaseCount.fetchAll(db, sql: """
+                    SELECT itemId, COUNT(*) AS count
+                    FROM purchase_records
+                    WHERE userId = ? AND deletedAt IS NULL
+                    GROUP BY itemId
+                    ORDER BY count DESC
+                    LIMIT ?
+                    """, arguments: [userId, limit])
+            }
+            .values(in: writer)
+    }
+
+    func observePurchasesByStore(userId: String) -> AsyncValueObservation<[StorePurchaseCount]> {
+        ValueObservation
+            .tracking { db in
+                try StorePurchaseCount.fetchAll(db, sql: """
+                    SELECT storeId, COUNT(*) AS count
+                    FROM purchase_records
+                    WHERE userId = ? AND deletedAt IS NULL AND storeId IS NOT NULL
+                    GROUP BY storeId
+                    ORDER BY count DESC
+                    """, arguments: [userId])
+            }
+            .values(in: writer)
+    }
+
+    /// Group purchase records by the category of the item that was bought.
+    /// Items whose categoryId is NULL (uncategorised) report the empty
+    /// string so the UI can show an "Uncategorised" bucket.
+    func observePurchasesByCategory(userId: String) -> AsyncValueObservation<[CategoryPurchaseCount]> {
+        ValueObservation
+            .tracking { db in
+                try CategoryPurchaseCount.fetchAll(db, sql: """
+                    SELECT COALESCE(items.categoryId, '') AS categoryId, COUNT(*) AS count
+                    FROM purchase_records
+                    INNER JOIN items ON items.id = purchase_records.itemId
+                    WHERE purchase_records.userId = ?
+                      AND purchase_records.deletedAt IS NULL
+                      AND items.deletedAt IS NULL
+                    GROUP BY categoryId
+                    ORDER BY count DESC
+                    """, arguments: [userId])
+            }
+            .values(in: writer)
+    }
+}
+
+/// Daily purchase count, projection of `observePurchasesPerDay`.
+struct DayCount: Codable, FetchableRecord, Hashable, Sendable {
+    /// ISO date (YYYY-MM-DD) in the device's local timezone.
+    let day: String
+    let count: Int
+}
+
+/// Day-of-week purchase count where dayOfWeek is 0 (Sunday) – 6 (Saturday).
+struct DayOfWeekCount: Codable, FetchableRecord, Hashable, Sendable {
+    let dayOfWeek: Int
+    let count: Int
+}
+
+/// Per-item aggregate, projection of `observeTopItems`.
+struct ItemPurchaseCount: Codable, FetchableRecord, Hashable, Sendable {
+    let itemId: String
+    let count: Int
+}
+
+/// Per-store aggregate, projection of `observePurchasesByStore`.
+struct StorePurchaseCount: Codable, FetchableRecord, Hashable, Sendable {
+    let storeId: String
+    let count: Int
+}
+
+/// Per-category aggregate; empty `categoryId` means uncategorised.
+struct CategoryPurchaseCount: Codable, FetchableRecord, Hashable, Sendable {
+    let categoryId: String
+    let count: Int
 }
