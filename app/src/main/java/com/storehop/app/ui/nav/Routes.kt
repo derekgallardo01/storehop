@@ -10,6 +10,7 @@ object Routes {
     const val SHOP = "shop"
     const val ITEMS = "items"
     const val SETTINGS = "settings"
+    const val STATISTICS = "statistics"
 
     const val SHOP_AT_STORE = "shop/store/{storeId}"
     fun shopAtStore(storeId: String) = "shop/store/$storeId"

@@ -94,4 +94,123 @@ interface PurchaseRecordDao {
 
     @Query("UPDATE purchase_records SET pendingSync = 0 WHERE id = :id AND userId = :userId")
     suspend fun markPushed(userId: String, id: String)
+
+    // ---- Statistics aggregates ------------------------------------------------
+    // Read-only flows that power the Settings → Statistics screen. All filter
+    // by userId + deletedAt IS NULL so tombstoned records and other users'
+    // history never leak into the visible totals.
+
+    @Query(
+        """
+        SELECT COUNT(*) FROM purchase_records
+        WHERE userId = :userId AND deletedAt IS NULL
+        """,
+    )
+    fun observeTotalCount(userId: String): Flow<Int>
+
+    @Query(
+        """
+        SELECT COUNT(*) FROM purchase_records
+        WHERE userId = :userId AND deletedAt IS NULL AND purchasedAt >= :sinceMillis
+        """,
+    )
+    fun observeCountSince(userId: String, sinceMillis: Long): Flow<Int>
+
+    @Query(
+        """
+        SELECT date(purchasedAt / 1000, 'unixepoch', 'localtime') AS day,
+               COUNT(*) AS count
+        FROM purchase_records
+        WHERE userId = :userId AND deletedAt IS NULL AND purchasedAt >= :sinceMillis
+        GROUP BY day
+        ORDER BY day ASC
+        """,
+    )
+    fun observePurchasesPerDay(userId: String, sinceMillis: Long): Flow<List<DayCount>>
+
+    @Query(
+        """
+        SELECT CAST(strftime('%w', purchasedAt / 1000, 'unixepoch', 'localtime') AS INTEGER) AS dayOfWeek,
+               COUNT(*) AS count
+        FROM purchase_records
+        WHERE userId = :userId AND deletedAt IS NULL
+        GROUP BY dayOfWeek
+        ORDER BY count DESC
+        """,
+    )
+    fun observePurchasesByDayOfWeek(userId: String): Flow<List<DayOfWeekCount>>
+
+    @Query(
+        """
+        SELECT itemId, COUNT(*) AS count
+        FROM purchase_records
+        WHERE userId = :userId AND deletedAt IS NULL
+        GROUP BY itemId
+        ORDER BY count DESC
+        LIMIT :limit
+        """,
+    )
+    fun observeTopItems(userId: String, limit: Int): Flow<List<ItemPurchaseCount>>
+
+    @Query(
+        """
+        SELECT storeId, COUNT(*) AS count
+        FROM purchase_records
+        WHERE userId = :userId AND deletedAt IS NULL AND storeId IS NOT NULL
+        GROUP BY storeId
+        ORDER BY count DESC
+        """,
+    )
+    fun observePurchasesByStore(userId: String): Flow<List<StorePurchaseCount>>
+
+    /**
+     * Group purchase records by the category of the item that was bought.
+     * Items whose categoryId is NULL (uncategorised) are reported as the
+     * empty string so the UI can show an "Uncategorised" bucket without
+     * losing them from the total.
+     */
+    @Query(
+        """
+        SELECT COALESCE(items.categoryId, '') AS categoryId, COUNT(*) AS count
+        FROM purchase_records
+        INNER JOIN items ON items.id = purchase_records.itemId
+        WHERE purchase_records.userId = :userId
+            AND purchase_records.deletedAt IS NULL
+            AND items.deletedAt IS NULL
+        GROUP BY categoryId
+        ORDER BY count DESC
+        """,
+    )
+    fun observePurchasesByCategory(userId: String): Flow<List<CategoryPurchaseCount>>
 }
+
+/** Daily purchase count, projection of [observePurchasesPerDay]. */
+data class DayCount(
+    /** ISO date (YYYY-MM-DD) in the device's local timezone. */
+    val day: String,
+    val count: Int,
+)
+
+/** Day-of-week purchase count where dayOfWeek is 0 (Sunday) – 6 (Saturday). */
+data class DayOfWeekCount(
+    val dayOfWeek: Int,
+    val count: Int,
+)
+
+/** Per-item aggregate, projection of [observeTopItems]. */
+data class ItemPurchaseCount(
+    val itemId: String,
+    val count: Int,
+)
+
+/** Per-store aggregate, projection of [observePurchasesByStore]. */
+data class StorePurchaseCount(
+    val storeId: String,
+    val count: Int,
+)
+
+/** Per-category aggregate; empty `categoryId` means uncategorised. */
+data class CategoryPurchaseCount(
+    val categoryId: String,
+    val count: Int,
+)
