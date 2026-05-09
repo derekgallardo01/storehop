@@ -69,9 +69,13 @@ struct ManageCategoriesView: View {
                 .padding(20)
 
             if let undoName = viewModel.pendingUndoName {
-                undoSnackbar(name: undoName, viewModel: viewModel)
-                    .padding(.horizontal, 16)
-                    .padding(.bottom, 88)
+                UndoBar(
+                    message: String(format: String(localized: "undo_category_deleted %@"), undoName),
+                    onUndo: { viewModel.undoDelete() },
+                    onDismiss: { viewModel.dismissUndo() }
+                )
+                .padding(.horizontal, 16)
+                .padding(.bottom, 88)
             }
         }
         .sheet(isPresented: $showAddDialog) {
@@ -105,24 +109,6 @@ struct ManageCategoriesView: View {
         .animation(.easeInOut(duration: 0.2), value: viewModel.pendingUndoName)
     }
 
-    private func undoSnackbar(name: String, viewModel: ManageCategoriesViewModel) -> some View {
-        HStack {
-            Text(String(format: String(localized: "undo_category_deleted %@"), name))
-                .font(StorehopTypography.bodyMedium)
-            Spacer()
-            Button(String(localized: "action_undo")) { viewModel.undoDelete() }
-                .font(StorehopTypography.labelLarge)
-                .foregroundStyle(StorehopColors.primary)
-        }
-        .padding()
-        .background(StorehopColors.surface, in: RoundedRectangle(cornerRadius: StorehopShape.cornerMedium))
-        .shadow(radius: 4, y: 2)
-        .transition(.move(edge: .bottom).combined(with: .opacity))
-        .task {
-            try? await Task.sleep(nanoseconds: 5_000_000_000)
-            viewModel.dismissUndo()
-        }
-    }
 }
 
 private struct CategoryRow: View {

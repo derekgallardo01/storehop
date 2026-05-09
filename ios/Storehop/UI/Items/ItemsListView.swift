@@ -86,39 +86,22 @@ struct ItemsListView: View {
                 .padding(20)
 
             if let event = viewModel.pendingUndo {
-                undoSnackbar(for: event, viewModel: viewModel)
-                    .padding(.horizontal, 16)
-                    .padding(.bottom, 88)
+                UndoBar(
+                    message: undoMessage(for: event),
+                    onUndo: { viewModel.undoItemDelete(event) },
+                    onDismiss: { viewModel.dismissUndo() }
+                )
+                .padding(.horizontal, 16)
+                .padding(.bottom, 88)
             }
         }
         .animation(.easeInOut(duration: 0.2), value: viewModel.pendingUndo)
     }
 
-    private func undoSnackbar(for event: UndoEvent, viewModel: ItemsListViewModel) -> some View {
-        let label: String = {
-            switch event {
-            case .itemDeleted(_, let name):
-                return String(format: String(localized: "undo_item_deleted %@"), name)
-            }
-        }()
-        return HStack {
-            Text(label)
-                .font(StorehopTypography.bodyMedium)
-                .foregroundStyle(StorehopColors.onSurface)
-            Spacer()
-            Button(String(localized: "action_undo")) {
-                viewModel.undoItemDelete(event)
-            }
-            .font(StorehopTypography.labelLarge)
-            .foregroundStyle(StorehopColors.primary)
-        }
-        .padding()
-        .background(StorehopColors.surface, in: RoundedRectangle(cornerRadius: StorehopShape.cornerMedium))
-        .shadow(radius: 4, y: 2)
-        .transition(.move(edge: .bottom).combined(with: .opacity))
-        .task {
-            try? await Task.sleep(nanoseconds: 5_000_000_000)
-            viewModel.dismissUndo()
+    private func undoMessage(for event: UndoEvent) -> String {
+        switch event {
+        case .itemDeleted(_, let name):
+            return String(format: String(localized: "undo_item_deleted %@"), name)
         }
     }
 }

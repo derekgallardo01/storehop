@@ -13,7 +13,7 @@ specific household) is added or renamed by the user.
 
 ## Status
 
-v0.5.14. Shipping to Google Play Closed testing. Feature-complete for
+v0.5.15. Shipping to Google Play Closed testing. Feature-complete for
 single-user v1: anonymous-first onboarding with optional Google
 Sign-In, two-way Firestore + Storage cloud sync (push and pull), Shop
 and Items tabs with item photos, share-list-as-text, theme + language
@@ -191,6 +191,11 @@ pack remains stable across devices and across reseeds.
          long-press anywhere on a category tile starts the drag.
          Plus AppUpdateController logs at INFO/WARN now so the
          in-app-update flow's state is visible in Logcat.
+- v0.5.15 iOS catches up to Android: shared UndoBar component on
+         iOS ItemsListView + ManageCategoriesView (× close, swipe,
+         3s auto-dismiss). iOS marketing version bumped from 0.5.1
+         to 0.5.15. iOS Edit aisles intentionally keeps the
+         platform-idiomatic `.onMove` + `EditButton` pattern.
 - v0.6+  Polish follow-ups (e.g. tightening the in-session staple
          flag's renewal behavior) and a v2 home-screen widget that
          actually does something useful.

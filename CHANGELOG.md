@@ -7,6 +7,32 @@ project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 For the high-level roadmap and earlier-than-0.5.0 history, see the
 "Roadmap" section in the [README](README.md).
 
+## [0.5.15] - 2026-05-09
+
+### Changed
+
+- **iOS catches up to Android: shared UndoBar everywhere.** The
+  iOS ItemsListView and ManageCategoriesView previously rendered
+  their own inline undo snackbars (5s auto-dismiss, no close button,
+  no swipe). Both now use the shared `UndoBar.swift` component:
+  3-second auto-dismiss, × close button, swipe-to-dismiss — same
+  affordances Android has had since v0.5.7 + v0.5.12 + v0.5.13.
+
+- **iOS marketing version bumped to 0.5.15.** The iOS port had been
+  carrying `MARKETING_VERSION: "0.5.1"` (the original port version)
+  in `ios/project.yml` since the parity work landed earlier today.
+  Bumped to track Android version. `CURRENT_PROJECT_VERSION` (build
+  number) bumped from 10 → 15 to match the version cadence.
+
+### Intentionally divergent (iOS)
+
+- **EditAisleOrder reorder UX.** Android v0.5.14 dropped the
+  drag-handle icon and made long-press anywhere on a tile start the
+  drag. iOS keeps the platform-idiomatic SwiftUI `List` + `.onMove`
+  + `EditButton` pattern with the `line.3.horizontal` drag handle
+  — same call as the Store-picker case for v0.5.7 (sticking with
+  Apple's HIG over cross-platform sameness).
+
 ## [0.5.14] - 2026-05-09
 
 ### Changed
