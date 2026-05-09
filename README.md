@@ -196,6 +196,19 @@ pack remains stable across devices and across reseeds.
          3s auto-dismiss). iOS marketing version bumped from 0.5.1
          to 0.5.15. iOS Edit aisles intentionally keeps the
          platform-idiomatic `.onMove` + `EditButton` pattern.
+- v0.6.0  **Multi-user account sharing** (planned). Mike-asked:
+         *"allowing multiple people to access one account is
+         probably a good one. I could see allowing Amanda to access
+         my list and add items and check off items."* Lets one
+         primary account invite collaborators (spouse, family,
+         roommate, etc.) who can read and edit the same shopping
+         list, items, stores, and categories in real time over the
+         existing Firestore sync. Touches the data layer (shared
+         doc ownership / per-doc ACL), auth (invite + accept flow),
+         Firestore security rules, and several UI surfaces (invite
+         from Settings → Account, manage collaborators, conflict
+         signals). Major feature — designed as its own milestone
+         rather than tacked onto the v0.5.x patch line.
 - v0.6+  Polish follow-ups (e.g. tightening the in-session staple
          flag's renewal behavior) and a v2 home-screen widget that
          actually does something useful.
