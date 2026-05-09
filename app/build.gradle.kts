@@ -31,8 +31,8 @@ android {
         applicationId = "com.storehop.app"
         minSdk = 26
         targetSdk = 35
-        versionCode = 31
-        versionName = "0.5.11"
+        versionCode = 32
+        versionName = "0.5.12"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables { useSupportLibrary = true }

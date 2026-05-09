@@ -7,6 +7,19 @@ project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 For the high-level roadmap and earlier-than-0.5.0 history, see the
 "Roadmap" section in the [README](README.md).
 
+## [0.5.12] - 2026-05-09
+
+### Changed
+
+- **Items tab: deleted-item undo bar gets the same polish as the
+  Shop screens.** When you delete an item from the edit form and pop
+  back to the Items list, the "Deleted X" undo prompt now uses the
+  custom `UndoBar` component shipped in v0.5.7: 3-second auto-dismiss
+  (immune to accessibility-scaling), explicit × close button, and
+  horizontal swipe-to-dismiss. Replaces Material3's `SnackbarHost`,
+  which had the same indefinite-duration behavior we replaced on the
+  shop screens.
+
 ## [0.5.11] - 2026-05-09
 
 ### Fixed

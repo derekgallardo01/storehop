@@ -34,10 +34,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Snackbar
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -59,6 +55,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import com.storehop.app.R
 import com.storehop.app.data.db.relations.ItemWithCategoryAndStores
+import com.storehop.app.ui.util.UndoBar
+import com.storehop.app.ui.util.UndoBarState
 import com.storehop.app.ui.util.UndoEvent
 import com.storehop.app.ui.util.localizedLabel
 import kotlinx.coroutines.delay
@@ -75,24 +73,22 @@ fun ItemsListScreen(
 ) {
     val items by viewModel.items.collectAsState()
     val query by viewModel.query.collectAsState()
-    val snackbarHostState = remember { SnackbarHostState() }
-    val undoLabel = stringResource(R.string.action_undo)
     val undoTemplate = stringResource(R.string.undo_item_deleted)
+    var undoState: UndoBarState? by remember { mutableStateOf(null) }
 
-    // Pull cross-screen undo prompts from the bus and surface them as a
-    // snackbar with an UNDO action. The form fires these after softDelete.
+    // Pull cross-screen undo prompts from the bus and surface them on the
+    // shared UndoBar (3s auto-dismiss, X close button, swipe-to-dismiss).
+    // The ItemForm screen fires these events after softDelete and pops back
+    // to this list -- the LaunchedEffect collects them as they arrive.
     LaunchedEffect(Unit) {
         viewModel.undoEvents.collect { event ->
             when (event) {
                 is UndoEvent.ItemDeleted -> {
-                    snackbarHostState.currentSnackbarData?.dismiss()
-                    val result = snackbarHostState.showSnackbar(
+                    val itemId = event.itemId
+                    undoState = UndoBarState(
                         message = undoTemplate.format(event.itemName),
-                        actionLabel = undoLabel,
+                        onUndo = { viewModel.undoItemDelete(itemId) },
                     )
-                    if (result == SnackbarResult.ActionPerformed) {
-                        viewModel.undoItemDelete(event.itemId)
-                    }
                 }
             }
         }
@@ -142,7 +138,9 @@ fun ItemsListScreen(
                 )
             }
         },
-        snackbarHost = { SnackbarHost(snackbarHostState) { Snackbar(it) } },
+        bottomBar = {
+            UndoBar(state = undoState, onDismiss = { undoState = null })
+        },
     ) { padding ->
         Column(modifier = Modifier.padding(padding).fillMaxSize()) {
             OutlinedTextField(
