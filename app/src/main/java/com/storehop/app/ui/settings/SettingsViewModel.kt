@@ -1,9 +1,7 @@
 package com.storehop.app.ui.settings
 
-import android.app.LocaleManager
 import android.content.Context
 import android.os.Build
-import android.os.LocaleList
 import android.util.Log
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.os.LocaleListCompat
@@ -103,49 +101,32 @@ class SettingsViewModel @Inject constructor(
     /**
      * Switch the per-app locale. Pass `""` for "follow system."
      *
-     * Goes straight to the system [LocaleManager] on API 33+ -- that's the
-     * authoritative API for per-app languages on modern Android, persists at
-     * the OS level, and auto-recreates the activity. AppCompat is supposed to
-     * delegate here when its host is an AppCompatActivity, but we use
-     * ComponentActivity (Compose-only); going direct skips any AppCompat
-     * preconditions that fail silently in that setup.
-     *
-     * Falls back to AppCompat's backport on API 26-32 (our minSdk floor),
-     * which uses its own SharedPreferences storage on those versions.
+     * Routes through [AppCompatDelegate.setApplicationLocales] on every API
+     * level. With `autoStoreLocales=true` declared in the manifest, AppCompat
+     * delegates to the system `LocaleManager` on API 33+ and uses its own
+     * SharedPreferences-backed backport on API 26–32 — single code path for
+     * both. v0.5.8 went straight to `LocaleManager` on API 33+, but on Pixel
+     * devices that path silently dropped locales not enabled in the user's
+     * system language list; AppCompat doesn't have that limitation, so
+     * locales declared in [`xml/locales_config.xml`](../res/xml/locales_config.xml)
+     * apply consistently regardless of which languages the user has
+     * "installed" at the OS level.
      */
     fun setLocale(tag: String) {
         Log.i(TAG, "setLocale(tag='$tag') sdk=${Build.VERSION.SDK_INT}")
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            val locales = if (tag.isBlank()) {
-                LocaleList.getEmptyLocaleList()
-            } else {
-                LocaleList.forLanguageTags(tag)
-            }
-            // The system service is application-scoped; ApplicationContext is
-            // fine here. Setting locales triggers a configuration change and
-            // automatic activity recreation by the system.
-            val lm = appContext.getSystemService(LocaleManager::class.java)
-            lm.applicationLocales = locales
-            Log.i(TAG, "LocaleManager.applicationLocales set; readback=${lm.applicationLocales.toLanguageTags()}")
+        val locales = if (tag.isBlank()) {
+            LocaleListCompat.getEmptyLocaleList()
         } else {
-            AppCompatDelegate.setApplicationLocales(
-                if (tag.isBlank()) LocaleListCompat.getEmptyLocaleList()
-                else LocaleListCompat.forLanguageTags(tag),
-            )
-            Log.i(TAG, "AppCompat fallback: setApplicationLocales done")
+            LocaleListCompat.forLanguageTags(tag)
         }
+        AppCompatDelegate.setApplicationLocales(locales)
+        Log.i(TAG, "applicationLocales set; readback=${AppCompatDelegate.getApplicationLocales().toLanguageTags()}")
         _localeTag.value = tag
     }
 
     private fun readLocaleTag(): String {
-        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            val lm = appContext.getSystemService(LocaleManager::class.java)
-            val list = lm.applicationLocales
-            if (list.isEmpty) "" else list.toLanguageTags()
-        } else {
-            val locales = AppCompatDelegate.getApplicationLocales()
-            if (locales.isEmpty) "" else locales.toLanguageTags()
-        }
+        val locales = AppCompatDelegate.getApplicationLocales()
+        return if (locales.isEmpty) "" else locales.toLanguageTags()
     }
 
     private companion object {
