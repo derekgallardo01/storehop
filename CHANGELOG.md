@@ -7,6 +7,47 @@ project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 For the high-level roadmap and earlier-than-0.5.0 history, see the
 "Roadmap" section in the [README](README.md).
 
+## [0.6.2] - 2026-05-10
+
+Two more Mike-asks, one bundle.
+
+### Changed
+
+- **In-store critical-items banner: shorten the count headline**
+  (Android + iOS). Was "5 critical items at this store" — wrapped to
+  two lines on Mike's Pixel. Now "5 critical items"; the surrounding
+  context (you're already inside a store's view) makes the trailing
+  "at this store" redundant. Strings updated in all four locales on
+  Android plus the matching `critical_at_this_store %lld` key on iOS.
+
+- **Items list search placeholder: "Search anything"** (Android +
+  iOS, all four locales). Was "Search by name or brand" — even at
+  24 chars it wrapped on Mike's narrower text-scale layout. The new
+  placeholder is universal-shorter ("Search anything" / "Procurar
+  tudo" / "Buscar todo" / "Cerca tutto") and reflects the next
+  change below.
+
+- **Items list search now also matches category names** (Android +
+  iOS). Mike-asked: typing "frozen" should surface every item in
+  the Frozen category. The filter on `ItemsListViewModel` now
+  matches against `category?.name` in addition to the existing
+  name + brand match. Caveat: matches the raw seeded category name
+  (English for seeded categories); a non-English user searching by
+  the localized seed label won't hit this branch on the first pass.
+
+### Tests
+
+- `ItemsListViewModelTest` +1 -- pins the new category-name match.
+  381 → 422 unit tests, 0 failures (post-coverage-push count plus
+  this one). Coverage: 99.9% lines, 100% classes (unchanged).
+
+### Versions
+
+- Android: versionCode 37 → 38, versionName 0.6.1 → 0.6.2.
+- iOS: MARKETING_VERSION 0.6.1 → 0.6.2, CURRENT_PROJECT_VERSION
+  17 → 18. iOS code change mirrors Android; test parity is a
+  Mac-side follow-up.
+
 ## Tests-only (coverage push) - 2026-05-10
 
 Push toward 100% measured line coverage on the unit-test surface.

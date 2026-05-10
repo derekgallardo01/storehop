@@ -72,6 +72,37 @@ class ItemsListViewModelTest {
         }
     }
 
+    @Test fun `setQuery matches category name too (v0_6_2)`() = runTest {
+        every { itemRepo.observeAll() } returns itemsFlow
+        val frozen = Category(
+            id = "cat_frozen", name = "Frozen", nameKey = "cat_frozen",
+            icon = null, isArchived = false, isSeeded = true,
+            userId = "u", createdAt = 1L, updatedAt = 1L, deletedAt = null,
+        )
+        val dairy = Category(
+            id = "cat_dairy", name = "Dairy", nameKey = "cat_dairy",
+            icon = null, isArchived = false, isSeeded = true,
+            userId = "u", createdAt = 1L, updatedAt = 1L, deletedAt = null,
+        )
+        itemsFlow.value = listOf(
+            row("calamari", "Calamari", category = frozen),
+            row("milk", "Milk", category = dairy),
+            row("eggs", "Eggs", category = null),
+        )
+
+        val vm = ItemsListViewModel(itemRepo, prefsRepo, undoBus)
+        vm.setQuery("FRO")  // matches "Frozen" category, ignore-case
+        vm.uiState.test {
+            awaitItem()
+            advanceUntilIdle()
+            // Calamari surfaces by virtue of its Frozen category --
+            // its own name doesn't contain "FRO".
+            assertThat(expectMostRecentItem().rows.map { it.item.name })
+                .containsExactly("Calamari")
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
     @Test fun `setQuery filters by name AND brand, case insensitive`() = runTest {
         every { itemRepo.observeAll() } returns itemsFlow
         itemsFlow.value = listOf(

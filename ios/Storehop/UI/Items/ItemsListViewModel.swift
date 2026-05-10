@@ -143,7 +143,12 @@ final class ItemsListViewModel {
         } else {
             filtered = rawItems.filter { row in
                 row.item.name.lowercased().contains(needle) ||
-                (row.item.brand?.lowercased().contains(needle) == true)
+                (row.item.brand?.lowercased().contains(needle) == true) ||
+                // v0.6.2: also match against the category's raw name so
+                // typing "frozen" surfaces every item in the Frozen
+                // category. Mirrors Android's filter; same caveat about
+                // localized seed-category labels not being searched.
+                (row.category?.name.lowercased().contains(needle) == true)
             }
         }
         switch sortMode {

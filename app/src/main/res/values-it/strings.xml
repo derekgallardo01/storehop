@@ -71,7 +71,7 @@
     <string name="settings_language_it">Italiano</string>
 
     <!-- Lista e modulo articoli. -->
-    <string name="search_items_placeholder">Cerca per nome o marca</string>
+    <string name="search_items_placeholder">Cerca tutto</string>
     <string name="action_clear_search">Cancella ricerca</string>
     <string name="sort_alphabetic_cd">Passa all\'ordine alfabetico</string>
     <string name="sort_category_cd">Passa all\'ordine per categoria</string>
@@ -168,8 +168,8 @@
         <item quantity="other">%d articoli</item>
     </plurals>
     <plurals name="critical_at_this_store">
-        <item quantity="one">%d articolo critico in questo negozio</item>
-        <item quantity="other">%d articoli critici in questo negozio</item>
+        <item quantity="one">%d articolo critico</item>
+        <item quantity="other">%d articoli critici</item>
     </plurals>
     <plurals name="store_critical_chip">
         <item quantity="one">⚠ %d</item>

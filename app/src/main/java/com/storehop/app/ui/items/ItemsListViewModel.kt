@@ -77,7 +77,17 @@ class ItemsListViewModel @Inject constructor(
             val filtered = if (needle.isEmpty()) all
             else all.filter { row ->
                 row.item.name.contains(needle, ignoreCase = true) ||
-                    (row.item.brand?.contains(needle, ignoreCase = true) == true)
+                    (row.item.brand?.contains(needle, ignoreCase = true) == true) ||
+                    // v0.6.2: also match against the category's raw name so
+                    // typing "frozen" surfaces every item in the Frozen
+                    // category. Note: matches `Category.name` which is the
+                    // raw seeded value (English for seeded categories);
+                    // localized seed labels via nameKey are not searched
+                    // here -- a non-English user searching their localized
+                    // category label won't hit this branch. Acceptable
+                    // first pass; extend with Context-aware resolution if
+                    // user feedback indicates the gap.
+                    (row.category?.name?.contains(needle, ignoreCase = true) == true)
             }
             ItemsListUiState(
                 rows = if (sortMode == SortMode.ALPHABETIC) {

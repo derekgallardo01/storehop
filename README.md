@@ -13,7 +13,7 @@ specific household) is added or renamed by the user.
 
 ## Status
 
-v0.6.1. Shipping to Google Play Closed testing. Feature-complete for
+v0.6.2. Shipping to Google Play Closed testing. Feature-complete for
 single-user v1: anonymous-first onboarding with optional Google
 Sign-In, two-way Firestore + Storage cloud sync (push and pull), Shop
 and Items tabs with item photos, share-list-as-text, theme + language
@@ -29,7 +29,7 @@ the Play Console listing answers and
 policy hosted at the Play listing's required URL.
 
 An iOS port lives in [`ios/`](ios/) — SwiftUI + GRDB + Firebase iOS
-SDK, mirroring the Android architecture 1:1. As of v0.6.1 it's
+SDK, mirroring the Android architecture 1:1. As of v0.6.2 it's
 caught up to feature parity (with the natural exception of the
 in-app update prompt, since the App Store has no equivalent API).
 Not yet shipped to TestFlight or the App Store.
@@ -196,6 +196,15 @@ pack remains stable across devices and across reseeds.
          3s auto-dismiss). iOS marketing version bumped from 0.5.1
          to 0.5.15. iOS Edit aisles intentionally keeps the
          platform-idiomatic `.onMove` + `EditButton` pattern.
+- v0.6.2 Two more Mike-asks bundled. In-store critical-items
+         banner shortened ("5 critical items at this store" →
+         "5 critical items") so it stops wrapping to two lines.
+         Items list search placeholder collapsed to "Search
+         anything", and the filter now also matches against
+         category name -- typing "frozen" surfaces every item in
+         the Frozen category. Both changes ship to Android + iOS
+         in this release; Android tests pin the new search match
+         (422 unit tests green, 99.9% line coverage maintained).
 - v0.6.1 Two more Mike-asks bundled. Inline "+ New category"
          entry in the item edit screen's category picker (one less
          round trip to Manage Categories), and a +/− button on each

@@ -3429,25 +3429,25 @@
         "pt-PT": {
           "stringUnit": {
             "state": "translated",
-            "value": "Procurar por nome ou marca"
+            "value": "Procurar tudo"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Search by name or brand"
+            "value": "Search anything"
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Buscar por nombre o marca"
+            "value": "Buscar todo"
           }
         },
         "it": {
           "stringUnit": {
             "state": "translated",
-            "value": "Cerca per nome o marca"
+            "value": "Cerca tutto"
           }
         }
       }
@@ -4912,10 +4912,10 @@
     "critical_at_this_store %lld": {
       "extractionState": "manual",
       "localizations": {
-        "en": { "stringUnit": { "state": "translated", "value": "%lld critical items at this store" } },
-        "pt-PT": { "stringUnit": { "state": "translated", "value": "%lld artigos críticos nesta loja" } },
-        "es": { "stringUnit": { "state": "translated", "value": "%lld artículos críticos en esta tienda" } },
-        "it": { "stringUnit": { "state": "translated", "value": "%lld articoli critici in questo negozio" } }
+        "en": { "stringUnit": { "state": "translated", "value": "%lld critical items" } },
+        "pt-PT": { "stringUnit": { "state": "translated", "value": "%lld artigos críticos" } },
+        "es": { "stringUnit": { "state": "translated", "value": "%lld artículos críticos" } },
+        "it": { "stringUnit": { "state": "translated", "value": "%lld articoli critici" } }
       }
     },
     "critical_banner_expand_cd": {
