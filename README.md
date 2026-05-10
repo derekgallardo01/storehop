@@ -29,7 +29,7 @@ the Play Console listing answers and
 policy hosted at the Play listing's required URL.
 
 An iOS port lives in [`ios/`](ios/) — SwiftUI + GRDB + Firebase iOS
-SDK, mirroring the Android architecture 1:1. As of v0.5.7 it's
+SDK, mirroring the Android architecture 1:1. As of v0.6.0 it's
 caught up to feature parity (with the natural exception of the
 in-app update prompt, since the App Store has no equivalent API).
 Not yet shipped to TestFlight or the App Store.

@@ -3429,25 +3429,25 @@
         "pt-PT": {
           "stringUnit": {
             "state": "translated",
-            "value": "Procurar artigos por nome ou marca"
+            "value": "Procurar por nome ou marca"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Search items by name or brand"
+            "value": "Search by name or brand"
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Buscar artículos por nombre o marca"
+            "value": "Buscar por nombre o marca"
           }
         },
         "it": {
           "stringUnit": {
             "state": "translated",
-            "value": "Cerca articoli per nome o marca"
+            "value": "Cerca per nome o marca"
           }
         }
       }
@@ -4871,6 +4871,69 @@
             "value": "\"%@\" eliminato."
           }
         }
+      }
+    },
+    "sort_alphabetic_cd": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Switch to alphabetic sort" } },
+        "pt-PT": { "stringUnit": { "state": "translated", "value": "Mudar para ordem alfabética" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Cambiar a orden alfabético" } },
+        "it": { "stringUnit": { "state": "translated", "value": "Passa all'ordine alfabetico" } }
+      }
+    },
+    "sort_category_cd": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Switch to category sort" } },
+        "pt-PT": { "stringUnit": { "state": "translated", "value": "Mudar para ordem por categoria" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Cambiar a orden por categoría" } },
+        "it": { "stringUnit": { "state": "translated", "value": "Passa all'ordine per categoria" } }
+      }
+    },
+    "action_edit_item": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Edit" } },
+        "pt-PT": { "stringUnit": { "state": "translated", "value": "Editar" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Editar" } },
+        "it": { "stringUnit": { "state": "translated", "value": "Modifica" } }
+      }
+    },
+    "items_uncategorised_label": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "(uncategorised)" } },
+        "pt-PT": { "stringUnit": { "state": "translated", "value": "(sem categoria)" } },
+        "es": { "stringUnit": { "state": "translated", "value": "(sin categoría)" } },
+        "it": { "stringUnit": { "state": "translated", "value": "(senza categoria)" } }
+      }
+    },
+    "critical_at_this_store %lld": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "%lld critical items at this store" } },
+        "pt-PT": { "stringUnit": { "state": "translated", "value": "%lld artigos críticos nesta loja" } },
+        "es": { "stringUnit": { "state": "translated", "value": "%lld artículos críticos en esta tienda" } },
+        "it": { "stringUnit": { "state": "translated", "value": "%lld articoli critici in questo negozio" } }
+      }
+    },
+    "critical_banner_expand_cd": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Show critical items" } },
+        "pt-PT": { "stringUnit": { "state": "translated", "value": "Mostrar artigos críticos" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Mostrar artículos críticos" } },
+        "it": { "stringUnit": { "state": "translated", "value": "Mostra articoli critici" } }
+      }
+    },
+    "critical_banner_collapse_cd": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Hide critical items" } },
+        "pt-PT": { "stringUnit": { "state": "translated", "value": "Ocultar artigos críticos" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Ocultar artículos críticos" } },
+        "it": { "stringUnit": { "state": "translated", "value": "Nascondi articoli critici" } }
       }
     }
   },

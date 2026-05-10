@@ -261,26 +261,48 @@ private struct CriticalChip: View {
     }
 }
 
+/// Collapsed by default: shows just the title + count chevron. Tap to
+/// reveal the full comma-joined list. Mirrors the in-store banner's
+/// collapse pattern that v0.6.0 added on Android. The deeper Android
+/// v0.5.6 "best-store breakdown" lives on the ViewModel side and is a
+/// follow-up; here we get visual parity for the click-to-expand
+/// affordance.
 private struct CriticalNeedsBanner: View {
     let names: [String]
+    @State private var expanded = false
 
     var body: some View {
-        HStack(alignment: .top, spacing: 12) {
-            Image(systemName: "exclamationmark.triangle.fill")
-                .foregroundStyle(StorehopColors.onPrimaryContainer)
-            VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(alignment: .center, spacing: 12) {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .foregroundStyle(StorehopColors.onPrimaryContainer)
                 Text(String(localized: "critical_needs_banner_title"))
-                    .font(StorehopTypography.titleSmall)
+                    .font(StorehopTypography.titleSmall.weight(.semibold))
+                    .foregroundStyle(StorehopColors.onPrimaryContainer)
+                Spacer()
+                Image(systemName: expanded ? "chevron.up" : "chevron.down")
+                    .foregroundStyle(StorehopColors.onPrimaryContainer)
+                    .accessibilityHidden(true)
+            }
+            if expanded {
                 Text(names.joined(separator: ", "))
                     .font(StorehopTypography.bodyMedium)
+                    .foregroundStyle(StorehopColors.onPrimaryContainer)
+                    .padding(.top, 6)
+                    .padding(.leading, 28)
             }
-            .foregroundStyle(StorehopColors.onPrimaryContainer)
-            Spacer()
         }
         .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
         .background(StorehopColors.primaryContainer, in: RoundedRectangle(cornerRadius: StorehopShape.cornerMedium))
         .padding(.horizontal, 16)
         .padding(.vertical, 4)
+        .contentShape(Rectangle())
+        .onTapGesture { withAnimation(.easeInOut(duration: 0.2)) { expanded.toggle() } }
+        .accessibilityElement(children: .combine)
+        .accessibilityHint(String(localized: expanded
+            ? "critical_banner_collapse_cd"
+            : "critical_banner_expand_cd"))
     }
 }
 

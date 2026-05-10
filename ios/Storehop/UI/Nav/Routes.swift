@@ -6,6 +6,11 @@ import Foundation
 enum ShopRoute: Hashable, Sendable {
     case shopAtStore(storeId: String)
     case editAisles(storeId: String)
+    /// Pushed when the user invokes the context-menu "Edit" on a row inside
+    /// a store. The same ItemFormView the Items tab uses, just hosted inside
+    /// the Shop tab's NavigationStack so the Back button returns to the
+    /// store list rather than dropping the user onto the Items tab.
+    case editItem(itemId: String)
 }
 
 enum ItemsRoute: Hashable, Sendable {

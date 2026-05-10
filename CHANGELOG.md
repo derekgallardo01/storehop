@@ -61,16 +61,48 @@ none of these depend on the data-model rework that needs.
   on Mike's Pixel; the screen title already says "Items" so the
   prefix was redundant.
 
-### Out of scope
+### iOS parity (added in a follow-up patch on the v0.6.0 line)
 
-- **iOS parity** — deferred to a later iOS-side session. Android-only
-  release.
+iOS catches up to the v0.6.0 Android UX. Per-feature notes:
+
+- **× clear button on search**: free on iOS — SwiftUI's
+  `.searchable(...)` modifier already provides a clear button. No
+  code change needed.
+- **Search prompt shortened**: `items_search_placeholder` updated
+  in `Localizable.xcstrings` for all four locales.
+- **Long-press to edit in store**: implemented as a
+  `.contextMenu { Button("Edit") }` on each row, the iOS
+  HIG-idiomatic equivalent of Android's long-press gesture. New
+  `ShopRoute.editItem(itemId:)` reuses the existing `ItemFormView`
+  inside the Shop tab's NavigationStack.
+- **Critical banner collapse/expand**: in-store banner now collapses
+  by default with a chevron, tap to expand. Same affordance also
+  retrofitted onto the StorePicker's "Critical needs" banner — the
+  Android v0.5.6 collapsible variant never made it to iOS until now.
+- **Alphabetic ↔ Category sort toggles**: SortMode enum added to
+  iOS `UserPreferencesRepository` with two new keys
+  (`shop_at_store_sort_mode`, `items_list_sort_mode`) mirroring the
+  Android DataStore identifiers. Toolbar buttons on both
+  `ShopAtStoreView` and `ItemsListView` flip the mode; choice
+  persists.
+
+iOS marketing version bumped 0.5.15 → 0.6.0;
+CURRENT_PROJECT_VERSION 15 → 16. Still not shipped to TestFlight.
+
+### Out of scope
 
 - **Multi-user account sharing** — moved to v0.7.0. The original
   v0.6.0 plan called for that as the headline feature; this
   release scopes down to UX polish to ship Mike's feedback fast,
   and keeps multi-user as its own milestone where it can get the
   schema + sync + auth work it needs.
+
+- **Deeper StorePicker banner ("best store covering most criticals")**
+  — Android v0.5.6 added a smarter version of the picker banner
+  that ranks stores by critical-item count and shows a per-store
+  breakdown when expanded. iOS still uses the simpler flat-list
+  variant; v0.6.0 only adds the collapse/expand affordance to it.
+  The data-shape uplift on `StorePickerViewModel` is a follow-up.
 
 ## [0.5.15] - 2026-05-09
 

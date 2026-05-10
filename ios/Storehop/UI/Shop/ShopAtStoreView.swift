@@ -3,6 +3,7 @@ import SwiftUI
 struct ShopAtStoreView: View {
     let storeId: String
     let onEditAisles: () -> Void
+    let onEditItem: (String) -> Void
 
     @Environment(AppContainer.self) private var container
     @State private var viewModel: ShopAtStoreViewModel?
@@ -45,15 +46,19 @@ struct ShopAtStoreView: View {
                             .listRowInsets(EdgeInsets())
                     }
                 }
-                ForEach(viewModel.sections) { section in
-                    Section(header: Text(sectionHeader(section)).font(StorehopTypography.titleSmall)) {
-                        ForEach(section.rows) { row in
-                            ShoppingRowView(row: row)
-                                .contentShape(Rectangle())
-                                .onTapGesture {
-                                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                                    viewModel.togglePurchased(row: row)
-                                }
+                switch viewModel.sortMode {
+                case .category:
+                    ForEach(viewModel.sections) { section in
+                        Section(header: Text(sectionHeader(section)).font(StorehopTypography.titleSmall)) {
+                            ForEach(section.rows) { row in
+                                shoppingRow(row, viewModel: viewModel)
+                            }
+                        }
+                    }
+                case .alphabetic:
+                    Section {
+                        ForEach(viewModel.alphabeticRows) { row in
+                            shoppingRow(row, viewModel: viewModel)
                         }
                     }
                 }
@@ -70,6 +75,19 @@ struct ShopAtStoreView: View {
             .navigationTitle(viewModel.store?.name ?? "")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        let next: SortMode = viewModel.sortMode == .category ? .alphabetic : .category
+                        viewModel.setSortMode(next)
+                    } label: {
+                        Image(systemName: viewModel.sortMode == .category
+                              ? "arrow.up.arrow.down"
+                              : "list.bullet.indent")
+                    }
+                    .accessibilityLabel(String(localized: viewModel.sortMode == .category
+                        ? "sort_alphabetic_cd"
+                        : "sort_category_cd"))
+                }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
                         viewModel.setShowPurchased(!viewModel.showPurchased)
@@ -126,6 +144,26 @@ struct ShopAtStoreView: View {
             }
         }
         .animation(.easeInOut(duration: 0.2), value: viewModel.lastPurchaseDisplayName)
+    }
+
+    /// Single row builder shared between both sort modes. The single tap
+    /// toggles purchased; the context menu (iOS HIG-idiomatic alternative
+    /// to Android's long-press) offers the "Edit" navigation, the new
+    /// v0.6.0 affordance for tagging stores without leaving the screen.
+    private func shoppingRow(_ row: ShoppingRow, viewModel: ShopAtStoreViewModel) -> some View {
+        ShoppingRowView(row: row)
+            .contentShape(Rectangle())
+            .onTapGesture {
+                UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                viewModel.togglePurchased(row: row)
+            }
+            .contextMenu {
+                Button {
+                    onEditItem(row.itemId)
+                } label: {
+                    Label(String(localized: "action_edit_item"), systemImage: "pencil")
+                }
+            }
     }
 
     private func sectionHeader(_ section: ShoppingCategorySection) -> String {
@@ -221,22 +259,45 @@ private struct ItemThumbnail: View {
     }
 }
 
+/// Collapsed by default: with many criticals the comma-joined list grew
+/// tall enough to push the rest of the screen off the fold. Mirrors
+/// Android's `CriticalBanner` collapse pattern from v0.6.0.
 private struct CriticalNeedsBanner: View {
     let names: [String]
+    @State private var expanded = false
 
     var body: some View {
-        HStack(alignment: .top, spacing: 12) {
-            Image(systemName: "exclamationmark.triangle.fill")
-                .foregroundStyle(StorehopColors.onPrimaryContainer)
-            Text(names.joined(separator: ", "))
-                .font(StorehopTypography.bodyMedium)
-                .foregroundStyle(StorehopColors.onPrimaryContainer)
-            Spacer()
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(alignment: .center, spacing: 12) {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .foregroundStyle(StorehopColors.onPrimaryContainer)
+                Text(String(format: String(localized: "critical_at_this_store %lld"), names.count))
+                    .font(StorehopTypography.titleSmall.weight(.semibold))
+                    .foregroundStyle(StorehopColors.onPrimaryContainer)
+                Spacer()
+                Image(systemName: expanded ? "chevron.up" : "chevron.down")
+                    .foregroundStyle(StorehopColors.onPrimaryContainer)
+                    .accessibilityHidden(true)
+            }
+            if expanded {
+                Text(names.joined(separator: ", "))
+                    .font(StorehopTypography.bodyMedium)
+                    .foregroundStyle(StorehopColors.onPrimaryContainer)
+                    .padding(.top, 6)
+                    .padding(.leading, 28)
+            }
         }
         .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
         .background(StorehopColors.primaryContainer, in: RoundedRectangle(cornerRadius: StorehopShape.cornerMedium))
         .padding(.horizontal, 16)
         .padding(.vertical, 4)
+        .contentShape(Rectangle())
+        .onTapGesture { withAnimation(.easeInOut(duration: 0.2)) { expanded.toggle() } }
+        .accessibilityElement(children: .combine)
+        .accessibilityHint(String(localized: expanded
+            ? "critical_banner_collapse_cd"
+            : "critical_banner_expand_cd"))
     }
 }
 

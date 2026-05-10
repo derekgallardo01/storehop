@@ -34,7 +34,12 @@ final class ShopAtStoreViewModel {
     let storeId: String
 
     var store: Store?
+    /// Aisle-grouped list, populated only when `sortMode == .category`.
+    /// Empty otherwise so the view picks the single non-empty list.
     var sections: [ShoppingCategorySection] = []
+    /// Flat alphabetic list (case-insensitive on item name), populated only
+    /// when `sortMode == .alphabetic`.
+    var alphabeticRows: [ShoppingRow] = []
     var criticalNames: [String] = []
     var query: String = "" {
         didSet { refreshSections() }
@@ -43,6 +48,12 @@ final class ShopAtStoreViewModel {
     /// staple or not). Mirrored from `UserPreferencesRepository`; setter
     /// writes through and the stream broadcast feeds back here.
     var showPurchased: Bool = true {
+        didSet { refreshSections() }
+    }
+    /// In-store sort: `.category` (aisle-grouped, default) or
+    /// `.alphabetic` (flat case-insensitive). Mirrors Android's per-screen
+    /// preference -- one setting applies to every store.
+    var sortMode: SortMode = .category {
         didSet { refreshSections() }
     }
 
@@ -80,6 +91,7 @@ final class ShopAtStoreViewModel {
     private let storeBinder = SessionBinder()
     private let masterItemsBinder = SessionBinder()
     private var prefsTask: Task<Void, Never>?
+    private var sortPrefsTask: Task<Void, Never>?
 
     init(
         storeId: String,
@@ -97,9 +109,10 @@ final class ShopAtStoreViewModel {
         self.preferencesRepository = preferencesRepository
         self.session = session
         self.sessionTracker = sessionTracker
-        // Seed initial value synchronously so the first refreshSections()
-        // doesn't race with the stream subscription below.
+        // Seed initial values synchronously so the first refreshSections()
+        // doesn't race with the stream subscriptions below.
         self.showPurchased = preferencesRepository.showPurchased
+        self.sortMode = preferencesRepository.shopAtStoreSortMode
     }
 
     /// Anchors the trip on first call. Subsequent ShopAtStore screens within
@@ -142,6 +155,11 @@ final class ShopAtStoreViewModel {
                 self?.showPurchased = value
             }
         }
+        sortPrefsTask = Task { @MainActor [weak self, preferencesRepository] in
+            for await value in preferencesRepository.shopAtStoreSortModeStream {
+                self?.sortMode = value
+            }
+        }
     }
 
     func teardown() {
@@ -150,10 +168,16 @@ final class ShopAtStoreViewModel {
         masterItemsBinder.cancel()
         prefsTask?.cancel()
         prefsTask = nil
+        sortPrefsTask?.cancel()
+        sortPrefsTask = nil
     }
 
     func setShowPurchased(_ value: Bool) {
         preferencesRepository.setShowPurchased(value)
+    }
+
+    func setSortMode(_ mode: SortMode) {
+        preferencesRepository.setShopAtStoreSortMode(mode)
     }
 
     private func applyRows(_ rows: [ShoppingRow]) {
@@ -219,7 +243,14 @@ final class ShopAtStoreViewModel {
                 (row.brand?.lowercased().contains(needle) == true)
             }
         }
-        sections = Self.groupByCategory(filtered)
+        switch sortMode {
+        case .category:
+            sections = Self.groupByCategory(filtered)
+            alphabeticRows = []
+        case .alphabetic:
+            sections = []
+            alphabeticRows = filtered.sorted { $0.itemName.lowercased() < $1.itemName.lowercased() }
+        }
     }
 
     /// Tap behavior on a row.

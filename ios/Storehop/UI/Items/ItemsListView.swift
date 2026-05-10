@@ -22,6 +22,7 @@ struct ItemsListView: View {
                 let vm = ItemsListViewModel(
                     itemRepository: container.itemRepository,
                     undoEventBus: container.undoEventBus,
+                    preferencesRepository: container.userPreferences,
                     session: container.session
                 )
                 vm.bind()
@@ -35,7 +36,10 @@ struct ItemsListView: View {
         @Bindable var vm = viewModel
         return ZStack(alignment: .bottom) {
             List {
-                if viewModel.items.isEmpty {
+                let isEmpty: Bool = viewModel.sortMode == .alphabetic
+                    ? viewModel.items.isEmpty
+                    : viewModel.sections.isEmpty
+                if isEmpty {
                     Section {
                         Text(viewModel.query.isEmpty
                              ? String(localized: "items_empty")
@@ -44,11 +48,24 @@ struct ItemsListView: View {
                             .foregroundStyle(StorehopColors.onSurfaceVariant)
                     }
                 } else {
-                    Section {
-                        ForEach(viewModel.items, id: \.item.id) { row in
-                            ItemRowView(row: row)
-                                .contentShape(Rectangle())
-                                .onTapGesture { onEditItem(row.item.id) }
+                    switch viewModel.sortMode {
+                    case .alphabetic:
+                        Section {
+                            ForEach(viewModel.items, id: \.item.id) { row in
+                                ItemRowView(row: row)
+                                    .contentShape(Rectangle())
+                                    .onTapGesture { onEditItem(row.item.id) }
+                            }
+                        }
+                    case .category:
+                        ForEach(viewModel.sections) { section in
+                            Section(header: Text(itemsSectionHeader(section)).font(StorehopTypography.titleSmall)) {
+                                ForEach(section.rows, id: \.item.id) { row in
+                                    ItemRowView(row: row)
+                                        .contentShape(Rectangle())
+                                        .onTapGesture { onEditItem(row.item.id) }
+                                }
+                            }
                         }
                     }
                 }
@@ -66,6 +83,19 @@ struct ItemsListView: View {
             }
             .navigationTitle(String(localized: "title_items"))
             .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        let next: SortMode = viewModel.sortMode == .alphabetic ? .category : .alphabetic
+                        viewModel.setSortMode(next)
+                    } label: {
+                        Image(systemName: viewModel.sortMode == .alphabetic
+                              ? "list.bullet.indent"
+                              : "arrow.up.arrow.down")
+                    }
+                    .accessibilityLabel(String(localized: viewModel.sortMode == .alphabetic
+                        ? "sort_category_cd"
+                        : "sort_alphabetic_cd"))
+                }
                 ToolbarItem(placement: .topBarTrailing) {
                     Menu {
                         Button(String(localized: "action_manage_categories"), systemImage: "tag", action: onManageCategories)
@@ -96,6 +126,20 @@ struct ItemsListView: View {
             }
         }
         .animation(.easeInOut(duration: 0.2), value: viewModel.pendingUndo)
+    }
+
+    /// Resolves the localized label for a section header. Maps the
+    /// `__uncategorised__` sentinel to the localized "(uncategorised)"
+    /// string; otherwise honors `categoryNameKey` (seeded categories) and
+    /// falls back to the raw name (user-added categories).
+    private func itemsSectionHeader(_ section: ItemsCategorySection) -> String {
+        if section.categoryName == itemsUncategorisedSentinel {
+            return String(localized: "items_uncategorised_label")
+        }
+        if let key = section.categoryNameKey {
+            return String(localized: String.LocalizationValue(key))
+        }
+        return section.categoryName
     }
 
     private func undoMessage(for event: UndoEvent) -> String {

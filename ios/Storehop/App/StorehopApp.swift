@@ -109,10 +109,15 @@ struct RootView: View {
                         storeId: storeId,
                         onEditAisles: {
                             shopPath.append(.editAisles(storeId: storeId))
+                        },
+                        onEditItem: { itemId in
+                            shopPath.append(.editItem(itemId: itemId))
                         }
                     )
                 case .editAisles(let storeId):
                     EditAisleOrderView(storeId: storeId)
+                case .editItem(let itemId):
+                    ItemFormView(itemId: itemId) { shopPath.removeLast() }
                 }
             }
         }
