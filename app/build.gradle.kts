@@ -32,8 +32,8 @@ android {
         applicationId = "com.storehop.app"
         minSdk = 26
         targetSdk = 35
-        versionCode = 40
-        versionName = "0.6.4"
+        versionCode = 41
+        versionName = "0.6.5"
 
         // Custom runner swaps in HiltTestApplication so @HiltAndroidTest works.
         testInstrumentationRunner = "com.storehop.app.HiltTestRunner"

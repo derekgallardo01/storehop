@@ -7,6 +7,33 @@ project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 For the high-level roadmap and earlier-than-0.5.0 history, see the
 "Roadmap" section in the [README](README.md).
 
+## [0.6.5] - 2026-05-10
+
+### Fixed
+
+- **Manage Categories: drag-to-reorder no longer gets hijacked by bulk-
+  select on Android.** v0.6.4 attached the long-press-to-enter-selection
+  gesture to the whole Card via `combinedClickable(onLongClick = ...)`.
+  The drag-handle icon at the trailing edge of each row uses its own
+  `longPressDraggableHandle`, but because both detectors were active on
+  the same surface, the Card-level long-press kept winning: trying to
+  drag a category landed in selection mode instead. Fixed by scoping the
+  long-press-to-select gesture to the checkbox + text region only. The
+  drag handle and overflow-menu button now live outside that tap target,
+  so each gesture has a single owner:
+  - Long-press on the **drag handle** → starts the drag.
+  - Long-press on the **text area** → enters selection mode.
+  - Tap → rename (non-selection) or toggle selection.
+
+iOS unchanged — the `EditButton` + `List(selection:)` + `.onMove`
+pattern mode-gates drag vs. selection through SwiftUI's edit mode, so
+the gestures are never live at the same time.
+
+### Versions
+
+- Android: versionCode 40 → 41, versionName 0.6.4 → 0.6.5.
+- iOS: unchanged (bug doesn't apply).
+
 ## [0.6.4] - 2026-05-10
 
 Manage Categories gets a real workflow surface: drag to reorder, bulk

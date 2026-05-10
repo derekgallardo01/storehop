@@ -324,32 +324,39 @@ private fun CategoryCard(
         colors = CardDefaults.cardColors(containerColor = containerColor),
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 4.dp)
-            .combinedClickable(onClick = onTap, onLongClick = onLongPress),
+            .padding(horizontal = 16.dp, vertical = 4.dp),
     ) {
         Row(
-            modifier = Modifier.fillMaxWidth().padding(start = 16.dp, top = 12.dp, bottom = 12.dp),
+            modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            if (isSelectionMode) {
-                Checkbox(
-                    checked = isSelected,
-                    onCheckedChange = null, // Whole row handles taps.
-                    modifier = Modifier.padding(end = 8.dp),
-                )
-            }
-            Column(modifier = Modifier.weight(1f)) {
+            // Tap / long-press gesture target covers only the checkbox +
+            // text region. The trailing drag handle and overflow menu are
+            // outside it so their own gestures (longPressDraggableHandle,
+            // IconButton) don't race the Card-level long-press into
+            // selection mode.
+            Row(
+                modifier = Modifier
+                    .weight(1f)
+                    .combinedClickable(onClick = onTap, onLongClick = onLongPress)
+                    .padding(start = 16.dp, top = 12.dp, bottom = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                if (isSelectionMode) {
+                    Checkbox(
+                        checked = isSelected,
+                        onCheckedChange = null, // Whole row handles taps.
+                        modifier = Modifier.padding(end = 8.dp),
+                    )
+                }
                 Text(
                     text = category.name,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Medium,
+                    modifier = Modifier.weight(1f),
                 )
             }
             if (!isSelectionMode) {
-                // Drag-handle icon is its own long-press target; tap on it
-                // does nothing (the longPressDraggableHandle modifier owns
-                // the gesture). Tap on the surrounding row routes through
-                // the Card's onTap above.
                 Icon(
                     Icons.Filled.DragHandle,
                     contentDescription = stringResource(R.string.action_reorder),
