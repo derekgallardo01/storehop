@@ -7,6 +7,31 @@ project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 For the high-level roadmap and earlier-than-0.5.0 history, see the
 "Roadmap" section in the [README](README.md).
 
+## [0.6.6] - 2026-05-10
+
+### Fixed
+
+- **Manage Categories: drop now actually moves the row.** Follow-up to
+  v0.6.5: dragging worked, but releasing the drop didn't persist the
+  new position -- the row visibly snapped back to its original spot.
+  Root cause: the screen's optimistic-local list state was declared as
+  `remember(categories) { mutableStateOf(categories) }`, keyed on the
+  source flow. That key racing with the `LaunchedEffect(categories,
+  isDragging)` re-sync clobbered the optimistic order the instant
+  `isDragging` flipped false on drop, BEFORE the DB write landed and
+  the flow re-emitted the new order. Aligned the pattern with the
+  proven StorePicker / EditAisleOrder approach (`remember { ... }` no
+  key, LaunchedEffect handles the sync) so the optimistic list survives
+  the drop window and the persisted order takes over cleanly.
+
+iOS unaffected (uses SwiftUI `.onMove` which commits immediately
+through the VM's `commitReorder`).
+
+### Versions
+
+- Android: versionCode 41 → 42, versionName 0.6.5 → 0.6.6.
+- iOS: unchanged.
+
 ## [0.6.5] - 2026-05-10
 
 ### Fixed

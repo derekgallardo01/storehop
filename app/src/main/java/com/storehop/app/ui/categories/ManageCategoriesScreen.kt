@@ -87,11 +87,14 @@ fun ManageCategoriesScreen(
     val undoTemplate = stringResource(R.string.undo_category_deleted)
     val scope = rememberCoroutineScope()
 
-    // Drag-reorder support. The optimistic-local pattern: while the user
-    // drags, we update `localRows` immediately so the move is visible; the
-    // VM commit lands on drop and the live flow eventually overwrites
-    // `localRows` once it settles.
-    var localRows by remember(categories) { mutableStateOf(categories) }
+    // Drag-reorder support. The optimistic-local pattern matches
+    // StorePicker / EditAisleOrder: `localRows` initialises once and the
+    // LaunchedEffect below mirrors `categories` into it whenever the Flow
+    // re-emits AND we're not mid-drag. Keying the remember on `categories`
+    // (as a previous version did) raced the post-drop reset and clobbered
+    // the optimistic order before the DB write landed -- dropping a row
+    // looked like a no-op.
+    var localRows by remember { mutableStateOf(categories) }
     var isDragging by remember { mutableStateOf(false) }
     LaunchedEffect(categories, isDragging) {
         if (!isDragging) localRows = categories
