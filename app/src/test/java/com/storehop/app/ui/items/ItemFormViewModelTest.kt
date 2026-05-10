@@ -350,4 +350,84 @@ class ItemFormViewModelTest {
         assertThat(result).isNotNull()
         assertThat(vm.state.value.categoryId).isEqualTo("cat-existing")
     }
+
+    @Test fun `addCategory catches generic Exception via the catch-all branch`() = runTest {
+        coEvery { categoryRepo.addCategory(name = any()) } throws RuntimeException("disk")
+        val vm = newAddVm()
+        val result = vm.addCategory("Whatever")
+        assertThat(result).isNotNull()
+    }
+
+    // ---- Setters + image staging -----------------------------------------
+
+    @Test fun `setBrand setStaple setPriority all flow through into state`() = runTest {
+        val vm = newAddVm()
+        vm.setBrand("Sara Lee")
+        vm.setStaple(true)
+        vm.setPriority(true)
+        assertThat(vm.state.value.brand).isEqualTo("Sara Lee")
+        assertThat(vm.state.value.isStaple).isTrue()
+        assertThat(vm.state.value.isPriority).isTrue()
+    }
+
+    @Test fun `toggleStore adds and then removes the same store`() = runTest {
+        val vm = newAddVm()
+        vm.toggleStore("store_lidl")
+        assertThat(vm.state.value.storeIds).containsExactly("store_lidl")
+        vm.toggleStore("store_lidl")
+        assertThat(vm.state.value.storeIds).isEmpty()
+    }
+
+    @Test fun `pickLocalImage stages the uri and clearImage wipes both staged and persisted urls`() = runTest {
+        val vm = newAddVm()
+        val uri: Uri = mockk()
+        vm.pickLocalImage(uri)
+        assertThat(vm.state.value.localImageUri).isEqualTo(uri)
+        vm.clearImage()
+        assertThat(vm.state.value.localImageUri).isNull()
+        assertThat(vm.state.value.imageUrl).isNull()
+    }
+
+    @Test fun `submit catches generic Exception (e_g_ image upload failure) as a soft saveError`() = runTest {
+        // addItem succeeds, but the upload step throws. The row is saved;
+        // the saveError surfaces but `saved` remains false because the
+        // image patch couldn't land.
+        coEvery {
+            itemRepo.addItem(any(), any(), any(), any(), any(), any(), any(), any(), any(), any())
+        } returns "new-id"
+        val uri: Uri = mockk()
+        coEvery { imageUploader.upload(uri, "new-id") } throws java.io.IOException("network blip")
+
+        val vm = newAddVm()
+        vm.setName("Milk")
+        vm.pickLocalImage(uri)
+        vm.submit()
+        advanceUntilIdle()
+
+        assertThat(vm.state.value.isSubmitting).isFalse()
+        assertThat(vm.state.value.isUploadingImage).isFalse()
+        assertThat(vm.state.value.saveError).isEqualTo("network blip")
+    }
+
+    @Test fun `delete catches Exception from softDelete and surfaces saveError without setting deleted=true`() = runTest {
+        val existing = ItemWithCategoryAndStores(
+            item = Item(
+                id = "id", name = "Milk", categoryId = null, notes = null,
+                quantity = null, isNeeded = true, lastPurchasedAt = null,
+                userId = "u", createdAt = 1L, updatedAt = 1L, deletedAt = null,
+            ),
+            category = null,
+            stores = emptyList(),
+        )
+        coEvery { itemRepo.softDelete("id") } throws RuntimeException("db locked")
+
+        val vm = newEditVm("id", existing)
+        advanceUntilIdle()
+
+        vm.delete()
+        advanceUntilIdle()
+
+        assertThat(vm.state.value.deleted).isFalse()
+        assertThat(vm.state.value.saveError).isEqualTo("db locked")
+    }
 }

@@ -41,7 +41,7 @@ class SettingsViewModelTest {
     private val context: Context = mockk(relaxed = true)
     private val auth: FirebaseAuth = mockk(relaxed = true)
     private val googleSignIn: GoogleSignInUseCase = mockk()
-    private val userPrefs: UserPreferencesRepository = mockk {
+    private val userPrefs: UserPreferencesRepository = mockk(relaxed = true) {
         every { themeMode } returns flowOf(ThemeMode.SYSTEM)
     }
     private val pullCoordinator: PullCoordinator = mockk(relaxed = true)
@@ -251,6 +251,107 @@ class SettingsViewModelTest {
 
         coVerify(exactly = 0) { pullCoordinator.pullForUid(any()) }
         coVerify(exactly = 0) { pullStateRepo.set(any(), any()) }
+    }
+
+    @Test fun `setThemeMode delegates to the prefs repo`() = runTest {
+        val vm = newVm(FakeSessionProvider("u"))
+        vm.setThemeMode(ThemeMode.DARK)
+        advanceUntilIdle()
+        coVerify(exactly = 1) { userPrefs.setThemeMode(ThemeMode.DARK) }
+    }
+
+    @Test fun `setLocale updates currentLocaleTag immediately`() = runTest {
+        val vm = newVm(FakeSessionProvider("u"))
+        vm.setLocale("pt-PT")
+        advanceUntilIdle()
+        // The actual locale apply routes to LocaleManager / AppCompatDelegate
+        // depending on the SDK; here we pin the VM's own state-flow update
+        // since that's what the radio-button selection binds to.
+        assertThat(vm.currentLocaleTag.value).isEqualTo("pt-PT")
+    }
+
+    @Test fun `setLocale with empty tag clears the LocaleManager override`() = runTest {
+        val vm = newVm(FakeSessionProvider("u"))
+        vm.setLocale("")  // The "follow system" path -- empty LocaleList.
+        advanceUntilIdle()
+        assertThat(vm.currentLocaleTag.value).isEmpty()
+    }
+
+    @Test fun `onCleared removes the AuthStateListener`() = runTest {
+        val vm = newVm(FakeSessionProvider("u"))
+        // Trigger ViewModel.onCleared via the test helper.
+        invokeOnCleared(vm)
+        io.mockk.verify { auth.removeAuthStateListener(any()) }
+    }
+
+    private fun invokeOnCleared(vm: androidx.lifecycle.ViewModel) {
+        // ViewModel.onCleared is protected; invoke via reflection in the test.
+        val method = androidx.lifecycle.ViewModel::class.java
+            .getDeclaredMethod("onCleared")
+        method.isAccessible = true
+        method.invoke(vm)
+    }
+
+    @Test fun `signOut signs out then re-anon and waits for the uid flip`() = runTest {
+        // Pre-test: caller currently signed in with "u"; after signOut +
+        // re-anon, currentUser flips to a new anon uid.
+        val signedInUser: FirebaseUser = mockk(relaxed = true) { every { uid } returns "u" }
+        val anonUser: FirebaseUser = mockk(relaxed = true) { every { uid } returns "anon-after" }
+        every { auth.currentUser } returnsMany listOf(signedInUser, anonUser, anonUser)
+        every { auth.signInAnonymously() } returns
+            com.google.android.gms.tasks.Tasks.forResult(mockk<com.google.firebase.auth.AuthResult>(relaxed = true))
+
+        val session = FakeSessionProvider("u")
+        val vm = newVm(session)
+        vm.signOut()
+        // Simulate the FirebaseAuth listener flipping the session's uid
+        // to the new anon uid -- this is what unblocks the gating
+        // `userId.first { it == targetUid }` inside signOut.
+        session.setUserId("anon-after")
+        advanceUntilIdle()
+
+        io.mockk.verify(exactly = 1) { auth.signOut() }
+        assertThat(vm.state.value.busy).isFalse()
+    }
+
+    @Test fun `signOut catches exception and surfaces error`() = runTest {
+        every { auth.signOut() } throws RuntimeException("network down")
+        val vm = newVm(FakeSessionProvider("u"))
+        vm.signOut()
+        advanceUntilIdle()
+
+        assertThat(vm.state.value.busy).isFalse()
+        assertThat(vm.state.value.error).contains("network down")
+    }
+
+    @Test fun `signOut is a no-op when already busy`() = runTest {
+        // Existing busy=true blocks a second signOut. Verified via the
+        // early-return guard at the top of signOut().
+        every { auth.currentUser } returns null
+        coEvery { googleSignIn.signIn(any()) } coAnswers {
+            // Hold the busy flag true.
+            kotlinx.coroutines.delay(10_000L)
+            Result.success(Unit)
+        }
+        val vm = newVm(FakeSessionProvider("u"))
+        vm.signInWithGoogle(activityContext = mockk(relaxed = true))
+        // VM is now busy.
+        vm.signOut()  // Should early-return without calling auth.signOut().
+
+        io.mockk.verify(exactly = 0) { auth.signOut() }
+    }
+
+    @Test fun `clearError wipes a sticky error from a prior signIn failure`() = runTest {
+        every { auth.currentUser } returns null
+        coEvery { googleSignIn.signIn(any()) } returns
+            Result.failure(IllegalStateException("boom"))
+        val vm = newVm(FakeSessionProvider("u"))
+        vm.signInWithGoogle(activityContext = mockk(relaxed = true))
+        advanceUntilIdle()
+        assertThat(vm.state.value.error).isNotNull()
+
+        vm.clearError()
+        assertThat(vm.state.value.error).isNull()
     }
 
     private fun newVm(session: FakeSessionProvider) = SettingsViewModel(

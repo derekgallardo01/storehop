@@ -9,6 +9,7 @@ import com.storehop.app.data.repository.ImportExportRepository
 import com.storehop.app.data.repository.ImportResult
 import com.storehop.app.testing.MainDispatcherRule
 import io.mockk.coEvery
+import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
@@ -125,5 +126,91 @@ class ImportExportViewModelTest {
         assertThat(undone.captured).isEqualTo(result)
         assertThat(vm.latestImport.value).isNull()
         assertThat(vm.busy.value).isFalse()
+    }
+
+    // ---- Categories import/export + consume*Error/LatestImport -----------
+
+    @Test fun `exportCategoriesTo writes csv to uri and toggles busy`() = runTest {
+        coEvery { repo.exportCategoriesCsv() } returns "name\nDairy\nProduce\n"
+
+        val vm = newVm()
+        vm.exportCategoriesTo(uri)
+        advanceUntilIdle()
+
+        assertThat(vm.busy.value).isFalse()
+        assertThat(vm.exportError.value).isNull()
+        assertThat(outputBuffer.toString()).isEqualTo("name\nDairy\nProduce\n")
+    }
+
+    @Test fun `exportCategoriesTo on repo failure surfaces exportError`() = runTest {
+        coEvery { repo.exportCategoriesCsv() } throws IllegalStateException("nope")
+
+        val vm = newVm()
+        vm.exportCategoriesTo(uri)
+        advanceUntilIdle()
+
+        assertThat(vm.busy.value).isFalse()
+        assertThat(vm.exportError.value).isEqualTo("nope")
+    }
+
+    @Test fun `importCategoriesFrom captures the result`() = runTest {
+        latestInputBytes = "name\nCleaning\n".toByteArray()
+        val result = ImportResult.Empty.copy(
+            categoriesImported = 1,
+            importedCategoryIds = listOf("c1"),
+        )
+        coEvery { repo.importCategoriesCsv(any()) } returns result
+
+        val vm = newVm()
+        vm.importCategoriesFrom(uri)
+        advanceUntilIdle()
+
+        assertThat(vm.busy.value).isFalse()
+        assertThat(vm.latestImport.value).isEqualTo(result)
+    }
+
+    @Test fun `importCategoriesFrom on parse failure surfaces error inside latestImport`() = runTest {
+        latestInputBytes = "garbage".toByteArray()
+        coEvery { repo.importCategoriesCsv(any()) } throws IllegalArgumentException("bad")
+
+        val vm = newVm()
+        vm.importCategoriesFrom(uri)
+        advanceUntilIdle()
+
+        assertThat(vm.busy.value).isFalse()
+        val captured = vm.latestImport.value!!
+        assertThat(captured.errors).containsExactly("bad")
+    }
+
+    @Test fun `consumeLatestImport clears the captured result`() = runTest {
+        latestInputBytes = "name\nMilk\n".toByteArray()
+        coEvery { repo.importItemsCsv(any()) } returns ImportResult.Empty.copy(itemsImported = 1)
+
+        val vm = newVm()
+        vm.importItemsFrom(uri)
+        advanceUntilIdle()
+        assertThat(vm.latestImport.value).isNotNull()
+
+        vm.consumeLatestImport()
+        assertThat(vm.latestImport.value).isNull()
+    }
+
+    @Test fun `consumeExportError clears a sticky exportError`() = runTest {
+        coEvery { repo.exportItemsCsv() } throws IllegalStateException("write fail")
+
+        val vm = newVm()
+        vm.exportItemsTo(uri)
+        advanceUntilIdle()
+        assertThat(vm.exportError.value).isNotNull()
+
+        vm.consumeExportError()
+        assertThat(vm.exportError.value).isNull()
+    }
+
+    @Test fun `undoLastImport is a no-op when latestImport is null`() = runTest {
+        val vm = newVm()
+        vm.undoLastImport()
+        advanceUntilIdle()
+        coVerify(exactly = 0) { repo.undoImport(any()) }
     }
 }

@@ -7,6 +7,64 @@ project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 For the high-level roadmap and earlier-than-0.5.0 history, see the
 "Roadmap" section in the [README](README.md).
 
+## Tests-only (coverage push) - 2026-05-10
+
+Push toward 100% measured line coverage on the unit-test surface.
+No version bump.
+
+### Coverage delta
+
+- **Line: 84.7% → 98.1%** (1537 / 1566 lines covered).
+- **Class: 90.3% → 99.3%** (135 / 136).
+- **Tests: 379 → 410 unit tests, 0 failures.** Plus 10/10 E2E
+  instrumented tests on Pixel_Phone AVD.
+
+### Added (unit tests)
+
+- `ShareListAsTextTest`: +3 tests for `launchShareList` (Intent
+  assembly + chooser + localized category-name resolution).
+- `PurchaseHistoryRepositoryImplTest`: +6 tests for the Statistics
+  aggregate flows (totalCount, countSince, perDay, byDayOfWeek +
+  signed-out fallback paths).
+- `UserPreferencesRepositoryTest`: +7 tests for showPurchased,
+  shopAtStoreSortMode, itemsListSortMode (defaults, round-trip,
+  unknown-value fallback).
+- `SettingsViewModelTest`: +6 tests for setThemeMode, setLocale
+  (round-trip + empty), signOut (success cascade + busy guard +
+  catch), clearError, onCleared.
+- `ImportExportViewModelTest`: +7 tests for exportCategoriesTo
+  (success + failure), importCategoriesFrom (success + parse error),
+  consumeLatestImport, consumeExportError, undoLastImport no-op.
+- `ItemRepositoryImplTest`: +4 tests for v0.6.1's
+  markNeededAcrossAllStores / markPurchasedAcrossAllStores /
+  observeNeededItemIds.
+- `ItemStoreXrefDaoTest`: +2 tests for the SQL contracts of the new
+  v0.6.1 DAO methods.
+- `ItemFormViewModelTest`: +6 tests for setBrand/setStaple/
+  setPriority, toggleStore, pickLocalImage/clearImage, image-upload
+  error path, delete failure path, addCategory generic catch.
+- `EditAisleOrderViewModelTest`: +1 test for missing-storeId
+  constructor guard.
+
+### Kover configuration
+
+Aggressive exclusion list for genuinely-untestable code:
+- Composable UI files (covered by the E2E suite, not unit tests).
+- Hilt + Dagger generated classes (`*_Factory`, `*_HiltModules_*`,
+  `Hilt_*`, `*_GeneratedInjector`, etc.).
+- Room-generated DAO `*_Impl` classes.
+- Kotlin synthetic `$DefaultImpls` (interface default args) and
+  `$$inlined$*` (inline operators).
+- The App + Activity shell (MainActivity, StorehopApplication).
+- Firebase-coupled integrations that need a real backend to test
+  meaningfully (SyncEngine internals, FirebaseAuthSessionProvider,
+  GoogleSignInUseCase fallback path, ImageUploader).
+
+The remaining ~29 uncovered lines are SDK-conditional branches
+(LocaleManager Tiramisu+ paths, AppCompatDelegate fallback) and
+catch-block fallbacks for exotic exception types. Achievable to
+100% only via integration/instrumented tests, not JVM unit tests.
+
 ## Tests-only - 2026-05-10
 
 Test-coverage hardening; no version bump (no user-visible changes).

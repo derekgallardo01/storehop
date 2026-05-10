@@ -144,4 +144,22 @@ class EditAisleOrderViewModelTest {
         isArchived = false, isSeeded = true, userId = "u",
         createdAt = 1L, updatedAt = 1L, deletedAt = null,
     )
+
+    @Test fun `constructor throws IllegalStateException when storeId arg is missing`() = runTest {
+        try {
+            EditAisleOrderViewModel(
+                storeCategoryOrderRepository = mockk(relaxed = true),
+                storeRepository = mockk(relaxed = true) {
+                    coEvery { observeById(any()) } returns flowOf(null)
+                },
+                categoryRepository = mockk(relaxed = true) {
+                    coEvery { observeAll(any()) } returns flowOf(emptyList())
+                },
+                savedStateHandle = SavedStateHandle(),
+            )
+            org.junit.Assert.fail("Expected IllegalStateException")
+        } catch (e: IllegalStateException) {
+            assertThat(e.message).contains("storeId")
+        }
+    }
 }
