@@ -9,6 +9,7 @@ plugins {
     alias(libs.plugins.ksp)
     alias(libs.plugins.hilt)
     alias(libs.plugins.google.services)
+    alias(libs.plugins.kover)
 }
 
 // Release signing config -- read from `keystore.properties` at the repo root
@@ -91,6 +92,10 @@ android {
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
+            // mockk-android (used in androidTest) pulls in junit-jupiter
+            // which ships its own LICENSE.md; collides with other deps.
+            excludes += "/META-INF/LICENSE.md"
+            excludes += "/META-INF/LICENSE-notice.md"
         }
     }
 
@@ -119,6 +124,49 @@ ksp {
     arg("room.incremental", "true")
 }
 
+// Kover line-coverage config. Excludes generated Hilt code, Room entities,
+// pure-data classes, theme/preview-only Composables, and the App / Activity
+// shell -- the things that add green-bar noise without adding signal.
+// Run `./gradlew :app:koverHtmlReportDebug` for the HTML report.
+kover {
+    reports {
+        filters {
+            excludes {
+                packages(
+                    "com.storehop.app.di",
+                    "com.storehop.app.data.entity",
+                    "com.storehop.app.data.db.relations",
+                    "com.storehop.app.sync.dto",
+                    "com.storehop.app.ui.theme",
+                    "hilt_aggregated_deps",
+                    "dagger.hilt.internal.aggregatedroot.codegen",
+                )
+                classes(
+                    "com.storehop.app.MainActivity",
+                    "com.storehop.app.MainActivity\$*",
+                    "com.storehop.app.StorehopApplication",
+                    "com.storehop.app.StorehopApplication_*",
+                    "*_Hilt*",
+                    "*_HiltModules*",
+                    "*_Factory",
+                    "*_MembersInjector",
+                    "*_Provide*",
+                    "*_GeneratedInjector",
+                    "Hilt_*",
+                    "*ComposableSingletons*",
+                    // R + BuildConfig.
+                    "com.storehop.app.R",
+                    "com.storehop.app.R\$*",
+                    "com.storehop.app.BuildConfig",
+                )
+                annotatedBy(
+                    "androidx.compose.runtime.Composable",
+                    "androidx.compose.ui.tooling.preview.Preview",
+                )
+            }
+        }
+    }
+}
 
 dependencies {
     implementation(libs.androidx.core.ktx)
@@ -185,5 +233,6 @@ dependencies {
     androidTestImplementation(libs.hilt.android.testing)
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
+    androidTestImplementation(libs.mockk.android)
     kspAndroidTest(libs.hilt.compiler)
 }

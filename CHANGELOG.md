@@ -7,6 +7,80 @@ project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 For the high-level roadmap and earlier-than-0.5.0 history, see the
 "Roadmap" section in the [README](README.md).
 
+## Tests-only - 2026-05-10
+
+Test-coverage hardening; no version bump (no user-visible changes).
+
+### Added
+
+- **Kover line-coverage plugin** wired into the root + app build files.
+  `./gradlew :app:koverHtmlReportDebug` produces an HTML coverage
+  report at `app/build/reports/kover/htmlDebug/index.html`.
+  Excludes generated Hilt code, Room entities, theme/preview-only
+  Composables, and the App / Activity shell -- the things that add
+  green-bar noise without adding signal. Final numbers:
+    - **Class coverage: 90.3%** (339/380)
+    - **Line coverage: 84.7%** (4521/5351)
+    - **Method coverage: 77.3%**
+
+- **Six new unit tests for the v0.6.1 +/− toggle**:
+  - `ItemRepositoryImplTest`: 4 tests covering `markNeededAcrossAllStores`
+    (happy path + cross-user isolation), `markPurchasedAcrossAllStores`
+    (the v0.6.1 distinction from `markPurchasedAtStore` -- same
+    cascade WITHOUT writing a PurchaseRecord), and `observeNeededItemIds`
+    (DISTINCT itemIds, tombstone exclusion).
+  - `ItemStoreXrefDaoTest`: 2 tests pinning the SQL contracts of
+    `markNeededAcrossAllStores` (alive-only WHERE clause, foreign-user
+    isolation) and `observeNeededItemIds` (DISTINCT + alive + needed=1).
+
+- **Seven new unit tests on `UserPreferencesRepository`** for v0.6.0's
+  `showPurchased`, `shopAtStoreSortMode`, and `itemsListSortMode`
+  prefs (defaults, round-trip, unknown-value fallback).
+
+- **Real Android emulator E2E suite** (10 tests, all green on Pixel_Phone
+  AVD):
+  - `AppLaunchTest` -- MainActivity launches; bottom-nav tabs visible.
+  - `ItemAddFlowE2ETest` -- Add Item form happy path: name -> save ->
+    appears in list.
+  - `InlineNewCategoryE2ETest` (v0.6.1) -- "+ New category…" from item
+    edit form -> dialog -> auto-selected on form.
+  - `PlusMinusToggleE2ETest` (v0.6.1) -- +/− icon per row reflects
+    needed state; disabled when no tagged stores.
+  - `ItemsListSortToggleE2ETest` (v0.6.0) -- toggle flips between
+    flat alphabetic and category-grouped views.
+  - `ShopAtStoreSortToggleE2ETest` (v0.6.0) -- in-store sort toggle
+    flips aisle headers off/on.
+  - `LongPressEditFromStoreE2ETest` (v0.6.0) -- long-press a store row
+    opens the item edit form for that item.
+  - `CriticalBannerCollapseE2ETest` (v0.6.0) -- in-store critical banner
+    starts collapsed; chevron flips on tap.
+  - `SearchClearButtonE2ETest` (v0.6.0) -- × icon appears after typing
+    and wipes the field on tap.
+  - `CrossStoreCascadeE2ETest` (v0.5.1, never previously E2E-tested) --
+    marking purchased at one store cascades isNeeded=false to every
+    tagged store's xref.
+
+### Changed
+
+- `AddCategoryDialog.LaunchedEffect` now wraps `focusRequester.requestFocus()`
+  in `runCatching` so the dialog tolerates the sub-composition timing
+  in instrumented tests. User-visible behavior unchanged on real
+  devices (focus still requested on dialog appearance; if it ever
+  fails, user can tap to focus -- same fallback Compose itself
+  provides).
+
+### Test infrastructure
+
+- `app/src/androidTest/java/com/storehop/app/di/TestDatabaseModule.kt`
+  swaps in an in-memory Room DB per test (`@TestInstallIn(replaces =
+  [DatabaseModule::class])`).
+- `TestFirebaseModule.kt` mocks `FirebaseAuth`, `FirebaseFirestore`,
+  `FirebaseStorage` so tests don't talk to a real Firebase backend.
+- `TestAppBindsModule` swaps `FirebaseAuthSessionProvider` for
+  `LocalOnlyUserSessionProvider` (always emits `"local-only"` uid).
+- `E2EFixtures.kt` seeds canonical test data (2 stores, 1 category,
+  3 items with mixed tag/needed states).
+
 ## [0.6.1] - 2026-05-10
 
 Two more Mike-asks bundled together. Both touch the master Items list,

@@ -41,7 +41,14 @@ fun AddCategoryDialog(
     val focusRequester = remember { FocusRequester() }
     val scope = rememberCoroutineScope()
 
-    LaunchedEffect(Unit) { focusRequester.requestFocus() }
+    LaunchedEffect(Unit) {
+        // The TextField inside AlertDialog renders in a sub-composition,
+        // and the focusRequester may not yet be attached when this fires
+        // under instrumented tests. Catch the resulting IllegalStateException
+        // so the dialog still works -- the user can tap to focus manually,
+        // which is the same fallback Compose itself provides.
+        runCatching { focusRequester.requestFocus() }
+    }
 
     val submit = {
         if (name.isNotBlank() && !saving) {

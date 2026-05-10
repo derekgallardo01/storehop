@@ -686,6 +686,120 @@ class ItemRepositoryImplTest {
         assertThat(db.itemDao().observeAll(TEST_USER_ID).first().size).isEqualTo(2)
     }
 
+    // ---- v0.6.1 additions: bulk needed-state for the Items-list +/- toggle --
+
+    @Test fun `markNeededAcrossAllStores flips every alive xref to isNeeded=true`() = runTest {
+        val itemId = repo.addItem(
+            name = "Milk", categoryId = null,
+            storeIds = setOf("store_lidl", "store_continente"),
+            quantity = null, notes = null,
+        )
+        // Mark purchased so all xrefs go isNeeded=false; baseline for the +.
+        repo.markPurchasedAtStore(itemId, "store_lidl")
+        val before = db.itemStoreXrefDao().findForItem(itemId)
+        assertThat(before.all { !it.isNeeded }).isTrue()
+
+        repo.markNeededAcrossAllStores(itemId)
+
+        val after = db.itemStoreXrefDao().findForItem(itemId)
+        assertThat(after.map { it.storeId }.toSet())
+            .containsExactly("store_lidl", "store_continente")
+        assertThat(after.all { it.isNeeded }).isTrue()
+        assertThat(after.all { it.lastPurchasedAt == null }).isTrue()
+    }
+
+    @Test fun `markNeededAcrossAllStores is a no-op when the item belongs to a different uid`() = runTest {
+        // Create the item under a foreign owner. The session-scoped repo
+        // shouldn't be able to flip its xrefs.
+        val foreignSession = FakeSessionProvider(OTHER_USER_ID)
+        val foreignRepo = ItemRepositoryImpl(
+            db = db,
+            itemDao = db.itemDao(),
+            xrefDao = db.itemStoreXrefDao(),
+            purchaseRecordDao = db.purchaseRecordDao(),
+            scoDao = db.storeCategoryOrderDao(),
+            ids = sequentialIds,
+            clock = fixedClock,
+            session = foreignSession,
+        )
+        // Seed a store under the foreign uid so the foreign repo can write
+        // its own xref.
+        db.storeDao().upsert(
+            Store(
+                id = "store_other", name = "Other", colorArgb = null,
+                isArchived = false, isSeeded = false, userId = OTHER_USER_ID,
+                createdAt = 1L, updatedAt = 1L, deletedAt = null,
+            ),
+        )
+        val foreignItemId = foreignRepo.addItem(
+            name = "Foreign", categoryId = null,
+            storeIds = setOf("store_other"),
+            quantity = null, notes = null,
+        )
+
+        // The TEST_USER_ID-scoped `repo` tries to mark the foreign item
+        // needed-everywhere. observeById filtered by TEST_USER_ID returns
+        // null, so the cascade is a no-op.
+        repo.markNeededAcrossAllStores(foreignItemId)
+
+        // Foreign xref untouched.
+        val foreignXref = db.itemStoreXrefDao().findForItem(foreignItemId).single()
+        assertThat(foreignXref.userId).isEqualTo(OTHER_USER_ID)
+        assertThat(foreignXref.isNeeded).isTrue()
+    }
+
+    @Test fun `markPurchasedAcrossAllStores flips every alive xref to isNeeded=false WITHOUT writing a PurchaseRecord`() = runTest {
+        val itemId = repo.addItem(
+            name = "Bread", categoryId = null,
+            storeIds = setOf("store_lidl", "store_continente"),
+            quantity = null, notes = null,
+        )
+        // Purchase records start at 0.
+        val before = db.purchaseRecordDao().observeTotalCount(TEST_USER_ID).first()
+        assertThat(before).isEqualTo(0)
+
+        repo.markPurchasedAcrossAllStores(itemId)
+
+        // Every xref flipped.
+        val after = db.itemStoreXrefDao().findForItem(itemId)
+        assertThat(after.map { it.isNeeded }.toSet()).containsExactly(false)
+        assertThat(after.all { it.lastPurchasedAt == 50_000L }).isTrue()
+        // ...and CRUCIALLY no PurchaseRecord was inserted -- this is the
+        // distinction from `markPurchasedAtStore`. The user is on the
+        // master Items list, not at a store; attributing a purchase to
+        // any one store would be wrong.
+        val purchaseCount = db.purchaseRecordDao().observeTotalCount(TEST_USER_ID).first()
+        assertThat(purchaseCount).isEqualTo(0)
+    }
+
+    @Test fun `observeNeededItemIds emits distinct itemIds with at least one alive needed xref`() = runTest {
+        val milk = repo.addItem(
+            name = "Milk", categoryId = null,
+            storeIds = setOf("store_lidl", "store_continente"),
+            quantity = null, notes = null,
+        )
+        val bread = repo.addItem(
+            name = "Bread", categoryId = null,
+            storeIds = setOf("store_lidl"),
+            quantity = null, notes = null,
+        )
+
+        // Both items currently needed at one or more stores.
+        val initial = repo.observeNeededItemIds().first()
+        assertThat(initial).containsExactly(milk, bread)
+
+        // Buying milk anywhere clears its xrefs (cascade), so it drops out.
+        repo.markPurchasedAtStore(milk, "store_lidl")
+        val afterPurchase = repo.observeNeededItemIds().first()
+        assertThat(afterPurchase).containsExactly(bread)
+
+        // Soft-deleting bread's xrefs (via softDelete on the item) drops
+        // bread too -- the DISTINCT query filters tombstoned xrefs.
+        repo.softDelete(bread)
+        val afterDelete = repo.observeNeededItemIds().first()
+        assertThat(afterDelete).isEmpty()
+    }
+
     // ---- Helpers ------------------------------------------------------------
 
     private fun sco(

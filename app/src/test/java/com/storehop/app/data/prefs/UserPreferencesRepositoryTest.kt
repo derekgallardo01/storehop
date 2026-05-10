@@ -66,6 +66,56 @@ class UserPreferencesRepositoryTest {
         assertThat(repo.themeMode.first()).isEqualTo(ThemeMode.SYSTEM)
     }
 
+    @Test fun `showPurchased defaults to true when no value is stored`() = runTest {
+        val repo = UserPreferencesRepository(newStore())
+        assertThat(repo.showPurchased.first()).isTrue()
+    }
+
+    @Test fun `setShowPurchased persists across reads`() = runTest {
+        val repo = UserPreferencesRepository(newStore())
+        repo.setShowPurchased(false)
+        assertThat(repo.showPurchased.first()).isFalse()
+        repo.setShowPurchased(true)
+        assertThat(repo.showPurchased.first()).isTrue()
+    }
+
+    @Test fun `shopAtStoreSortMode defaults to CATEGORY (preserves historical layout)`() = runTest {
+        val repo = UserPreferencesRepository(newStore())
+        assertThat(repo.shopAtStoreSortMode.first()).isEqualTo(SortMode.CATEGORY)
+    }
+
+    @Test fun `setShopAtStoreSortMode round-trips both values`() = runTest {
+        val repo = UserPreferencesRepository(newStore())
+        repo.setShopAtStoreSortMode(SortMode.ALPHABETIC)
+        assertThat(repo.shopAtStoreSortMode.first()).isEqualTo(SortMode.ALPHABETIC)
+        repo.setShopAtStoreSortMode(SortMode.CATEGORY)
+        assertThat(repo.shopAtStoreSortMode.first()).isEqualTo(SortMode.CATEGORY)
+    }
+
+    @Test fun `itemsListSortMode defaults to ALPHABETIC (preserves historical layout)`() = runTest {
+        val repo = UserPreferencesRepository(newStore())
+        assertThat(repo.itemsListSortMode.first()).isEqualTo(SortMode.ALPHABETIC)
+    }
+
+    @Test fun `setItemsListSortMode round-trips both values`() = runTest {
+        val repo = UserPreferencesRepository(newStore())
+        repo.setItemsListSortMode(SortMode.CATEGORY)
+        assertThat(repo.itemsListSortMode.first()).isEqualTo(SortMode.CATEGORY)
+        repo.setItemsListSortMode(SortMode.ALPHABETIC)
+        assertThat(repo.itemsListSortMode.first()).isEqualTo(SortMode.ALPHABETIC)
+    }
+
+    @Test fun `unknown SortMode value in storage falls back to the default`() = runTest {
+        val store = newStore(initial = preferencesOf(
+            androidx.datastore.preferences.core.stringPreferencesKey("shop_at_store_sort_mode") to "BANANA",
+            androidx.datastore.preferences.core.stringPreferencesKey("items_list_sort_mode") to "BANANA",
+        ))
+        val repo = UserPreferencesRepository(store)
+        // Defaults preserve the historical per-screen layout.
+        assertThat(repo.shopAtStoreSortMode.first()).isEqualTo(SortMode.CATEGORY)
+        assertThat(repo.itemsListSortMode.first()).isEqualTo(SortMode.ALPHABETIC)
+    }
+
     private fun newStore(initial: Preferences? = null) = PreferenceDataStoreFactory.create(
         produceFile = { dataStoreFile },
     ).also {
