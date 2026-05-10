@@ -10,8 +10,10 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.Rule
@@ -98,4 +100,130 @@ class ManageCategoriesViewModelTest {
         coVerify(exactly = 1) { categoryRepo.softDelete("cat_x") }
         coVerify(exactly = 1) { categoryRepo.undoSoftDelete("cat_x") }
     }
+
+    // ---- v0.6.4: selection mode + bulk delete + reorder + multi-add ----
+
+    @Test fun `enterSelection flips to selection mode with that id selected`() = runTest {
+        val vm = newVm()
+        vm.enterSelection("cat_a")
+        assertThat(vm.selectionMode.value).isTrue()
+        assertThat(vm.selectedIds.value).containsExactly("cat_a")
+    }
+
+    @Test fun `toggleSelection adds and removes ids and auto-exits when set empties`() = runTest {
+        val vm = newVm()
+        vm.enterSelection("cat_a")
+        vm.toggleSelection("cat_b")
+        assertThat(vm.selectedIds.value).containsExactly("cat_a", "cat_b")
+        // Removing cat_a still leaves cat_b -- stays in selection mode.
+        vm.toggleSelection("cat_a")
+        assertThat(vm.selectedIds.value).containsExactly("cat_b")
+        assertThat(vm.selectionMode.value).isTrue()
+        // Removing the last one auto-exits.
+        vm.toggleSelection("cat_b")
+        assertThat(vm.selectedIds.value).isEmpty()
+        assertThat(vm.selectionMode.value).isFalse()
+    }
+
+    @Test fun `selectAll selects every visible category id`() = runTest {
+        categoriesFlow.value = listOf(
+            cat("c1", "A"), cat("c2", "B"), cat("c3", "C"),
+        )
+        val vm = newVm()
+        // Subscribe so the WhileSubscribed-policy `categories` flow
+        // collects from `categoriesFlow` before selectAll() reads
+        // `categories.value`.
+        val subscribed = launch(start = CoroutineStart.UNDISPATCHED) {
+            vm.categories.collect {}
+        }
+        advanceUntilIdle()
+
+        vm.enterSelection("c1")
+        vm.selectAll()
+        assertThat(vm.selectedIds.value).containsExactly("c1", "c2", "c3")
+        subscribed.cancel()
+    }
+
+    @Test fun `cancelSelection wipes the set + exits selection mode`() = runTest {
+        val vm = newVm()
+        vm.enterSelection("c1")
+        vm.toggleSelection("c2")
+        vm.cancelSelection()
+        assertThat(vm.selectionMode.value).isFalse()
+        assertThat(vm.selectedIds.value).isEmpty()
+    }
+
+    @Test fun `deleteSelected routes to softDeleteMany and exits selection mode`() = runTest {
+        coEvery { categoryRepo.softDeleteMany(any()) } returns 42_000L
+        val vm = newVm()
+        vm.enterSelection("c1")
+        vm.toggleSelection("c2")
+
+        val deletedAt = vm.deleteSelected()
+
+        assertThat(deletedAt).isEqualTo(42_000L)
+        coVerify(exactly = 1) {
+            categoryRepo.softDeleteMany(
+                match { ids: List<String> -> ids.toSet() == setOf("c1", "c2") },
+            )
+        }
+        assertThat(vm.selectionMode.value).isFalse()
+        assertThat(vm.selectedIds.value).isEmpty()
+    }
+
+    @Test fun `deleteSelected with no selection returns null and skips the repo`() = runTest {
+        val vm = newVm()
+        val result = vm.deleteSelected()
+        assertThat(result).isNull()
+        coVerify(exactly = 0) { categoryRepo.softDeleteMany(any()) }
+    }
+
+    @Test fun `commitReorder plumbs the new id sequence to the repo`() = runTest {
+        val vm = newVm()
+        vm.commitReorder(listOf("c3", "c1", "c2"))
+        advanceUntilIdle()
+        coVerify(exactly = 1) { categoryRepo.reorder(listOf("c3", "c1", "c2")) }
+    }
+
+    @Test fun `undoDeleteMany plumbs the batch deletedAt to the repo`() = runTest {
+        val vm = newVm()
+        vm.undoDeleteMany(99_000L)
+        advanceUntilIdle()
+        coVerify(exactly = 1) { categoryRepo.undoSoftDeleteMany(99_000L) }
+    }
+
+    @Test fun `addManyCategories splits on newlines, trims, dedupes, and counts added vs duplicates`() = runTest {
+        coEvery { categoryRepo.addCategory(name = "Pets") } returns "id1"
+        coEvery { categoryRepo.addCategory(name = "Bakery") } throws
+            IllegalArgumentException("Bakery exists")
+        coEvery { categoryRepo.addCategory(name = "Snacks") } returns "id2"
+        val vm = newVm()
+
+        val result = vm.addManyCategories(
+            // Whitespace lines drop; case-insensitive duplicates within input
+            // are deduped (Pets / pets).
+            "\n  Pets  \nBakery\nSnacks\nPETS\n",
+        )
+
+        assertThat(result.added).isEqualTo(2)         // Pets + Snacks
+        assertThat(result.duplicates).isEqualTo(1)    // Bakery
+        assertThat(result.errors).isEmpty()
+        coVerify(exactly = 1) { categoryRepo.addCategory(name = "Pets") }
+        coVerify(exactly = 1) { categoryRepo.addCategory(name = "Bakery") }
+        coVerify(exactly = 1) { categoryRepo.addCategory(name = "Snacks") }
+        coVerify(exactly = 0) { categoryRepo.addCategory(name = "PETS") }
+    }
+
+    @Test fun `addManyCategories on empty input returns the localized empty-name error`() = runTest {
+        val vm = newVm()
+        val result = vm.addManyCategories("   \n\n   ")
+        assertThat(result.added).isEqualTo(0)
+        assertThat(result.errors).containsExactly("ENAME_EMPTY")
+    }
+
+    private fun cat(id: String, name: String) = Category(
+        id = id, name = name, nameKey = null, icon = null,
+        isArchived = false, isSeeded = false, userId = "u",
+        createdAt = 1L, updatedAt = 1L, deletedAt = null,
+    )
 }

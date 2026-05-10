@@ -201,6 +201,23 @@
     <string name="categories_empty_state">No categories yet. Tap + to add one.</string>
     <string name="category_more_options">More options</string>
     <string name="action_more_options">More options</string>
+    <!-- v0.6.4: Manage Categories drag-reorder + bulk select + multi-add. -->
+    <string name="action_reorder">Reorder</string>
+    <string name="action_select_all">Select all</string>
+    <string name="add_category_multi_help">One category per line. Duplicates are skipped.</string>
+    <string name="add_category_summary">Added %1$d · skipped %2$d (already exist)</string>
+    <plurals name="manage_categories_selected_count">
+        <item quantity="one">%d selected</item>
+        <item quantity="other">%d selected</item>
+    </plurals>
+    <plurals name="delete_categories_dialog_title">
+        <item quantity="one">Delete %d category?</item>
+        <item quantity="other">Delete %d categories?</item>
+    </plurals>
+    <plurals name="undo_categories_deleted_count">
+        <item quantity="one">Deleted %d category.</item>
+        <item quantity="other">Deleted %d categories.</item>
+    </plurals>
 
     <!-- v0.5 per-store aisle reorder. Reachable from Store Picker overflow. -->
     <string name="title_edit_aisles">Edit aisles for %1$s</string>

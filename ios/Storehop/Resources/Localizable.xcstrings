@@ -4962,6 +4962,51 @@
         "es": { "stringUnit": { "state": "translated", "value": "Quitar de la lista de la compra" } },
         "it": { "stringUnit": { "state": "translated", "value": "Rimuovi dalla lista della spesa" } }
       }
+    },
+    "add_category_multi_help": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "One category per line. Duplicates are skipped." } },
+        "pt-PT": { "stringUnit": { "state": "translated", "value": "Uma categoria por linha. Duplicados são ignorados." } },
+        "es": { "stringUnit": { "state": "translated", "value": "Una categoría por línea. Los duplicados se omiten." } },
+        "it": { "stringUnit": { "state": "translated", "value": "Una categoria per riga. I duplicati vengono ignorati." } }
+      }
+    },
+    "add_category_summary %1$lld %2$lld": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Added %1$lld · skipped %2$lld (already exist)" } },
+        "pt-PT": { "stringUnit": { "state": "translated", "value": "Adicionadas %1$lld · ignoradas %2$lld (já existem)" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Añadidas %1$lld · omitidas %2$lld (ya existen)" } },
+        "it": { "stringUnit": { "state": "translated", "value": "Aggiunte %1$lld · ignorate %2$lld (già esistono)" } }
+      }
+    },
+    "manage_categories_selected_count %lld": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "%lld selected" } },
+        "pt-PT": { "stringUnit": { "state": "translated", "value": "%lld selecionadas" } },
+        "es": { "stringUnit": { "state": "translated", "value": "%lld seleccionadas" } },
+        "it": { "stringUnit": { "state": "translated", "value": "%lld selezionate" } }
+      }
+    },
+    "delete_categories_dialog_title %lld": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Delete %lld categories?" } },
+        "pt-PT": { "stringUnit": { "state": "translated", "value": "Apagar %lld categorias?" } },
+        "es": { "stringUnit": { "state": "translated", "value": "¿Eliminar %lld categorías?" } },
+        "it": { "stringUnit": { "state": "translated", "value": "Eliminare %lld categorie?" } }
+      }
+    },
+    "undo_categories_deleted_count %lld": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Deleted %lld categories." } },
+        "pt-PT": { "stringUnit": { "state": "translated", "value": "%lld categorias apagadas." } },
+        "es": { "stringUnit": { "state": "translated", "value": "%lld categorías eliminadas." } },
+        "it": { "stringUnit": { "state": "translated", "value": "%lld categorie eliminate." } }
+      }
     }
   },
   "version": "1.0"

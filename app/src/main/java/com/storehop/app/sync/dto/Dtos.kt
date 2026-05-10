@@ -51,6 +51,10 @@ class CategoryDto(
     var createdAt: Long = 0L,
     var updatedAt: Long = 0L,
     var deletedAt: Long? = null,
+    // v0.6.4: position on the Manage Categories screen. Default 0 keeps
+    // older docs deserialising cleanly (their backfill happened during the
+    // schema v6 -> v7 migration on each device).
+    var displayOrder: Int = 0,
 )
 
 @Keep

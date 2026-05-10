@@ -18,18 +18,24 @@ struct Category: Codable, FetchableRecord, MutablePersistableRecord, Identifiabl
     var updatedAt: Int64
     var deletedAt: Int64?
     var pendingSync: Bool
+    /// v0.6.4: position on the Manage Categories screen. Drag-reorder on
+    /// that screen rewrites this. New categories get
+    /// `MAX(displayOrder) + 1`. Global; per-store aisle order lives in
+    /// `store_category_order` and is unaffected.
+    var displayOrder: Int
 
     enum Columns {
-        static let id          = Column(CodingKeys.id)
-        static let name        = Column(CodingKeys.name)
-        static let nameKey     = Column(CodingKeys.nameKey)
-        static let icon        = Column(CodingKeys.icon)
-        static let isArchived  = Column(CodingKeys.isArchived)
-        static let isSeeded    = Column(CodingKeys.isSeeded)
-        static let userId      = Column(CodingKeys.userId)
-        static let createdAt   = Column(CodingKeys.createdAt)
-        static let updatedAt   = Column(CodingKeys.updatedAt)
-        static let deletedAt   = Column(CodingKeys.deletedAt)
-        static let pendingSync = Column(CodingKeys.pendingSync)
+        static let id           = Column(CodingKeys.id)
+        static let name         = Column(CodingKeys.name)
+        static let nameKey      = Column(CodingKeys.nameKey)
+        static let icon         = Column(CodingKeys.icon)
+        static let isArchived   = Column(CodingKeys.isArchived)
+        static let isSeeded     = Column(CodingKeys.isSeeded)
+        static let userId       = Column(CodingKeys.userId)
+        static let createdAt    = Column(CodingKeys.createdAt)
+        static let updatedAt    = Column(CodingKeys.updatedAt)
+        static let deletedAt    = Column(CodingKeys.deletedAt)
+        static let pendingSync  = Column(CodingKeys.pendingSync)
+        static let displayOrder = Column(CodingKeys.displayOrder)
     }
 }

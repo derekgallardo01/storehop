@@ -182,6 +182,30 @@ enum Migrations {
             try db.execute(sql: "CREATE INDEX index_stores_userId_name ON stores (userId, name)")
         }
 
+        // v7: add `displayOrder` to categories for the v0.6.4 Manage
+        // Categories drag-reorder. Mirrors Android's MIGRATION_6_7.
+        // Backfill: dense-rank by name within each user's alive list so the
+        // ordering on first open matches the previous alphabetical view.
+        // Bumps pendingSync so the new column lands in Firestore on the
+        // next push.
+        migrator.registerMigration("v7_categories_display_order") { db in
+            try db.execute(sql: "ALTER TABLE categories ADD COLUMN displayOrder INTEGER NOT NULL DEFAULT 0")
+            try db.execute(sql: """
+                UPDATE categories
+                SET displayOrder = (
+                    SELECT COUNT(*) FROM categories AS c2
+                    WHERE c2.userId = categories.userId
+                      AND c2.deletedAt IS NULL
+                      AND (
+                            (c2.name COLLATE NOCASE) < (categories.name COLLATE NOCASE)
+                         OR ((c2.name COLLATE NOCASE) = (categories.name COLLATE NOCASE) AND c2.id < categories.id)
+                      )
+                ),
+                pendingSync = 1
+                WHERE deletedAt IS NULL
+                """)
+        }
+
         return migrator
     }
 }

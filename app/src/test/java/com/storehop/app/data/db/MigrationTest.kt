@@ -117,6 +117,45 @@ class MigrationTest {
         }
     }
 
+    @Test fun `v6 to v7 dense-ranks categories by name within each user`() {
+        // Two users so we can confirm the ordering is per-user.
+        withV1Db { db ->
+            db.execSQL("INSERT INTO categories(id,name,nameKey,icon,isArchived,isSeeded,userId,createdAt,updatedAt,deletedAt) " +
+                "VALUES('c1','Produce',NULL,NULL,0,0,'u1',1,1,NULL)")
+            db.execSQL("INSERT INTO categories(id,name,nameKey,icon,isArchived,isSeeded,userId,createdAt,updatedAt,deletedAt) " +
+                "VALUES('c2','Bakery',NULL,NULL,0,0,'u1',1,1,NULL)")
+            db.execSQL("INSERT INTO categories(id,name,nameKey,icon,isArchived,isSeeded,userId,createdAt,updatedAt,deletedAt) " +
+                "VALUES('c3','Dairy',NULL,NULL,0,0,'u1',1,1,NULL)")
+            db.execSQL("INSERT INTO categories(id,name,nameKey,icon,isArchived,isSeeded,userId,createdAt,updatedAt,deletedAt) " +
+                "VALUES('c4','Frozen',NULL,NULL,0,0,'u2',1,1,NULL)")
+            // Tombstoned row should NOT pollute the dense-rank.
+            db.execSQL("INSERT INTO categories(id,name,nameKey,icon,isArchived,isSeeded,userId,createdAt,updatedAt,deletedAt) " +
+                "VALUES('c_dead','Old',NULL,NULL,0,0,'u1',1,1,999)")
+        }.migrateTo(7).use { db ->
+            // u1 alphabetical ranking on alive rows: Bakery=0, Dairy=1, Produce=2.
+            val u1 = mutableListOf<Pair<String, Int>>()
+            db.query("SELECT id, displayOrder FROM categories WHERE userId='u1' AND deletedAt IS NULL ORDER BY displayOrder").use { c ->
+                while (c.moveToNext()) u1 += c.getString(0) to c.getInt(1)
+            }
+            assertThat(u1).containsExactly(
+                "c2" to 0, // Bakery
+                "c3" to 1, // Dairy
+                "c1" to 2, // Produce
+            ).inOrder()
+
+            // u2 single category at 0.
+            db.queryRow("SELECT displayOrder FROM categories WHERE userId='u2'") { c ->
+                assertThat(c.getInt(0)).isEqualTo(0)
+            }
+
+            // Tombstone kept at column default 0 (not displayed; resurrect
+            // path will re-stamp it).
+            db.queryRow("SELECT displayOrder FROM categories WHERE id='c_dead'") { c ->
+                assertThat(c.getInt(0)).isEqualTo(0)
+            }
+        }
+    }
+
     @Test fun `v5 to v6 drops unique indices on categories and stores`() {
         // After v6, name uniqueness is no longer enforced at the DB level
         // (see MIGRATION_5_6's docblock for why -- tombstones blocked name
@@ -249,7 +288,10 @@ class MigrationTest {
         var db: SupportSQLiteDatabase,
     ) {
         fun migrateTo(targetVersion: Int): DbHandle {
-            val migrations = listOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
+            val migrations = listOf(
+                MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5,
+                MIGRATION_5_6, MIGRATION_6_7,
+            )
             val needed = migrations.filter { it.endVersion <= targetVersion }
             needed.forEach { it.migrate(db) }
             return this

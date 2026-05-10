@@ -197,6 +197,23 @@
     <string name="error_could_not_add_category">No se pudo añadir la categoría</string>
     <string name="error_could_not_rename_category">No se pudo renombrar la categoría</string>
     <string name="undo_category_deleted">\"%1$s\" eliminada.</string>
+    <!-- v0.6.4 -->
+    <string name="action_reorder">Reordenar</string>
+    <string name="action_select_all">Seleccionar todo</string>
+    <string name="add_category_multi_help">Una categoría por línea. Los duplicados se omiten.</string>
+    <string name="add_category_summary">Añadidas %1$d · omitidas %2$d (ya existen)</string>
+    <plurals name="manage_categories_selected_count">
+        <item quantity="one">%d seleccionada</item>
+        <item quantity="other">%d seleccionadas</item>
+    </plurals>
+    <plurals name="delete_categories_dialog_title">
+        <item quantity="one">¿Eliminar %d categoría?</item>
+        <item quantity="other">¿Eliminar %d categorías?</item>
+    </plurals>
+    <plurals name="undo_categories_deleted_count">
+        <item quantity="one">%d categoría eliminada.</item>
+        <item quantity="other">%d categorías eliminadas.</item>
+    </plurals>
     <string name="categories_empty_state">Aún no hay categorías. Pulsa + para añadir una.</string>
     <string name="category_more_options">Más opciones</string>
     <string name="action_more_options">Más opciones</string>

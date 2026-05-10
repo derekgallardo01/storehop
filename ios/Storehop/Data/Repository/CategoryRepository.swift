@@ -28,6 +28,10 @@ struct CategoryRepository: Sendable {
 
         return try await writer.write { db -> String in
             let existing = try CategoryDao.findAnyByName(on: db, userId: userId, name: trimmed)
+            // v0.6.4: append at the end of the global Manage Categories
+            // list so a new row doesn't collide with another row's
+            // existing displayOrder.
+            let nextOrder = (try CategoryDao.maxDisplayOrder(on: db, userId: userId) ?? -1) + 1
             switch existing {
             case .none:
                 var fresh = Category(
@@ -41,7 +45,8 @@ struct CategoryRepository: Sendable {
                     createdAt: now,
                     updatedAt: now,
                     deletedAt: nil,
-                    pendingSync: true
+                    pendingSync: true,
+                    displayOrder: nextOrder
                 )
                 try fresh.upsert(db)
                 return newId
@@ -53,6 +58,7 @@ struct CategoryRepository: Sendable {
                 row.deletedAt = nil
                 row.updatedAt = now
                 row.pendingSync = true
+                row.displayOrder = nextOrder
                 try row.upsert(db)
                 return row.id
             }
@@ -114,6 +120,58 @@ struct CategoryRepository: Sendable {
             // window to restore. See ItemDao.restoreCategoryReferences for
             // the precision caveat.
             try ItemDao.restoreCategoryReferences(on: db, userId: userId, categoryId: id, clearedAt: deletedAt, now: now)
+        }
+    }
+
+    // MARK: - v0.6.4: reorder + batch delete + multi-add
+
+    /// Rewrite the global Manage Categories order. `orderedIds` is the
+    /// new top-to-bottom sequence; each id gets `displayOrder = index`.
+    /// Wrapped in a transaction so a partial write can't leave the list
+    /// in a half-reordered state. Per-store aisle order
+    /// (StoreCategoryOrder) is unaffected.
+    func reorder(orderedIds: [String]) async throws {
+        let userId = try await session.requireSignedIn()
+        let now = clock.nowMs()
+        try await writer.write { db in
+            for (index, id) in orderedIds.enumerated() {
+                try CategoryDao.updateDisplayOrder(on: db, userId: userId, id: id, order: index, now: now)
+            }
+        }
+    }
+
+    /// Batch soft-delete. Every id in `ids` is tombstoned at the same
+    /// `deletedAt` so `undoSoftDeleteMany` can restore the exact set in
+    /// one shot. Cascades item.categoryId clearing + per-store aisle
+    /// order tombstoning identically to single-row `softDelete`. Returns
+    /// the batch deletedAt the caller can hand to undoSoftDeleteMany.
+    @discardableResult
+    func softDeleteMany(ids: [String]) async throws -> Int64 {
+        let userId = try await session.requireSignedIn()
+        let now = clock.nowMs()
+        try await writer.write { db in
+            for id in ids {
+                try CategoryDao.softDelete(on: db, userId: userId, id: id, now: now)
+                try ItemDao.clearCategoryReferences(on: db, userId: userId, categoryId: id, now: now)
+                try StoreCategoryOrderDao.softDeleteForCategory(on: db, userId: userId, categoryId: id, now: now)
+            }
+        }
+        return now
+    }
+
+    /// Reverse a `softDeleteMany` batch. Restores every category
+    /// tombstoned at exactly `deletedAt`, plus their cascade-cleared
+    /// SCO + item links.
+    func undoSoftDeleteMany(deletedAt: Int64) async throws {
+        let userId = try await session.requireSignedIn()
+        let now = clock.nowMs()
+        try await writer.write { db in
+            let tombstoned = try CategoryDao.findTombstonedAt(on: db, userId: userId, deletedAt: deletedAt)
+            for category in tombstoned {
+                try CategoryDao.restoreFromTombstone(on: db, userId: userId, id: category.id, now: now)
+                try StoreCategoryOrderDao.restoreCascadeForCategory(on: db, userId: userId, categoryId: category.id, deletedAt: deletedAt, now: now)
+                try ItemDao.restoreCategoryReferences(on: db, userId: userId, categoryId: category.id, clearedAt: deletedAt, now: now)
+            }
         }
     }
 }

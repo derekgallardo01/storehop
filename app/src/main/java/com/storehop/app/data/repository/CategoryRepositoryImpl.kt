@@ -40,6 +40,8 @@ class CategoryRepositoryImpl @Inject constructor(
         when {
             existing == null -> {
                 val id = ids.newId()
+                // Append at the end of the global Manage Categories list.
+                val nextOrder = (dao.maxDisplayOrder(userId) ?: -1) + 1
                 dao.upsert(
                     Category(
                         id = id,
@@ -52,6 +54,7 @@ class CategoryRepositoryImpl @Inject constructor(
                         createdAt = now,
                         updatedAt = now,
                         deletedAt = null,
+                        displayOrder = nextOrder,
                     ),
                 )
                 id
@@ -60,6 +63,9 @@ class CategoryRepositoryImpl @Inject constructor(
                 throw IllegalArgumentException("A category named \"$trimmed\" already exists")
             }
             else -> {
+                // Resurrect a tombstone -- append to the end so it doesn't
+                // collide with another row's existing displayOrder.
+                val nextOrder = (dao.maxDisplayOrder(userId) ?: -1) + 1
                 dao.upsert(
                     existing.copy(
                         icon = icon ?: existing.icon,
@@ -67,6 +73,7 @@ class CategoryRepositoryImpl @Inject constructor(
                         deletedAt = null,
                         updatedAt = now,
                         pendingSync = true,
+                        displayOrder = nextOrder,
                     ),
                 )
                 existing.id
@@ -124,6 +131,43 @@ class CategoryRepositoryImpl @Inject constructor(
         // window. See ItemDao.restoreCategoryReferences for the precision
         // caveat (unrelated item updates at the exact same ms would match).
         itemDao.restoreCategoryReferences(userId, id, deletedAt, now)
+    }
+
+    override suspend fun reorder(orderedIds: List<String>) = db.withTransaction {
+        val userId = requireSignedIn()
+        val now = clock.millis()
+        // One UPDATE per id in sequence; SQLite wraps the whole withTransaction
+        // block in a single SQL transaction, so a mid-loop crash rolls every
+        // partial write back together.
+        orderedIds.forEachIndexed { index, id ->
+            dao.updateDisplayOrder(userId, id, index, now)
+        }
+    }
+
+    override suspend fun softDeleteMany(ids: List<String>): Long = db.withTransaction {
+        val userId = requireSignedIn()
+        val now = clock.millis()
+        ids.forEach { id ->
+            dao.softDelete(userId, id, now)
+            itemDao.clearCategoryReferences(userId, id, now)
+            scoDao.softDeleteForCategory(userId, id, now)
+        }
+        now
+    }
+
+    override suspend fun undoSoftDeleteMany(deletedAt: Long) = db.withTransaction {
+        val userId = requireSignedIn()
+        val now = clock.millis()
+        // Restore exactly the rows tombstoned at this batch's instant. Each
+        // restored category's cascade (SCO rows + item.categoryId) was
+        // stamped with the same `updatedAt = deletedAt`, so the
+        // restore-by-time queries pick them up symmetrically.
+        val tombstoned = dao.findTombstonedAt(userId, deletedAt)
+        tombstoned.forEach { category ->
+            dao.restoreFromTombstone(userId, category.id, now)
+            scoDao.restoreCascadeForCategory(userId, category.id, deletedAt, now)
+            itemDao.restoreCategoryReferences(userId, category.id, deletedAt, now)
+        }
     }
 
     private fun requireSignedIn(): String =

@@ -35,4 +35,12 @@ data class Category(
     val updatedAt: Long,
     val deletedAt: Long?,
     @ColumnInfo(defaultValue = "1") val pendingSync: Boolean = true,
+    /**
+     * Position on the Manage Categories screen. Drag-and-drop reorder on
+     * that screen rewrites this for affected rows. New categories get
+     * `MAX(displayOrder) + 1` so they append. This is the GLOBAL order;
+     * per-store aisle order lives in `store_category_order` and is
+     * independent.
+     */
+    @ColumnInfo(defaultValue = "0") val displayOrder: Int = 0,
 )

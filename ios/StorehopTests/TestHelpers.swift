@@ -68,7 +68,8 @@ enum TestFixtures {
         icon: String? = nil,
         userId: String = "u1",
         isSeeded: Bool = false,
-        now: Int64 = 0
+        now: Int64 = 0,
+        displayOrder: Int = 0
     ) -> Category {
         Category(
             id: id,
@@ -81,7 +82,8 @@ enum TestFixtures {
             createdAt: now,
             updatedAt: now,
             deletedAt: nil,
-            pendingSync: true
+            pendingSync: true,
+            displayOrder: displayOrder
         )
     }
 

@@ -43,6 +43,7 @@ fun Category.toDto() = CategoryDto(
     createdAt = createdAt,
     updatedAt = updatedAt,
     deletedAt = deletedAt,
+    displayOrder = displayOrder,
 )
 
 fun Store.toDto() = StoreDto(
@@ -130,6 +131,7 @@ fun CategoryDto.toEntity() = Category(
     updatedAt = updatedAt,
     deletedAt = deletedAt,
     pendingSync = false,
+    displayOrder = displayOrder,
 )
 
 fun StoreDto.toEntity() = Store(

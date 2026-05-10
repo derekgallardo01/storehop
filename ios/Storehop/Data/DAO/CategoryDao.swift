@@ -13,7 +13,7 @@ struct CategoryDao: Sendable {
                     SELECT * FROM categories
                     WHERE userId = ? AND deletedAt IS NULL
                       AND (? = 1 OR isArchived = 0)
-                    ORDER BY name COLLATE NOCASE
+                    ORDER BY displayOrder ASC, name COLLATE NOCASE
                     """, arguments: [userId, includeArchived ? 1 : 0])
             }
             .values(in: writer)
@@ -131,5 +131,36 @@ struct CategoryDao: Sendable {
         try await writer.write { db in
             try db.execute(sql: "UPDATE categories SET pendingSync = 0 WHERE id = ? AND userId = ?", arguments: [id, userId])
         }
+    }
+
+    // MARK: - v0.6.4: displayOrder + batch tombstone-by-time
+
+    /// Highest displayOrder among alive categories for this user, or nil
+    /// when the user has none yet. Used by `addCategory` to append new
+    /// rows at the end.
+    static func maxDisplayOrder(on db: Database, userId: String) throws -> Int? {
+        try Int.fetchOne(db, sql: """
+            SELECT MAX(displayOrder) FROM categories
+            WHERE userId = ? AND deletedAt IS NULL
+            """, arguments: [userId])
+    }
+
+    /// Rewrite a single row's displayOrder. Called inside the repository's
+    /// reorder transaction once per affected category.
+    static func updateDisplayOrder(on db: Database, userId: String, id: String, order: Int, now: Int64) throws {
+        try db.execute(sql: """
+            UPDATE categories
+            SET displayOrder = ?, updatedAt = ?, pendingSync = 1
+            WHERE id = ? AND userId = ?
+            """, arguments: [order, now, id, userId])
+    }
+
+    /// All categories tombstoned at exactly `deletedAt`. Used by
+    /// `undoSoftDeleteMany` to restore the precise batch.
+    static func findTombstonedAt(on db: Database, userId: String, deletedAt: Int64) throws -> [Category] {
+        try Category.fetchAll(db, sql: """
+            SELECT * FROM categories
+            WHERE userId = ? AND deletedAt = ?
+            """, arguments: [userId, deletedAt])
     }
 }

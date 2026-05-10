@@ -64,7 +64,8 @@ extension Category {
             userId: userId,
             createdAt: createdAt,
             updatedAt: updatedAt,
-            deletedAt: deletedAt
+            deletedAt: deletedAt,
+            displayOrder: displayOrder
         )
     }
 }
@@ -82,7 +83,8 @@ extension CategoryDto {
             createdAt: createdAt,
             updatedAt: updatedAt,
             deletedAt: deletedAt,
-            pendingSync: false
+            pendingSync: false,
+            displayOrder: displayOrder
         )
     }
 }

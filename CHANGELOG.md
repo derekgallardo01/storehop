@@ -7,6 +7,71 @@ project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 For the high-level roadmap and earlier-than-0.5.0 history, see the
 "Roadmap" section in the [README](README.md).
 
+## [0.6.4] - 2026-05-10
+
+Manage Categories gets a real workflow surface: drag to reorder, bulk
+select to delete, multi-add to seed many at once. All three ship to
+Android + iOS in the same release.
+
+### Added
+
+- **Drag-to-reorder categories** (Android + iOS). Each row gets a drag
+  handle. On Android, long-press the handle to start the drag; on iOS,
+  the platform-idiomatic EditButton enters reorder mode with drag
+  handles + multi-select checkboxes. The order persists per user. Schema
+  migration v6 → v7 adds a `displayOrder` column to the `categories`
+  table; the backfill dense-ranks existing rows by name within each
+  user's alive list so the first-open ordering matches the previous
+  alphabetical view. The order is GLOBAL (Manage Categories list) and is
+  independent of per-store aisle order (StoreCategoryOrder).
+
+- **Bulk select to delete** (Android + iOS). On Android, long-press a
+  category tile to enter selection mode; tap to toggle. The top app bar
+  switches to a "X selected" header with Delete, Select all, and Cancel
+  buttons. On iOS, the standard `EditButton` + List selection pattern;
+  a bottom toolbar surfaces the delete action while the selection set
+  is non-empty. Batch delete cascades item.categoryId clearing + SCO
+  tombstones identically to single-row delete, and one UNDO restores
+  the whole batch via the shared `softDeleteMany` / `undoSoftDeleteMany`
+  repository methods.
+
+- **Multi-add categories from a single dialog** (Android + iOS). The
+  "Add category" dialog is now multi-line: paste a list with one
+  category per line, we split + trim + case-insensitively de-dupe within
+  the input, then route each name through the existing
+  `CategoryRepository.addCategory` (which already handles alive-skip +
+  tombstone-resurrect). A summary line shows
+  `Added N · skipped M (already exist)`.
+
+### Tests
+
+- Android: 424 → 440 unit tests, 0 failures. New coverage:
+  - `MigrationTest`: dense-rank backfill on v6 → v7 (per-user, alive-
+    only, tombstones untouched).
+  - `CategoryRepositoryImplTest`: incrementing displayOrder on add,
+    reorder transaction, observeAll order, softDeleteMany batch +
+    undoSoftDeleteMany round-trip.
+  - `ManageCategoriesViewModelTest`: enter/toggle/selectAll/cancel
+    selection, deleteSelected + bulk-undo plumbing, commitReorder,
+    addManyCategories split + dedupe + duplicate handling.
+
+- iOS: code mirrors Android line-for-line; test parity is a Mac-side
+  follow-up (existing iOS tests for category cover the single-row
+  paths).
+
+### Sync
+
+- `CategoryDto` gains `displayOrder: Int` with a default of `0` so
+  older docs deserialize cleanly. Each device's migration ran
+  per-platform; the next push from any device carries the column.
+
+### Versions
+
+- Android: versionCode 39 → 40, versionName 0.6.3 → 0.6.4.
+- iOS: MARKETING_VERSION 0.6.3 → 0.6.4 (skipping the never-shipped 0.6.3
+  iOS bump since iOS had no equivalent in-app-update controller),
+  CURRENT_PROJECT_VERSION 18 → 20.
+
 ## [0.6.3] - 2026-05-10
 
 ### Fixed

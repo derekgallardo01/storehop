@@ -131,6 +131,43 @@ val MIGRATION_5_6 = object : Migration(5, 6) {
 }
 
 /**
+ * v6 -> v7: add a `displayOrder` column to `categories` for the new
+ * Manage Categories drag-to-reorder. Mirrors what v3 -> v4 did for
+ * `stores`. This is the GLOBAL order on the Manage Categories screen;
+ * per-store aisle order remains owned by `store_category_order` and
+ * isn't affected.
+ *
+ * Backfill: dense rank by name within each user's live category list
+ * so the ordering on first open matches the alphabetical view the user
+ * had before. Tombstoned rows keep the column default of 0 -- they're
+ * not displayed; resurrect-on-re-add applies a fresh order then.
+ *
+ * Bumps `pendingSync = 1` on every touched row so the new column lands
+ * in Firestore on the next push.
+ */
+val MIGRATION_6_7 = object : Migration(6, 7) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE `categories` ADD COLUMN `displayOrder` INTEGER NOT NULL DEFAULT 0")
+        db.execSQL(
+            """
+            UPDATE `categories`
+            SET displayOrder = (
+                SELECT COUNT(*) FROM `categories` AS c2
+                WHERE c2.userId = categories.userId
+                  AND c2.deletedAt IS NULL
+                  AND (
+                        (c2.name COLLATE NOCASE) < (categories.name COLLATE NOCASE)
+                     OR ((c2.name COLLATE NOCASE) = (categories.name COLLATE NOCASE) AND c2.id < categories.id)
+                  )
+            ),
+            pendingSync = 1
+            WHERE deletedAt IS NULL
+            """.trimIndent(),
+        )
+    }
+}
+
+/**
  * v4 -> v5: move per-store need state from `items` to `item_store_xref`.
  *
  * The old model had `items.isNeeded` and `items.lastPurchasedAt` -- a single
