@@ -97,4 +97,26 @@ interface ItemRepository {
      * lives only here.
      */
     suspend fun addItemFromQuickAdd(name: String, storeId: String): String
+
+    /**
+     * Distinct item IDs that have at least one alive xref with
+     * `isNeeded = 1`. Powers the v0.6.1 Items-list +/− toggle: the screen
+     * shows "−" when this set contains the item, "+" otherwise.
+     */
+    fun observeNeededItemIds(): Flow<Set<String>>
+
+    /**
+     * Mark this item needed at every store it's tagged to. The +/− toggle
+     * on the Items list calls this on "+". The cross-store cascade design
+     * (one trip clears the list everywhere) means the inverse "−" path
+     * uses [markPurchasedAcrossAllStores] without writing a PurchaseRecord.
+     */
+    suspend fun markNeededAcrossAllStores(itemId: String)
+
+    /**
+     * Mark this item not-needed at every store it's tagged to. Pure list-
+     * state action; does NOT write a PurchaseRecord (the user isn't at any
+     * specific store -- they're on the master Items list).
+     */
+    suspend fun markPurchasedAcrossAllStores(itemId: String)
 }

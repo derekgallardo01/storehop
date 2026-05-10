@@ -40,12 +40,17 @@ class ItemsListViewModelTest {
     private val itemRepo: ItemRepository = mockk(relaxed = true)
     private val undoBus = UndoEventBus()
     private val itemsFlow = MutableStateFlow<List<ItemWithCategoryAndStores>>(emptyList())
+    private val neededIdsFlow = MutableStateFlow<Set<String>>(emptySet())
     private val sortModeFlow = MutableStateFlow(SortMode.ALPHABETIC)
     private val prefsRepo: UserPreferencesRepository = mockk {
         every { itemsListSortMode } returns sortModeFlow
         coEvery { setItemsListSortMode(any()) } answers {
             sortModeFlow.value = firstArg()
         }
+    }
+
+    init {
+        every { itemRepo.observeNeededItemIds() } returns neededIdsFlow
     }
 
     @Test fun `rows returns the full repo list when query is empty (alphabetic mode)`() = runTest {
@@ -195,6 +200,43 @@ class ItemsListViewModelTest {
         advanceUntilIdle()
 
         coVerify(exactly = 1) { itemRepo.undoSoftDelete("milk") }
+    }
+
+    // ---- v0.6.1: +/- toggle on the Items list ----------------------------
+
+    @Test fun `neededItemIds flows through into the ui state`() = runTest {
+        every { itemRepo.observeAll() } returns itemsFlow
+        itemsFlow.value = listOf(row("milk", "Milk"), row("eggs", "Eggs"))
+        neededIdsFlow.value = setOf("milk")
+
+        val vm = ItemsListViewModel(itemRepo, prefsRepo, undoBus)
+        vm.uiState.test {
+            awaitItem()
+            advanceUntilIdle()
+            val state = expectMostRecentItem()
+            assertThat(state.neededItemIds).containsExactly("milk")
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test fun `toggleNeededAtAllStores routes to markNeeded when not currently needed`() = runTest {
+        every { itemRepo.observeAll() } returns itemsFlow
+        val vm = ItemsListViewModel(itemRepo, prefsRepo, undoBus)
+        vm.toggleNeededAtAllStores(itemId = "milk", currentlyNeeded = false)
+        advanceUntilIdle()
+
+        coVerify(exactly = 1) { itemRepo.markNeededAcrossAllStores("milk") }
+        coVerify(exactly = 0) { itemRepo.markPurchasedAcrossAllStores(any()) }
+    }
+
+    @Test fun `toggleNeededAtAllStores routes to markPurchased when currently needed`() = runTest {
+        every { itemRepo.observeAll() } returns itemsFlow
+        val vm = ItemsListViewModel(itemRepo, prefsRepo, undoBus)
+        vm.toggleNeededAtAllStores(itemId = "milk", currentlyNeeded = true)
+        advanceUntilIdle()
+
+        coVerify(exactly = 1) { itemRepo.markPurchasedAcrossAllStores("milk") }
+        coVerify(exactly = 0) { itemRepo.markNeededAcrossAllStores(any()) }
     }
 
     private fun row(

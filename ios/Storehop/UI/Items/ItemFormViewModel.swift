@@ -129,6 +129,33 @@ final class ItemFormViewModel {
         }
     }
 
+    /// Create a new category from the inline "+ New category" affordance
+    /// in the category picker. Returns nil on success, or a localized error
+    /// string the dialog renders inline. On success, the new category id
+    /// is auto-selected on the form.
+    ///
+    /// Mirrors Android's `ItemFormViewModel.addCategory` and
+    /// `ManageCategoriesViewModel.addCategory` validation pattern (empty /
+    /// duplicate / generic), routed through `CategoryRepository.addCategory`
+    /// which handles alive-skip and tombstone-resurrect.
+    func addCategory(name: String) async -> String? {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else {
+            return String(localized: "error_category_name_empty")
+        }
+        do {
+            let newId = try await categoryRepository.addCategory(name: trimmed)
+            // Auto-select so the just-created category is already chosen
+            // when the dialog dismisses.
+            categoryId = newId
+            return nil
+        } catch CategoryRepositoryError.duplicateName(let n) {
+            return String(format: String(localized: "error_category_name_duplicate %@"), n)
+        } catch {
+            return String(localized: "error_could_not_add_category")
+        }
+    }
+
     func pickImage(_ image: UIImage) {
         localImage = image
     }

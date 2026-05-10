@@ -9,6 +9,7 @@ struct ItemFormView: View {
     @State private var viewModel: ItemFormViewModel?
     @State private var photoPickerItem: PhotosPickerItem?
     @State private var showDeleteConfirm = false
+    @State private var showAddCategoryDialog = false
 
     var body: some View {
         Group {
@@ -62,6 +63,18 @@ struct ItemFormView: View {
                 }
                 .pickerStyle(.menu)
                 .labelsHidden()
+                // v0.6.1: inline "+ New category" affordance. SwiftUI's Picker
+                // doesn't accept arbitrary buttons, so the Button sits in the
+                // same Section right below it. On a successful add the VM
+                // auto-selects the new id, so the picker label updates live.
+                Button {
+                    showAddCategoryDialog = true
+                } label: {
+                    Label(
+                        String(localized: "action_new_category"),
+                        systemImage: "plus.circle"
+                    )
+                }
             }
 
             Section(header: Text(String(localized: "item_stores_label"))) {
@@ -140,6 +153,15 @@ struct ItemFormView: View {
             Button(String(localized: "action_cancel"), role: .cancel) {}
         } message: {
             Text(String(localized: "delete_item_confirm_message"))
+        }
+        .sheet(isPresented: $showAddCategoryDialog) {
+            CategoryNameDialog(
+                title: String(localized: "add_category_dialog_title"),
+                initialName: "",
+                actionTitle: String(localized: "action_add"),
+                onSubmit: { name in await viewModel.addCategory(name: name) },
+                onDismiss: { showAddCategoryDialog = false }
+            )
         }
         .onChange(of: viewModel.saved) { _, saved in
             if saved { onDismiss() }

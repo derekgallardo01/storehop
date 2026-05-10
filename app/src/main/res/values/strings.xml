@@ -187,6 +187,9 @@
     <string name="action_manage_categories">Manage categories</string>
     <string name="add_category_dialog_title">New category</string>
     <string name="add_category_field_label">Category name</string>
+    <string name="action_new_category">New category…</string>
+    <string name="action_add_to_list">Add to shopping list</string>
+    <string name="action_remove_from_list">Remove from shopping list</string>
     <string name="rename_category_dialog_title">Rename category</string>
     <string name="delete_category_dialog_title">Delete \"%1$s\"?</string>
     <string name="delete_category_dialog_message">Items in this category will become uncategorized. You can undo this from the snackbar.</string>

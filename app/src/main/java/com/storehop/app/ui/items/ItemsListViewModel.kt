@@ -34,6 +34,12 @@ data class ItemsListUiState(
     val rows: List<ItemWithCategoryAndStores> = emptyList(),
     val sections: List<ItemsCategorySection> = emptyList(),
     val sortMode: SortMode = SortMode.ALPHABETIC,
+    /**
+     * Item IDs that are currently "needed" at one or more tagged stores.
+     * Drives the +/- toggle on each row: minus when in this set, plus
+     * otherwise. Empty when the user is signed out or has no items needed.
+     */
+    val neededItemIds: Set<String> = emptySet(),
 )
 
 /**
@@ -65,7 +71,8 @@ class ItemsListViewModel @Inject constructor(
             itemRepository.observeAll(),
             _query,
             preferencesRepository.itemsListSortMode,
-        ) { all, q, sortMode ->
+            itemRepository.observeNeededItemIds(),
+        ) { all, q, sortMode, neededIds ->
             val needle = q.trim()
             val filtered = if (needle.isEmpty()) all
             else all.filter { row ->
@@ -80,6 +87,7 @@ class ItemsListViewModel @Inject constructor(
                     filtered.groupIntoSections()
                 } else emptyList(),
                 sortMode = sortMode,
+                neededItemIds = neededIds,
             )
         }.stateIn(
             scope = viewModelScope,
@@ -100,6 +108,24 @@ class ItemsListViewModel @Inject constructor(
 
     fun setSortMode(mode: SortMode) {
         viewModelScope.launch { preferencesRepository.setItemsListSortMode(mode) }
+    }
+
+    /**
+     * Toggle the +/− button on the Items list. If the item is currently
+     * needed at any tagged store ([currentlyNeeded] = true), mark it
+     * not-needed across all tagged stores ("−"). Otherwise mark it
+     * needed at every tagged store ("+"). The cross-store cascade design
+     * means one trip clears the list everywhere, so a single toggle
+     * keeps both branches coherent across the Shop tab.
+     */
+    fun toggleNeededAtAllStores(itemId: String, currentlyNeeded: Boolean) {
+        viewModelScope.launch {
+            if (currentlyNeeded) {
+                itemRepository.markPurchasedAcrossAllStores(itemId)
+            } else {
+                itemRepository.markNeededAcrossAllStores(itemId)
+            }
+        }
     }
 
     fun undoItemDelete(itemId: String) {

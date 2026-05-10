@@ -186,6 +186,9 @@
     <string name="action_manage_categories">Gestionar categorías</string>
     <string name="add_category_dialog_title">Nueva categoría</string>
     <string name="add_category_field_label">Nombre de la categoría</string>
+    <string name="action_new_category">Nueva categoría…</string>
+    <string name="action_add_to_list">Añadir a la lista de la compra</string>
+    <string name="action_remove_from_list">Quitar de la lista de la compra</string>
     <string name="rename_category_dialog_title">Renombrar categoría</string>
     <string name="delete_category_dialog_title">¿Eliminar \"%1$s\"?</string>
     <string name="delete_category_dialog_message">Los artículos de esta categoría quedarán sin categoría. Puedes deshacerlo desde el aviso inferior.</string>

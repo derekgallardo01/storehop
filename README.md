@@ -13,7 +13,7 @@ specific household) is added or renamed by the user.
 
 ## Status
 
-v0.6.0. Shipping to Google Play Closed testing. Feature-complete for
+v0.6.1. Shipping to Google Play Closed testing. Feature-complete for
 single-user v1: anonymous-first onboarding with optional Google
 Sign-In, two-way Firestore + Storage cloud sync (push and pull), Shop
 and Items tabs with item photos, share-list-as-text, theme + language
@@ -29,7 +29,7 @@ the Play Console listing answers and
 policy hosted at the Play listing's required URL.
 
 An iOS port lives in [`ios/`](ios/) — SwiftUI + GRDB + Firebase iOS
-SDK, mirroring the Android architecture 1:1. As of v0.6.0 it's
+SDK, mirroring the Android architecture 1:1. As of v0.6.1 it's
 caught up to feature parity (with the natural exception of the
 in-app update prompt, since the App Store has no equivalent API).
 Not yet shipped to TestFlight or the App Store.
@@ -196,6 +196,15 @@ pack remains stable across devices and across reseeds.
          3s auto-dismiss). iOS marketing version bumped from 0.5.1
          to 0.5.15. iOS Edit aisles intentionally keeps the
          platform-idiomatic `.onMove` + `EditButton` pattern.
+- v0.6.1 Two more Mike-asks bundled. Inline "+ New category"
+         entry in the item edit screen's category picker (one less
+         round trip to Manage Categories), and a +/− button on each
+         row of the master Items list (tap + to mark the item needed
+         at every tagged store, − to clear from every tagged store —
+         the cross-store cascade design keeps both branches
+         consistent with the Shop tab). Both ports landed on Android
+         and iOS in the same release. Tests: 360 → 366 unit tests
+         on Android plus three new GRDB-backed iOS tests.
 - v0.6.0 Mike's UX feedback bundle: × clear-search button on both
          the in-store search and the master Items search;
          long-press an item in a store's list to jump straight to

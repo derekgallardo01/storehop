@@ -1,9 +1,11 @@
 package com.storehop.app.ui.items
 
+import android.content.Context
 import android.net.Uri
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.storehop.app.R
 import com.storehop.app.data.entity.Category
 import com.storehop.app.data.entity.Store
 import com.storehop.app.data.repository.CategoryRepository
@@ -13,6 +15,7 @@ import com.storehop.app.data.storage.ImageUploader
 import com.storehop.app.ui.util.UndoEvent
 import com.storehop.app.ui.util.UndoEventBus
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -57,10 +60,11 @@ data class ItemFormState(
 
 @HiltViewModel
 class ItemFormViewModel @Inject constructor(
+    @ApplicationContext private val appContext: Context,
     private val itemRepository: ItemRepository,
     private val imageUploader: ImageUploader,
     private val undoBus: UndoEventBus,
-    categoryRepository: CategoryRepository,
+    private val categoryRepository: CategoryRepository,
     storeRepository: StoreRepository,
     savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
@@ -140,6 +144,33 @@ class ItemFormViewModel @Inject constructor(
     }
     fun setStaple(v: Boolean) { _state.value = _state.value.copy(isStaple = v) }
     fun setPriority(v: Boolean) { _state.value = _state.value.copy(isPriority = v) }
+
+    /**
+     * Create a new category from the inline "+ New category" affordance in
+     * the category picker. On success, the new category is auto-selected on
+     * the form so the user doesn't have to re-tap it. Returns null on
+     * success, or a localized error string the dialog renders inline.
+     *
+     * Mirrors [com.storehop.app.ui.categories.ManageCategoriesViewModel.addCategory]'s
+     * validation pattern (empty / duplicate / generic), routed through the
+     * same [CategoryRepository.addCategory] which handles the alive-skip
+     * and tombstone-resurrect paths.
+     */
+    suspend fun addCategory(name: String): String? {
+        val trimmed = name.trim()
+        if (trimmed.isEmpty()) return appContext.getString(R.string.error_category_name_empty)
+        return try {
+            val newId = categoryRepository.addCategory(name = trimmed)
+            // Auto-select so the just-created category is already chosen on
+            // the form when the dialog dismisses.
+            _state.value = _state.value.copy(categoryId = newId)
+            null
+        } catch (e: IllegalArgumentException) {
+            appContext.getString(R.string.error_category_name_duplicate, trimmed)
+        } catch (e: Exception) {
+            appContext.getString(R.string.error_could_not_add_category)
+        }
+    }
 
     fun pickLocalImage(uri: Uri) {
         // Stage the local URI for preview. Upload happens on submit() so we

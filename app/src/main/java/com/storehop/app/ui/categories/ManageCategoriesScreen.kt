@@ -51,6 +51,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.storehop.app.R
 import com.storehop.app.data.entity.Category
+import com.storehop.app.ui.util.AddCategoryDialog
 import com.storehop.app.ui.util.UndoBar
 import com.storehop.app.ui.util.UndoBarState
 import com.storehop.app.ui.util.WordCaps
@@ -226,65 +227,6 @@ private fun CategoryCard(
             }
         }
     }
-}
-
-@Composable
-private fun AddCategoryDialog(
-    onDismiss: () -> Unit,
-    onAdd: suspend (String) -> String?,
-) {
-    var name by remember { mutableStateOf("") }
-    var error by remember { mutableStateOf<String?>(null) }
-    var saving by remember { mutableStateOf(false) }
-    val focusRequester = remember { FocusRequester() }
-    val scope = rememberCoroutineScope()
-
-    LaunchedEffect(Unit) { focusRequester.requestFocus() }
-
-    val submit = {
-        if (name.isNotBlank() && !saving) {
-            saving = true
-            scope.launch {
-                val result = onAdd(name)
-                saving = false
-                if (result == null) onDismiss()
-                else error = result
-            }
-        }
-    }
-
-    AlertDialog(
-        onDismissRequest = { if (!saving) onDismiss() },
-        title = { Text(stringResource(R.string.add_category_dialog_title)) },
-        text = {
-            OutlinedTextField(
-                value = name,
-                onValueChange = {
-                    name = it
-                    error = null
-                },
-                label = { Text(stringResource(R.string.add_category_field_label)) },
-                singleLine = true,
-                keyboardOptions = WordCaps,
-                isError = error != null,
-                supportingText = error?.let { { Text(it) } },
-                modifier = Modifier.focusRequester(focusRequester),
-            )
-        },
-        confirmButton = {
-            TextButton(
-                onClick = { submit() },
-                enabled = name.isNotBlank() && !saving,
-            ) {
-                Text(stringResource(if (saving) R.string.action_adding else R.string.action_add))
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss, enabled = !saving) {
-                Text(stringResource(R.string.action_cancel))
-            }
-        },
-    )
 }
 
 @Composable

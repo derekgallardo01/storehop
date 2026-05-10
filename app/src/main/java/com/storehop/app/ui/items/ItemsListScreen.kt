@@ -23,6 +23,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Category
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Star
@@ -219,7 +220,17 @@ fun ItemsListScreen(
                         when (state.sortMode) {
                             SortMode.ALPHABETIC -> {
                                 items(state.rows, key = { it.item.id }) { row ->
-                                    ItemRow(row = row, onClick = { onEditItem(row.item.id) })
+                                    ItemRow(
+                                    row = row,
+                                    isNeeded = state.neededItemIds.contains(row.item.id),
+                                    onClick = { onEditItem(row.item.id) },
+                                    onToggleNeeded = {
+                                        viewModel.toggleNeededAtAllStores(
+                                            row.item.id,
+                                            state.neededItemIds.contains(row.item.id),
+                                        )
+                                    },
+                                )
                                 }
                             }
                             SortMode.CATEGORY -> {
@@ -228,7 +239,17 @@ fun ItemsListScreen(
                                         ItemsCategoryHeader(section = section, ctx = ctx)
                                     }
                                     items(section.rows, key = { it.item.id }) { row ->
-                                        ItemRow(row = row, onClick = { onEditItem(row.item.id) })
+                                        ItemRow(
+                                    row = row,
+                                    isNeeded = state.neededItemIds.contains(row.item.id),
+                                    onClick = { onEditItem(row.item.id) },
+                                    onToggleNeeded = {
+                                        viewModel.toggleNeededAtAllStores(
+                                            row.item.id,
+                                            state.neededItemIds.contains(row.item.id),
+                                        )
+                                    },
+                                )
                                     }
                                 }
                             }
@@ -273,7 +294,9 @@ private fun resolveSectionLabel(section: ItemsCategorySection, ctx: Context): St
 @Composable
 private fun ItemRow(
     row: ItemWithCategoryAndStores,
+    isNeeded: Boolean,
     onClick: () -> Unit,
+    onToggleNeeded: () -> Unit,
 ) {
     Row(
         modifier = Modifier
@@ -342,6 +365,25 @@ private fun ItemRow(
                 contentDescription = stringResource(R.string.badge_critical),
                 tint = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.size(18.dp),
+            )
+            Spacer(Modifier.width(4.dp))
+        }
+        // v0.6.1: +/- toggle. Disabled when the item has no tagged stores
+        // (nothing to add it to). The button is wider than the row's tap
+        // target so its own tap doesn't bubble into the row's onClick.
+        val hasStores = row.stores.isNotEmpty()
+        IconButton(
+            onClick = onToggleNeeded,
+            enabled = hasStores,
+        ) {
+            Icon(
+                imageVector = if (isNeeded) Icons.Filled.Remove else Icons.Filled.Add,
+                contentDescription = stringResource(
+                    if (isNeeded) R.string.action_remove_from_list
+                    else R.string.action_add_to_list,
+                ),
+                tint = if (hasStores) MaterialTheme.colorScheme.primary
+                else MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
     }

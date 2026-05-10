@@ -23,6 +23,21 @@ struct ItemStoreXrefDao: Sendable {
             .values(in: writer)
     }
 
+    /// v0.6.1: distinct item IDs that have at least one alive xref with
+    /// `isNeeded = 1` for the given user. Powers the +/- toggle on the
+    /// Items list -- "−" when the item is on the list at any tagged store,
+    /// "+" otherwise.
+    func observeNeededItemIds(userId: String) -> AsyncValueObservation<[String]> {
+        ValueObservation
+            .tracking { db in
+                try String.fetchAll(db, sql: """
+                    SELECT DISTINCT itemId FROM item_store_xref
+                    WHERE userId = ? AND deletedAt IS NULL AND isNeeded = 1
+                    """, arguments: [userId])
+            }
+            .values(in: writer)
+    }
+
     func observePendingPush(userId: String) -> AsyncValueObservation<[ItemStoreXref]> {
         ValueObservation
             .tracking { db in
@@ -205,6 +220,28 @@ struct ItemStoreXrefDao: Sendable {
                 pendingSync = 1
             WHERE itemId = ? AND userId = ? AND deletedAt IS NULL
             """, arguments: [now, now, itemId, userId])
+    }
+
+    /// v0.6.1: inverse of [markPurchasedAcrossAllStores]. Sets every alive
+    /// xref for [itemId] to `isNeeded = 1, lastPurchasedAt = NULL`. Used by
+    /// the "+" tap on the Items list to add an item to every tagged store
+    /// without writing a PurchaseRecord -- the user is on the master list,
+    /// not at a store.
+    func markNeededAcrossAllStores(userId: String, itemId: String, now: Int64) async throws {
+        try await writer.write { db in
+            try Self.markNeededAcrossAllStores(on: db, userId: userId, itemId: itemId, now: now)
+        }
+    }
+
+    static func markNeededAcrossAllStores(on db: Database, userId: String, itemId: String, now: Int64) throws {
+        try db.execute(sql: """
+            UPDATE item_store_xref
+            SET isNeeded = 1,
+                lastPurchasedAt = NULL,
+                updatedAt = ?,
+                pendingSync = 1
+            WHERE itemId = ? AND userId = ? AND deletedAt IS NULL
+            """, arguments: [now, itemId, userId])
     }
 
     func markNeededAtStore(userId: String, itemId: String, storeId: String, now: Int64) async throws {

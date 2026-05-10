@@ -4935,6 +4935,33 @@
         "es": { "stringUnit": { "state": "translated", "value": "Ocultar artículos críticos" } },
         "it": { "stringUnit": { "state": "translated", "value": "Nascondi articoli critici" } }
       }
+    },
+    "action_new_category": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "New category…" } },
+        "pt-PT": { "stringUnit": { "state": "translated", "value": "Nova categoria…" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Nueva categoría…" } },
+        "it": { "stringUnit": { "state": "translated", "value": "Nuova categoria…" } }
+      }
+    },
+    "action_add_to_list": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Add to shopping list" } },
+        "pt-PT": { "stringUnit": { "state": "translated", "value": "Adicionar à lista de compras" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Añadir a la lista de la compra" } },
+        "it": { "stringUnit": { "state": "translated", "value": "Aggiungi alla lista della spesa" } }
+      }
+    },
+    "action_remove_from_list": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Remove from shopping list" } },
+        "pt-PT": { "stringUnit": { "state": "translated", "value": "Remover da lista de compras" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Quitar de la lista de la compra" } },
+        "it": { "stringUnit": { "state": "translated", "value": "Rimuovi dalla lista della spesa" } }
+      }
     }
   },
   "version": "1.0"

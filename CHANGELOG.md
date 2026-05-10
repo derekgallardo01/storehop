@@ -7,6 +7,43 @@ project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 For the high-level roadmap and earlier-than-0.5.0 history, see the
 "Roadmap" section in the [README](README.md).
 
+## [0.6.1] - 2026-05-10
+
+Two more Mike-asks bundled together. Both touch the master Items list,
+both are small enough that splitting into separate releases would be
+overhead.
+
+### Added
+
+- **Inline "+ New category" in the item edit screen** (Android + iOS).
+  Mike-asked: ability to create a category from the item form without
+  having to back out, navigate to Manage Categories, create, and
+  navigate back. The category picker now offers a "New category…" entry
+  that opens the same name-prompt dialog Manage Categories uses; on
+  success the new category is auto-selected on the form. Routed through
+  `CategoryRepository.addCategory` which already handles alive-skip and
+  tombstone-resurrect.
+
+- **+/− toggle on each Items-list row** (Android + iOS). Mike-asked:
+  *"as I'm scrolling down, I can quickly add things to all my grocery
+  lists with one click. Or, maybe if it is already on my list, it shows
+  a minus sign."* The button shows "+" when the item isn't on any
+  shopping list at any tagged store, "−" when it is. Tapping "+" marks
+  the item needed at every tagged store; tapping "−" cascade-clears
+  it from every tagged store (no PurchaseRecord, since the user is on
+  the master list, not at a specific store -- the cross-store cascade
+  design from v0.5.1 keeps both branches coherent with the Shop tab).
+  Disabled when an item has no tagged stores (nothing to add to).
+
+### Tests
+
+- Android: 360 → 366 unit tests. New ItemFormViewModel addCategory
+  coverage (success, blank, duplicate) plus +/− toggle coverage on
+  ItemsListViewModel (state plumbing, both branches of the toggle).
+- iOS: ItemFormViewModelTests gains three integration-style tests
+  exercising the real GRDB-backed CategoryRepository for addCategory's
+  three branches.
+
 ## [0.6.0] - 2026-05-10
 
 Mike's UX feedback bundle. Six items pulled in from his most recent

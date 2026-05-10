@@ -1,5 +1,6 @@
 package com.storehop.app.ui.items
 
+import android.content.Context
 import android.net.Uri
 import androidx.lifecycle.SavedStateHandle
 import app.cash.turbine.test
@@ -17,6 +18,7 @@ import com.storehop.app.ui.util.UndoEvent
 import com.storehop.app.ui.util.UndoEventBus
 import io.mockk.coEvery
 import io.mockk.coVerify
+import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.flowOf
@@ -42,14 +44,21 @@ class ItemFormViewModelTest {
     private val itemRepo: ItemRepository = mockk(relaxed = true)
     private val imageUploader: ImageUploader = mockk()
     private val undoBus = UndoEventBus()
-    private val categoryRepo: CategoryRepository = mockk {
+    private val categoryRepo: CategoryRepository = mockk(relaxed = true) {
         coEvery { observeAll(any()) } returns flowOf(emptyList())
     }
     private val storeRepo: StoreRepository = mockk {
         coEvery { observeAll(any()) } returns flowOf(emptyList())
     }
+    // Returns generic placeholder strings for the addCategory error paths.
+    // Tests assert null-vs-non-null on the result, not the message text.
+    private val appContext: Context = mockk(relaxed = true) {
+        every { getString(any<Int>()) } returns "error"
+        every { getString(any<Int>(), *anyVararg<Any>()) } returns "error"
+    }
 
     private fun newAddVm() = ItemFormViewModel(
+        appContext = appContext,
         itemRepository = itemRepo,
         imageUploader = imageUploader,
         undoBus = undoBus,
@@ -61,6 +70,7 @@ class ItemFormViewModelTest {
     private fun newEditVm(itemId: String, existing: ItemWithCategoryAndStores?) = run {
         coEvery { itemRepo.observeById(itemId) } returns flowOf(existing)
         ItemFormViewModel(
+            appContext = appContext,
             itemRepository = itemRepo,
             imageUploader = imageUploader,
             undoBus = undoBus,
@@ -303,5 +313,41 @@ class ItemFormViewModelTest {
         assertThat(vm.state.value.isSubmitting).isFalse()
         assertThat(vm.state.value.saveError).isEqualTo("name too long")
         assertThat(vm.state.value.saved).isFalse()
+    }
+
+    // ---- v0.6.1: inline "+ New category" from the item edit screen --------
+
+    @Test fun `addCategory on success calls repo and auto-selects the new id`() = runTest {
+        coEvery { categoryRepo.addCategory(name = "Pet supplies") } returns "cat-new-1"
+
+        val vm = newAddVm()
+        val result = vm.addCategory("  Pet supplies  ")  // trim is the VM's job
+
+        assertThat(result).isNull()
+        assertThat(vm.state.value.categoryId).isEqualTo("cat-new-1")
+        coVerify(exactly = 1) { categoryRepo.addCategory(name = "Pet supplies") }
+    }
+
+    @Test fun `addCategory with blank name returns the empty error and does not call the repo`() = runTest {
+        val vm = newAddVm()
+        val result = vm.addCategory("   ")
+
+        assertThat(result).isNotNull()
+        assertThat(vm.state.value.categoryId).isNull()
+        coVerify(exactly = 0) { categoryRepo.addCategory(any(), any()) }
+    }
+
+    @Test fun `addCategory with duplicate name returns a non-null error and does not change selection`() = runTest {
+        coEvery { categoryRepo.addCategory(name = "Produce") } throws
+            IllegalArgumentException("Produce already exists")
+
+        val vm = newAddVm()
+        // Pre-select a sentinel so we can confirm the failure path doesn't
+        // wipe the existing selection on the form.
+        vm.setCategoryId("cat-existing")
+        val result = vm.addCategory("Produce")
+
+        assertThat(result).isNotNull()
+        assertThat(vm.state.value.categoryId).isEqualTo("cat-existing")
     }
 }

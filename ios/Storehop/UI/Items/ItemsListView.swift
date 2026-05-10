@@ -52,18 +52,34 @@ struct ItemsListView: View {
                     case .alphabetic:
                         Section {
                             ForEach(viewModel.items, id: \.item.id) { row in
-                                ItemRowView(row: row)
-                                    .contentShape(Rectangle())
-                                    .onTapGesture { onEditItem(row.item.id) }
+                                ItemRowView(
+                                    row: row,
+                                    isNeeded: viewModel.neededItemIds.contains(row.item.id),
+                                    onEdit: { onEditItem(row.item.id) },
+                                    onToggleNeeded: {
+                                        viewModel.toggleNeededAtAllStores(
+                                            itemId: row.item.id,
+                                            currentlyNeeded: viewModel.neededItemIds.contains(row.item.id)
+                                        )
+                                    }
+                                )
                             }
                         }
                     case .category:
                         ForEach(viewModel.sections) { section in
                             Section(header: Text(itemsSectionHeader(section)).font(StorehopTypography.titleSmall)) {
                                 ForEach(section.rows, id: \.item.id) { row in
-                                    ItemRowView(row: row)
-                                        .contentShape(Rectangle())
-                                        .onTapGesture { onEditItem(row.item.id) }
+                                    ItemRowView(
+                                        row: row,
+                                        isNeeded: viewModel.neededItemIds.contains(row.item.id),
+                                        onEdit: { onEditItem(row.item.id) },
+                                        onToggleNeeded: {
+                                            viewModel.toggleNeededAtAllStores(
+                                                itemId: row.item.id,
+                                                currentlyNeeded: viewModel.neededItemIds.contains(row.item.id)
+                                            )
+                                        }
+                                    )
                                 }
                             }
                         }
@@ -154,38 +170,61 @@ struct ItemsListView: View {
 
 private struct ItemRowView: View {
     let row: ItemWithCategoryAndStores
+    let isNeeded: Bool
+    let onEdit: () -> Void
+    let onToggleNeeded: () -> Void
 
     var body: some View {
         HStack(spacing: 12) {
-            ItemThumbnail(name: row.item.name, imageUrl: row.item.imageUrl)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(row.item.name)
-                    .font(StorehopTypography.bodyLarge)
-                if let brand = row.item.brand, !brand.isEmpty {
-                    Text(brand)
-                        .font(StorehopTypography.bodySmall)
-                        .foregroundStyle(StorehopColors.onSurfaceVariant)
+            // Tap area for editing -- the row body. The trailing +/- button
+            // has its own tap target so it doesn't bubble into edit.
+            HStack(spacing: 12) {
+                ItemThumbnail(name: row.item.name, imageUrl: row.item.imageUrl)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(row.item.name)
+                        .font(StorehopTypography.bodyLarge)
+                    if let brand = row.item.brand, !brand.isEmpty {
+                        Text(brand)
+                            .font(StorehopTypography.bodySmall)
+                            .foregroundStyle(StorehopColors.onSurfaceVariant)
+                    }
+                    if let categoryName = row.category?.name, !categoryName.isEmpty {
+                        Text(categoryLabel(row.category))
+                            .font(StorehopTypography.labelSmall)
+                            .foregroundStyle(StorehopColors.onSurfaceVariant)
+                    }
                 }
-                if let categoryName = row.category?.name, !categoryName.isEmpty {
-                    Text(categoryLabel(row.category))
-                        .font(StorehopTypography.labelSmall)
-                        .foregroundStyle(StorehopColors.onSurfaceVariant)
+                Spacer()
+                if row.item.isStaple {
+                    Image(systemName: "pin.fill")
+                        .foregroundStyle(StorehopColors.secondary)
+                        .imageScale(.small)
+                }
+                if row.item.isPriority {
+                    Image(systemName: "star.fill")
+                        .foregroundStyle(.yellow)
+                        .imageScale(.small)
                 }
             }
-            Spacer()
-            if row.item.isStaple {
-                Image(systemName: "pin.fill")
-                    .foregroundStyle(StorehopColors.secondary)
-                    .imageScale(.small)
+            .contentShape(Rectangle())
+            .onTapGesture { onEdit() }
+
+            // v0.6.1: +/- toggle. Disabled when no tagged stores -- nothing
+            // to add the item to. Wrapped in a Button so SwiftUI's List
+            // gesture-handling treats it as a separate hit target from the
+            // row's onTapGesture-to-edit area above.
+            Button(action: onToggleNeeded) {
+                Image(systemName: isNeeded ? "minus.circle.fill" : "plus.circle.fill")
+                    .font(.title3)
+                    .foregroundStyle(row.stores.isEmpty
+                        ? StorehopColors.onSurfaceVariant
+                        : StorehopColors.primary)
             }
-            if row.item.isPriority {
-                Image(systemName: "star.fill")
-                    .foregroundStyle(.yellow)
-                    .imageScale(.small)
-            }
-            Image(systemName: "chevron.right")
-                .font(.footnote)
-                .foregroundStyle(StorehopColors.onSurfaceVariant)
+            .buttonStyle(.plain)
+            .disabled(row.stores.isEmpty)
+            .accessibilityLabel(String(localized: isNeeded
+                ? "action_remove_from_list"
+                : "action_add_to_list"))
         }
     }
 

@@ -16,6 +16,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 import java.time.Clock
 import javax.inject.Inject
 
@@ -248,6 +249,30 @@ class ItemRepositoryImpl @Inject constructor(
         for (storeId in storeIds) {
             scoDao.appendIfMissing(storeId, categoryId, userId, now)
         }
+    }
+
+    override fun observeNeededItemIds(): Flow<Set<String>> =
+        session.userId.flatMapLatest { uid ->
+            if (uid == null) flowOf(emptySet())
+            else xrefDao.observeNeededItemIds(uid).map { it.toSet() }
+        }
+
+    override suspend fun markNeededAcrossAllStores(itemId: String) = db.withTransaction {
+        val userId = requireSignedIn()
+        val current = itemDao.observeById(userId, itemId).first()?.item
+            ?: return@withTransaction
+        xrefDao.markNeededAcrossAllStores(current.userId, itemId, clock.millis())
+    }
+
+    override suspend fun markPurchasedAcrossAllStores(itemId: String) = db.withTransaction {
+        val userId = requireSignedIn()
+        val current = itemDao.observeById(userId, itemId).first()?.item
+            ?: return@withTransaction
+        // Pure list-state action -- no PurchaseRecord. The cascade clears
+        // the item from every tagged store; the user is on the master Items
+        // list, not at a store, so attributing the purchase to any one
+        // store would be wrong.
+        xrefDao.markPurchasedAcrossAllStores(current.userId, itemId, clock.millis())
     }
 
     private fun requireSignedIn(): String =

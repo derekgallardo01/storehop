@@ -15,6 +15,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CenterAlignedTopAppBar
@@ -49,6 +50,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.storehop.app.R
+import com.storehop.app.ui.util.AddCategoryDialog
 import com.storehop.app.ui.util.WordCaps
 import com.storehop.app.ui.util.localizedLabel
 
@@ -175,6 +177,7 @@ fun ItemFormScreen(
                 selectedId = state.categoryId,
                 categories = categories,
                 onSelect = viewModel::setCategoryId,
+                onAddNewCategory = viewModel::addCategory,
             )
 
             Column {
@@ -272,8 +275,10 @@ private fun CategoryDropdown(
     selectedId: String?,
     categories: List<com.storehop.app.data.entity.Category>,
     onSelect: (String?) -> Unit,
+    onAddNewCategory: suspend (String) -> String?,
 ) {
     var sheetOpen by remember { mutableStateOf(false) }
+    var addDialogOpen by remember { mutableStateOf(false) }
     val selected = categories.firstOrNull { it.id == selectedId }
     val noneLabel = stringResource(R.string.form_field_category_none)
     val displayLabel = selected?.localizedLabel() ?: noneLabel
@@ -311,6 +316,28 @@ private fun CategoryDropdown(
                 )
                 androidx.compose.foundation.lazy.LazyColumn(modifier = Modifier.fillMaxWidth()) {
                     item {
+                        // v0.6.1: inline "+ New category" entry. Tapping it
+                        // closes the sheet and opens the shared
+                        // AddCategoryDialog. On a successful add, the VM
+                        // auto-selects the newly-created category id, so no
+                        // extra wiring is needed here.
+                        ListItem(
+                            headlineContent = {
+                                Text(stringResource(R.string.action_new_category))
+                            },
+                            leadingContent = {
+                                Icon(
+                                    Icons.Filled.Add,
+                                    contentDescription = null,
+                                )
+                            },
+                            modifier = Modifier.clickable {
+                                sheetOpen = false
+                                addDialogOpen = true
+                            },
+                        )
+                    }
+                    item {
                         ListItem(
                             headlineContent = { Text(noneLabel) },
                             modifier = Modifier.clickable {
@@ -330,6 +357,13 @@ private fun CategoryDropdown(
                 }
             }
         }
+    }
+
+    if (addDialogOpen) {
+        AddCategoryDialog(
+            onDismiss = { addDialogOpen = false },
+            onAdd = onAddNewCategory,
+        )
     }
 }
 

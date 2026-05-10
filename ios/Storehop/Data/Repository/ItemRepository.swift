@@ -212,6 +212,39 @@ struct ItemRepository: Sendable {
         }
     }
 
+    /// v0.6.1: distinct item IDs that have at least one alive xref with
+    /// `isNeeded = 1` for the active session uid. Empty stream when signed
+    /// out. Powers the Items-list +/- toggle.
+    func observeNeededItemIds(userId: String) -> AsyncValueObservation<[String]> {
+        ItemStoreXrefDao(writer: writer).observeNeededItemIds(userId: userId)
+    }
+
+    /// v0.6.1: mark this item needed at every store it's tagged to. The
+    /// "+" branch of the Items-list toggle. Cross-store cascade design
+    /// keeps the inverse "−" branch coherent: clearing at one store
+    /// already clears at all (see [markPurchasedAcrossAllStoresNoRecord]).
+    func markNeededAcrossAllStores(itemId: String) async throws {
+        let userId = try await session.requireSignedIn()
+        let now = clock.nowMs()
+        try await writer.write { db in
+            guard let current = try ItemDao.findLiveById(on: db, userId: userId, id: itemId) else { return }
+            try ItemStoreXrefDao.markNeededAcrossAllStores(on: db, userId: current.userId, itemId: itemId, now: now)
+        }
+    }
+
+    /// v0.6.1: mark this item not-needed at every store it's tagged to.
+    /// Pure list-state action -- does NOT write a PurchaseRecord. The user
+    /// is on the master Items list, not at a store, so attributing the
+    /// purchase to any one store would be wrong.
+    func markPurchasedAcrossAllStoresNoRecord(itemId: String) async throws {
+        let userId = try await session.requireSignedIn()
+        let now = clock.nowMs()
+        try await writer.write { db in
+            guard let current = try ItemDao.findLiveById(on: db, userId: userId, id: itemId) else { return }
+            try ItemStoreXrefDao.markPurchasedAcrossAllStores(on: db, userId: current.userId, itemId: itemId, now: now)
+        }
+    }
+
     /// Restore a single (item, store) pair to "still needed at this store."
     /// Used to un-check a struck-through purchased staple. Doesn't touch
     /// `lastPurchasedAt` — the prior purchase still happened in history.

@@ -27,6 +27,9 @@ final class ItemsListViewModel {
     /// Sections sorted alphabetically by category name; uncategorised items
     /// trail in a section keyed by `itemsUncategorisedSentinel`.
     var sections: [ItemsCategorySection] = []
+    /// v0.6.1: item ids that have at least one alive xref where
+    /// `isNeeded = 1`. The Items list shows "−" for these, "+" otherwise.
+    var neededItemIds: Set<String> = []
     var query: String = "" {
         didSet { refresh() }
     }
@@ -44,6 +47,7 @@ final class ItemsListViewModel {
     private let preferencesRepository: any UserPreferencesRepository
     private let session: any UserSessionProvider
     private let binder = SessionBinder()
+    private let neededBinder = SessionBinder()
     private var undoListenerTask: Task<Void, Never>?
     private var sortPrefsTask: Task<Void, Never>?
 
@@ -72,6 +76,16 @@ final class ItemsListViewModel {
             self?.rawItems = items
             self?.refresh()
         }
+        // v0.6.1: subscribe to the needed-ids stream. The view reads
+        // `neededItemIds` to decide +/- per row.
+        neededBinder.bind(
+            session: session,
+            emptyValue: [String]()
+        ) { [itemRepository] uid in
+            itemRepository.observeNeededItemIds(userId: uid)
+        } onValue: { [weak self] ids in
+            self?.neededItemIds = Set(ids)
+        }
 
         // Listen for cross-screen delete events from the form.
         undoListenerTask = Task { [weak self] in
@@ -91,10 +105,30 @@ final class ItemsListViewModel {
 
     func teardown() {
         binder.cancel()
+        neededBinder.cancel()
         undoListenerTask?.cancel()
         undoListenerTask = nil
         sortPrefsTask?.cancel()
         sortPrefsTask = nil
+    }
+
+    /// v0.6.1: toggle the +/- button on the Items list. Maps to
+    /// `markPurchasedAcrossAllStoresNoRecord` when the item is currently
+    /// needed (the "−" branch -- list-state action, no PurchaseRecord),
+    /// or `markNeededAcrossAllStores` when it's not (the "+" branch).
+    func toggleNeededAtAllStores(itemId: String, currentlyNeeded: Bool) {
+        Task { [itemRepository] in
+            do {
+                if currentlyNeeded {
+                    try await itemRepository.markPurchasedAcrossAllStoresNoRecord(itemId: itemId)
+                } else {
+                    try await itemRepository.markNeededAcrossAllStores(itemId: itemId)
+                }
+            } catch {
+                // Sync writes are best-effort here -- the live observation
+                // will roll the UI back if the write didn't land.
+            }
+        }
     }
 
     func setSortMode(_ mode: SortMode) {

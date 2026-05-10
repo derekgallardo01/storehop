@@ -236,4 +236,51 @@ final class ItemFormViewModelTests: XCTestCase {
             XCTFail("Expected .itemDeleted event")
         }
     }
+
+    // MARK: - v0.6.1: inline "+ New category" from the item edit screen
+
+    func testAddCategoryOnSuccessAutoSelectsTheNewId() async throws {
+        let s = try await makeSetup()
+        // No category selected to start.
+        XCTAssertNil(s.viewModel.categoryId)
+
+        let result = await s.viewModel.addCategory(name: "  Pet supplies  ")
+        XCTAssertNil(result, "Expected nil on success, got: \(result ?? "")")
+        // VM auto-selected the just-created id.
+        XCTAssertNotNil(s.viewModel.categoryId)
+
+        // The category is persisted with the trimmed name.
+        let count = try await s.db.queue.read { conn in
+            try Int.fetchOne(
+                conn,
+                sql: "SELECT COUNT(*) FROM categories WHERE name = 'Pet supplies' AND deletedAt IS NULL"
+            ) ?? 0
+        }
+        XCTAssertEqual(count, 1)
+    }
+
+    func testAddCategoryWithBlankNameReturnsErrorAndDoesNotPersist() async throws {
+        let s = try await makeSetup()
+        let result = await s.viewModel.addCategory(name: "    ")
+        XCTAssertNotNil(result)
+        XCTAssertNil(s.viewModel.categoryId)
+
+        let count = try await s.db.queue.read { conn in
+            try Int.fetchOne(conn, sql: "SELECT COUNT(*) FROM categories WHERE userId = 'u1'") ?? 0
+        }
+        // Only the seeded "Dairy" should exist; no new row added.
+        XCTAssertEqual(count, 1)
+    }
+
+    func testAddCategoryWithDuplicateNameReturnsErrorAndPreservesExistingSelection() async throws {
+        let s = try await makeSetup()
+        // Pre-select the seeded "Dairy" so we can confirm the failure path
+        // doesn't wipe the existing selection on the form.
+        s.viewModel.categoryId = "c_dairy"
+
+        // "Dairy" already exists alive — addCategory should throw duplicateName.
+        let result = await s.viewModel.addCategory(name: "Dairy")
+        XCTAssertNotNil(result)
+        XCTAssertEqual(s.viewModel.categoryId, "c_dairy")
+    }
 }

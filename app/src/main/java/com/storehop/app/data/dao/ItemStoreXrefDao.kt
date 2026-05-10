@@ -226,4 +226,38 @@ interface ItemStoreXrefDao {
         lastPurchasedAt: Long,
         now: Long,
     )
+
+    /**
+     * Set every alive xref for [itemId] to needed. Used by the v0.6.1
+     * Items-list "+" tap: when the user adds an item from the master list,
+     * we mark it needed at every store it's tagged to. Cross-store cascade
+     * (one trip clears the list everywhere) means the inverse "−" tap can
+     * use the existing [markPurchasedAcrossAllStores] without writing a
+     * PurchaseRecord — this is a list-state action, not a purchase event.
+     */
+    @Query(
+        """
+        UPDATE item_store_xref
+        SET isNeeded = 1,
+            lastPurchasedAt = NULL,
+            updatedAt = :now,
+            pendingSync = 1
+        WHERE itemId = :itemId AND userId = :userId AND deletedAt IS NULL
+        """,
+    )
+    suspend fun markNeededAcrossAllStores(userId: String, itemId: String, now: Long)
+
+    /**
+     * Distinct item IDs that have at least one alive xref with `isNeeded = 1`
+     * for the given user. Powers the v0.6.1 +/− toggle on the Items list:
+     * the screen shows "−" when the item is on the list at any tagged
+     * store, "+" otherwise.
+     */
+    @Query(
+        """
+        SELECT DISTINCT itemId FROM item_store_xref
+        WHERE userId = :userId AND deletedAt IS NULL AND isNeeded = 1
+        """,
+    )
+    fun observeNeededItemIds(userId: String): Flow<List<String>>
 }
