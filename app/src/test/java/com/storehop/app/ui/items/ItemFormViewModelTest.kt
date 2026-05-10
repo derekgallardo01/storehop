@@ -409,6 +409,47 @@ class ItemFormViewModelTest {
         assertThat(vm.state.value.saveError).isEqualTo("network blip")
     }
 
+    @Test fun `Edit mode submit calls updateItem with the form fields`() = runTest {
+        val existing = ItemWithCategoryAndStores(
+            item = Item(
+                id = "milk-id", name = "Milk", brand = "Mimosa", categoryId = null, notes = null,
+                quantity = null, isNeeded = true, lastPurchasedAt = null,
+                userId = "u", createdAt = 1L, updatedAt = 1L, deletedAt = null,
+            ),
+            category = null,
+            stores = listOf(
+                Store(
+                    id = "s_lidl", name = "Lidl", colorArgb = null,
+                    isArchived = false, isSeeded = false, userId = "u",
+                    createdAt = 1L, updatedAt = 1L, deletedAt = null,
+                ),
+            ),
+        )
+
+        val vm = newEditVm("milk-id", existing)
+        advanceUntilIdle()
+        // Sanity: form loaded with the existing data.
+        assertThat(vm.state.value.name).isEqualTo("Milk")
+
+        // User edits the brand + saves. updateItem should run with the
+        // patched fields (this is the Edit-mode `else` branch in submit
+        // that the existing tests didn't exercise -- they cover Add via
+        // addItem only).
+        vm.setBrand("New Brand")
+        vm.submit()
+        advanceUntilIdle()
+
+        coVerify(exactly = 1) {
+            itemRepo.updateItem(
+                id = "milk-id", name = "Milk", categoryId = null,
+                storeIds = setOf("s_lidl"),
+                quantity = null, notes = null, brand = "New Brand",
+                imageUrl = null, isStaple = false, isPriority = false,
+            )
+        }
+        assertThat(vm.state.value.saved).isTrue()
+    }
+
     @Test fun `delete catches Exception from softDelete and surfaces saveError without setting deleted=true`() = runTest {
         val existing = ItemWithCategoryAndStores(
             item = Item(

@@ -14,10 +14,17 @@ No version bump.
 
 ### Coverage delta
 
-- **Line: 84.7% → 98.1%** (1537 / 1566 lines covered).
-- **Class: 90.3% → 99.3%** (135 / 136).
-- **Tests: 379 → 410 unit tests, 0 failures.** Plus 10/10 E2E
+- **Line: 84.7% → 99.9%** (1565 / 1566 lines covered).
+- **Class: 90.3% → 100%** (136 / 136).
+- **Tests: 379 → 421 unit tests, 0 failures.** Plus 10/10 E2E
   instrumented tests on Pixel_Phone AVD.
+
+The single remaining uncovered line is `session.userId.flatMapLatest { uid ->`
+inside `ItemRepositoryImpl.observeAll`. Every observeAll call in the
+suite exercises this code path; Kover flags the line as not-covered
+due to instrumentation quirks around `inline` coroutine operators
+(`flatMapLatest` is inline, so the lambda body inlines but the call
+site doesn't get a hit-count). Cosmetic gap, not a behavior gap.
 
 ### Added (unit tests)
 

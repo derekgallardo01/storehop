@@ -213,4 +213,18 @@ class ImportExportViewModelTest {
         advanceUntilIdle()
         coVerify(exactly = 0) { repo.undoImport(any()) }
     }
+
+    @Test fun `exportItemsTo surfaces error when openOutputStream returns null`() = runTest {
+        coEvery { repo.exportItemsCsv() } returns "name\nMilk\n"
+        // Force openOutputStream to return null -- exercises the
+        // `?: throw IllegalStateException` guard in writeAt.
+        every { resolver.openOutputStream(any<Uri>(), any()) } returns null
+
+        val vm = newVm()
+        vm.exportItemsTo(uri)
+        advanceUntilIdle()
+
+        assertThat(vm.busy.value).isFalse()
+        assertThat(vm.exportError.value).contains("destination")
+    }
 }

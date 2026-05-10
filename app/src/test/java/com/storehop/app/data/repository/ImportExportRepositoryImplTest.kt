@@ -73,6 +73,74 @@ class ImportExportRepositoryImplTest {
 
     @After fun tearDown() { db.close() }
 
+    @Test fun `importItemsCsv catches generic Exception from itemRepository_addItem`() = runTest {
+        // Replace the real itemRepository with a throwing mock so we exercise
+        // the row-loop catch(Exception) branch.
+        val throwingItemRepo = io.mockk.mockk<ItemRepository>(relaxed = true) {
+            io.mockk.coEvery {
+                addItem(any(), any(), any(), any(), any(), any(), any(), any(), any(), any())
+            } throws RuntimeException("disk full")
+            io.mockk.coEvery { observeAll() } returns kotlinx.coroutines.flow.flowOf(emptyList())
+        }
+        val mockedRepo = ImportExportRepositoryImpl(
+            db = db,
+            categoryDao = db.categoryDao(),
+            storeDao = db.storeDao(),
+            itemDao = db.itemDao(),
+            categoryRepository = CategoryRepositoryImpl(
+                db = db, dao = db.categoryDao(), itemDao = db.itemDao(),
+                scoDao = db.storeCategoryOrderDao(),
+                ids = ids, clock = clock, session = session,
+            ),
+            storeRepository = StoreRepositoryImpl(
+                db = db, dao = db.storeDao(),
+                xrefDao = db.itemStoreXrefDao(), scoDao = db.storeCategoryOrderDao(),
+                ids = ids, clock = clock, session = session,
+            ),
+            itemRepository = throwingItemRepo,
+            session = session,
+        )
+
+        val result = mockedRepo.importItemsCsv("name\nMilk\n")
+        assertThat(result.itemsImported).isEqualTo(0)
+        assertThat(result.errors).hasSize(1)
+        assertThat(result.errors[0]).contains("Milk")
+        assertThat(result.errors[0]).contains("disk full")
+    }
+
+    @Test fun `importCategoriesCsv catches IllegalArgumentException from categoryRepository_addCategory`() = runTest {
+        val throwingCategoryRepo = io.mockk.mockk<CategoryRepository>(relaxed = true) {
+            io.mockk.coEvery {
+                addCategory(any(), any())
+            } throws IllegalArgumentException("name too long")
+        }
+        val mockedRepo = ImportExportRepositoryImpl(
+            db = db,
+            categoryDao = db.categoryDao(),
+            storeDao = db.storeDao(),
+            itemDao = db.itemDao(),
+            categoryRepository = throwingCategoryRepo,
+            storeRepository = StoreRepositoryImpl(
+                db = db, dao = db.storeDao(),
+                xrefDao = db.itemStoreXrefDao(), scoDao = db.storeCategoryOrderDao(),
+                ids = ids, clock = clock, session = session,
+            ),
+            itemRepository = ItemRepositoryImpl(
+                db = db, itemDao = db.itemDao(), xrefDao = db.itemStoreXrefDao(),
+                purchaseRecordDao = db.purchaseRecordDao(),
+                scoDao = db.storeCategoryOrderDao(),
+                ids = ids, clock = clock, session = session,
+            ),
+            session = session,
+        )
+
+        val result = mockedRepo.importCategoriesCsv("name\nVery long name\n")
+        assertThat(result.categoriesImported).isEqualTo(0)
+        assertThat(result.errors).hasSize(1)
+        assertThat(result.errors[0]).contains("Very long name")
+        assertThat(result.errors[0]).contains("name too long")
+    }
+
     @Test fun `importItemsCsv inserts new items, auto-creating their referenced categories and stores`() = runTest {
         val csv = """
             name,category,stores,brand

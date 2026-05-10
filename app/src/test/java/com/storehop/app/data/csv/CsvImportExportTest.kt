@@ -160,4 +160,23 @@ class CsvImportExportTest {
         val parsed = parseCategoryCsv(original.toCategoriesCsv()).rows
         assertThat(parsed).isEqualTo(original)
     }
+
+    @Test fun `parseItemCsv reports an error when the name column is empty on a row`() {
+        // Header includes name; data row has an empty name field.
+        val csv = "name,brand\n,Sara Lee\nMilk,\n"
+        val r = parseItemCsv(csv)
+        // Two rows seen: row 1 has empty name -> error; row 2 is valid.
+        assertThat(r.rows.map { it.name }).containsExactly("Milk")
+        assertThat(r.errors).isNotEmpty()
+        assertThat(r.errors[0]).contains("name")
+    }
+
+    @Test fun `parseCategoryCsv reports an error when the name column is empty on a row`() {
+        // Same shape as the items test, but on the category-parser branch.
+        val csv = "name,icon\n,🥖\nBakery,\n"
+        val r = parseCategoryCsv(csv)
+        assertThat(r.rows.map { it.name }).containsExactly("Bakery")
+        assertThat(r.errors).isNotEmpty()
+        assertThat(r.errors[0]).contains("name")
+    }
 }

@@ -407,6 +407,31 @@ class ShopAtStoreViewModelTest {
         savedStateHandle = SavedStateHandle(mapOf("storeId" to "store_lidl")),
     )
 
+    @Test fun `setShowPurchased delegates to the prefs repo`() = runTest {
+        coEvery { shoppingRepo.shoppingListForStore(any(), any()) } returns rowsFlow
+        coEvery { storeRepo.observeById(any()) } returns flowOf(testStore())
+        val vm = newVm()
+        vm.setShowPurchased(false)
+        advanceUntilIdle()
+        coVerify(exactly = 1) { prefsRepo.setShowPurchased(false) }
+    }
+
+    @Test fun `constructor throws when storeId arg is missing`() = runTest {
+        try {
+            ShopAtStoreViewModel(
+                shoppingRepository = shoppingRepo,
+                itemRepository = itemRepo,
+                preferencesRepository = prefsRepo,
+                sessionTracker = sessionTracker,
+                storeRepository = storeRepo,
+                savedStateHandle = SavedStateHandle(),
+            )
+            org.junit.Assert.fail("Expected IllegalStateException")
+        } catch (e: IllegalStateException) {
+            assertThat(e.message).contains("storeId")
+        }
+    }
+
     private fun row(
         id: String,
         name: String,
