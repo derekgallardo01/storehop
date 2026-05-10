@@ -581,6 +581,113 @@ class ItemRepositoryImplTest {
         )
     }
 
+    // ---- v0.5.7 additions: tagItemToStore + addItemFromQuickAdd -------------
+
+    @Test fun `tagItemToStore creates a fresh xref when none exists`() = runTest {
+        val itemId = repo.addItem(
+            name = "Milk", categoryId = null,
+            storeIds = setOf("store_lidl"),
+            quantity = null, notes = null,
+        )
+        // Add a second store *after* item creation. tagItemToStore should
+        // produce a brand-new live xref for store_continente without
+        // disturbing the existing store_lidl xref.
+        repo.tagItemToStore(itemId = itemId, storeId = "store_continente")
+
+        val xrefs = db.itemStoreXrefDao().findForItem(itemId)
+        assertThat(xrefs.map { it.storeId }.toSet())
+            .containsExactly("store_lidl", "store_continente")
+        val continenteXref = xrefs.single { it.storeId == "store_continente" }
+        assertThat(continenteXref.isNeeded).isTrue()
+        assertThat(continenteXref.userId).isEqualTo(TEST_USER_ID)
+        assertThat(continenteXref.deletedAt).isNull()
+    }
+
+    @Test fun `tagItemToStore upserts a tombstoned xref back to live + needed`() = runTest {
+        // Start with the item tagged at store_lidl, then tombstone the xref
+        // (simulates the user removing the store via the form, leaving the
+        // junction soft-deleted with the original createdAt). Then
+        // tagItemToStore re-tags the same store. Upsert by primary key
+        // (itemId, storeId) replaces the tombstoned row with a live one.
+        val itemId = repo.addItem(
+            name = "Milk", categoryId = null,
+            storeIds = setOf("store_lidl"),
+            quantity = null, notes = null,
+        )
+        // Replace the store set with empty -- tombstones the lidl xref.
+        repo.updateItem(
+            id = itemId, name = "Milk", categoryId = null,
+            storeIds = emptySet(), quantity = null, notes = null,
+        )
+        // findForItem returns only LIVE xrefs.
+        assertThat(db.itemStoreXrefDao().findForItem(itemId)).isEmpty()
+
+        repo.tagItemToStore(itemId = itemId, storeId = "store_lidl")
+
+        val live = db.itemStoreXrefDao().findForItem(itemId)
+        assertThat(live).hasSize(1)
+        assertThat(live.single().storeId).isEqualTo("store_lidl")
+        assertThat(live.single().isNeeded).isTrue()
+        assertThat(live.single().deletedAt).isNull()
+    }
+
+    @Test fun `tagItemToStore on an already-needed live xref is idempotent`() = runTest {
+        // Initial xref is alive AND isNeeded=true. Calling tagItemToStore
+        // is a no-op-ish: the row stays alive, isNeeded stays true; the
+        // row gets touched (updatedAt + pendingSync) for sync hygiene
+        // but the user-visible state is unchanged.
+        val itemId = repo.addItem(
+            name = "Milk", categoryId = null,
+            storeIds = setOf("store_lidl"),
+            quantity = null, notes = null,
+        )
+        val before = db.itemStoreXrefDao().findForItem(itemId).single()
+        assertThat(before.isNeeded).isTrue()
+
+        repo.tagItemToStore(itemId = itemId, storeId = "store_lidl")
+
+        val after = db.itemStoreXrefDao().findForItem(itemId).single()
+        assertThat(after.storeId).isEqualTo("store_lidl")
+        assertThat(after.isNeeded).isTrue()
+        assertThat(after.deletedAt).isNull()
+        // Same primary key -- single() guarantees there's no duplicate row.
+    }
+
+    @Test fun `addItemFromQuickAdd dedupes by case-insensitive name and routes to tagItemToStore`() = runTest {
+        // Pre-seed the master library with a "Milk" item not yet tagged to
+        // any store. addItemFromQuickAdd("milk", store_lidl) should find
+        // the existing entry by case-insensitive name match and tag it
+        // rather than creating a duplicate row -- this is the v0.5.7 fix
+        // for the duplicate-creation bug.
+        val originalId = repo.addItem(
+            name = "Milk", categoryId = null,
+            storeIds = emptySet(),
+            quantity = null, notes = null,
+        )
+        val initialItemCount = db.itemDao().observeAll(TEST_USER_ID).first().size
+        assertThat(initialItemCount).isEqualTo(1)
+
+        // Lowercase form + surrounding whitespace -- both should be
+        // ignored by findByName (COLLATE NOCASE) + the trim().
+        val resolvedId = repo.addItemFromQuickAdd(name = "  milk  ", storeId = "store_lidl")
+
+        // Same item id surfaced -- no duplicate created.
+        assertThat(resolvedId).isEqualTo(originalId)
+        // Items table count unchanged.
+        assertThat(db.itemDao().observeAll(TEST_USER_ID).first().size).isEqualTo(initialItemCount)
+        // The resolved item now has a live xref at store_lidl.
+        val xrefs = db.itemStoreXrefDao().findForItem(originalId)
+        assertThat(xrefs.map { it.storeId }).containsExactly("store_lidl")
+        assertThat(xrefs.single().isNeeded).isTrue()
+
+        // No-match path: a new name creates a new item.
+        val newId = repo.addItemFromQuickAdd(name = "Bread", storeId = "store_lidl")
+        assertThat(newId).isNotEqualTo(originalId)
+        assertThat(db.itemDao().observeAll(TEST_USER_ID).first().size).isEqualTo(2)
+    }
+
+    // ---- Helpers ------------------------------------------------------------
+
     private fun sco(
         storeId: String, categoryId: String, displayOrder: Int, isSeeded: Boolean = false,
     ) = StoreCategoryOrder(
