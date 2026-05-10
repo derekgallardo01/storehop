@@ -18,7 +18,10 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Sort
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Category
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
@@ -53,8 +56,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
+import android.content.Context
+import androidx.compose.ui.platform.LocalContext
 import com.storehop.app.R
 import com.storehop.app.data.db.relations.ItemWithCategoryAndStores
+import com.storehop.app.data.prefs.SortMode
 import com.storehop.app.ui.util.UndoBar
 import com.storehop.app.ui.util.UndoBarState
 import com.storehop.app.ui.util.UndoEvent
@@ -71,8 +77,9 @@ fun ItemsListScreen(
     onOpenCategories: () -> Unit,
     viewModel: ItemsListViewModel = hiltViewModel(),
 ) {
-    val items by viewModel.items.collectAsState()
+    val state by viewModel.uiState.collectAsState()
     val query by viewModel.query.collectAsState()
+    val ctx = LocalContext.current
     val undoTemplate = stringResource(R.string.undo_item_deleted)
     var undoState: UndoBarState? by remember { mutableStateOf(null) }
 
@@ -101,6 +108,24 @@ fun ItemsListScreen(
             TopAppBar(
                 title = { Text(stringResource(R.string.title_items)) },
                 actions = {
+                    // Sort toggle: flat alphabetic vs category-grouped.
+                    // Persisted via UserPreferencesRepository.itemsListSortMode.
+                    IconButton(onClick = {
+                        val next = if (state.sortMode == SortMode.ALPHABETIC)
+                            SortMode.CATEGORY else SortMode.ALPHABETIC
+                        viewModel.setSortMode(next)
+                    }) {
+                        Icon(
+                            imageVector = if (state.sortMode == SortMode.ALPHABETIC)
+                                Icons.Filled.Category
+                            else Icons.AutoMirrored.Filled.Sort,
+                            contentDescription = stringResource(
+                                if (state.sortMode == SortMode.ALPHABETIC)
+                                    R.string.sort_category_cd
+                                else R.string.sort_alphabetic_cd,
+                            ),
+                        )
+                    }
                     IconButton(onClick = onOpenSettings) {
                         Icon(
                             Icons.Filled.Settings,
@@ -151,6 +176,16 @@ fun ItemsListScreen(
                     .padding(horizontal = 16.dp, vertical = 8.dp),
                 placeholder = { Text(stringResource(R.string.search_items_placeholder)) },
                 leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
+                trailingIcon = {
+                    if (query.isNotEmpty()) {
+                        IconButton(onClick = { viewModel.setQuery("") }) {
+                            Icon(
+                                Icons.Filled.Close,
+                                contentDescription = stringResource(R.string.action_clear_search),
+                            )
+                        }
+                    }
+                },
                 singleLine = true,
             )
 
@@ -170,21 +205,69 @@ fun ItemsListScreen(
                 },
                 modifier = Modifier.fillMaxSize(),
             ) {
-                if (items.isEmpty()) {
+                val isEmpty = when (state.sortMode) {
+                    SortMode.ALPHABETIC -> state.rows.isEmpty()
+                    SortMode.CATEGORY -> state.sections.isEmpty()
+                }
+                if (isEmpty) {
                     EmptyState(query = query)
                 } else {
                     LazyColumn(
                         contentPadding = PaddingValues(bottom = 96.dp),
                         modifier = Modifier.fillMaxSize(),
                     ) {
-                        items(items, key = { it.item.id }) { row ->
-                            ItemRow(row = row, onClick = { onEditItem(row.item.id) })
+                        when (state.sortMode) {
+                            SortMode.ALPHABETIC -> {
+                                items(state.rows, key = { it.item.id }) { row ->
+                                    ItemRow(row = row, onClick = { onEditItem(row.item.id) })
+                                }
+                            }
+                            SortMode.CATEGORY -> {
+                                state.sections.forEach { section ->
+                                    item(key = "header_${section.categoryName}") {
+                                        ItemsCategoryHeader(section = section, ctx = ctx)
+                                    }
+                                    items(section.rows, key = { it.item.id }) { row ->
+                                        ItemRow(row = row, onClick = { onEditItem(row.item.id) })
+                                    }
+                                }
+                            }
                         }
                     }
                 }
             }
         }
     }
+}
+
+/**
+ * Section header in CATEGORY sort mode. Resolves the localized label via
+ * the seeded `nameKey` lookup (same pattern as Shop-at-Store), and swaps
+ * in the localized "(uncategorised)" label when the ViewModel emitted the
+ * [UNCATEGORISED_SENTINEL].
+ */
+@Composable
+@android.annotation.SuppressLint("DiscouragedApi")
+private fun ItemsCategoryHeader(section: ItemsCategorySection, ctx: Context) {
+    val label = resolveSectionLabel(section, ctx)
+    Text(
+        text = label,
+        style = MaterialTheme.typography.labelLarge,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+    )
+}
+
+@android.annotation.SuppressLint("DiscouragedApi")
+private fun resolveSectionLabel(section: ItemsCategorySection, ctx: Context): String {
+    if (section.categoryName == UNCATEGORISED_SENTINEL) {
+        return ctx.getString(R.string.items_uncategorised_label)
+    }
+    val key = section.categoryNameKey ?: return section.categoryName
+    val resId = ctx.resources.getIdentifier(key, "string", ctx.packageName)
+    return if (resId != 0) ctx.getString(resId) else section.categoryName
 }
 
 @Composable

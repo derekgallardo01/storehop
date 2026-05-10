@@ -71,7 +71,11 @@
     <string name="settings_language_it">Italiano</string>
 
     <!-- Items list + form. -->
-    <string name="search_items_placeholder">Search items by name or brand</string>
+    <string name="search_items_placeholder">Search by name or brand</string>
+    <string name="action_clear_search">Clear search</string>
+    <string name="sort_alphabetic_cd">Switch to alphabetic sort</string>
+    <string name="sort_category_cd">Switch to category sort</string>
+    <string name="items_uncategorised_label">(uncategorised)</string>
     <string name="items_empty_no_query">No items yet — tap + to add one</string>
     <string name="items_empty_with_query">No items match \"%1$s\"</string>
     <string name="form_field_name">Name</string>

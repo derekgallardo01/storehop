@@ -71,7 +71,11 @@
     <string name="settings_language_it">Italiano</string>
 
     <!-- Lista y formulario de artículos. -->
-    <string name="search_items_placeholder">Buscar artículos por nombre o marca</string>
+    <string name="search_items_placeholder">Buscar por nombre o marca</string>
+    <string name="action_clear_search">Borrar búsqueda</string>
+    <string name="sort_alphabetic_cd">Cambiar a orden alfabético</string>
+    <string name="sort_category_cd">Cambiar a orden por categoría</string>
+    <string name="items_uncategorised_label">(sin categoría)</string>
     <string name="items_empty_no_query">Aún no hay artículos: pulsa + para añadir uno</string>
     <string name="items_empty_with_query">Ningún artículo coincide con \"%1$s\"</string>
     <string name="form_field_name">Nombre</string>

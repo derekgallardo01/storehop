@@ -1,7 +1,10 @@
 package com.storehop.app.ui.shop
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -22,8 +25,13 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.Sort
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Category
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Share
@@ -68,6 +76,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.storehop.app.R
 import com.storehop.app.data.db.relations.ShoppingRow
+import com.storehop.app.data.prefs.SortMode
 import com.storehop.app.ui.util.UndoBar
 import com.storehop.app.ui.util.UndoBarState
 import com.storehop.app.ui.util.WordCaps
@@ -78,6 +87,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun ShopAtStoreScreen(
     onBack: () -> Unit,
+    onEditItem: (String) -> Unit,
     viewModel: ShopAtStoreViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsState()
@@ -105,6 +115,25 @@ fun ShopAtStoreScreen(
                     }
                 },
                 actions = {
+                    // Sort toggle: flips between category-grouped (aisles)
+                    // and a flat alphabetic list. Persisted across stores via
+                    // UserPreferencesRepository.shopAtStoreSortMode.
+                    IconButton(onClick = {
+                        val next = if (state.sortMode == SortMode.CATEGORY)
+                            SortMode.ALPHABETIC else SortMode.CATEGORY
+                        viewModel.setSortMode(next)
+                    }) {
+                        Icon(
+                            imageVector = if (state.sortMode == SortMode.CATEGORY)
+                                Icons.AutoMirrored.Filled.Sort
+                            else Icons.Filled.Category,
+                            contentDescription = stringResource(
+                                if (state.sortMode == SortMode.CATEGORY)
+                                    R.string.sort_alphabetic_cd
+                                else R.string.sort_category_cd,
+                            ),
+                        )
+                    }
                     // Toggle: show / hide every checked-off row (purchased
                     // non-staples AND not-needed staples). Filled check icon
                     // = currently showing; outlined = hidden.
@@ -122,7 +151,8 @@ fun ShopAtStoreScreen(
                             ),
                         )
                     }
-                    val canShare = state.rowsByCategory.isNotEmpty()
+                    val canShare = state.rowsByCategory.isNotEmpty() ||
+                        state.rowsAlphabetic.isNotEmpty()
                     IconButton(onClick = { menuOpen = true }, enabled = canShare) {
                         Icon(
                             Icons.Filled.MoreVert,
@@ -182,6 +212,16 @@ fun ShopAtStoreScreen(
                     .padding(horizontal = 16.dp, vertical = 8.dp),
                 placeholder = { Text(stringResource(R.string.search_store_placeholder)) },
                 leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
+                trailingIcon = {
+                    if (state.query.isNotEmpty()) {
+                        IconButton(onClick = { viewModel.setQuery("") }) {
+                            Icon(
+                                Icons.Filled.Close,
+                                contentDescription = stringResource(R.string.action_clear_search),
+                            )
+                        }
+                    }
+                },
                 singleLine = true,
             )
 
@@ -199,37 +239,61 @@ fun ShopAtStoreScreen(
                 },
                 modifier = Modifier.fillMaxSize(),
             ) {
-                if (state.rowsByCategory.isEmpty()) {
+                val isEmpty = when (state.sortMode) {
+                    SortMode.CATEGORY -> state.rowsByCategory.isEmpty()
+                    SortMode.ALPHABETIC -> state.rowsAlphabetic.isEmpty()
+                }
+                if (isEmpty) {
                     EmptyState(query = state.query)
                 } else {
+                    // Single closure shared between both sort modes -- the row
+                    // rendering is identical, only the grouping changes.
+                    val onRowTap: (ShoppingRow) -> Unit = { row ->
+                        val wasNeeded = row.isNeeded
+                        viewModel.togglePurchased(row)
+                        // Light tactile click on every check-off so the user
+                        // gets confirmation without looking. Done both
+                        // directions (check + un-check); keeps the gesture's
+                        // physical feel consistent.
+                        haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                        if (wasNeeded) {
+                            // Show the undo bar. UndoBarState's default `stamp`
+                            // ensures consecutive taps reset the auto-dismiss
+                            // timer (LaunchedEffect inside UndoBar restarts).
+                            val itemId = row.itemId
+                            undoState = UndoBarState(
+                                message = undoTemplate.format(row.itemName),
+                                onUndo = { viewModel.undoPurchase(itemId) },
+                            )
+                        }
+                    }
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
                         contentPadding = PaddingValues(bottom = 32.dp),
                     ) {
-                        state.rowsByCategory.forEach { section ->
-                            item(key = "header_${section.categoryName}") {
-                                CategoryHeader(section)
-                            }
-                            items(section.rows, key = { it.itemId }) { row ->
-                                ShopAtStoreRow(row, onTap = {
-                                    val wasNeeded = row.isNeeded
-                                    viewModel.togglePurchased(row)
-                                    // Light tactile click on every check-off so the user
-                                    // gets confirmation without looking. Done both
-                                    // directions (check + un-check); keeps the gesture's
-                                    // physical feel consistent.
-                                    haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                    if (wasNeeded) {
-                                        // Show the undo bar. UndoBarState's default `stamp`
-                                        // ensures consecutive taps reset the auto-dismiss
-                                        // timer (LaunchedEffect inside UndoBar restarts).
-                                        val itemId = row.itemId
-                                        undoState = UndoBarState(
-                                            message = undoTemplate.format(row.itemName),
-                                            onUndo = { viewModel.undoPurchase(itemId) },
+                        when (state.sortMode) {
+                            SortMode.CATEGORY -> {
+                                state.rowsByCategory.forEach { section ->
+                                    item(key = "header_${section.categoryName}") {
+                                        CategoryHeader(section)
+                                    }
+                                    items(section.rows, key = { it.itemId }) { row ->
+                                        ShopAtStoreRow(
+                                            row = row,
+                                            onTap = { onRowTap(row) },
+                                            onLongPress = { onEditItem(row.itemId) },
                                         )
                                     }
-                                })
+                                }
+                            }
+                            SortMode.ALPHABETIC -> {
+                                items(state.rowsAlphabetic, key = { it.itemId }) { row ->
+                                    ShopAtStoreRow(
+                                        row = row,
+                                        onTap = { onRowTap(row) },
+                                        onLongPress = { onEditItem(row.itemId) },
+                                    )
+                                }
                             }
                         }
                     }
@@ -361,35 +425,51 @@ private fun QuickAddSuggestionRow(
 
 @Composable
 private fun CriticalBanner(criticalNames: List<String>) {
+    // Collapsed by default: with many criticals the comma-joined list grew
+    // tall enough to push the rest of the screen off the fold. Mirrors the
+    // expand/collapse pattern on StorePicker's CriticalNeedsBanner.
+    var expanded by remember { mutableStateOf(false) }
+    val onContainer = MaterialTheme.colorScheme.onPrimaryContainer
     Card(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp)
+            .clickable { expanded = !expanded },
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.primaryContainer,
         ),
     ) {
-        Row(
-            modifier = Modifier.padding(12.dp),
-            verticalAlignment = Alignment.Top,
-        ) {
-            Icon(
-                Icons.Filled.Warning,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onPrimaryContainer,
-            )
-            Spacer(Modifier.width(12.dp))
-            Column(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(12.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    Icons.Filled.Warning,
+                    contentDescription = null,
+                    tint = onContainer,
+                )
+                Spacer(Modifier.width(12.dp))
                 val n = criticalNames.size
                 Text(
                     text = pluralStringResource(R.plurals.critical_at_this_store, n, n),
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                    color = onContainer,
+                    modifier = Modifier.weight(1f),
                 )
-                Spacer(Modifier.height(4.dp))
+                Icon(
+                    imageVector = if (expanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
+                    contentDescription = stringResource(
+                        if (expanded) R.string.critical_banner_collapse_cd
+                        else R.string.critical_banner_expand_cd,
+                    ),
+                    tint = onContainer,
+                )
+            }
+            AnimatedVisibility(visible = expanded) {
                 Text(
                     text = criticalNames.joinToString(", "),
                     style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                    color = onContainer,
+                    modifier = Modifier.padding(top = 6.dp, start = 36.dp),
                 )
             }
         }
@@ -426,10 +506,12 @@ private fun CategorySection.localizedDisplayName(): String {
     return if (resId != 0) context.getString(resId) else categoryName
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun ShopAtStoreRow(
     row: ShoppingRow,
     onTap: () -> Unit,
+    onLongPress: () -> Unit,
 ) {
     // Any purchased row -- staple or not -- now stays in the list within the
     // session window so the user can undo a mis-tap. Non-staples drop out on
@@ -443,7 +525,7 @@ private fun ShopAtStoreRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onTap)
+            .combinedClickable(onClick = onTap, onLongClick = onLongPress)
             .alpha(rowAlpha),
         verticalAlignment = Alignment.CenterVertically,
     ) {

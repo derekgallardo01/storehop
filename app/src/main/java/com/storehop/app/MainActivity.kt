@@ -245,7 +245,10 @@ private fun SignedInRoot() {
                 route = Routes.SHOP_AT_STORE,
                 arguments = listOf(navArgument("storeId") { type = NavType.StringType }),
             ) {
-                ShopAtStoreScreen(onBack = { navController.popBackStack() })
+                ShopAtStoreScreen(
+                    onBack = { navController.popBackStack() },
+                    onEditItem = { id -> navController.navigate(Routes.itemEdit(id)) },
+                )
             }
             composable(
                 route = Routes.EDIT_AISLE_ORDER,

@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.storehop.app.data.db.relations.ItemWithCategoryAndStores
 import com.storehop.app.data.db.relations.ShoppingRow
 import com.storehop.app.data.entity.Store
+import com.storehop.app.data.prefs.SortMode
 import com.storehop.app.data.prefs.UserPreferencesRepository
 import com.storehop.app.data.repository.ItemRepository
 import com.storehop.app.data.repository.ShoppingRepository
@@ -24,10 +25,21 @@ import javax.inject.Inject
 
 data class ShopAtStoreUiState(
     val store: Store? = null,
+    /**
+     * Aisle-grouped list, populated only when [sortMode] is
+     * [SortMode.CATEGORY]. Empty otherwise so the screen can pick the
+     * single non-empty list to render without a sentinel check.
+     */
     val rowsByCategory: List<CategorySection> = emptyList(),
+    /**
+     * Flat alphabetic list (case-insensitive on item name), populated only
+     * when [sortMode] is [SortMode.ALPHABETIC].
+     */
+    val rowsAlphabetic: List<ShoppingRow> = emptyList(),
     val criticalNames: List<String> = emptyList(),
     val query: String = "",
     val showPurchased: Boolean = true,
+    val sortMode: SortMode = SortMode.CATEGORY,
 )
 
 /**
@@ -97,7 +109,8 @@ class ShopAtStoreViewModel @Inject constructor(
             rows,
             _query,
             preferencesRepository.showPurchased,
-        ) { st, allRows, q, showP ->
+            preferencesRepository.shopAtStoreSortMode,
+        ) { st, allRows, q, showP, sortMode ->
             // When showP is false, hide every checked-off row regardless of
             // staple status -- "checked off" is a single concept to the user.
             val visible = if (showP) allRows else allRows.filter { it.isNeeded }
@@ -108,13 +121,19 @@ class ShopAtStoreViewModel @Inject constructor(
             }
             ShopAtStoreUiState(
                 store = st,
-                rowsByCategory = filtered.groupByCategory(),
+                rowsByCategory = if (sortMode == SortMode.CATEGORY) {
+                    filtered.groupByCategory()
+                } else emptyList(),
+                rowsAlphabetic = if (sortMode == SortMode.ALPHABETIC) {
+                    filtered.sortedBy { it.itemName.lowercase() }
+                } else emptyList(),
                 // Critical names come from the unfiltered list -- neither the
                 // search nor the visibility toggle should hide critical needs
                 // from the banner.
                 criticalNames = allRows.filter { it.isPriority }.map { it.itemName },
                 query = q,
                 showPurchased = showP,
+                sortMode = sortMode,
             )
         }.stateIn(
             viewModelScope, SharingStarted.WhileSubscribed(5_000L), ShopAtStoreUiState(),
@@ -126,6 +145,10 @@ class ShopAtStoreViewModel @Inject constructor(
 
     fun setShowPurchased(value: Boolean) {
         viewModelScope.launch { preferencesRepository.setShowPurchased(value) }
+    }
+
+    fun setSortMode(mode: SortMode) {
+        viewModelScope.launch { preferencesRepository.setShopAtStoreSortMode(mode) }
     }
 
     /**

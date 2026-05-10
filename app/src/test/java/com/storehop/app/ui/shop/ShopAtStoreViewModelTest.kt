@@ -46,8 +46,13 @@ class ShopAtStoreViewModelTest {
         coEvery { sessionStartMs() } returns 1_000L
     }
     private val showPurchasedFlow = MutableStateFlow(true)
+    private val sortModeFlow = MutableStateFlow(com.storehop.app.data.prefs.SortMode.CATEGORY)
     private val prefsRepo: UserPreferencesRepository = mockk(relaxed = true) {
         every { showPurchased } returns showPurchasedFlow
+        every { shopAtStoreSortMode } returns sortModeFlow
+        coEvery { setShopAtStoreSortMode(any()) } answers {
+            sortModeFlow.value = firstArg()
+        }
     }
 
     private val rowsFlow = MutableStateFlow<List<ShoppingRow>>(emptyList())
@@ -205,6 +210,54 @@ class ShopAtStoreViewModelTest {
             advanceUntilIdle()
             val state = expectMostRecentItem()
             assertThat(state.criticalNames).containsExactly("Milk")
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test fun `setSortMode ALPHABETIC produces a flat case-insensitive list and clears category groups`() = runTest {
+        rowsFlow.value = listOf(
+            row("milk", "milk", isNeeded = true),
+            row("apples", "Apples", isNeeded = true),
+            row("bread", "BREAD", isNeeded = true),
+        )
+        coEvery { shoppingRepo.shoppingListForStore(any(), any()) } returns rowsFlow
+        coEvery { storeRepo.observeById(any()) } returns flowOf(testStore())
+
+        val vm = newVm()
+        vm.setSortMode(com.storehop.app.data.prefs.SortMode.ALPHABETIC)
+        vm.uiState.test {
+            awaitItem()
+            advanceUntilIdle()
+            val state = expectMostRecentItem()
+            assertThat(state.sortMode).isEqualTo(com.storehop.app.data.prefs.SortMode.ALPHABETIC)
+            assertThat(state.rowsByCategory).isEmpty()
+            // lowercase("BREAD") < lowercase("milk") so order is Apples, BREAD, milk.
+            assertThat(state.rowsAlphabetic.map { it.itemName })
+                .containsExactly("Apples", "BREAD", "milk").inOrder()
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test fun `setSortMode CATEGORY restores the grouped list and clears alphabetic`() = runTest {
+        rowsFlow.value = listOf(
+            row("milk", "Milk", isNeeded = true),
+            row("apples", "Apples", isNeeded = true),
+        )
+        coEvery { shoppingRepo.shoppingListForStore(any(), any()) } returns rowsFlow
+        coEvery { storeRepo.observeById(any()) } returns flowOf(testStore())
+
+        val vm = newVm()
+        // Flip to ALPHABETIC first, then back, to prove the toggle round-trips.
+        vm.setSortMode(com.storehop.app.data.prefs.SortMode.ALPHABETIC)
+        advanceUntilIdle()
+        vm.setSortMode(com.storehop.app.data.prefs.SortMode.CATEGORY)
+        vm.uiState.test {
+            awaitItem()
+            advanceUntilIdle()
+            val state = expectMostRecentItem()
+            assertThat(state.sortMode).isEqualTo(com.storehop.app.data.prefs.SortMode.CATEGORY)
+            assertThat(state.rowsAlphabetic).isEmpty()
+            assertThat(state.rowsByCategory).isNotEmpty()
             cancelAndIgnoreRemainingEvents()
         }
     }

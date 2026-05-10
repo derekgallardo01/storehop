@@ -13,7 +13,7 @@ specific household) is added or renamed by the user.
 
 ## Status
 
-v0.5.15. Shipping to Google Play Closed testing. Feature-complete for
+v0.6.0. Shipping to Google Play Closed testing. Feature-complete for
 single-user v1: anonymous-first onboarding with optional Google
 Sign-In, two-way Firestore + Storage cloud sync (push and pull), Shop
 and Items tabs with item photos, share-list-as-text, theme + language
@@ -196,19 +196,33 @@ pack remains stable across devices and across reseeds.
          3s auto-dismiss). iOS marketing version bumped from 0.5.1
          to 0.5.15. iOS Edit aisles intentionally keeps the
          platform-idiomatic `.onMove` + `EditButton` pattern.
-- v0.6.0  **Multi-user account sharing** (planned). Mike-asked:
-         *"allowing multiple people to access one account is
-         probably a good one. I could see allowing Amanda to access
-         my list and add items and check off items."* Lets one
-         primary account invite collaborators (spouse, family,
-         roommate, etc.) who can read and edit the same shopping
-         list, items, stores, and categories in real time over the
-         existing Firestore sync. Touches the data layer (shared
-         doc ownership / per-doc ACL), auth (invite + accept flow),
-         Firestore security rules, and several UI surfaces (invite
-         from Settings → Account, manage collaborators, conflict
-         signals). Major feature — designed as its own milestone
-         rather than tacked onto the v0.5.x patch line.
-- v0.6+  Polish follow-ups (e.g. tightening the in-session staple
+- v0.6.0 Mike's UX feedback bundle: × clear-search button on both
+         the in-store search and the master Items search;
+         long-press an item in a store's list to jump straight to
+         its edit form (great for tagging "this store also carries
+         X" without leaving the store view); collapsing/expanding
+         in-store critical-items banner so a long list of
+         criticals doesn't push the screen off the fold; new
+         Alphabetic ↔ Category sort toggles in the top app bars
+         on both the Shop-at-Store screen and the Items list, with
+         the choice persisted independently per screen. Search
+         prompt on the Items list shortened from "Search items by
+         name or brand" → "Search by name or brand" (was wrapping
+         on Mike's Pixel). Android-only release; iOS parity to
+         follow on the Mac side.
+- v0.7.0 **Multi-user account sharing** (deferred from v0.6.0).
+         Mike-asked: *"allowing multiple people to access one
+         account is probably a good one. I could see allowing
+         Amanda to access my list and add items and check off
+         items."* Lets one primary account invite collaborators
+         (spouse, family, roommate, etc.) who can read and edit
+         the same shopping list, items, stores, and categories in
+         real time over the existing Firestore sync. Touches the
+         data layer (shared doc ownership / per-doc ACL), auth
+         (invite + accept flow), Firestore security rules, and
+         several UI surfaces (invite from Settings → Account,
+         manage collaborators, conflict signals). Major feature —
+         designed as its own milestone.
+- v0.7+  Polish follow-ups (e.g. tightening the in-session staple
          flag's renewal behavior) and a v2 home-screen widget that
          actually does something useful.

@@ -7,6 +7,71 @@ project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 For the high-level roadmap and earlier-than-0.5.0 history, see the
 "Roadmap" section in the [README](README.md).
 
+## [0.6.0] - 2026-05-10
+
+Mike's UX feedback bundle. Six items pulled in from his most recent
+round; the multi-user account-sharing milestone moves to v0.7.0 since
+none of these depend on the data-model rework that needs.
+
+### Added
+
+- **Clear (×) button on the search box.** Both the Shop-at-Store
+  search and the Items list search now show a trailing × icon while
+  the field has text — one tap wipes the query so the next search
+  starts from a blank slate. Mike-reported: "if I search for
+  something, I have to manually remove whatever I previously
+  searched for before I can search for something else."
+
+- **Long-press an item in a store's list to edit it.** Inside any
+  store, long-pressing an item row jumps straight to the Items
+  edit form for that item. The previous flow (Items tab → find item
+  → tap to edit → add the new store-tag → save → navigate back)
+  collapses to one gesture. Mike-reported scenario: standing in
+  Normal, out of Dog Treats, knew Walmart carries them but hadn't
+  tagged them yet — long-press lets you add the tag without
+  leaving the store screen.
+
+- **Alphabetic vs Category sort toggle inside a store.** New icon
+  in the Shop-at-Store top app bar flips the in-store list between
+  the existing aisle-grouped layout and a flat alphabetic list.
+  Choice persists across stores and across app restart via the
+  `shop_at_store_sort_mode` DataStore preference. Mike-reported:
+  "If I want to check to make sure 'Ketchup' is on my Aldi list,
+  I have to scroll all the way down to the 'Condiments' category."
+
+- **Alphabetic vs Category sort toggle on the master Items list.**
+  Same toggle on the Items tab: flat alphabetic (default) or
+  grouped by category, including a trailing "(uncategorised)"
+  section for items without a category. Independent preference
+  from the in-store sort. Mike-reported scenario: knowing you need
+  several cleaning supplies, switching to category view to
+  un-check a bunch of items in one place.
+
+### Changed
+
+- **In-store critical-items banner now collapses by default.** The
+  banner inside a store used to list every priority item by name,
+  growing tall enough to push the rest of the screen off the fold
+  when there were many criticals. Now mirrors the StorePicker
+  pattern: collapsed shows just the count, tap expands the comma
+  list. Mike-reported: "this box could grow indefinitely."
+
+- **Items search prompt shortened.** "Search items by name or brand"
+  (40 chars) → "Search by name or brand" (24 chars). Was wrapping
+  on Mike's Pixel; the screen title already says "Items" so the
+  prefix was redundant.
+
+### Out of scope
+
+- **iOS parity** — deferred to a later iOS-side session. Android-only
+  release.
+
+- **Multi-user account sharing** — moved to v0.7.0. The original
+  v0.6.0 plan called for that as the headline feature; this
+  release scopes down to UX polish to ship Mike's feedback fast,
+  and keeps multi-user as its own milestone where it can get the
+  schema + sync + auth work it needs.
+
 ## [0.5.15] - 2026-05-09
 
 ### Changed

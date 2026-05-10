@@ -74,7 +74,11 @@
     <string name="settings_language_it">Italiano</string>
 
     <!-- Lista e formulário de artigos. -->
-    <string name="search_items_placeholder">Procurar artigos por nome ou marca</string>
+    <string name="search_items_placeholder">Procurar por nome ou marca</string>
+    <string name="action_clear_search">Limpar pesquisa</string>
+    <string name="sort_alphabetic_cd">Mudar para ordem alfabética</string>
+    <string name="sort_category_cd">Mudar para ordem por categoria</string>
+    <string name="items_uncategorised_label">(sem categoria)</string>
     <string name="items_empty_no_query">Ainda sem artigos — toque em + para adicionar</string>
     <string name="items_empty_with_query">Sem resultados para \"%1$s\"</string>
     <string name="form_field_name">Nome</string>
