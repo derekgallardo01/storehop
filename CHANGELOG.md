@@ -7,6 +7,27 @@ project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 For the high-level roadmap and earlier-than-0.5.0 history, see the
 "Roadmap" section in the [README](README.md).
 
+## [0.6.3] - 2026-05-10
+
+### Fixed
+
+- **In-app update sheet no longer shows twice in a row.** Mike-reported
+  regression: after tapping Update on Play's flexible-update bottom
+  sheet, the sheet would re-appear and the user had to tap Update a
+  second time before the download started. Root cause: the v0.5.7
+  guard skipped re-prompting when `installStatus()` was
+  `PENDING / DOWNLOADING / INSTALLING`, but missed the race window
+  where Play's dialog dismisses BEFORE the status transitions out
+  of `UNKNOWN`. The next `onResume` then saw
+  `installStatus = UNKNOWN` with `updateAvailability = UPDATE_AVAILABLE`
+  and re-launched the sheet. v0.6.3 adds a per-activity session
+  flag (`hasPromptedThisActivity` in `AppUpdateController`): once
+  we've launched the sheet for this controller instance, subsequent
+  checks short-circuit regardless of what `installStatus()` reports.
+  Cleared in `stop()` so a fresh activity instance gets a clean slate.
+
+iOS unchanged (App Store has no equivalent in-app-update API).
+
 ## [0.6.2] - 2026-05-10
 
 Two more Mike-asks, one bundle.

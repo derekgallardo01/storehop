@@ -13,7 +13,7 @@ specific household) is added or renamed by the user.
 
 ## Status
 
-v0.6.2. Shipping to Google Play Closed testing. Feature-complete for
+v0.6.3. Shipping to Google Play Closed testing. Feature-complete for
 single-user v1: anonymous-first onboarding with optional Google
 Sign-In, two-way Firestore + Storage cloud sync (push and pull), Shop
 and Items tabs with item photos, share-list-as-text, theme + language
@@ -196,6 +196,12 @@ pack remains stable across devices and across reseeds.
          3s auto-dismiss). iOS marketing version bumped from 0.5.1
          to 0.5.15. iOS Edit aisles intentionally keeps the
          platform-idiomatic `.onMove` + `EditButton` pattern.
+- v0.6.3 Fix Mike-reported regression: the in-app update sheet
+         shows twice on tap. Root cause was a race window in
+         the v0.5.7 guard where Play's bottom-sheet dismiss
+         happens before installStatus transitions out of
+         UNKNOWN, so the next onResume re-prompted. Added a
+         per-activity session flag in AppUpdateController.
 - v0.6.2 Two more Mike-asks bundled. In-store critical-items
          banner shortened ("5 critical items at this store" →
          "5 critical items") so it stops wrapping to two lines.

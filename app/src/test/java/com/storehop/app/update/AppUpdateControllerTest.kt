@@ -197,4 +197,60 @@ class AppUpdateControllerTest {
         AppUpdateController(manager).completeUpdate()
         verify { manager.completeUpdate() }
     }
+
+    // ---- v0.6.3: race-window guard ----------------------------------------
+
+    @Test fun `second checkForUpdate within the same activity does NOT re-launch the sheet even when installStatus is still UNKNOWN`() {
+        // The Play race: user tapped Update on the bottom sheet, the
+        // dialog dismissed and onResume fired BEFORE Play registered the
+        // transition to PENDING. installStatus() is still UNKNOWN with
+        // updateAvailability() still UPDATE_AVAILABLE. Without the
+        // session flag, this would re-prompt -- Mike's "I have to hit
+        // Update twice" regression.
+        val info = fakeInfo(
+            installStatus = InstallStatus.UNKNOWN,
+            availability = UpdateAvailability.UPDATE_AVAILABLE,
+            flexibleAllowed = true,
+        )
+        every { manager.appUpdateInfo } returns Tasks.forResult(info)
+
+        val controller = AppUpdateController(manager)
+        controller.checkForUpdate(launcher)
+        pumpMain()
+        // First call launched the sheet.
+        verify(exactly = 1) {
+            manager.startUpdateFlowForResult(info, launcher, any<AppUpdateOptions>())
+        }
+
+        // Simulated onResume re-entry: Play still says UNKNOWN /
+        // UPDATE_AVAILABLE, but we've already prompted this activity.
+        controller.checkForUpdate(launcher)
+        pumpMain()
+        // Still ONE launch total -- second call short-circuited.
+        verify(exactly = 1) {
+            manager.startUpdateFlowForResult(info, launcher, any<AppUpdateOptions>())
+        }
+    }
+
+    @Test fun `stop clears the session flag so a fresh activity instance can prompt again`() {
+        val info = fakeInfo(
+            installStatus = InstallStatus.UNKNOWN,
+            availability = UpdateAvailability.UPDATE_AVAILABLE,
+            flexibleAllowed = true,
+        )
+        every { manager.appUpdateInfo } returns Tasks.forResult(info)
+
+        val controller = AppUpdateController(manager)
+        controller.checkForUpdate(launcher)
+        pumpMain()
+        controller.stop()
+        // After stop (activity destroyed) the next checkForUpdate
+        // on the SAME controller instance is allowed to prompt again --
+        // mirrors what happens when MainActivity is recreated.
+        controller.checkForUpdate(launcher)
+        pumpMain()
+        verify(exactly = 2) {
+            manager.startUpdateFlowForResult(info, launcher, any<AppUpdateOptions>())
+        }
+    }
 }

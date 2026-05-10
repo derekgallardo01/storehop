@@ -39,6 +39,22 @@ class AppUpdateController(
     private val _isUpdateReadyToInstall = MutableStateFlow(false)
     val isUpdateReadyToInstall: StateFlow<Boolean> = _isUpdateReadyToInstall.asStateFlow()
 
+    /**
+     * True once we've launched the Play update sheet for this controller
+     * instance (i.e. this activity instance). The first `onResume` after
+     * the user taps Update on Play's sheet sometimes still reads
+     * `installStatus()` as `UNKNOWN` (Play hasn't transitioned to `PENDING`
+     * yet — the dialog dismiss + state transition race). Without this
+     * flag, the `UPDATE_AVAILABLE` branch below fires again and we
+     * re-launch the sheet. v0.5.7 partially fixed this by guarding
+     * `PENDING / DOWNLOADING / INSTALLING`; the v0.6.3 fix closes the
+     * remaining `UNKNOWN`-race window.
+     *
+     * Cleared in [stop] so a fresh activity instance starts with a clean
+     * slate.
+     */
+    private var hasPromptedThisActivity: Boolean = false
+
     private val installListener = InstallStateUpdatedListener { state ->
         if (state.installStatus() == InstallStatus.DOWNLOADED) {
             _isUpdateReadyToInstall.value = true
@@ -51,6 +67,7 @@ class AppUpdateController(
 
     fun stop() {
         appUpdateManager.unregisterListener(installListener)
+        hasPromptedThisActivity = false
     }
 
     /**
@@ -91,7 +108,18 @@ class AppUpdateController(
                 if (info.updateAvailability() == UpdateAvailability.UPDATE_AVAILABLE &&
                     info.isUpdateTypeAllowed(AppUpdateType.FLEXIBLE)
                 ) {
+                    if (hasPromptedThisActivity) {
+                        // We already showed the sheet this activity instance.
+                        // Even if installStatus is still UNKNOWN (Play's
+                        // dialog dismissed before the state transition
+                        // registered), don't re-prompt -- the install
+                        // listener will catch the eventual DOWNLOADED
+                        // transition and surface the Restart overlay.
+                        Log.i(TAG, "Update sheet already shown this activity; skipping re-prompt.")
+                        return@addOnSuccessListener
+                    }
                     Log.i(TAG, "Launching FLEXIBLE update flow for vc=${info.availableVersionCode()}")
+                    hasPromptedThisActivity = true
                     appUpdateManager.startUpdateFlowForResult(
                         info,
                         launcher,
