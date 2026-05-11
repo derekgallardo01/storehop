@@ -5,6 +5,7 @@ import com.google.firebase.auth.FirebaseAuth
 import com.storehop.app.data.dao.HouseholdMemberDao
 import com.storehop.app.data.dao.LocalOnlyMigrationDao
 import com.storehop.app.data.entity.HouseholdMember
+import com.storehop.app.data.prefs.UserPreferencesSync
 import com.storehop.app.data.util.HouseholdSessionProvider
 import com.storehop.app.data.util.HouseholdSwitcher
 import com.storehop.app.data.util.UserSessionProvider
@@ -54,6 +55,7 @@ class FirebaseAuthSessionProvider @Inject constructor(
     private val householdMemberDao: HouseholdMemberDao,
     private val pullCoordinator: PullCoordinator,
     private val pullStateRepo: PullStateRepository,
+    private val userPreferencesSync: UserPreferencesSync,
     private val clock: Clock,
     private val applicationScope: CoroutineScope,
 ) : UserSessionProvider, HouseholdSessionProvider, HouseholdSwitcher {
@@ -143,6 +145,17 @@ class FirebaseAuthSessionProvider @Inject constructor(
                 // Publish both ids together so observers never see a mismatch.
                 _householdId.value = resolvedHouseholdId
                 _userId.value = newUid
+
+                // v0.7.1: kick off the cloud-prefs reconcile in the background.
+                // Push current prefs if cloud is absent/stale; pull cloud if
+                // newer. Load-bearing for the sideload→Play transition —
+                // first launch of v0.7.1 on Mike's phone captures his
+                // local prefs to /userPrefs/{uid} before he ever opens
+                // Settings. Fire-and-forget so the auth listener doesn't
+                // block on a Firestore round-trip.
+                applicationScope.launch {
+                    userPreferencesSync.reconcile(newUid)
+                }
             }
         }
     }

@@ -413,6 +413,7 @@ class FirebaseAuthSessionProviderTest {
         householdMemberDao = householdMemberDao,
         pullCoordinator = pullCoordinator,
         pullStateRepo = pullStateRepo,
+        userPreferencesSync = mockk(relaxed = true),
         clock = fixedClock,
         applicationScope = scope,
     )
