@@ -54,7 +54,7 @@ class SearchClearButtonE2ETest {
             }
 
         // Type into the search field.
-        composeRule.onNodeWithText("Search by name or brand").performTextInput("milk")
+        composeRule.onNodeWithText("Search anything").performTextInput("milk")
 
         // After typing: clear button appears, and only Milk row is in view.
         composeRule.onAllNodesWithContentDescription("Clear search")[0]
@@ -62,6 +62,6 @@ class SearchClearButtonE2ETest {
             .performClick()
 
         // After tap: query is empty, the placeholder is back.
-        composeRule.onNodeWithText("Search by name or brand").assertIsDisplayed()
+        composeRule.onNodeWithText("Search anything").assertIsDisplayed()
     }
 }
