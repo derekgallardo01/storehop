@@ -85,7 +85,12 @@ jobs:
                     "package_name": "com.storehop.app"
                   }
                 },
-                "oauth_client": [],
+                "oauth_client": [
+                  {
+                    "client_id": "000000000000-ciplaceholder.apps.googleusercontent.com",
+                    "client_type": 3
+                  }
+                ],
                 "api_key": [
                   { "current_key": "ci-placeholder-api-key" }
                 ],
