@@ -49,7 +49,7 @@ struct StatisticsView: View {
             ProgressView()
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         case .empty:
-            EmptyState()
+            StatisticsEmptyState()
         case .ready(let state):
             ReadyContent(state: state)
         }
@@ -58,7 +58,14 @@ struct StatisticsView: View {
 
 // MARK: - States
 
-private struct EmptyState: View {
+/// Statistics-specific empty state. Renamed from `EmptyState` in v0.6.10
+/// after the shared `EmptyState` (`ui/util/EmptyState.swift`) was
+/// introduced — even though this one is file-private, Swift's strict-
+/// concurrency mode treats the two declarations as a redeclaration
+/// during whole-module compilation. Kept separate from the shared one
+/// because the Statistics empty state has its own copy + layout that's
+/// not parameterized like the shared component.
+private struct StatisticsEmptyState: View {
     var body: some View {
         VStack(spacing: 12) {
             Image(systemName: "chart.bar.xaxis")

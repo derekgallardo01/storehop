@@ -57,7 +57,7 @@ struct ShopAtStoreView: View {
                             EmptyState(
                                 systemImage: "cart",
                                 title: String(localized: "shop_empty_no_query_title"),
-                                body: String(localized: "shop_empty_no_query_body")
+                                message: String(localized: "shop_empty_no_query_body")
                             )
                             .listRowBackground(Color.clear)
                             .listRowInsets(EdgeInsets())
@@ -65,7 +65,7 @@ struct ShopAtStoreView: View {
                             EmptyState(
                                 systemImage: "magnifyingglass",
                                 title: String(localized: "shop_empty_search_title"),
-                                body: String(
+                                message: String(
                                     format: String(localized: "shop_empty_search_body %@"),
                                     trimmed
                                 )

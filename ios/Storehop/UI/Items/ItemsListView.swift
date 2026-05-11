@@ -46,7 +46,7 @@ struct ItemsListView: View {
                             EmptyState(
                                 systemImage: "tray",
                                 title: String(localized: "items_empty_no_query_title"),
-                                body: String(localized: "items_empty_no_query_body")
+                                message: String(localized: "items_empty_no_query_body")
                             )
                             .listRowBackground(Color.clear)
                             .listRowInsets(EdgeInsets())
@@ -54,7 +54,7 @@ struct ItemsListView: View {
                             EmptyState(
                                 systemImage: "magnifyingglass",
                                 title: String(localized: "items_empty_search_title"),
-                                body: String(
+                                message: String(
                                     format: String(localized: "items_empty_search_body %@"),
                                     trimmed
                                 )

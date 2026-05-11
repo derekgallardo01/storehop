@@ -52,7 +52,7 @@ struct StorePickerView: View {
                         EmptyState(
                             systemImage: "storefront",
                             title: String(localized: "storepicker_empty_title"),
-                            body: String(localized: "storepicker_empty_body")
+                            message: String(localized: "storepicker_empty_body")
                         )
                         .listRowBackground(Color.clear)
                         .listRowInsets(EdgeInsets())

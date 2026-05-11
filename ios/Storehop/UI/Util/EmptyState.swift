@@ -11,12 +11,14 @@ import SwiftUI
 /// SwiftUI `List`, or as a standalone view otherwise.
 ///
 /// Caller supplies the SF Symbol name + two already-resolved strings.
+/// The second string is called `message` (not `body`) because `body`
+/// is reserved by the `View` protocol — Android calls it `body`.
 struct EmptyState: View {
     let systemImage: String
     let title: String
-    let body: String
+    let message: String
 
-    var bodyContent: some View {
+    var body: some View {
         VStack(spacing: 12) {
             Image(systemName: systemImage)
                 .font(.system(size: 64, weight: .light))
@@ -25,7 +27,7 @@ struct EmptyState: View {
                 .font(StorehopTypography.titleMedium)
                 .foregroundStyle(StorehopColors.onSurface)
                 .multilineTextAlignment(.center)
-            Text(body)
+            Text(message)
                 .font(StorehopTypography.bodyMedium)
                 .foregroundStyle(StorehopColors.onSurfaceVariant)
                 .multilineTextAlignment(.center)
@@ -33,9 +35,5 @@ struct EmptyState: View {
         .frame(maxWidth: .infinity)
         .padding(.vertical, 32)
         .padding(.horizontal, 24)
-    }
-
-    var body: some View {
-        bodyContent
     }
 }
