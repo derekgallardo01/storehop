@@ -340,5 +340,6 @@ class PurchaseRecordDaoTest {
         id = id, itemId = itemId, storeId = storeId,
         purchasedAt = purchasedAt, userId = userId,
         createdAt = purchasedAt, updatedAt = purchasedAt, deletedAt = deletedAt,
+        householdId = userId,
     )
 }

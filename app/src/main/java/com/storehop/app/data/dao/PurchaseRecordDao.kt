@@ -7,6 +7,27 @@ import androidx.room.Query
 import com.storehop.app.data.entity.PurchaseRecord
 import kotlinx.coroutines.flow.Flow
 
+/**
+ * v0.7.0 access scope: a deliberate split, NOT a flat rename.
+ *
+ *  * **Cross-cascade methods** (`softDeleteForItem`, `restoreCascadeForItem`)
+ *    scope by `householdId`: when an item is deleted from the household,
+ *    every member's purchase records for that item cascade-tombstone
+ *    together. Otherwise we'd leave dangling records pointing at a row
+ *    nobody can see.
+ *  * **Stats + history-view queries** (`observeForItem`, `observeTotalCount`,
+ *    `observeTopItems`, all the aggregates) stay scoped by `userId` — the
+ *    v0.7.0 design decision is **per-user stats**: "what I bought," not
+ *    "what we bought as a household." Mike wants his own history;
+ *    aggregating Amanda's into his charts would be wrong.
+ *  * **Per-record CRUD** (`softDelete` by id, `softDeleteForItemAtTime` for
+ *    snackbar undo) stays scoped by `userId` — only the purchaser can
+ *    rescind their own record.
+ *  * **Sync push** (`observePendingPush`, `markPushed`) scopes by
+ *    `householdId` for parity with the other DAOs that have already
+ *    migrated; in single-member households `userId == householdId` so
+ *    the set is identical.
+ */
 @Dao
 interface PurchaseRecordDao {
 
@@ -43,35 +64,37 @@ interface PurchaseRecordDao {
     suspend fun softDelete(userId: String, id: String, now: Long)
 
     /**
-     * Cascade-tombstone all purchase records for an item. Used by the item soft-delete
-     * flow so a deleted item doesn't leave purchase-history orphans visible to
-     * `observeForItem`. Bound by `userId` so a buggy caller cannot cascade across users.
+     * Cascade-tombstone all purchase records for an item — including those
+     * created by other household members. Used by the item soft-delete flow
+     * so a deleted item doesn't leave purchase-history orphans visible to
+     * `observeForItem`. Bound by `householdId` so an item-delete cascades
+     * across every member's records under the household.
      */
     @Query(
         """
         UPDATE purchase_records
         SET deletedAt = :now, updatedAt = :now, pendingSync = 1
-        WHERE itemId = :itemId AND userId = :userId AND deletedAt IS NULL
+        WHERE itemId = :itemId AND householdId = :householdId AND deletedAt IS NULL
         """,
     )
-    suspend fun softDeleteForItem(userId: String, itemId: String, now: Long)
+    suspend fun softDeleteForItem(householdId: String, itemId: String, now: Long)
 
     /** Inverse of [softDeleteForItem], filtered by exact `deletedAt`. */
     @Query(
         """
         UPDATE purchase_records
         SET deletedAt = NULL, updatedAt = :now, pendingSync = 1
-        WHERE itemId = :itemId AND userId = :userId AND deletedAt = :deletedAt
+        WHERE itemId = :itemId AND householdId = :householdId AND deletedAt = :deletedAt
         """,
     )
-    suspend fun restoreCascadeForItem(userId: String, itemId: String, deletedAt: Long, now: Long)
+    suspend fun restoreCascadeForItem(householdId: String, itemId: String, deletedAt: Long, now: Long)
 
     /**
      * Soft-delete the live PurchaseRecord(s) for [itemId] whose `purchasedAt`
      * matches exactly [purchasedAt]. Used by the snackbar-undo path after a
      * cascade purchase, to roll back history alongside the xref restore.
-     * Filtered by user and live-only so concurrent records or already-tombstoned
-     * ones aren't disturbed.
+     * Filtered by **user** (the purchaser) and live-only — undo is per-user,
+     * so Amanda's snackbar can never rescind Mike's purchase record.
      */
     @Query(
         """
@@ -89,16 +112,18 @@ interface PurchaseRecordDao {
         now: Long,
     )
 
-    @Query("SELECT * FROM purchase_records WHERE userId = :userId AND pendingSync = 1")
-    fun observePendingPush(userId: String): Flow<List<PurchaseRecord>>
+    @Query("SELECT * FROM purchase_records WHERE householdId = :householdId AND pendingSync = 1")
+    fun observePendingPush(householdId: String): Flow<List<PurchaseRecord>>
 
-    @Query("UPDATE purchase_records SET pendingSync = 0 WHERE id = :id AND userId = :userId")
-    suspend fun markPushed(userId: String, id: String)
+    @Query("UPDATE purchase_records SET pendingSync = 0 WHERE id = :id AND householdId = :householdId")
+    suspend fun markPushed(householdId: String, id: String)
 
     // ---- Statistics aggregates ------------------------------------------------
     // Read-only flows that power the Settings → Statistics screen. All filter
-    // by userId + deletedAt IS NULL so tombstoned records and other users'
-    // history never leak into the visible totals.
+    // by **userId** (the purchaser) + deletedAt IS NULL — per-user stats per
+    // the v0.7.0 design, so Mike's charts don't bleed into Amanda's even when
+    // they share a household. Tombstoned records and other users' history
+    // never leak into the visible totals.
 
     @Query(
         """

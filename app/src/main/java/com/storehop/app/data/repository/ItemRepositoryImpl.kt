@@ -23,12 +23,14 @@ import javax.inject.Inject
 
 /**
  * v0.7.0: queries scope by `householdId`. `userId` is still required (it's
- * the creator/audit field on each row, stamped on insert). Cross-cascade
- * DAOs that have already migrated (xrefDao) take `householdId`; the
- * remaining ones (purchaseRecordDao, scoDao) still take `userId: String`
- * named parameters and receive the item's `userId` (which equals
- * householdId in single-member households; revisited per-DAO when those
- * flip to household-scoped filters).
+ * the creator/audit field on each row, stamped on insert).
+ *
+ * Cross-cascade DAOs (xrefDao, scoDao, purchaseRecordDao) now scope by
+ * `householdId` — the item is owned by the household, so cascading any
+ * delete/restore reaches every member's rows under that household. The
+ * snackbar-undo path on `purchaseRecordDao.softDeleteForItemAtTime` is
+ * the deliberate exception: it stays per-user so only the purchaser can
+ * rescind their own record.
  */
 class ItemRepositoryImpl @Inject constructor(
     private val db: StorehopDatabase,
@@ -145,7 +147,7 @@ class ItemRepositoryImpl @Inject constructor(
         val now = clock.millis()
         itemDao.softDelete(householdId, id, now)
         xrefDao.softDeleteForItem(current.householdId, id, now)
-        purchaseRecordDao.softDeleteForItem(current.userId, id, now)
+        purchaseRecordDao.softDeleteForItem(current.householdId, id, now)
     }
 
     override suspend fun undoSoftDelete(id: String) = db.withTransaction {
@@ -155,7 +157,7 @@ class ItemRepositoryImpl @Inject constructor(
         val now = clock.millis()
         itemDao.restoreFromTombstone(householdId, id, now)
         xrefDao.restoreCascadeForItem(item.householdId, id, deletedAt, now)
-        purchaseRecordDao.restoreCascadeForItem(item.userId, id, deletedAt, now)
+        purchaseRecordDao.restoreCascadeForItem(item.householdId, id, deletedAt, now)
     }
 
     /**
