@@ -188,6 +188,42 @@ class SyncEngine @Inject constructor(
                 }
             }
         }
+
+        // v0.7.1 (fix): wire the household_members push. v0.7.0 created the
+        // personal-household membership row locally with pendingSync = 1 but
+        // never had a sync job to ship it — the local row was load-bearing
+        // for the cloud-side membership lookup that v0.7.x sharing relies
+        // on, but the path-uid fallback in firestore.rules masked the gap
+        // for single-user flows. v0.7.1's Force-sync count surfaces the
+        // stuck row → loop never reaches "Safe to uninstall."
+        //
+        // Wire path is `/memberships/{uid}/households/{hid}` (per-user
+        // ledger, not per-household-scoped). The row carries both ids so
+        // we read them straight off the entity. observePendingPush() has
+        // no householdId param because memberships span households.
+        launch {
+            householdMemberDao.observePendingPush().collect { rows ->
+                rows.forEach { row ->
+                    val ref = firestore.collection("memberships")
+                        .document(row.uid)
+                        .collection("households")
+                        .document(row.householdId)
+                    val payload = mapOf<String, Any?>(
+                        "uid" to row.uid,
+                        "householdId" to row.householdId,
+                        "displayName" to row.displayName,
+                        "joinedAt" to row.joinedAt,
+                        "isOwner" to row.isOwner,
+                        "createdAt" to row.createdAt,
+                        "updatedAt" to row.updatedAt,
+                        "deletedAt" to row.deletedAt,
+                    )
+                    pushOne(ref, payload) {
+                        householdMemberDao.markPushed(row.uid, row.householdId)
+                    }
+                }
+            }
+        }
     }
 
     private suspend fun <T : Any> pushOne(
