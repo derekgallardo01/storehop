@@ -108,6 +108,27 @@ jobs:
             CODE_SIGNING_ALLOWED=NO \
             -resultBundlePath build/build.xcresult
 
+      - name: Inspect built bundle (debug)
+        # Lists every file inside the simulator's Storehop.app so we can
+        # see whether the seed JSONs landed where the seeder + tests
+        # expect them. Repeat for the test bundle. Removable once the
+        # seed-bundle issue is solved.
+        run: |
+          BUILT_DIR=$(xcodebuild -project Storehop.xcodeproj -scheme Storehop \
+              -destination 'platform=iOS Simulator,name=iPhone 16,OS=latest' \
+              -showBuildSettings 2>/dev/null | awk '/BUILT_PRODUCTS_DIR/ {print $3; exit}')
+          echo "BUILT_PRODUCTS_DIR=$BUILT_DIR"
+          if [ -n "$BUILT_DIR" ] && [ -d "$BUILT_DIR/Storehop.app" ]; then
+            echo "--- Storehop.app contents ---"
+            find "$BUILT_DIR/Storehop.app" -maxdepth 3 -name "*.json" -o -name "seed" | sort
+            echo "--- end Storehop.app ---"
+          fi
+          if [ -n "$BUILT_DIR" ] && [ -d "$BUILT_DIR/StorehopTests.xctest" ]; then
+            echo "--- StorehopTests.xctest contents ---"
+            find "$BUILT_DIR/StorehopTests.xctest" -maxdepth 3 -name "*.json" -o -name "seed" | sort
+            echo "--- end StorehopTests.xctest ---"
+          fi
+
       - name: Test (unit tests only)
         # -only-testing alone isn't enough on Xcode 16.4: the scheme still
         # builds + launches the UITest runner host (StorehopUITests-Runner),
