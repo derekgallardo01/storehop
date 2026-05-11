@@ -17,21 +17,25 @@ final class SmokeTests: XCTestCase {
         XCTAssertTrue(a.contains("-"))
     }
 
-    func testSeedJsonsAreBundled() throws {
+    func testSeedJsonsAreAvailableViaBundleOrEmbeddedFallback() throws {
+        // The seeder accepts EITHER an on-disk bundled file OR the
+        // Swift-string mirror in BundledSeedJson. We assert at least one
+        // succeeds for each resource — that's what production cares
+        // about. On macos-15 CI, xcodebuild silently drops the bundle
+        // resources, so the embedded fallback is the only path that
+        // works there.
         for resource in ["stores", "categories", "store_categories"] {
-            // Try the `seed/` subdirectory first (local builds where the
-            // folder reference preserves the directory). Fall back to the
-            // bundle root (CI builds where xcodegen flat-lists the files
-            // because `type: folder` doesn't reliably land in the simulator
-            // bundle on macos-15). Either location is fine — the seeder
-            // applies the same fallback at runtime.
             let testBundle = Bundle(for: type(of: self))
             let mainBundle = Bundle.main
-            let url = testBundle.url(forResource: resource, withExtension: "json", subdirectory: "seed")
+            let bundleUrl = testBundle.url(forResource: resource, withExtension: "json", subdirectory: "seed")
                 ?? mainBundle.url(forResource: resource, withExtension: "json", subdirectory: "seed")
                 ?? testBundle.url(forResource: resource, withExtension: "json")
                 ?? mainBundle.url(forResource: resource, withExtension: "json")
-            XCTAssertNotNil(url, "Missing \(resource).json in test or app bundle")
+            let embedded = BundledSeedJson.text(forName: resource)
+            XCTAssertTrue(
+                bundleUrl != nil || embedded != nil,
+                "Missing \(resource).json in test bundle, app bundle, AND embedded fallback"
+            )
         }
     }
 

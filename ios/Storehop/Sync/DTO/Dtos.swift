@@ -9,6 +9,15 @@ import Foundation
 /// product into the main module); field names are the property names by
 /// default, no keyEncodingStrategy override needed.
 ///
+/// Every DTO carries both `userId` (creator/audit traceability) AND
+/// `householdId` (v0.7.0 multi-user access scope). For single-member
+/// households the two columns hold the same value, so the wire format
+/// stays backward-compatible with v0.6.x DTOs that lacked `householdId`
+/// — a missing field decodes to `""` thanks to the Swift `Codable`
+/// default-value behaviour, and `EntityMappers.toEntity` then falls
+/// back to `userId` so the v7→v8 invariant (`householdId == userId`)
+/// holds.
+///
 /// `pendingSync` is intentionally **omitted** — it's a local-only flag
 /// tracking what hasn't been pushed yet. The cloud doesn't care.
 ///
@@ -31,6 +40,7 @@ struct ItemDto: Codable, Sendable, Equatable {
     var imageUrl: String?
     var isStaple: Bool
     var isPriority: Bool
+    var householdId: String = ""
 }
 
 struct CategoryDto: Codable, Sendable, Equatable {
@@ -48,6 +58,7 @@ struct CategoryDto: Codable, Sendable, Equatable {
     // older docs deserialising cleanly (their backfill happened during the
     // schema v6 -> v7 migration on each device).
     var displayOrder: Int = 0
+    var householdId: String = ""
 }
 
 struct StoreDto: Codable, Sendable, Equatable {
@@ -64,6 +75,7 @@ struct StoreDto: Codable, Sendable, Equatable {
     var updatedAt: Int64
     var deletedAt: Int64?
     var displayOrder: Int
+    var householdId: String = ""
 }
 
 struct ItemStoreXrefDto: Codable, Sendable, Equatable {
@@ -75,6 +87,7 @@ struct ItemStoreXrefDto: Codable, Sendable, Equatable {
     var deletedAt: Int64?
     var isNeeded: Bool
     var lastPurchasedAt: Int64?
+    var householdId: String = ""
 }
 
 struct StoreCategoryOrderDto: Codable, Sendable, Equatable {
@@ -86,6 +99,7 @@ struct StoreCategoryOrderDto: Codable, Sendable, Equatable {
     var createdAt: Int64
     var updatedAt: Int64
     var deletedAt: Int64?
+    var householdId: String = ""
 }
 
 struct PurchaseRecordDto: Codable, Sendable, Equatable {
@@ -97,4 +111,5 @@ struct PurchaseRecordDto: Codable, Sendable, Equatable {
     var createdAt: Int64
     var updatedAt: Int64
     var deletedAt: Int64?
+    var householdId: String = ""
 }

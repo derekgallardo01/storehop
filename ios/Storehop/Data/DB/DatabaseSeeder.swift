@@ -108,12 +108,18 @@ struct DatabaseSeeder: Sendable {
     }
 
     private func loadJsonResource<T: Decodable>(_ name: String) throws -> T {
-        // Look first in the test bundle (when run from XCTest), then fall back
-        // to the main bundle (production). Try the `seed/` subdirectory first
-        // — that's where the files live in the source tree and the layout
-        // local xcodebuild produces. Then fall back to the bundle root, since
-        // the CI build flat-lists the files (xcodegen `type: folder` doesn't
-        // reliably land the directory structure on macos-15 simulators).
+        // Three-tier lookup, in order of preference:
+        //   1. The `seed/` subdirectory of either the test bundle or the
+        //      main app bundle — that's the layout local xcodebuild
+        //      produces. Most common path.
+        //   2. The bundle root, same two bundles, in case the resource
+        //      landed flattened.
+        //   3. The Swift-string mirror in [BundledSeedJson] — final
+        //      fallback for the macos-15 CI runner where xcodegen +
+        //      xcodebuild silently refuse to copy the JSONs into the
+        //      simulator bundle at all (verified via `find Storehop.app`
+        //      returning zero matches). Means production launches in CI
+        //      builds still seed correctly even if the bundle is empty.
         let candidates: [Bundle] = [Bundle(for: BundleAnchor.self), .main]
         for bundle in candidates {
             let url = bundle.url(forResource: name, withExtension: "json", subdirectory: "seed")
@@ -122,6 +128,10 @@ struct DatabaseSeeder: Sendable {
                 let data = try Data(contentsOf: url)
                 return try JSONDecoder().decode(T.self, from: data)
             }
+        }
+        if let embedded = BundledSeedJson.text(forName: name),
+           let data = embedded.data(using: .utf8) {
+            return try JSONDecoder().decode(T.self, from: data)
         }
         throw SeederError.missingResource(name: name)
     }

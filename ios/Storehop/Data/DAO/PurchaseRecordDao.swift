@@ -1,6 +1,25 @@
 import Foundation
 import GRDB
 
+/// v0.7.0 access scope: a deliberate split, NOT a flat rename.
+///
+///  * **Cross-cascade methods** (`softDeleteForItem`, `restoreCascadeForItem`)
+///    scope by `householdId`: when an item is deleted from the household,
+///    every member's purchase records for that item cascade-tombstone
+///    together. Otherwise we'd leave dangling records pointing at a row
+///    nobody can see.
+///  * **Stats + history-view queries** (`observeForItem`, `observeTotalCount`,
+///    `observeTopItems`, all the aggregates) stay scoped by `userId` — the
+///    v0.7.0 design decision is **per-user stats**: "what I bought," not
+///    "what we bought as a household." Mike wants his own history;
+///    aggregating Amanda's into his charts would be wrong.
+///  * **Per-record CRUD** (`softDelete` by id, `softDeleteForItemAtTime` for
+///    snackbar undo) stays scoped by `userId` — only the purchaser can
+///    rescind their own record.
+///  * **Sync push** (`observePendingPush`, `markPushed`) scopes by
+///    `householdId` for parity with the other DAOs that have already
+///    migrated; in single-member households `userId == householdId` so
+///    the set is identical.
 struct PurchaseRecordDao: Sendable {
     let writer: any DatabaseWriter
 
@@ -18,13 +37,13 @@ struct PurchaseRecordDao: Sendable {
             .values(in: writer)
     }
 
-    func observePendingPush(userId: String) -> AsyncValueObservation<[PurchaseRecord]> {
+    func observePendingPush(householdId: String) -> AsyncValueObservation<[PurchaseRecord]> {
         ValueObservation
             .tracking { db in
                 try PurchaseRecord.fetchAll(db, sql: """
                     SELECT * FROM purchase_records
-                    WHERE userId = ? AND pendingSync = 1
-                    """, arguments: [userId])
+                    WHERE householdId = ? AND pendingSync = 1
+                    """, arguments: [householdId])
             }
             .values(in: writer)
     }
@@ -52,6 +71,8 @@ struct PurchaseRecordDao: Sendable {
         }
     }
 
+    /// Per-record undo. Filtered by **user** — only the purchaser can
+    /// rescind their own record.
     func softDelete(userId: String, id: String, now: Int64) async throws {
         try await writer.write { db in
             try db.execute(sql: """
@@ -62,34 +83,45 @@ struct PurchaseRecordDao: Sendable {
         }
     }
 
-    func softDeleteForItem(userId: String, itemId: String, now: Int64) async throws {
+    /// Cascade-tombstone all purchase records for an item — including those
+    /// created by other household members. Used by the item soft-delete flow
+    /// so a deleted item doesn't leave purchase-history orphans visible to
+    /// `observeForItem`. Bound by `householdId` so an item-delete cascades
+    /// across every member's records under the household.
+    func softDeleteForItem(householdId: String, itemId: String, now: Int64) async throws {
         try await writer.write { db in
-            try Self.softDeleteForItem(on: db, userId: userId, itemId: itemId, now: now)
+            try Self.softDeleteForItem(on: db, householdId: householdId, itemId: itemId, now: now)
         }
     }
 
-    static func softDeleteForItem(on db: Database, userId: String, itemId: String, now: Int64) throws {
+    static func softDeleteForItem(on db: Database, householdId: String, itemId: String, now: Int64) throws {
         try db.execute(sql: """
             UPDATE purchase_records
             SET deletedAt = ?, updatedAt = ?, pendingSync = 1
-            WHERE itemId = ? AND userId = ? AND deletedAt IS NULL
-            """, arguments: [now, now, itemId, userId])
+            WHERE itemId = ? AND householdId = ? AND deletedAt IS NULL
+            """, arguments: [now, now, itemId, householdId])
     }
 
-    func restoreCascadeForItem(userId: String, itemId: String, deletedAt: Int64, now: Int64) async throws {
+    /// Inverse of `softDeleteForItem`, filtered by exact `deletedAt`.
+    func restoreCascadeForItem(householdId: String, itemId: String, deletedAt: Int64, now: Int64) async throws {
         try await writer.write { db in
-            try Self.restoreCascadeForItem(on: db, userId: userId, itemId: itemId, deletedAt: deletedAt, now: now)
+            try Self.restoreCascadeForItem(on: db, householdId: householdId, itemId: itemId, deletedAt: deletedAt, now: now)
         }
     }
 
-    static func restoreCascadeForItem(on db: Database, userId: String, itemId: String, deletedAt: Int64, now: Int64) throws {
+    static func restoreCascadeForItem(on db: Database, householdId: String, itemId: String, deletedAt: Int64, now: Int64) throws {
         try db.execute(sql: """
             UPDATE purchase_records
             SET deletedAt = NULL, updatedAt = ?, pendingSync = 1
-            WHERE itemId = ? AND userId = ? AND deletedAt = ?
-            """, arguments: [now, itemId, userId, deletedAt])
+            WHERE itemId = ? AND householdId = ? AND deletedAt = ?
+            """, arguments: [now, itemId, householdId, deletedAt])
     }
 
+    /// Soft-delete the live PurchaseRecord(s) for `itemId` whose
+    /// `purchasedAt` matches exactly. Used by the snackbar-undo path after a
+    /// cascade purchase, to roll back history alongside the xref restore.
+    /// Filtered by **user** (the purchaser) and live-only — undo is per-user,
+    /// so Amanda's snackbar can never rescind Mike's purchase record.
     func softDeleteForItemAtTime(userId: String, itemId: String, purchasedAt: Int64, now: Int64) async throws {
         try await writer.write { db in
             try Self.softDeleteForItemAtTime(on: db, userId: userId, itemId: itemId, purchasedAt: purchasedAt, now: now)
@@ -106,17 +138,18 @@ struct PurchaseRecordDao: Sendable {
             """, arguments: [now, now, itemId, userId, purchasedAt])
     }
 
-    func markPushed(userId: String, id: String) async throws {
+    func markPushed(householdId: String, id: String) async throws {
         try await writer.write { db in
-            try db.execute(sql: "UPDATE purchase_records SET pendingSync = 0 WHERE id = ? AND userId = ?", arguments: [id, userId])
+            try db.execute(sql: "UPDATE purchase_records SET pendingSync = 0 WHERE id = ? AND householdId = ?", arguments: [id, householdId])
         }
     }
 
     // MARK: - Statistics aggregates
 
     /// Read-only observations that power the Settings → Statistics screen.
-    /// All filter by userId + deletedAt IS NULL so tombstones and other
-    /// users' history never leak into visible totals.
+    /// All filter by **userId** (the purchaser) + `deletedAt IS NULL` — per
+    /// the v0.7.0 design, stats are per-user, not per-household. Mike's
+    /// charts don't bleed into Amanda's even when they share a household.
 
     func observeTotalCount(userId: String) -> AsyncValueObservation<Int> {
         ValueObservation

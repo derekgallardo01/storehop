@@ -5,6 +5,12 @@ import GRDB
 /// badges. Queries lift verbatim from Android's `ShoppingDao` — same joins,
 /// same filters, same ORDER BY, including the COALESCE-to-9999 fallback for
 /// categories without a per-store `displayOrder`.
+///
+/// v0.7.0 access scope: queries filter by `householdId` on both `items`
+/// and `item_store_xref` (not `userId`). `userId` remains on each row as
+/// creator/audit metadata; `householdId` is what scopes who can see and
+/// mutate the rows. For single-member households both columns hold the
+/// same value, so behaviour matches v0.6.x exactly.
 struct ShoppingDao: Sendable {
     let writer: any DatabaseWriter
 
@@ -23,18 +29,18 @@ struct ShoppingDao: Sendable {
     /// Pass `Int64.max` as `sessionStartMs` to disable the session window
     /// (only needed/staple rows surface) — useful in tests.
     func shoppingListForStore(
-        userId: String,
+        householdId: String,
         storeId: String,
         sessionStartMs: Int64
     ) -> AsyncValueObservation<[ShoppingRow]> {
         ValueObservation
             .tracking { db in
                 try ShoppingRow.fetchAll(db, sql: Self.shoppingListSql, arguments: [
-                    userId,         // isx.userId  (INNER JOIN)
-                    storeId,        // sco.storeId (LEFT JOIN)
-                    storeId,        // isx.storeId (WHERE)
+                    householdId,    // isx.householdId (INNER JOIN)
+                    storeId,        // sco.storeId     (LEFT JOIN)
+                    storeId,        // isx.storeId     (WHERE)
                     sessionStartMs, // isx.lastPurchasedAt >= ?
-                    userId,         // i.userId
+                    householdId,    // i.householdId
                 ])
             }
             .values(in: writer)
@@ -45,14 +51,14 @@ struct ShoppingDao: Sendable {
     /// within the active session. The picker repository groups by storeId
     /// to render one badge per store.
     func observeStorePickerItems(
-        userId: String,
+        householdId: String,
         sessionStartMs: Int64
     ) -> AsyncValueObservation<[StorePickerItemRow]> {
         ValueObservation
             .tracking { db in
                 try StorePickerItemRow.fetchAll(db, sql: Self.storePickerSql, arguments: [
-                    userId,
-                    userId,
+                    householdId,
+                    householdId,
                     sessionStartMs,
                 ])
             }
@@ -62,11 +68,11 @@ struct ShoppingDao: Sendable {
     // MARK: - SQL (single source of truth, parameterized for both observers)
 
     /// Argument order (in SQL-occurrence order):
-    ///   1. isx.userId           (INNER JOIN ON)
+    ///   1. isx.householdId      (INNER JOIN ON)
     ///   2. sco.storeId          (LEFT JOIN ON)
     ///   3. isx.storeId          (WHERE)
     ///   4. isx.lastPurchasedAt  (session window)
-    ///   5. i.userId             (WHERE)
+    ///   5. i.householdId        (WHERE)
     private static let shoppingListSql = """
         SELECT i.id            AS id,
                i.name          AS name,
@@ -85,7 +91,7 @@ struct ShoppingDao: Sendable {
         FROM items i
         INNER JOIN item_store_xref isx
                ON isx.itemId = i.id
-              AND isx.userId = ?
+              AND isx.householdId = ?
               AND isx.deletedAt IS NULL
         LEFT  JOIN categories c
                ON c.id = i.categoryId AND c.deletedAt IS NULL
@@ -100,7 +106,7 @@ struct ShoppingDao: Sendable {
              OR i.isStaple = 1
              OR (isx.lastPurchasedAt IS NOT NULL AND isx.lastPurchasedAt >= ?)
           )
-          AND i.userId = ?
+          AND i.householdId = ?
         ORDER BY isx.isNeeded DESC,
                  COALESCE(sco.displayOrder, 9999),
                  c.name COLLATE NOCASE,
@@ -108,8 +114,8 @@ struct ShoppingDao: Sendable {
         """
 
     /// Argument order (in SQL-occurrence order):
-    ///   1. isx.userId           (INNER JOIN ON)
-    ///   2. i.userId             (WHERE)
+    ///   1. isx.householdId      (INNER JOIN ON)
+    ///   2. i.householdId        (WHERE)
     ///   3. isx.lastPurchasedAt  (session window)
     private static let storePickerSql = """
         SELECT isx.storeId  AS storeId,
@@ -120,10 +126,10 @@ struct ShoppingDao: Sendable {
         FROM items i
         INNER JOIN item_store_xref isx
                ON isx.itemId = i.id
-              AND isx.userId = ?
+              AND isx.householdId = ?
               AND isx.deletedAt IS NULL
         WHERE i.deletedAt IS NULL
-          AND i.userId = ?
+          AND i.householdId = ?
           AND (
                 isx.isNeeded = 1
              OR (isx.lastPurchasedAt IS NOT NULL AND isx.lastPurchasedAt >= ?)

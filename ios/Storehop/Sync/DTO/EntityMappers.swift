@@ -6,6 +6,12 @@ import Foundation
 /// them. Setting `pendingSync = true` would cause every pull to immediately
 /// re-push, potentially overwriting newer cloud edits made by another
 /// device between pull start and push.
+///
+/// v0.7.0: every mapper carries `householdId` in both directions. Older
+/// Firestore documents (written by v0.6.x clients) deserialise with
+/// `householdId = ""`; the DTO → entity mappers fall back to `userId` in
+/// that case so the schema-v8 invariant (`householdId == userId` for
+/// single-member households) holds.
 
 extension Item {
     func toDto() -> ItemDto {
@@ -24,7 +30,8 @@ extension Item {
             brand: brand,
             imageUrl: imageUrl,
             isStaple: isStaple,
-            isPriority: isPriority
+            isPriority: isPriority,
+            householdId: householdId
         )
     }
 }
@@ -47,7 +54,8 @@ extension ItemDto {
             brand: brand,
             imageUrl: imageUrl,
             isStaple: isStaple,
-            isPriority: isPriority
+            isPriority: isPriority,
+            householdId: householdId.isEmpty ? userId : householdId
         )
     }
 }
@@ -65,7 +73,8 @@ extension Category {
             createdAt: createdAt,
             updatedAt: updatedAt,
             deletedAt: deletedAt,
-            displayOrder: displayOrder
+            displayOrder: displayOrder,
+            householdId: householdId
         )
     }
 }
@@ -84,7 +93,8 @@ extension CategoryDto {
             updatedAt: updatedAt,
             deletedAt: deletedAt,
             pendingSync: false,
-            displayOrder: displayOrder
+            displayOrder: displayOrder,
+            householdId: householdId.isEmpty ? userId : householdId
         )
     }
 }
@@ -101,7 +111,8 @@ extension Store {
             createdAt: createdAt,
             updatedAt: updatedAt,
             deletedAt: deletedAt,
-            displayOrder: displayOrder
+            displayOrder: displayOrder,
+            householdId: householdId
         )
     }
 }
@@ -119,7 +130,8 @@ extension StoreDto {
             updatedAt: updatedAt,
             deletedAt: deletedAt,
             pendingSync: false,
-            displayOrder: displayOrder
+            displayOrder: displayOrder,
+            householdId: householdId.isEmpty ? userId : householdId
         )
     }
 }
@@ -134,7 +146,8 @@ extension ItemStoreXref {
             updatedAt: updatedAt,
             deletedAt: deletedAt,
             isNeeded: isNeeded,
-            lastPurchasedAt: lastPurchasedAt
+            lastPurchasedAt: lastPurchasedAt,
+            householdId: householdId
         )
     }
 
@@ -153,7 +166,8 @@ extension ItemStoreXrefDto {
             deletedAt: deletedAt,
             pendingSync: false,
             isNeeded: isNeeded,
-            lastPurchasedAt: lastPurchasedAt
+            lastPurchasedAt: lastPurchasedAt,
+            householdId: householdId.isEmpty ? userId : householdId
         )
     }
 }
@@ -168,7 +182,8 @@ extension StoreCategoryOrder {
             userId: userId,
             createdAt: createdAt,
             updatedAt: updatedAt,
-            deletedAt: deletedAt
+            deletedAt: deletedAt,
+            householdId: householdId
         )
     }
 
@@ -187,7 +202,8 @@ extension StoreCategoryOrderDto {
             createdAt: createdAt,
             updatedAt: updatedAt,
             deletedAt: deletedAt,
-            pendingSync: false
+            pendingSync: false,
+            householdId: householdId.isEmpty ? userId : householdId
         )
     }
 }
@@ -202,7 +218,8 @@ extension PurchaseRecord {
             userId: userId,
             createdAt: createdAt,
             updatedAt: updatedAt,
-            deletedAt: deletedAt
+            deletedAt: deletedAt,
+            householdId: householdId
         )
     }
 }
@@ -218,13 +235,24 @@ extension PurchaseRecordDto {
             createdAt: createdAt,
             updatedAt: updatedAt,
             deletedAt: deletedAt,
-            pendingSync: false
+            pendingSync: false,
+            householdId: householdId.isEmpty ? userId : householdId
         )
     }
 }
 
 /// Firestore collection names. Documents live at
-/// `/users/{uid}/<collection>/<docId>`. Mirrors Android `SyncCollections`.
+/// `/users/{householdId}/<collection>/<docId>`. Mirrors Android
+/// `SyncCollections`.
+///
+/// Note: the `users` segment name is preserved from the v0.4 path. v0.7.0
+/// re-interprets `{users/x}` semantically as `{households/x}` — for
+/// single-member households `householdId == userId`, so existing cloud
+/// data persists at the same wire path. Renaming the collection to
+/// `households` would orphan every existing user's data, which is
+/// unacceptable for roll-out; we keep the legacy name and rely on the
+/// new `householdId` field inside each document for cross-household
+/// isolation in the upcoming Firestore security rules.
 enum SyncCollections {
     static let items = "items"
     static let categories = "categories"

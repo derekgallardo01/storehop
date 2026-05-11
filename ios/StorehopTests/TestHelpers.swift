@@ -7,11 +7,16 @@ import GRDB
 enum TestFixtures {
 
     /// Build a minimal Item with sensible defaults; pass overrides as needed.
+    ///
+    /// v0.7.0: `householdId` defaults to the same value as `userId` so
+    /// fixtures land in a coherent single-member household. Tests that
+    /// need to exercise cross-household isolation can override it.
     static func item(
         id: String = "i1",
         name: String = "Apple",
         categoryId: String? = nil,
         userId: String = "u1",
+        householdId: String? = nil,
         isNeeded: Bool = true,
         isStaple: Bool = false,
         isPriority: Bool = false,
@@ -33,7 +38,8 @@ enum TestFixtures {
             brand: nil,
             imageUrl: nil,
             isStaple: isStaple,
-            isPriority: isPriority
+            isPriority: isPriority,
+            householdId: householdId ?? userId
         )
     }
 
@@ -41,6 +47,7 @@ enum TestFixtures {
         id: String = "s1",
         name: String = "Lidl",
         userId: String = "u1",
+        householdId: String? = nil,
         isArchived: Bool = false,
         isSeeded: Bool = false,
         displayOrder: Int = 0,
@@ -57,7 +64,8 @@ enum TestFixtures {
             updatedAt: now,
             deletedAt: nil,
             pendingSync: true,
-            displayOrder: displayOrder
+            displayOrder: displayOrder,
+            householdId: householdId ?? userId
         )
     }
 
@@ -67,6 +75,7 @@ enum TestFixtures {
         nameKey: String? = nil,
         icon: String? = nil,
         userId: String = "u1",
+        householdId: String? = nil,
         isSeeded: Bool = false,
         now: Int64 = 0,
         displayOrder: Int = 0
@@ -83,7 +92,8 @@ enum TestFixtures {
             updatedAt: now,
             deletedAt: nil,
             pendingSync: true,
-            displayOrder: displayOrder
+            displayOrder: displayOrder,
+            householdId: householdId ?? userId
         )
     }
 
@@ -91,6 +101,7 @@ enum TestFixtures {
         itemId: String,
         storeId: String,
         userId: String = "u1",
+        householdId: String? = nil,
         isNeeded: Bool = true,
         lastPurchasedAt: Int64? = nil,
         now: Int64 = 0
@@ -104,7 +115,8 @@ enum TestFixtures {
             deletedAt: nil,
             pendingSync: true,
             isNeeded: isNeeded,
-            lastPurchasedAt: lastPurchasedAt
+            lastPurchasedAt: lastPurchasedAt,
+            householdId: householdId ?? userId
         )
     }
 
@@ -113,6 +125,7 @@ enum TestFixtures {
         categoryId: String,
         displayOrder: Int = 0,
         userId: String = "u1",
+        householdId: String? = nil,
         isSeeded: Bool = false,
         now: Int64 = 0
     ) -> StoreCategoryOrder {
@@ -125,7 +138,8 @@ enum TestFixtures {
             createdAt: now,
             updatedAt: now,
             deletedAt: nil,
-            pendingSync: true
+            pendingSync: true,
+            householdId: householdId ?? userId
         )
     }
 }

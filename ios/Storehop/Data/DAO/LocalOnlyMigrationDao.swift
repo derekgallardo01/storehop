@@ -15,6 +15,13 @@ import GRDB
 /// under a different uid, the rows the user wrote under the prior anonymous
 /// uid would otherwise be invisible. Single-user v1 means all data on this
 /// device is the active user's — so claim it.
+///
+/// v0.7.0: each claim re-stamps BOTH `userId` and `householdId` so the
+/// single-member household invariant (`householdId == userId`) holds after
+/// sign-in. The user is now in a personal household whose id equals their
+/// fresh uid; if they later accept an invite their `householdId` will
+/// diverge from their uid via the household session provider, not via this
+/// claim path.
 struct LocalOnlyMigrationDao: Sendable {
     let writer: any DatabaseWriter
 
@@ -37,8 +44,8 @@ struct LocalOnlyMigrationDao: Sendable {
         try await writer.write { db in
             for table in Self.tables {
                 try db.execute(
-                    sql: "UPDATE \(table) SET userId = ? WHERE userId = ?",
-                    arguments: [uid, Self.localOnly]
+                    sql: "UPDATE \(table) SET userId = ?, householdId = ? WHERE userId = ?",
+                    arguments: [uid, uid, Self.localOnly]
                 )
             }
         }
@@ -52,8 +59,8 @@ struct LocalOnlyMigrationDao: Sendable {
         try await writer.write { db in
             for table in Self.tables {
                 try db.execute(
-                    sql: "UPDATE \(table) SET userId = ? WHERE userId != ? AND userId != ?",
-                    arguments: [uid, uid, Self.localOnly]
+                    sql: "UPDATE \(table) SET userId = ?, householdId = ? WHERE userId != ? AND userId != ?",
+                    arguments: [uid, uid, uid, Self.localOnly]
                 )
             }
         }
