@@ -176,8 +176,15 @@ final class SettingsViewModel {
         Task { @MainActor [weak self] in
             guard let self else { return }
             guard let uid = await self.session.currentUserId else { return }
+            // v0.7.0: single-member households mirror uid → householdId.
+            // Until Phase 2's HouseholdSessionProvider is wired into this
+            // VM, mirror uid so the retry button keeps working. Phase 2
+            // FirebaseAuthSessionProvider always publishes a household
+            // alongside the uid, so this aliasing is correct for all
+            // production users.
+            let householdId = uid
             await self.pullStateRepo.set(.inProgress, for: uid)
-            let result = await self.pullCoordinator.pullForUid(uid)
+            let result = await self.pullCoordinator.pullForHousehold(householdId)
             switch result {
             case .success:
                 await self.pullStateRepo.set(.succeeded, for: uid)

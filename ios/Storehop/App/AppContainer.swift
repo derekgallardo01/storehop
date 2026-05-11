@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+@preconcurrency import FirebaseFirestore
 
 /// Root composition container. Holds every singleton with cross-call
 /// lifetime so ViewModels can pull what they need by reference. Constructor
@@ -9,6 +10,7 @@ final class AppContainer {
     let clock: Clock
     let ids: any IdGenerator
     let session: any UserSessionProvider
+    let householdSession: any HouseholdSessionProvider
     let database: StorehopDatabase
 
     // Auth + sync infrastructure (also exposed so SettingsViewModel can act
@@ -30,6 +32,7 @@ final class AppContainer {
     let shoppingDao: ShoppingDao
     let pullWriteDao: PullWriteDao
     let localOnlyMigrationDao: LocalOnlyMigrationDao
+    let householdMemberDao: HouseholdMemberDao
 
     // Repositories.
     let itemRepository: ItemRepository
@@ -39,6 +42,7 @@ final class AppContainer {
     let storeCategoryOrderRepository: StoreCategoryOrderRepository
     let purchaseHistoryRepository: PurchaseHistoryRepository
     let importExportRepository: ImportExportRepository
+    let householdRepository: any HouseholdRepository
 
     // Singletons that span ViewModel lifetimes.
     let shoppingSessionTracker: ShoppingSessionTracker
@@ -50,6 +54,8 @@ final class AppContainer {
         clock: Clock,
         ids: any IdGenerator,
         session: any UserSessionProvider,
+        householdSession: any HouseholdSessionProvider,
+        householdSwitcher: any HouseholdSwitcher,
         database: StorehopDatabase,
         firebaseAuthClient: any FirebaseAuthClient,
         googleSignInUseCase: GoogleSignInUseCase,
@@ -57,11 +63,16 @@ final class AppContainer {
         pullStateRepository: any PullStateRepository,
         userPreferences: any UserPreferencesRepository,
         firestoreClient: any FirestoreClient,
+        householdRepositoryFactory: (
+            _ memberDao: HouseholdMemberDao,
+            _ writeDao: PullWriteDao
+        ) -> any HouseholdRepository,
         imageUploader: any ImageUploader = NoOpImageUploader()
     ) {
         self.clock = clock
         self.ids = ids
         self.session = session
+        self.householdSession = householdSession
         self.database = database
         self.firebaseAuthClient = firebaseAuthClient
         self.googleSignInUseCase = googleSignInUseCase
@@ -80,6 +91,7 @@ final class AppContainer {
         self.shoppingDao = ShoppingDao(writer: writer)
         self.pullWriteDao = PullWriteDao(writer: writer)
         self.localOnlyMigrationDao = LocalOnlyMigrationDao(writer: writer)
+        self.householdMemberDao = HouseholdMemberDao(writer: writer)
 
         self.itemRepository = ItemRepository(
             writer: writer,
@@ -88,6 +100,7 @@ final class AppContainer {
             scoDao: storeCategoryOrderDao,
             purchaseDao: purchaseRecordDao,
             session: session,
+            householdSession: householdSession,
             clock: clock,
             ids: ids
         )
@@ -97,6 +110,7 @@ final class AppContainer {
             xrefDao: itemStoreXrefDao,
             scoDao: storeCategoryOrderDao,
             session: session,
+            householdSession: householdSession,
             clock: clock,
             ids: ids
         )
@@ -106,6 +120,7 @@ final class AppContainer {
             itemDao: itemDao,
             scoDao: storeCategoryOrderDao,
             session: session,
+            householdSession: householdSession,
             clock: clock,
             ids: ids
         )
@@ -117,6 +132,7 @@ final class AppContainer {
         self.storeCategoryOrderRepository = StoreCategoryOrderRepository(
             scoDao: storeCategoryOrderDao,
             session: session,
+            householdSession: householdSession,
             clock: clock
         )
         self.purchaseHistoryRepository = PurchaseHistoryRepository(
@@ -132,7 +148,19 @@ final class AppContainer {
             categoryRepository: categoryRepository,
             storeRepository: storeRepository,
             itemRepository: itemRepository,
-            session: session
+            session: session,
+            householdSession: householdSession
+        )
+
+        // HouseholdRepository wiring needs `householdSwitcher` to flip the
+        // active household after invite-accept / leave, plus a way to talk
+        // to Firestore directly (the invite-doc CRUD doesn't fit the
+        // narrow setDocument/peek/fetchAll FirestoreClient surface). The
+        // factory closure lets `live()` inject Firestore.firestore() and
+        // `preview()` inject a stub, without dragging Firebase types into
+        // every test path.
+        self.householdRepository = householdRepositoryFactory(
+            householdMemberDao, pullWriteDao
         )
 
         self.shoppingSessionTracker = ShoppingSessionTracker(clock: clock)
@@ -142,6 +170,7 @@ final class AppContainer {
         self.syncEngine = SyncEngine(
             firestore: firestoreClient,
             session: session,
+            householdSession: householdSession,
             pullStateRepo: pullStateRepository,
             itemDao: itemDao,
             categoryDao: categoryDao,
@@ -164,16 +193,21 @@ final class AppContainer {
                 firestore: firestore,
                 pullWriteDao: PullWriteDao(writer: writer)
             )
+            let clock = SystemClock()
             let session = FirebaseAuthSessionProvider(
                 authClient: authClient,
                 migrationDao: LocalOnlyMigrationDao(writer: writer),
+                householdMemberDao: HouseholdMemberDao(writer: writer),
                 pullCoordinator: pullCoordinator,
-                pullStateRepo: pullState
+                pullStateRepo: pullState,
+                clock: clock
             )
             return AppContainer(
-                clock: SystemClock(),
+                clock: clock,
                 ids: UuidV4Generator(),
                 session: session,
+                householdSession: session,
+                householdSwitcher: session,
                 database: database,
                 firebaseAuthClient: authClient,
                 googleSignInUseCase: googleSignIn,
@@ -181,6 +215,17 @@ final class AppContainer {
                 pullStateRepository: pullState,
                 userPreferences: LiveUserPreferencesRepository(),
                 firestoreClient: firestore,
+                householdRepositoryFactory: { memberDao, writeDao in
+                    FirestoreHouseholdRepository(
+                        firestore: Firestore.firestore(),
+                        householdMemberDao: memberDao,
+                        pullWriteDao: writeDao,
+                        userSession: session,
+                        householdSession: session,
+                        householdSwitcher: session,
+                        clock: clock
+                    )
+                },
                 imageUploader: FirebaseImageUploader(session: session)
             )
         } catch {
@@ -194,17 +239,21 @@ final class AppContainer {
             // Firebase, no real defaults. Callers can swap parts after
             // construction if a specific preview state is needed.
             let stubAuth = NoOpAuthClient()
+            let previewSession = LocalOnlyHouseholdSessionProvider()
             return AppContainer(
                 clock: FixedClock(nowMs: DatabaseSeeder.seedTimestamp),
                 ids: UuidV4Generator(),
                 session: LocalOnlyUserSessionProvider(),
+                householdSession: previewSession,
+                householdSwitcher: previewSession,
                 database: try StorehopDatabase.inMemoryForTests(),
                 firebaseAuthClient: stubAuth,
                 googleSignInUseCase: GoogleSignInUseCase(authClient: stubAuth),
                 pullCoordinator: StubPullCoordinator(),
                 pullStateRepository: InMemoryPullStateRepository(),
                 userPreferences: LiveUserPreferencesRepository(defaults: UserDefaults(suiteName: "preview")!),
-                firestoreClient: NoOpFirestoreClient()
+                firestoreClient: NoOpFirestoreClient(),
+                householdRepositoryFactory: { _, _ in StubHouseholdRepository() }
             )
         } catch {
             fatalError("Failed to build preview AppContainer: \(error)")
@@ -243,4 +292,21 @@ private struct NoOpFirestoreClient: FirestoreClient {
     func setDocument<T: Encodable & Sendable>(at path: String, value: T) async throws {}
     func peekHasDocuments(at collectionPath: String) async throws -> Bool { false }
     func fetchAll<T: Decodable & Sendable>(_ type: T.Type, at collectionPath: String) async throws -> [T] { [] }
+}
+
+/// Preview-only HouseholdRepository. The screen renders fine over an
+/// empty members list + a stub invite stream; SwiftUI Previews never run
+/// the invite-accept / leave-household paths anyway.
+private struct StubHouseholdRepository: HouseholdRepository {
+    func observeMembers() -> AsyncStream<[HouseholdMember]> {
+        AsyncStream { continuation in
+            continuation.yield([])
+            continuation.finish()
+        }
+    }
+    func generateInvite() async throws -> InviteCode {
+        InviteCode(token: "PREVIEW1", expiresAt: 0)
+    }
+    func acceptInvite(token: String) async -> InviteResult { .notFound }
+    func leaveHousehold() async throws {}
 }
