@@ -56,7 +56,7 @@ final class StoreDaoTests: XCTestCase {
             TestFixtures.store(id: "s1", name: "Lidl", isArchived: false),
             TestFixtures.store(id: "s2", name: "Closed", isArchived: true),
         ])
-        let visible = try db.queue.read { conn in
+        let visible = try await db.queue.read { conn in
             try Store.fetchAll(conn, sql: """
                 SELECT * FROM stores
                 WHERE userId = ? AND deletedAt IS NULL AND (? = 1 OR isArchived = 0)
@@ -72,7 +72,7 @@ final class StoreDaoTests: XCTestCase {
             TestFixtures.store(id: "s1", name: "Lidl", isArchived: false),
             TestFixtures.store(id: "s2", name: "Closed", isArchived: true),
         ])
-        let allVisible = try db.queue.read { conn in
+        let allVisible = try await db.queue.read { conn in
             try Store.fetchAll(conn, sql: """
                 SELECT * FROM stores
                 WHERE userId = ? AND deletedAt IS NULL AND (? = 1 OR isArchived = 0)
