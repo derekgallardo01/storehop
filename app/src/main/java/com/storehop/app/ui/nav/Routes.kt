@@ -11,6 +11,8 @@ object Routes {
     const val ITEMS = "items"
     const val SETTINGS = "settings"
     const val STATISTICS = "statistics"
+    /** v0.7.0: multi-user household management — Settings → Household. */
+    const val HOUSEHOLD = "settings/household"
 
     const val SHOP_AT_STORE = "shop/store/{storeId}"
     fun shopAtStore(storeId: String) = "shop/store/$storeId"

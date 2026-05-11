@@ -285,4 +285,30 @@
         <item>Friday</item>
         <item>Saturday</item>
     </string-array>
+
+    <!-- v0.7.0: Settings → Household screen and the entry-point card. -->
+    <string name="household_title">Household</string>
+    <string name="household_settings_subtitle">Share your list with someone</string>
+    <string name="household_members_header">Members</string>
+    <string name="household_members_just_you">Just you</string>
+    <string name="household_members_owner_badge">Owner</string>
+    <string name="household_generate_invite_header">Invite someone</string>
+    <string name="household_invite_explanation">Share this code with someone you want to add. It expires in 24 hours and can only be used once.</string>
+    <string name="household_generate_invite">Generate invite code</string>
+    <string name="household_invite_dialog_title">Invite code</string>
+    <string name="household_invite_dialog_message">Share this code with the person you want to add. It expires in 24 hours.</string>
+    <string name="household_invite_copy">Copy</string>
+    <string name="household_invite_dismiss">Done</string>
+    <string name="household_join_with_code">Join with code</string>
+    <string name="household_invite_code_label">Enter the 8-character code</string>
+    <string name="household_join_button">Join</string>
+    <string name="household_leave">Leave household</string>
+    <string name="household_leave_confirm_title">Leave household?</string>
+    <string name="household_leave_confirm_message">You\'ll start fresh with an empty list. This won\'t affect the household\'s data for other members.</string>
+    <string name="household_leave_confirm_button">Leave</string>
+    <string name="household_leave_cancel_button">Cancel</string>
+    <string name="household_error_invite_not_found">Invite code not found.</string>
+    <string name="household_error_invite_expired">This invite code has expired.</string>
+    <string name="household_error_invite_used">This invite code has already been used.</string>
+    <string name="household_error_invalid_token">Codes are 8 characters. Double-check the code and try again.</string>
 </resources>

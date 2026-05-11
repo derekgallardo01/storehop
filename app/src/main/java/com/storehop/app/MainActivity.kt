@@ -282,10 +282,16 @@ private fun SignedInRoot() {
                 SettingsScreen(
                     onBack = { navController.popBackStack() },
                     onOpenStatistics = { navController.navigate(Routes.STATISTICS) },
+                    onOpenHousehold = { navController.navigate(Routes.HOUSEHOLD) },
                 )
             }
             composable(Routes.STATISTICS) {
                 StatisticsScreen(onBack = { navController.popBackStack() })
+            }
+            composable(Routes.HOUSEHOLD) {
+                com.storehop.app.ui.settings.HouseholdScreen(
+                    onBack = { navController.popBackStack() },
+                )
             }
         }
     }

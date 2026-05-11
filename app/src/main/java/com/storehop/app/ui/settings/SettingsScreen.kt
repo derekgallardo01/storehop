@@ -25,6 +25,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.clickable
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.ChevronRight
@@ -72,6 +73,7 @@ import com.storehop.app.sync.PullState
 fun SettingsScreen(
     onBack: () -> Unit,
     onOpenStatistics: () -> Unit,
+    onOpenHousehold: () -> Unit = {},
     viewModel: SettingsViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsState()
@@ -127,6 +129,11 @@ fun SettingsScreen(
                 onSignIn = { viewModel.signInWithGoogle(context) },
                 onSignOut = viewModel::signOut,
             )
+            // v0.7.0: multi-user household management lives directly under the
+            // Account section since invites work only for signed-in users —
+            // an anonymous user can still tap through and see "Just you", but
+            // generating / accepting an invite requires Google sign-in.
+            HouseholdLinkCard(onOpen = onOpenHousehold)
 
             SectionHeader(text = stringResource(R.string.settings_section_display))
             ThemeCard(
@@ -605,6 +612,42 @@ private tailrec fun Context.findActivity(): Activity? = when (this) {
  * to break the previously-flat Settings screen into Account / Display /
  * Data / About zones.
  */
+/**
+ * v0.7.0: Settings → Household tap-target. Compact card with a forward
+ * arrow that opens the dedicated Household screen (member list, invite
+ * generate/join, leave). Mirrors the visual weight of [StatisticsCard].
+ */
+@Composable
+private fun HouseholdLinkCard(onOpen: () -> Unit) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        onClick = onOpen,
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    stringResource(R.string.household_title),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Text(
+                    stringResource(R.string.household_settings_subtitle),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
 @Composable
 private fun SectionHeader(text: String) {
     Text(
