@@ -45,8 +45,16 @@ targets:
     resources:
       - path: Storehop/Resources/Assets.xcassets
       - path: Storehop/Resources/Localizable.xcstrings
-      - path: Storehop/Resources/seed
-        type: folder
+      # Each seed JSON is listed individually (rather than the parent folder
+      # via `type: folder`) because xcodegen's folder-reference output
+      # doesn't always copy into the simulator bundle on the macos-15 CI
+      # runner — locally fine, in CI the seed/ directory ends up empty.
+      # Flat-listing the files lands them at the bundle root reliably.
+      # The seeder + smoke test handle both `seed/<name>.json` and
+      # `<name>.json` lookups via a subdirectory-then-root fallback.
+      - path: Storehop/Resources/seed/stores.json
+      - path: Storehop/Resources/seed/categories.json
+      - path: Storehop/Resources/seed/store_categories.json
     info:
       path: Storehop/Info.plist
       properties:
@@ -91,16 +99,14 @@ targets:
     sources:
       - path: StorehopTests
     resources:
-      # The seed JSONs are bundled into the main app via the Storehop target,
-      # but xcodebuild's `type: folder` reference doesn't always land them in
-      # the simulator bundle on macos-15 CI runners (works fine locally).
-      # Adding the same folder as a resource on the test target gives the
-      # DatabaseSeeder's fallback `Bundle(for: BundleAnchor.self)` lookup a
-      # reliable place to find them. Tests that exercise the production seed
-      # path then succeed in both contexts. No-op overhead in production
-      # builds — the StorehopTests bundle isn't shipped to users.
-      - path: Storehop/Resources/seed
-        type: folder
+      # Mirror the main app's seed-JSON resources onto the test target so
+      # `Bundle(for: BundleAnchor.self)` (which resolves to the main app
+      # bundle) AND any test-bundle fallback both find them. See the same
+      # comment on the Storehop target above for why we flat-list rather
+      # than relying on `type: folder`.
+      - path: Storehop/Resources/seed/stores.json
+      - path: Storehop/Resources/seed/categories.json
+      - path: Storehop/Resources/seed/store_categories.json
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.storehop.app.tests

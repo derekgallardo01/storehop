@@ -19,9 +19,19 @@ final class SmokeTests: XCTestCase {
 
     func testSeedJsonsAreBundled() throws {
         for resource in ["stores", "categories", "store_categories"] {
-            let url = Bundle(for: type(of: self)).url(forResource: resource, withExtension: "json", subdirectory: "seed")
-                ?? Bundle.main.url(forResource: resource, withExtension: "json", subdirectory: "seed")
-            XCTAssertNotNil(url, "Missing seed/\(resource).json in app bundle")
+            // Try the `seed/` subdirectory first (local builds where the
+            // folder reference preserves the directory). Fall back to the
+            // bundle root (CI builds where xcodegen flat-lists the files
+            // because `type: folder` doesn't reliably land in the simulator
+            // bundle on macos-15). Either location is fine — the seeder
+            // applies the same fallback at runtime.
+            let testBundle = Bundle(for: type(of: self))
+            let mainBundle = Bundle.main
+            let url = testBundle.url(forResource: resource, withExtension: "json", subdirectory: "seed")
+                ?? mainBundle.url(forResource: resource, withExtension: "json", subdirectory: "seed")
+                ?? testBundle.url(forResource: resource, withExtension: "json")
+                ?? mainBundle.url(forResource: resource, withExtension: "json")
+            XCTAssertNotNil(url, "Missing \(resource).json in test or app bundle")
         }
     }
 

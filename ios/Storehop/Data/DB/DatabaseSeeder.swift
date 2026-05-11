@@ -109,10 +109,16 @@ struct DatabaseSeeder: Sendable {
 
     private func loadJsonResource<T: Decodable>(_ name: String) throws -> T {
         // Look first in the test bundle (when run from XCTest), then fall back
-        // to the main bundle (production). Both call `seed/<name>.json`.
+        // to the main bundle (production). Try the `seed/` subdirectory first
+        // — that's where the files live in the source tree and the layout
+        // local xcodebuild produces. Then fall back to the bundle root, since
+        // the CI build flat-lists the files (xcodegen `type: folder` doesn't
+        // reliably land the directory structure on macos-15 simulators).
         let candidates: [Bundle] = [Bundle(for: BundleAnchor.self), .main]
         for bundle in candidates {
-            if let url = bundle.url(forResource: name, withExtension: "json", subdirectory: "seed") {
+            let url = bundle.url(forResource: name, withExtension: "json", subdirectory: "seed")
+                ?? bundle.url(forResource: name, withExtension: "json")
+            if let url = url {
                 let data = try Data(contentsOf: url)
                 return try JSONDecoder().decode(T.self, from: data)
             }
