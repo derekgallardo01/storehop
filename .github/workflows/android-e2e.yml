@@ -1,0 +1,209 @@
+name: Android E2E (emulator)
+
+# Runs the instrumented test suite under `app/src/androidTest/` on
+# Pixel-shaped emulators — both a phone profile and a tablet profile —
+# so layout-sensitive UI flows (Shop-at-Store, Items-list, Manage
+# Categories, the new Household screen) get exercised at both form
+# factors on every push to a feature branch and on PRs into main.
+#
+# This is the slow tier of CI (each emulator boot takes ~3 min, then
+# 12+ E2E tests each ~5-15s, so the matrix totals ~10-15 min). To keep
+# costs reasonable on the free ubuntu-latest runner (which counts at
+# 1x), we skip this on doc-only changes via the paths filter — same
+# rules as android-ci.yml.
+#
+# Triggered manually via workflow_dispatch when you want to sanity-
+# check a UI tweak without waiting for the next push.
+
+on:
+  push:
+    branches: ['**']
+    paths:
+      - 'app/**'
+      - 'gradle/**'
+      - 'build.gradle.kts'
+      - 'settings.gradle.kts'
+      - 'gradle.properties'
+      - '.github/workflows/android-e2e.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'app/**'
+      - 'gradle/**'
+      - 'build.gradle.kts'
+      - 'settings.gradle.kts'
+      - 'gradle.properties'
+      - '.github/workflows/android-e2e.yml'
+  workflow_dispatch: {}
+
+# Cancel any earlier in-flight emulator run on the same branch when a
+# new push lands. The matrix is long-running; without this, two pushes
+# in quick succession queue both runs back-to-back and burn ~30 min of
+# runner time on now-stale code.
+concurrency:
+  group: android-e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    strategy:
+      # Don't cancel the tablet run when the phone run fails (and vice
+      # versa) — we want to know whether the bug is form-factor-specific
+      # or fires on both. Both profiles still have to be green for the
+      # job to succeed.
+      fail-fast: false
+      matrix:
+        include:
+          # Pixel phone profile. API 34 is the most recent stable image
+          # with reliable Compose touch behavior on the headless runner.
+          - profile: pixel-phone
+            api-level: 34
+            target: google_apis
+            arch: x86_64
+            device: pixel_6
+          # Pixel Tablet profile — wider layout exercises the side-by-
+          # side panels and the alternate Material 3 navigation rails
+          # that don't appear at phone widths.
+          - profile: pixel-tablet
+            api-level: 34
+            target: google_apis
+            arch: x86_64
+            device: pixel_tablet
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Setup Gradle (with cache)
+        uses: gradle/actions/setup-gradle@v4
+
+      # Enable hardware acceleration for the emulator. Without KVM,
+      # an x86_64 Android image runs in pure software emulation and
+      # each boot takes 8-10 min instead of ~3 — well past the job
+      # timeout for the full matrix.
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' \
+            | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Write CI-only placeholder google-services.json
+        # Same placeholder the unit-test job writes — see android-ci.yml
+        # for the long rationale. Instrumented tests use
+        # `TestFirebaseModule` mocks, so even the placeholder is never
+        # actually consulted at runtime; it's only needed at build time
+        # so the google-services Gradle plugin doesn't fail.
+        run: |
+          cat > app/google-services.json <<'JSON'
+          {
+            "project_info": {
+              "project_number": "000000000000",
+              "project_id": "storehop-ci-placeholder",
+              "storage_bucket": "storehop-ci-placeholder.appspot.com"
+            },
+            "client": [
+              {
+                "client_info": {
+                  "mobilesdk_app_id": "1:000000000000:android:0000000000000000000000",
+                  "android_client_info": {
+                    "package_name": "com.storehop.app"
+                  }
+                },
+                "oauth_client": [
+                  {
+                    "client_id": "000000000000-ciplaceholder.apps.googleusercontent.com",
+                    "client_type": 3
+                  }
+                ],
+                "api_key": [
+                  { "current_key": "ci-placeholder-api-key" }
+                ],
+                "services": {
+                  "appinvite_service": {
+                    "other_platform_oauth_client": []
+                  }
+                }
+              }
+            ],
+            "configuration_version": "1"
+          }
+          JSON
+
+      # Cache the Android system image (~600MB) so subsequent runs don't
+      # re-download. Key on api-level+target so a matrix change picks up
+      # a fresh image but a code-only push reuses the cached one.
+      - name: AVD cache
+        uses: actions/cache@v4
+        id: avd-cache
+        with:
+          path: |
+            ~/.android/avd/*
+            ~/.android/adb*
+          key: avd-${{ matrix.api-level }}-${{ matrix.target }}-${{ matrix.device }}
+
+      # On cache miss, pre-create the AVD so the actual test run can
+      # skip the (slow) AVD-creation phase. Touch a `seed` file so we
+      # can prove this step ran (or didn't — when cached).
+      - name: Create AVD + first boot (cache miss only)
+        if: steps.avd-cache.outputs.cache-hit != 'true'
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: ${{ matrix.api-level }}
+          target: ${{ matrix.target }}
+          arch: ${{ matrix.arch }}
+          profile: ${{ matrix.device }}
+          # Args copied verbatim from the runner's recommended preset:
+          # disable bootanim + boot to user-data only (no audio, no
+          # window, no snapshot writeback) to minimize boot time.
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          disable-animations: true
+          force-avd-creation: false
+          script: echo "AVD created + booted; cache will save"
+
+      - name: Run instrumented tests
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: ${{ matrix.api-level }}
+          target: ${{ matrix.target }}
+          arch: ${{ matrix.arch }}
+          profile: ${{ matrix.device }}
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          disable-animations: true
+          force-avd-creation: false
+          # connectedDebugAndroidTest is the standard Gradle task that
+          # runs every @RunWith(AndroidJUnit4) class under androidTest/
+          # against the booted device. --no-build-cache because the
+          # build cache occasionally serves a stale instrumentation
+          # APK that's missing the latest test class.
+          script: |
+            ./gradlew :app:connectedDebugAndroidTest \
+              --console=plain \
+              --no-build-cache
+
+      - name: Upload Android test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-report-${{ matrix.profile }}-${{ github.run_id }}
+          path: app/build/reports/androidTests/connected/
+          retention-days: 7
+          if-no-files-found: ignore
+
+      - name: Upload Android test results (XML)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-results-${{ matrix.profile }}-${{ github.run_id }}
+          path: app/build/outputs/androidTest-results/connected/
+          retention-days: 7
+          if-no-files-found: ignore

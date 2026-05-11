@@ -54,6 +54,7 @@ suspend fun seedE2EFixtures(
             id = ids.storeLidlId, name = "Lidl", colorArgb = null,
             isArchived = false, isSeeded = false, userId = E2E_UID,
             createdAt = now, updatedAt = now, deletedAt = null,
+            householdId = E2E_UID,
         ),
     )
     storeDao.upsert(
@@ -61,6 +62,7 @@ suspend fun seedE2EFixtures(
             id = ids.storeAldiId, name = "Aldi", colorArgb = null,
             isArchived = false, isSeeded = false, userId = E2E_UID,
             createdAt = now, updatedAt = now, deletedAt = null,
+            householdId = E2E_UID,
         ),
     )
     categoryDao.upsert(
@@ -68,6 +70,7 @@ suspend fun seedE2EFixtures(
             id = ids.categoryDairyId, name = "Dairy", nameKey = null,
             icon = null, isArchived = false, isSeeded = false, userId = E2E_UID,
             createdAt = now, updatedAt = now, deletedAt = null,
+            householdId = E2E_UID,
         ),
     )
     itemDao.upsert(
@@ -77,6 +80,7 @@ suspend fun seedE2EFixtures(
             isNeeded = true, isStaple = false, isPriority = false,
             imageUrl = null, lastPurchasedAt = null,
             userId = E2E_UID, createdAt = now, updatedAt = now, deletedAt = null,
+            householdId = E2E_UID,
         ),
     )
     itemDao.upsert(
@@ -86,6 +90,7 @@ suspend fun seedE2EFixtures(
             isNeeded = true, isStaple = false, isPriority = false,
             imageUrl = null, lastPurchasedAt = null,
             userId = E2E_UID, createdAt = now, updatedAt = now, deletedAt = null,
+            householdId = E2E_UID,
         ),
     )
     itemDao.upsert(
@@ -95,6 +100,7 @@ suspend fun seedE2EFixtures(
             isNeeded = true, isStaple = false, isPriority = false,
             imageUrl = null, lastPurchasedAt = null,
             userId = E2E_UID, createdAt = now, updatedAt = now, deletedAt = null,
+            householdId = E2E_UID,
         ),
     )
 
@@ -104,6 +110,7 @@ suspend fun seedE2EFixtures(
             itemId = ids.itemMilkId, storeId = ids.storeLidlId, userId = E2E_UID,
             isNeeded = true, lastPurchasedAt = null,
             createdAt = now, updatedAt = now, deletedAt = null,
+            householdId = E2E_UID,
         ),
     )
     xrefDao.upsert(
@@ -111,6 +118,7 @@ suspend fun seedE2EFixtures(
             itemId = ids.itemMilkId, storeId = ids.storeAldiId, userId = E2E_UID,
             isNeeded = true, lastPurchasedAt = null,
             createdAt = now, updatedAt = now, deletedAt = null,
+            householdId = E2E_UID,
         ),
     )
     // Eggs -> tagged at Lidl only, needed.
@@ -119,6 +127,7 @@ suspend fun seedE2EFixtures(
             itemId = ids.itemEggsId, storeId = ids.storeLidlId, userId = E2E_UID,
             isNeeded = true, lastPurchasedAt = null,
             createdAt = now, updatedAt = now, deletedAt = null,
+            householdId = E2E_UID,
         ),
     )
     // Bread -> no tagged stores. Exercises the +/- disabled branch.
