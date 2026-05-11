@@ -14,9 +14,13 @@ for it in v0.6.0 planning: *"allowing multiple people to access one
 account is probably a good one. I could see allowing Amanda to access
 my list and add items and check off items."* This release lands the
 full data + sync + invite + UI stack to support that flow on Android.
-iOS port stays at v0.6.10 until Phase 5 mirrors every change; the
-Android client at 0.7.0 still talks to the same Firestore project
-without breaking the iOS 0.6.10 sync.
+The iOS port carries the matching Phase 5 code on `main` (schema v8,
+HouseholdRepository, HouseholdView, household-scoped DAOs, parity
+unit tests) but is still tagged at v0.6.10 marketing version pending a
+Mac-side `xcodebuild` + 2-device smoke test before the version bump
+ships to TestFlight. The Android 0.7.0 client + the iOS 0.6.10 build
++ the iOS Phase 5 main branch all read/write the same Firestore
+project at the same paths without breaking each other.
 
 ### Added (Android)
 
@@ -98,11 +102,27 @@ fallback path is automatic — local DB wipes + re-pulls instead of
 crashing. The flag only helps once v0.7.0 itself is in users' hands;
 the v0.6.9 revert above is the one path it can't retroactively fix.
 
+### iOS port (Phase 5)
+
+- Every Android v0.7.0 surface has a mirrored iOS counterpart on
+  `main`: schema migration `v8_household_scope`, HouseholdMember
+  entity + DAO, household-scoped DAO queries (10 DAOs), join-aware
+  `(uid, householdId)` SyncEngine + `pullForHousehold` rename on
+  PullCoordinator, Sync DTOs with householdId, FirestoreHouseholdRepository
+  (invite generate / accept / leave), HouseholdView + ViewModel, and
+  the same 8-char Crockford base32 / 24h TTL invite contract.
+- Test parity matches Android one-for-one as of this release:
+  HouseholdViewModelTests, HouseholdRepositoryTests (token spec),
+  MigrationTests v7→v8 backfill cases, SettingsViewModelTests
+  retryPull → pullForHousehold assertion. Wider FirestoreHouseholdRepository
+  flows still rely on Android's repo-impl tests + the 2-device smoke
+  test until iOS gains a Firebase-emulator harness.
+- iOS marketing version stays at 0.6.10 in this release. Bumping iOS
+  to 0.7.0 + TestFlight push is gated on a Mac-side `xcodebuild test`
+  + 2-device manual smoke run.
+
 ### Deferred to v0.7.x
 
-- iOS mirror (Phase 5): every DAO + DTO + repository change ports to
-  the GRDB-backed iOS stack. iOS at 0.6.10 stays single-user until
-  this lands.
 - Real-time `addSnapshotListener` updates (still one-shot pull).
 - Member roles (everyone in a household is equal access-wise).
 - Multiple households per user.
@@ -111,6 +131,9 @@ the v0.6.9 revert above is the one path it can't retroactively fix.
 - Email / deep-link invites.
 - Cloud-side membership lookup on second-device sign-in (today the
   second device needs to be invited like a new member).
+- iOS Firebase-emulator unit-test harness so FirestoreHouseholdRepository's
+  invite/accept/leave flows can be unit-tested without a real Firestore
+  round-trip.
 
 ## [0.6.10] - 2026-05-11
 

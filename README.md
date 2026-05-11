@@ -13,10 +13,15 @@ specific household) is added or renamed by the user.
 
 ## Status
 
-Android v0.7.0 (Play Closed testing, multi-user); iOS v0.6.10 (parity
-catch-up; TestFlight-bound, still single-user pending the Phase 5
-mirror of the v0.7.0 household work). Android v0.7.0 adds multi-user
-household sharing on top of the existing single-user feature set:
+Android **v0.7.0** (Play Closed testing) shipped multi-user household
+sharing on top of the existing single-user feature set: invite-code
+generate (8-char Crockford base32, 24h TTL, single-use) + join + leave,
+household-scoped data for every entity (items, stores, categories,
+xref, store-category-order, purchase-records), and a cross-store
+cascade that now extends across household members by design (Amanda
+buying milk at Aldi drops Mike's "milk needed at Lidl" entry).
+Statistics deliberately stay per-user so Mike sees what HE bought, not
+the household combined. Existing v0.5–v0.6 features all carry over:
 anonymous-first onboarding with optional Google Sign-In, two-way
 Firestore + Storage cloud sync (push and pull), Shop and Items tabs
 with item photos, share-list-as-text, theme + language picker
@@ -31,11 +36,14 @@ the Play Console listing answers and
 [`docs/privacy-policy.md`](docs/privacy-policy.md) for the privacy
 policy hosted at the Play listing's required URL.
 
-An iOS port lives in [`ios/`](ios/) — SwiftUI + GRDB + Firebase iOS
-SDK, mirroring the Android architecture 1:1. As of v0.6.10 it's
-caught up to feature parity (with the natural exception of the
-in-app update prompt, since the App Store has no equivalent API).
-Not yet shipped to TestFlight or the App Store.
+iOS port (in [`ios/`](ios/) — SwiftUI + GRDB + Firebase iOS SDK,
+mirrors the Android architecture 1:1): marketing version still
+**v0.6.10** but `main` carries the full Phase 5 mirror of the v0.7.0
+multi-user code (schema v8, HouseholdRepository / View / ViewModel,
+household-scoped DAOs, sync DTO + path updates, parity unit tests).
+Bumping iOS to v0.7.0 + TestFlight push is gated on a Mac-side
+`xcodebuild test` pass + 2-device manual smoke run. Not yet on
+TestFlight or the App Store.
 
 ## Tech stack
 
@@ -47,8 +55,10 @@ Not yet shipped to TestFlight or the App Store.
 - Coil for image loading; DataStore Preferences for theme + locale state
 - Min SDK 26, target and compile SDK 35
 - Gradle 9.5, Android Gradle Plugin 8.10
-- Languages: English and European Portuguese (pt-PT) via the per-app
-  locale API on Android 13+, AppCompat backport on 8.0–12
+- Languages: English, European Portuguese (pt-PT), Spanish (es), and
+  Italian (it) via the per-app locale API on Android 13+, AppCompat
+  backport on 8.0–12. All ~180 strings translated; native-speaker
+  review pending before any public Play promotion of es / it.
 
 ## Building
 
@@ -313,9 +323,12 @@ pack remains stable across devices and across reseeds.
          by design — Amanda buying milk at Aldi drops Mike's "milk
          needed at Lidl" entry. Statistics deliberately stay
          per-user: Mike sees what HE bought, not Mike + Amanda
-         combined. iOS port (Phase 5) follows; iOS stays at v0.6.10
-         single-user until that mirror lands. See CHANGELOG for the
-         deferred-to-v0.7.x list (real-time `addSnapshotListener`,
+         combined. iOS Phase 5 mirror — schema v8, HouseholdRepository
+         / View / ViewModel, household-scoped DAOs, sync DTOs +
+         paths, parity unit tests — is on `main`; iOS marketing
+         version stays at v0.6.10 until a Mac `xcodebuild test` +
+         2-device smoke run, then bumps to 0.7.0. See CHANGELOG for
+         the deferred-to-v0.7.x list (real-time `addSnapshotListener`,
          per-field merge, member roles, multiple households per
          user, activity log, etc.).
 - v0.7+  Polish follow-ups and a v2 home-screen widget that actually
