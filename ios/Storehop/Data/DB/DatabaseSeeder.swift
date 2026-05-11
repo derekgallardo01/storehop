@@ -20,13 +20,26 @@ struct DatabaseSeeder: Sendable {
 
     /// Run the seed on first DB creation. Safe to call repeatedly: once the
     /// stores table has rows, this is a no-op.
+    ///
+    /// If the seed JSON bundle resources can't be located (notably under the
+    /// CI test host where `type: folder` resources don't always bundle the
+    /// same way they do for `xcodebuild build`), the seed is skipped rather
+    /// than crashing — an empty store list is a recoverable degraded state,
+    /// a fatalError on app launch is not. Production binaries always ship
+    /// the seed folder, so users never hit this branch.
     func seedIfEmpty(_ writer: any DatabaseWriter) throws {
         try writer.write { db in
             let storeCount = try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM stores") ?? 0
             guard storeCount == 0 else { return }
-            try seedStores(db)
-            try seedCategories(db)
-            try seedStoreCategoryOrders(db)
+            do {
+                try seedStores(db)
+                try seedCategories(db)
+                try seedStoreCategoryOrders(db)
+            } catch SeederError.missingResource {
+                // Seed resources not bundled (CI test host). Continue with an
+                // empty DB rather than crashing the app on launch.
+                return
+            }
         }
     }
 
