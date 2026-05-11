@@ -182,6 +182,7 @@ class ImportExportRepositoryImplTest {
                 quantity = "1 L", isNeeded = true, lastPurchasedAt = null,
                 userId = TEST_USER_ID, createdAt = 1L, updatedAt = 1L, deletedAt = null,
                 brand = "Mimosa", imageUrl = null, isStaple = false, isPriority = false,
+                householdId = TEST_USER_ID,
             ),
         )
         db.itemStoreXrefDao().setStoresForItem(
@@ -218,6 +219,7 @@ class ImportExportRepositoryImplTest {
                 userId = TEST_USER_ID, createdAt = 1L, updatedAt = 1L, deletedAt = null,
                 brand = "ExistingBrand", imageUrl = null,
                 isStaple = false, isPriority = false,
+                householdId = TEST_USER_ID,
             ),
         )
 
@@ -244,6 +246,7 @@ class ImportExportRepositoryImplTest {
                 id = bakeryId, name = "Bakery", nameKey = null, icon = null,
                 isArchived = false, isSeeded = false, userId = TEST_USER_ID,
                 createdAt = 1L, updatedAt = 1L, deletedAt = 100L,
+                householdId = TEST_USER_ID,
             ),
         )
 
@@ -264,6 +267,7 @@ class ImportExportRepositoryImplTest {
                 id = bakeryId, name = "Bakery", nameKey = null, icon = null,
                 isArchived = false, isSeeded = false, userId = TEST_USER_ID,
                 createdAt = 1L, updatedAt = 1L, deletedAt = null,
+                householdId = TEST_USER_ID,
             ),
         )
 
@@ -300,6 +304,7 @@ class ImportExportRepositoryImplTest {
                 id = tombId, name = "Bakery", nameKey = null, icon = null,
                 isArchived = false, isSeeded = false, userId = TEST_USER_ID,
                 createdAt = 1L, updatedAt = 1L, deletedAt = 100L,
+                householdId = TEST_USER_ID,
             ),
         )
         db.categoryDao().upsert(
@@ -307,6 +312,7 @@ class ImportExportRepositoryImplTest {
                 id = aliveId, name = "Produce", nameKey = null, icon = null,
                 isArchived = false, isSeeded = false, userId = TEST_USER_ID,
                 createdAt = 1L, updatedAt = 1L, deletedAt = null,
+                householdId = TEST_USER_ID,
             ),
         )
 
@@ -338,6 +344,7 @@ class ImportExportRepositoryImplTest {
                 id = "cat_dairy", name = "Dairy", nameKey = null, icon = null,
                 isArchived = false, isSeeded = false, userId = TEST_USER_ID,
                 createdAt = 1L, updatedAt = 1L, deletedAt = null,
+                householdId = TEST_USER_ID,
             ),
         )
         db.itemDao().upsert(
@@ -346,6 +353,7 @@ class ImportExportRepositoryImplTest {
                 quantity = null, isNeeded = true, lastPurchasedAt = null,
                 userId = TEST_USER_ID, createdAt = 1L, updatedAt = 1L, deletedAt = null,
                 brand = "Mimosa",
+                householdId = TEST_USER_ID,
             ),
         )
         db.itemStoreXrefDao().setStoresForItem(
@@ -374,6 +382,7 @@ class ImportExportRepositoryImplTest {
                     id = id, name = name, nameKey = null, icon = null,
                     isArchived = false, isSeeded = false, userId = TEST_USER_ID,
                     createdAt = 1L, updatedAt = 1L, deletedAt = null,
+                    householdId = TEST_USER_ID,
                 ),
             )
         }
@@ -382,6 +391,7 @@ class ImportExportRepositoryImplTest {
                 id = "tomb", name = "Tombstoned", nameKey = null, icon = null,
                 isArchived = false, isSeeded = false, userId = TEST_USER_ID,
                 createdAt = 1L, updatedAt = 1L, deletedAt = 100L,
+                householdId = TEST_USER_ID,
             ),
         )
 
@@ -425,5 +435,6 @@ class ImportExportRepositoryImplTest {
         id = id, name = name, colorArgb = null,
         isArchived = false, isSeeded = false, userId = TEST_USER_ID,
         createdAt = 1L, updatedAt = 1L, deletedAt = null,
+        householdId = TEST_USER_ID,
     )
 }

@@ -44,16 +44,19 @@ class PullWriteDaoTest {
         val xref = ItemStoreXref(
             itemId = "item_milk", storeId = "store_lidl", userId = TEST_USER_ID,
             createdAt = 1L, updatedAt = 1L, deletedAt = null,
+            householdId = TEST_USER_ID,
         )
         val sco = StoreCategoryOrder(
             storeId = "store_lidl", categoryId = "cat_dairy", displayOrder = 0,
             isSeeded = false, userId = TEST_USER_ID,
             createdAt = 1L, updatedAt = 1L, deletedAt = null,
+            householdId = TEST_USER_ID,
         )
         val pr = PurchaseRecord(
             id = "pr_1", itemId = "item_milk", storeId = "store_lidl",
             purchasedAt = 1L, userId = TEST_USER_ID,
             createdAt = 1L, updatedAt = 1L, deletedAt = null,
+            householdId = TEST_USER_ID,
         )
 
         dao.replaceAllForUid(
@@ -92,6 +95,7 @@ class PullWriteDaoTest {
             storeId = "store_lidl",
             userId = TEST_USER_ID,
             createdAt = 1L, updatedAt = 1L, deletedAt = null,
+            householdId = TEST_USER_ID,
         )
 
         val result = runCatching {
@@ -151,17 +155,20 @@ class PullWriteDaoTest {
         id = id, name = id, colorArgb = null,
         isArchived = false, isSeeded = false, userId = TEST_USER_ID,
         createdAt = 1L, updatedAt = 1L, deletedAt = null,
+        householdId = TEST_USER_ID,
     )
 
     private fun cat(id: String) = Category(
         id = id, name = id, nameKey = null, icon = null,
         isArchived = false, isSeeded = false, userId = TEST_USER_ID,
         createdAt = 1L, updatedAt = 1L, deletedAt = null,
+        householdId = TEST_USER_ID,
     )
 
     private fun item(id: String, categoryId: String?) = Item(
         id = id, name = id, categoryId = categoryId, notes = null,
         quantity = null, isNeeded = true, lastPurchasedAt = null,
         userId = TEST_USER_ID, createdAt = 1L, updatedAt = 1L, deletedAt = null,
+        householdId = TEST_USER_ID,
     )
 }

@@ -182,12 +182,14 @@ class StoreRepositoryImplTest {
                     id = id, name = id, categoryId = null, notes = null, quantity = null,
                     isNeeded = true, lastPurchasedAt = null,
                     userId = "local-only", createdAt = 1L, updatedAt = 1L, deletedAt = null,
+                    householdId = "local-only",
                 ),
             )
             db.itemStoreXrefDao().upsert(
                 com.storehop.app.data.entity.ItemStoreXref(
                     itemId = id, storeId = "store_lidl", userId = "local-only",
                     createdAt = 1L, updatedAt = 1L, deletedAt = null,
+                    householdId = "local-only",
                 ),
             )
         }
@@ -389,12 +391,14 @@ class StoreRepositoryImplTest {
                     id = id, name = id, categoryId = null, notes = null, quantity = null,
                     isNeeded = true, lastPurchasedAt = null,
                     userId = "local-only", createdAt = 1L, updatedAt = 1L, deletedAt = null,
+                    householdId = "local-only",
                 ),
             )
             db.itemStoreXrefDao().upsert(
                 com.storehop.app.data.entity.ItemStoreXref(
                     itemId = id, storeId = "store_lidl", userId = "local-only",
                     createdAt = 1L, updatedAt = 1L, deletedAt = null,
+                    householdId = "local-only",
                 ),
             )
         }
@@ -442,18 +446,21 @@ class StoreRepositoryImplTest {
                     id = id, name = id, categoryId = null, notes = null, quantity = null,
                     isNeeded = true, lastPurchasedAt = null,
                     userId = "local-only", createdAt = 1L, updatedAt = 1L, deletedAt = null,
+                    householdId = "local-only",
                 ),
             )
             db.itemStoreXrefDao().upsert(
                 com.storehop.app.data.entity.ItemStoreXref(
                     itemId = id, storeId = "store_lidl", userId = "local-only",
                     createdAt = 1L, updatedAt = 1L, deletedAt = null,
+                    householdId = "local-only",
                 ),
             )
             db.itemStoreXrefDao().upsert(
                 com.storehop.app.data.entity.ItemStoreXref(
                     itemId = id, storeId = "store_continente", userId = "local-only",
                     createdAt = 1L, updatedAt = 1L, deletedAt = null,
+                    householdId = "local-only",
                 ),
             )
         }

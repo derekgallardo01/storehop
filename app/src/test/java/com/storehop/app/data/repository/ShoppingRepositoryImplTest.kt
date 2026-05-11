@@ -195,18 +195,21 @@ class ShoppingRepositoryImplTest {
         id = id, name = name, colorArgb = null,
         isArchived = isArchived, isSeeded = false, userId = userId,
         createdAt = 1L, updatedAt = 1L, deletedAt = null,
+        householdId = userId,
     )
 
     private fun cat(id: String, name: String, userId: String = TEST_USER_ID) = Category(
         id = id, name = name, nameKey = id, icon = null,
         isArchived = false, isSeeded = false, userId = userId,
         createdAt = 1L, updatedAt = 1L, deletedAt = null,
+        householdId = userId,
     )
 
     private fun sco(storeId: String, categoryId: String, order: Int, userId: String = TEST_USER_ID) = StoreCategoryOrder(
         storeId = storeId, categoryId = categoryId, displayOrder = order,
         isSeeded = false, userId = userId,
         createdAt = 1L, updatedAt = 1L, deletedAt = null,
+        householdId = userId,
     )
 
     private fun item(
@@ -219,6 +222,7 @@ class ShoppingRepositoryImplTest {
         isNeeded = true, lastPurchasedAt = null, userId = userId,
         createdAt = 1L, updatedAt = 1L, deletedAt = null,
         isPriority = isPriority, isStaple = isStaple,
+        householdId = userId,
     )
 
     private fun xref(
@@ -231,6 +235,7 @@ class ShoppingRepositoryImplTest {
         itemId = itemId, storeId = storeId, userId = userId,
         createdAt = 1L, updatedAt = 1L, deletedAt = null,
         isNeeded = isNeeded, lastPurchasedAt = lastPurchasedAt,
+        householdId = userId,
     )
 
     companion object {

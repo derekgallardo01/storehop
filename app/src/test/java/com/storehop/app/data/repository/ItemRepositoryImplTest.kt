@@ -57,6 +57,7 @@ class ItemRepositoryImplTest {
                         id = id, name = id, colorArgb = null,
                         isArchived = false, isSeeded = false, userId = TEST_USER_ID,
                         createdAt = 1L, updatedAt = 1L, deletedAt = null,
+                        householdId = TEST_USER_ID,
                     ),
                 )
             }
@@ -155,6 +156,7 @@ class ItemRepositoryImplTest {
             quantity = null, notes = null,
         )
         session.setUserId(OTHER_USER_ID)
+        householdSession.setHouseholdId(OTHER_USER_ID)
 
         val snapshot = repo.markPurchasedAtStore(itemId, "store_lidl")
 
@@ -238,6 +240,7 @@ class ItemRepositoryImplTest {
         // session userId rather than the parent item's userId, breaking the cross-table
         // ownership invariant.
         session.setUserId(OTHER_USER_ID)
+        householdSession.setHouseholdId(OTHER_USER_ID)
 
         repo.updateItem(
             id = itemId,
@@ -257,6 +260,7 @@ class ItemRepositoryImplTest {
 
         // Switch back to the original owner and update again.
         session.setUserId(TEST_USER_ID)
+        householdSession.setHouseholdId(TEST_USER_ID)
         repo.updateItem(
             id = itemId,
             name = "Milk 2L",
@@ -300,10 +304,12 @@ class ItemRepositoryImplTest {
         )
         // Switch session — softDelete must NOT tombstone another user's row.
         session.setUserId(OTHER_USER_ID)
+        householdSession.setHouseholdId(OTHER_USER_ID)
         repo.softDelete(itemId)
 
         // Restore the owner and confirm the item is still live with its xrefs intact.
         session.setUserId(TEST_USER_ID)
+        householdSession.setHouseholdId(TEST_USER_ID)
         val live = db.itemDao().observeAll(TEST_USER_ID).first().map { it.item.id }
         assertThat(live).contains(itemId)
         assertThat(db.itemStoreXrefDao().findForItem(itemId)).hasSize(1)
@@ -370,6 +376,7 @@ class ItemRepositoryImplTest {
             quantity = null, notes = null,
         )
         session.setUserId(OTHER_USER_ID)
+        householdSession.setHouseholdId(OTHER_USER_ID)
         assertThat(repo.observeById(itemId).first()).isNull()
     }
 
@@ -580,6 +587,7 @@ class ItemRepositoryImplTest {
                 id = id, name = id, nameKey = null, icon = null,
                 isArchived = false, isSeeded = false, userId = TEST_USER_ID,
                 createdAt = 1L, updatedAt = 1L, deletedAt = null,
+                householdId = TEST_USER_ID,
             ),
         )
     }
@@ -733,6 +741,7 @@ class ItemRepositoryImplTest {
                 id = "store_other", name = "Other", colorArgb = null,
                 isArchived = false, isSeeded = false, userId = OTHER_USER_ID,
                 createdAt = 1L, updatedAt = 1L, deletedAt = null,
+                householdId = OTHER_USER_ID,
             ),
         )
         val foreignItemId = foreignRepo.addItem(
@@ -812,6 +821,7 @@ class ItemRepositoryImplTest {
         storeId = storeId, categoryId = categoryId, displayOrder = displayOrder,
         isSeeded = isSeeded, userId = TEST_USER_ID,
         createdAt = 1L, updatedAt = 1L, deletedAt = null,
+        householdId = TEST_USER_ID,
     )
 
     /** Deterministic IDs for assertion stability. */

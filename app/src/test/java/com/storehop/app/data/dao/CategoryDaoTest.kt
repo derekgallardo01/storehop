@@ -69,6 +69,7 @@ class CategoryDaoTest {
                 id = "ribs", name = "Ribs", categoryId = "cat_bbq",
                 notes = null, quantity = null, isNeeded = true, lastPurchasedAt = null,
                 userId = TEST_USER_ID, createdAt = 1L, updatedAt = 1L, deletedAt = null,
+                householdId = TEST_USER_ID,
             ),
         )
         db.storeDao().upsert(
@@ -76,6 +77,7 @@ class CategoryDaoTest {
                 id = "store_x", name = "X", colorArgb = null,
                 isArchived = false, isSeeded = false, userId = TEST_USER_ID,
                 createdAt = 1L, updatedAt = 1L, deletedAt = null,
+                householdId = TEST_USER_ID,
             ),
         )
         db.storeCategoryOrderDao().upsert(
@@ -83,6 +85,7 @@ class CategoryDaoTest {
                 storeId = "store_x", categoryId = "cat_bbq", displayOrder = 0,
                 isSeeded = false, userId = TEST_USER_ID,
                 createdAt = 1L, updatedAt = 1L, deletedAt = null,
+                householdId = TEST_USER_ID,
             ),
         )
 
