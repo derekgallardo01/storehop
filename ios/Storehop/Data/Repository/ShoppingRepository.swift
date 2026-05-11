@@ -28,12 +28,16 @@ struct ShoppingRepository: Sendable {
     /// Shopping list for a single store, in that store's aisle order.
     /// Includes needed items, staples, and items purchased within the
     /// current session. Pass `Int64.max` to disable the session window.
+    ///
+    /// External `userId:` param is preserved for source compatibility with
+    /// existing ViewModels; the DAO call forwards it as `householdId:` (the
+    /// two are equal in single-member households).
     func shoppingListForStore(
         userId: String,
         storeId: String,
         sessionStartMs: Int64
     ) -> AsyncValueObservation<[ShoppingRow]> {
-        shoppingDao.shoppingListForStore(userId: userId, storeId: storeId, sessionStartMs: sessionStartMs)
+        shoppingDao.shoppingListForStore(householdId: userId, storeId: storeId, sessionStartMs: sessionStartMs)
     }
 
     /// One row per live store with needed count + session-picked-up count
@@ -46,8 +50,8 @@ struct ShoppingRepository: Sendable {
         userId: String,
         sessionStartMs: Int64
     ) -> AsyncStream<[StorePickerRow]> {
-        let stores = storeDao.observeAll(userId: userId, includeArchived: false)
-        let items = shoppingDao.observeStorePickerItems(userId: userId, sessionStartMs: sessionStartMs)
+        let stores = storeDao.observeAll(householdId: userId, includeArchived: false)
+        let items = shoppingDao.observeStorePickerItems(householdId: userId, sessionStartMs: sessionStartMs)
         return Self.combineLatest(stores, items) { stores, items in
             let byStore = Dictionary(grouping: items, by: \.storeId)
             return stores.map { store in

@@ -17,6 +17,11 @@ import GRDB
 /// All sync side-effects fall out naturally: each new row carries
 /// `pendingSync = true` so the next push tick uploads it; no existing
 /// Firestore doc is touched.
+///
+/// v0.7.0: queries scope by `householdId`. The download / dedupe path used
+/// to filter on `userId`; we now resolve the active household up front and
+/// scope every read against that. For single-member households the value
+/// equals `userId`, so behaviour stays unchanged.
 struct ImportExportRepository: Sendable {
     let writer: any DatabaseWriter
     let categoryDao: CategoryDao
@@ -26,11 +31,12 @@ struct ImportExportRepository: Sendable {
     let storeRepository: StoreRepository
     let itemRepository: ItemRepository
     let session: any UserSessionProvider
+    let householdSession: any HouseholdSessionProvider
 
     // MARK: - Export
 
     func exportItemsCsv() async throws -> String {
-        let userId = try await session.requireSignedIn()
+        let householdId = try await householdSession.requireHouseholdId()
         // Snapshot read: pull every alive item along with its category +
         // store names. The shape mirrors `ItemWithCategoryAndStores` but
         // we don't need the full Room relations machinery for a one-shot
@@ -38,24 +44,24 @@ struct ImportExportRepository: Sendable {
         let csv = try await writer.read { db -> String in
             let items = try Item.fetchAll(db, sql: """
                 SELECT * FROM items
-                WHERE userId = ? AND deletedAt IS NULL
+                WHERE householdId = ? AND deletedAt IS NULL
                 ORDER BY name COLLATE NOCASE
-                """, arguments: [userId])
+                """, arguments: [householdId])
 
             return try items.map { item -> ItemCsvRow in
                 let categoryName = try item.categoryId.flatMap { categoryId in
                     try Category.fetchOne(db, sql: """
                         SELECT * FROM categories
-                        WHERE id = ? AND userId = ? AND deletedAt IS NULL
-                        """, arguments: [categoryId, userId])?.name
+                        WHERE id = ? AND householdId = ? AND deletedAt IS NULL
+                        """, arguments: [categoryId, householdId])?.name
                 }
                 let storeNames = try Store.fetchAll(db, sql: """
                     SELECT s.* FROM stores s
                     JOIN item_store_xref x ON x.storeId = s.id
-                    WHERE x.itemId = ? AND s.userId = ?
+                    WHERE x.itemId = ? AND s.householdId = ?
                       AND s.deletedAt IS NULL AND x.deletedAt IS NULL
                     ORDER BY s.name COLLATE NOCASE
-                    """, arguments: [item.id, userId]).map(\.name)
+                    """, arguments: [item.id, householdId]).map(\.name)
 
                 return ItemCsvRow(
                     name: item.name,
@@ -73,13 +79,13 @@ struct ImportExportRepository: Sendable {
     }
 
     func exportCategoriesCsv() async throws -> String {
-        let userId = try await session.requireSignedIn()
+        let householdId = try await householdSession.requireHouseholdId()
         return try await writer.read { db -> String in
             let cats = try Category.fetchAll(db, sql: """
                 SELECT * FROM categories
-                WHERE userId = ? AND deletedAt IS NULL AND isArchived = 0
+                WHERE householdId = ? AND deletedAt IS NULL AND isArchived = 0
                 ORDER BY name COLLATE NOCASE
-                """, arguments: [userId])
+                """, arguments: [householdId])
             return cats.map { CategoryCsvRow(name: $0.name, icon: $0.icon) }.toCategoriesCsv()
         }
     }
@@ -90,7 +96,7 @@ struct ImportExportRepository: Sendable {
     /// rows whose name matches an alive item. Auto-creates referenced
     /// categories and stores by name (resurrecting tombstones if any).
     func importItemsCsv(_ content: String) async throws -> ImportResult {
-        let userId = try await session.requireSignedIn()
+        let householdId = try await householdSession.requireHouseholdId()
         let parsed = parseItemCsv(content)
         if parsed.rows.isEmpty {
             return ImportResult(errors: parsed.errors)
@@ -105,7 +111,7 @@ struct ImportExportRepository: Sendable {
         for row in parsed.rows {
             // Hard constraint: never modify an existing alive item.
             let existing = try await writer.read { db in
-                try ItemDao.findByName(on: db, userId: userId, name: row.name)
+                try ItemDao.findByName(on: db, householdId: householdId, name: row.name)
             }
             if existing != nil {
                 duplicatesSkipped += 1
@@ -115,7 +121,7 @@ struct ImportExportRepository: Sendable {
             let categoryId: String?
             if let name = row.category {
                 categoryId = try await resolveCategory(
-                    userId: userId,
+                    householdId: householdId,
                     name: name,
                     importedIds: &importedCategoryIds
                 )
@@ -125,7 +131,7 @@ struct ImportExportRepository: Sendable {
             var storeIds: Set<String> = []
             for name in row.storeNames {
                 if let id = try await resolveStore(
-                    userId: userId,
+                    householdId: householdId,
                     name: name,
                     importedIds: &importedStoreIds
                 ) {
@@ -167,7 +173,7 @@ struct ImportExportRepository: Sendable {
     /// `CategoryRepository.addCategory` which handles tombstone-resurrect.
     /// Alive duplicates are skipped without error.
     func importCategoriesCsv(_ content: String) async throws -> ImportResult {
-        let userId = try await session.requireSignedIn()
+        let householdId = try await householdSession.requireHouseholdId()
         let parsed = parseCategoryCsv(content)
         var importedCategoryIds: [String] = []
         var errors = parsed.errors
@@ -175,7 +181,7 @@ struct ImportExportRepository: Sendable {
 
         for row in parsed.rows {
             let existing = try await writer.read { db in
-                try CategoryDao.findByName(on: db, userId: userId, name: row.name)
+                try CategoryDao.findByName(on: db, householdId: householdId, name: row.name)
             }
             if existing != nil {
                 duplicatesSkipped += 1
@@ -223,12 +229,12 @@ struct ImportExportRepository: Sendable {
     /// Find an alive category by name; if none, call addCategory (which
     /// resurrects tombstones or inserts fresh) and remember the new id.
     private func resolveCategory(
-        userId: String,
+        householdId: String,
         name: String,
         importedIds: inout [String]
     ) async throws -> String? {
         if let existing = try await writer.read({ db in
-            try CategoryDao.findByName(on: db, userId: userId, name: name)
+            try CategoryDao.findByName(on: db, householdId: householdId, name: name)
         }) {
             return existing.id
         }
@@ -242,12 +248,12 @@ struct ImportExportRepository: Sendable {
     }
 
     private func resolveStore(
-        userId: String,
+        householdId: String,
         name: String,
         importedIds: inout [String]
     ) async throws -> String? {
         if let existing = try await writer.read({ db in
-            try StoreDao.findByName(on: db, userId: userId, name: name)
+            try StoreDao.findByName(on: db, householdId: householdId, name: name)
         }) {
             return existing.id
         }

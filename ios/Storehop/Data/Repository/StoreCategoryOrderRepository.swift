@@ -4,6 +4,7 @@ import GRDB
 struct StoreCategoryOrderRepository: Sendable {
     let scoDao: StoreCategoryOrderDao
     let session: any UserSessionProvider
+    let householdSession: any HouseholdSessionProvider
     let clock: any Clock
 
     func observeForStore(storeId: String) -> AsyncValueObservation<[StoreCategoryOrder]> {
@@ -15,6 +16,7 @@ struct StoreCategoryOrderRepository: Sendable {
     /// `displayOrder` bumped — all in one transaction.
     func reorderCategoriesForStore(storeId: String, orderedCategoryIds: [String]) async throws {
         let userId = try await session.requireSignedIn()
+        let householdId = try await householdSession.requireHouseholdId()
         let now = clock.nowMs()
         let rows = orderedCategoryIds.enumerated().map { (index, categoryId) in
             StoreCategoryOrder(
@@ -26,7 +28,8 @@ struct StoreCategoryOrderRepository: Sendable {
                 createdAt: now,
                 updatedAt: now,
                 deletedAt: nil,
-                pendingSync: true
+                pendingSync: true,
+                householdId: householdId
             )
         }
         try await scoDao.replaceAllForStore(storeId: storeId, ordered: rows, now: now)
