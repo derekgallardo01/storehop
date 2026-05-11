@@ -10,6 +10,7 @@ import com.storehop.app.data.db.relations.ItemWithCategoryAndStores
 import com.storehop.app.data.entity.Item
 import com.storehop.app.data.entity.ItemStoreXref
 import com.storehop.app.data.entity.PurchaseRecord
+import com.storehop.app.data.util.HouseholdSessionProvider
 import com.storehop.app.data.util.IdGenerator
 import com.storehop.app.data.util.UserSessionProvider
 import kotlinx.coroutines.flow.Flow
@@ -20,6 +21,14 @@ import kotlinx.coroutines.flow.map
 import java.time.Clock
 import javax.inject.Inject
 
+/**
+ * v0.7.0: queries scope by `householdId`. `userId` is still required (it's
+ * the creator/audit field on each row, stamped on insert). Cross-cascade
+ * DAOs (xrefDao, purchaseRecordDao, scoDao) still take `userId: String`
+ * named parameters but receive the item's `userId` value (identical to
+ * householdId in single-member households; will be revisited per-DAO when
+ * those flip to household-scoped filters).
+ */
 class ItemRepositoryImpl @Inject constructor(
     private val db: StorehopDatabase,
     private val itemDao: ItemDao,
@@ -29,16 +38,17 @@ class ItemRepositoryImpl @Inject constructor(
     private val ids: IdGenerator,
     private val clock: Clock,
     private val session: UserSessionProvider,
+    private val householdSession: HouseholdSessionProvider,
 ) : ItemRepository {
 
     override fun observeAll(): Flow<List<ItemWithCategoryAndStores>> =
-        session.userId.flatMapLatest { uid ->
-            if (uid == null) flowOf(emptyList()) else itemDao.observeAll(uid)
+        householdSession.householdId.flatMapLatest { hid ->
+            if (hid == null) flowOf(emptyList()) else itemDao.observeAll(hid)
         }
 
     override fun observeById(id: String): Flow<ItemWithCategoryAndStores?> =
-        session.userId.flatMapLatest { uid ->
-            if (uid == null) flowOf(null) else itemDao.observeById(uid, id)
+        householdSession.householdId.flatMapLatest { hid ->
+            if (hid == null) flowOf(null) else itemDao.observeById(hid, id)
         }
 
     override suspend fun addItem(
@@ -54,6 +64,7 @@ class ItemRepositoryImpl @Inject constructor(
         isPriority: Boolean,
     ): String = db.withTransaction {
         val userId = requireSignedIn()
+        val householdId = requireHousehold()
         val now = clock.millis()
         val id = ids.newId()
         itemDao.upsert(
@@ -73,6 +84,7 @@ class ItemRepositoryImpl @Inject constructor(
                 imageUrl = imageUrl,
                 isStaple = isStaple,
                 isPriority = isPriority,
+                householdId = householdId,
             ),
         )
         // Junction inherits userId from the parent we just wrote — ownership invariant.
@@ -93,10 +105,10 @@ class ItemRepositoryImpl @Inject constructor(
         isStaple: Boolean,
         isPriority: Boolean,
     ) = db.withTransaction {
-        val userId = requireSignedIn()
+        val householdId = requireHousehold()
         val now = clock.millis()
         // Preserve isNeeded / lastPurchasedAt / createdAt from the current row.
-        val current = itemDao.observeById(userId, id).first()?.item
+        val current = itemDao.observeById(householdId, id).first()?.item
             ?: return@withTransaction
         itemDao.upsert(
             current.copy(
@@ -120,24 +132,25 @@ class ItemRepositoryImpl @Inject constructor(
     }
 
     override suspend fun softDelete(id: String) = db.withTransaction {
-        val userId = requireSignedIn()
-        // Load the parent first so we (a) verify the caller owns the item before any
-        // write, and (b) get the userId we need to cascade-tombstone the junction
-        // rows and purchase records under the same ownership invariant.
-        val current = itemDao.observeById(userId, id).first()?.item
+        val householdId = requireHousehold()
+        // Load the parent first so we (a) verify the caller's household owns
+        // the item before any write, and (b) get the userId we need to
+        // cascade-tombstone the junction rows and purchase records under
+        // the same ownership invariant.
+        val current = itemDao.observeById(householdId, id).first()?.item
             ?: return@withTransaction
         val now = clock.millis()
-        itemDao.softDelete(current.userId, id, now)
+        itemDao.softDelete(householdId, id, now)
         xrefDao.softDeleteForItem(current.userId, id, now)
         purchaseRecordDao.softDeleteForItem(current.userId, id, now)
     }
 
     override suspend fun undoSoftDelete(id: String) = db.withTransaction {
-        val userId = requireSignedIn()
-        val item = itemDao.findAnyById(userId, id) ?: return@withTransaction
+        val householdId = requireHousehold()
+        val item = itemDao.findAnyById(householdId, id) ?: return@withTransaction
         val deletedAt = item.deletedAt ?: return@withTransaction
         val now = clock.millis()
-        itemDao.restoreFromTombstone(item.userId, id, now)
+        itemDao.restoreFromTombstone(householdId, id, now)
         xrefDao.restoreCascadeForItem(item.userId, id, deletedAt, now)
         purchaseRecordDao.restoreCascadeForItem(item.userId, id, deletedAt, now)
     }
@@ -149,45 +162,54 @@ class ItemRepositoryImpl @Inject constructor(
      * one of the stores, but it still shows up in the other 2." Writes
      * exactly one PurchaseRecord (the store the user actually bought it at).
      *
-     * Verifies the item belongs to the live user before any write so a
+     * Verifies the item belongs to the live household before any write so a
      * mid-call session swap can't corrupt cross-table ownership invariants.
      * Returns the snapshot timestamp so [undoPurchase] can do a precision
      * rollback by matching `lastPurchasedAt`; returns null when the lookup
-     * fails (no item, or wrong owner).
+     * fails (no item, or wrong household).
      */
     override suspend fun markPurchasedAtStore(itemId: String, storeId: String): Long? =
         db.withTransaction {
             val userId = requireSignedIn()
+            val householdId = requireHousehold()
             val now = clock.millis()
-            val current = itemDao.observeById(userId, itemId).first()?.item
+            val current = itemDao.observeById(householdId, itemId).first()?.item
                 ?: return@withTransaction null
             val ownerId = current.userId
 
             xrefDao.markPurchasedAcrossAllStores(ownerId, itemId, now)
-            purchaseRecordDao.insert(record(itemId, storeId = storeId, ownerId, now))
+            // PurchaseRecord's userId is the *purchaser* (the user who clicked
+            // the checkbox), not the item's creator. Under multi-user this
+            // matters: stats filter by purchaser per the v0.7.0 design ("what
+            // I bought" not "what we bought").
+            purchaseRecordDao.insert(record(itemId, storeId = storeId, userId, householdId, now))
             now
         }
 
     override suspend fun undoPurchase(itemId: String, snapshotTime: Long) = db.withTransaction {
         val userId = requireSignedIn()
-        val current = itemDao.observeById(userId, itemId).first()?.item
+        val householdId = requireHousehold()
+        val current = itemDao.observeById(householdId, itemId).first()?.item
             ?: return@withTransaction
         val ownerId = current.userId
         val now = clock.millis()
         xrefDao.restorePurchaseAcrossAllStores(ownerId, itemId, snapshotTime, now)
-        purchaseRecordDao.softDeleteForItemAtTime(ownerId, itemId, snapshotTime, now)
+        // Scope undo to the purchaser's own records (their userId), matching
+        // the insert side. Different users undoing their own purchases stays
+        // isolated even though they share the household.
+        purchaseRecordDao.softDeleteForItemAtTime(userId, itemId, snapshotTime, now)
     }
 
     override suspend fun markNeededAtStore(itemId: String, storeId: String) = db.withTransaction {
-        val userId = requireSignedIn()
-        val current = itemDao.observeById(userId, itemId).first()?.item
+        val householdId = requireHousehold()
+        val current = itemDao.observeById(householdId, itemId).first()?.item
             ?: return@withTransaction
         xrefDao.markNeededAtStore(current.userId, itemId, storeId, clock.millis())
     }
 
     override suspend fun tagItemToStore(itemId: String, storeId: String) = db.withTransaction {
-        val userId = requireSignedIn()
-        val current = itemDao.observeById(userId, itemId).first()?.item
+        val householdId = requireHousehold()
+        val current = itemDao.observeById(householdId, itemId).first()?.item
             ?: return@withTransaction
         val ownerId = current.userId
         val now = clock.millis()
@@ -209,6 +231,7 @@ class ItemRepositoryImpl @Inject constructor(
                     updatedAt = now,
                     deletedAt = null,
                     isNeeded = true,
+                    householdId = householdId,
                 ),
             )
         }
@@ -218,10 +241,10 @@ class ItemRepositoryImpl @Inject constructor(
     }
 
     override suspend fun addItemFromQuickAdd(name: String, storeId: String): String {
-        val userId = requireSignedIn()
+        val householdId = requireHousehold()
         val trimmed = name.trim()
         require(trimmed.isNotEmpty()) { "name must be non-empty" }
-        val existing = itemDao.findByName(userId, trimmed)
+        val existing = itemDao.findByName(householdId, trimmed)
         return if (existing != null) {
             tagItemToStore(existing.id, storeId)
             existing.id
@@ -252,21 +275,21 @@ class ItemRepositoryImpl @Inject constructor(
     }
 
     override fun observeNeededItemIds(): Flow<Set<String>> =
-        session.userId.flatMapLatest { uid ->
-            if (uid == null) flowOf(emptySet())
-            else xrefDao.observeNeededItemIds(uid).map { it.toSet() }
+        householdSession.householdId.flatMapLatest { hid ->
+            if (hid == null) flowOf(emptySet())
+            else xrefDao.observeNeededItemIds(hid).map { it.toSet() }
         }
 
     override suspend fun markNeededAcrossAllStores(itemId: String) = db.withTransaction {
-        val userId = requireSignedIn()
-        val current = itemDao.observeById(userId, itemId).first()?.item
+        val householdId = requireHousehold()
+        val current = itemDao.observeById(householdId, itemId).first()?.item
             ?: return@withTransaction
         xrefDao.markNeededAcrossAllStores(current.userId, itemId, clock.millis())
     }
 
     override suspend fun markPurchasedAcrossAllStores(itemId: String) = db.withTransaction {
-        val userId = requireSignedIn()
-        val current = itemDao.observeById(userId, itemId).first()?.item
+        val householdId = requireHousehold()
+        val current = itemDao.observeById(householdId, itemId).first()?.item
             ?: return@withTransaction
         // Pure list-state action -- no PurchaseRecord. The cascade clears
         // the item from every tagged store; the user is on the master Items
@@ -278,7 +301,10 @@ class ItemRepositoryImpl @Inject constructor(
     private fun requireSignedIn(): String =
         session.currentUserId() ?: throw IllegalStateException("Not signed in")
 
-    private fun record(itemId: String, storeId: String?, userId: String, now: Long) =
+    private fun requireHousehold(): String =
+        householdSession.currentHouseholdId() ?: throw IllegalStateException("No active household")
+
+    private fun record(itemId: String, storeId: String?, userId: String, householdId: String, now: Long) =
         PurchaseRecord(
             id = ids.newId(),
             itemId = itemId,
@@ -288,5 +314,6 @@ class ItemRepositoryImpl @Inject constructor(
             createdAt = now,
             updatedAt = now,
             deletedAt = null,
+            householdId = householdId,
         )
 }

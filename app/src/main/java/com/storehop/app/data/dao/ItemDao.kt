@@ -9,6 +9,10 @@ import com.storehop.app.data.db.relations.ItemWithCategoryAndStores
 import com.storehop.app.data.entity.Item
 import kotlinx.coroutines.flow.Flow
 
+/**
+ * v0.7.0 access scope: queries filter by `householdId` (not `userId`).
+ * See [StoreDao] for the rationale.
+ */
 @Dao
 interface ItemDao {
 
@@ -16,29 +20,29 @@ interface ItemDao {
     @Query(
         """
         SELECT * FROM items
-        WHERE userId = :userId AND deletedAt IS NULL
+        WHERE householdId = :householdId AND deletedAt IS NULL
         ORDER BY name COLLATE NOCASE
         """,
     )
-    fun observeAll(userId: String): Flow<List<ItemWithCategoryAndStores>>
+    fun observeAll(householdId: String): Flow<List<ItemWithCategoryAndStores>>
 
     @Query(
         """
         SELECT * FROM items
-        WHERE userId = :userId AND deletedAt IS NULL AND isNeeded = 1
+        WHERE householdId = :householdId AND deletedAt IS NULL AND isNeeded = 1
         ORDER BY name COLLATE NOCASE
         """,
     )
-    fun observeNeeded(userId: String): Flow<List<Item>>
+    fun observeNeeded(householdId: String): Flow<List<Item>>
 
     @Transaction
     @Query(
         """
         SELECT * FROM items
-        WHERE id = :id AND userId = :userId AND deletedAt IS NULL
+        WHERE id = :id AND householdId = :householdId AND deletedAt IS NULL
         """,
     )
-    fun observeById(userId: String, id: String): Flow<ItemWithCategoryAndStores?>
+    fun observeById(householdId: String, id: String): Flow<ItemWithCategoryAndStores?>
 
     @Upsert
     suspend fun upsert(item: Item)
@@ -55,14 +59,14 @@ interface ItemDao {
         """
         UPDATE items
         SET deletedAt = :now, updatedAt = :now, pendingSync = 1
-        WHERE id = :id AND userId = :userId
+        WHERE id = :id AND householdId = :householdId
         """,
     )
-    suspend fun softDelete(userId: String, id: String, now: Long)
+    suspend fun softDelete(householdId: String, id: String, now: Long)
 
     /** Tombstone-aware lookup for the undo path. */
-    @Query("SELECT * FROM items WHERE id = :id AND userId = :userId LIMIT 1")
-    suspend fun findAnyById(userId: String, id: String): Item?
+    @Query("SELECT * FROM items WHERE id = :id AND householdId = :householdId LIMIT 1")
+    suspend fun findAnyById(householdId: String, id: String): Item?
 
     /**
      * Live, case-insensitive name lookup. Used by the CSV import duplicate
@@ -75,32 +79,32 @@ interface ItemDao {
     @Query(
         """
         SELECT * FROM items
-        WHERE userId = :userId
+        WHERE householdId = :householdId
           AND name = :name COLLATE NOCASE
           AND deletedAt IS NULL
         LIMIT 1
         """,
     )
-    suspend fun findByName(userId: String, name: String): Item?
+    suspend fun findByName(householdId: String, name: String): Item?
 
     /** Inverse of [softDelete]: clears `deletedAt`, re-flags pendingSync. */
     @Query(
         """
         UPDATE items
         SET deletedAt = NULL, updatedAt = :now, pendingSync = 1
-        WHERE id = :id AND userId = :userId
+        WHERE id = :id AND householdId = :householdId
         """,
     )
-    suspend fun restoreFromTombstone(userId: String, id: String, now: Long)
+    suspend fun restoreFromTombstone(householdId: String, id: String, now: Long)
 
     @Query(
         """
         UPDATE items
         SET isNeeded = 0, lastPurchasedAt = :now, updatedAt = :now, pendingSync = 1
-        WHERE id = :id AND userId = :userId
+        WHERE id = :id AND householdId = :householdId
         """,
     )
-    suspend fun markPurchased(userId: String, id: String, now: Long)
+    suspend fun markPurchased(householdId: String, id: String, now: Long)
 
     /**
      * Restore an item to the "needed" list. Used by the Shop-at-Store screen
@@ -112,10 +116,10 @@ interface ItemDao {
         """
         UPDATE items
         SET isNeeded = 1, updatedAt = :now, pendingSync = 1
-        WHERE id = :id AND userId = :userId
+        WHERE id = :id AND householdId = :householdId
         """,
     )
-    suspend fun markNeeded(userId: String, id: String, now: Long)
+    suspend fun markNeeded(householdId: String, id: String, now: Long)
 
     /**
      * Clear `categoryId` on every live item that points at a category that's
@@ -127,10 +131,10 @@ interface ItemDao {
         """
         UPDATE items
         SET categoryId = NULL, updatedAt = :now, pendingSync = 1
-        WHERE categoryId = :categoryId AND userId = :userId AND deletedAt IS NULL
+        WHERE categoryId = :categoryId AND householdId = :householdId AND deletedAt IS NULL
         """,
     )
-    suspend fun clearCategoryReferences(userId: String, categoryId: String, now: Long)
+    suspend fun clearCategoryReferences(householdId: String, categoryId: String, now: Long)
 
     /**
      * Inverse of [clearCategoryReferences]: re-link items to their previous
@@ -144,15 +148,15 @@ interface ItemDao {
         """
         UPDATE items
         SET categoryId = :categoryId, updatedAt = :now, pendingSync = 1
-        WHERE userId = :userId AND categoryId IS NULL
+        WHERE householdId = :householdId AND categoryId IS NULL
           AND updatedAt = :clearedAt AND deletedAt IS NULL
         """,
     )
-    suspend fun restoreCategoryReferences(userId: String, categoryId: String, clearedAt: Long, now: Long)
+    suspend fun restoreCategoryReferences(householdId: String, categoryId: String, clearedAt: Long, now: Long)
 
-    @Query("SELECT * FROM items WHERE userId = :userId AND pendingSync = 1")
-    fun observePendingPush(userId: String): Flow<List<Item>>
+    @Query("SELECT * FROM items WHERE householdId = :householdId AND pendingSync = 1")
+    fun observePendingPush(householdId: String): Flow<List<Item>>
 
-    @Query("UPDATE items SET pendingSync = 0 WHERE id = :id AND userId = :userId")
-    suspend fun markPushed(userId: String, id: String)
+    @Query("UPDATE items SET pendingSync = 0 WHERE id = :id AND householdId = :householdId")
+    suspend fun markPushed(householdId: String, id: String)
 }

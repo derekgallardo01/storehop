@@ -77,6 +77,7 @@ class CategoryRepositoryImplTest {
                     id = id, name = id, categoryId = "cat_produce", notes = null, quantity = null,
                     isNeeded = true, lastPurchasedAt = null,
                     userId = "local-only", createdAt = 1L, updatedAt = 1L, deletedAt = null,
+                    householdId = "local-only",
                 ),
             )
         }
@@ -232,6 +233,7 @@ class CategoryRepositoryImplTest {
                     id = id, name = id, categoryId = "cat_produce", notes = null, quantity = null,
                     isNeeded = true, lastPurchasedAt = null,
                     userId = "local-only", createdAt = 1L, updatedAt = 1L, deletedAt = null,
+                    householdId = "local-only",
                 ),
             )
         }

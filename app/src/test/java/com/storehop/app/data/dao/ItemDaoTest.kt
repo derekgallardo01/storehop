@@ -107,5 +107,7 @@ class ItemDaoTest {
         id = id, name = name, categoryId = null, notes = null, quantity = null,
         isNeeded = isNeeded, lastPurchasedAt = null, userId = userId,
         createdAt = 1_000L, updatedAt = 1_000L, deletedAt = null,
+        // v0.7.0: single-member households have householdId == userId.
+        householdId = userId,
     )
 }

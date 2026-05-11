@@ -5,6 +5,7 @@ import com.storehop.app.data.db.StorehopDatabase
 import com.storehop.app.data.entity.Category
 import com.storehop.app.data.entity.Store
 import com.storehop.app.data.entity.StoreCategoryOrder
+import com.storehop.app.data.util.FakeHouseholdSessionProvider
 import com.storehop.app.data.util.IdGenerator
 import com.storehop.app.testing.FakeSessionProvider
 import com.storehop.app.testing.OTHER_USER_ID
@@ -34,6 +35,7 @@ class ItemRepositoryImplTest {
     private val sequentialIds = SequentialIdGenerator()
     private val fixedClock: Clock = Clock.fixed(Instant.ofEpochMilli(50_000L), ZoneOffset.UTC)
     private val session = FakeSessionProvider(TEST_USER_ID)
+    private val householdSession = FakeHouseholdSessionProvider(TEST_USER_ID)
 
     @Before fun setup() {
         db = createTestDb(seeded = false)
@@ -46,6 +48,7 @@ class ItemRepositoryImplTest {
             ids = sequentialIds,
             clock = fixedClock,
             session = session,
+            householdSession = householdSession,
         )
         kotlinx.coroutines.runBlocking {
             listOf("store_lidl", "store_continente").forEach { id ->
@@ -721,6 +724,7 @@ class ItemRepositoryImplTest {
             ids = sequentialIds,
             clock = fixedClock,
             session = foreignSession,
+            householdSession = FakeHouseholdSessionProvider(OTHER_USER_ID),
         )
         // Seed a store under the foreign uid so the foreign repo can write
         // its own xref.

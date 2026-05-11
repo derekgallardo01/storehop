@@ -50,6 +50,7 @@ class ImportExportRepositoryImplTest {
             purchaseRecordDao = db.purchaseRecordDao(),
             scoDao = db.storeCategoryOrderDao(),
             ids = ids, clock = clock, session = session,
+            householdSession = householdSession,
         )
         val categoryRepo = CategoryRepositoryImpl(
             db = db, dao = db.categoryDao(), itemDao = db.itemDao(),
@@ -137,6 +138,7 @@ class ImportExportRepositoryImplTest {
                 purchaseRecordDao = db.purchaseRecordDao(),
                 scoDao = db.storeCategoryOrderDao(),
                 ids = ids, clock = clock, session = session,
+                householdSession = householdSession,
             ),
             session = session,
         )
