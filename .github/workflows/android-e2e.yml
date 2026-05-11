@@ -182,14 +182,21 @@ jobs:
           force-avd-creation: false
           # connectedDebugAndroidTest is the standard Gradle task that
           # runs every @RunWith(AndroidJUnit4) class under androidTest/
-          # against the booted device. --no-build-cache because the
-          # build cache occasionally serves a stale instrumentation
-          # APK that's missing the latest test class.
+          # against the booted device.
+          #
+          # `--no-build-cache` was tempting (defends against stale Hilt
+          # generated sources) but actually BREAKS the Hilt KSP+
+          # androidTest pipeline: with the cache disabled, the
+          # KSP-generated `DaggerDefault_HiltComponents_SingletonC`
+          # root class isn't visible to the per-test-class
+          # `_TestComponentDataSupplier` Java that depends on it,
+          # producing a `cannot find symbol` failure for every E2E.
+          # Let Gradle's incremental compilation do its thing.
           #
           # Note: the emulator-runner action's `script` runs each line as
           # a separate command, so backslash line continuations don't
           # apply — the whole gradle invocation lives on one line.
-          script: ./gradlew :app:connectedDebugAndroidTest --console=plain --no-build-cache
+          script: ./gradlew :app:connectedDebugAndroidTest --console=plain
 
       - name: Upload Android test report
         if: always()
