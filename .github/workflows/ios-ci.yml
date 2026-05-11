@@ -52,6 +52,41 @@ jobs:
           swift --version
           sw_vers
 
+      - name: Write CI-only placeholder GoogleService-Info.plist
+        # The real GoogleService-Info.plist is gitignored (the file pulls
+        # in a per-environment Firebase project config). For CI we just
+        # need ANY valid plist so `FirebaseApp.configure()` in
+        # StorehopApp.init() doesn't crash when the test session launches
+        # the host app to set up the test bundle.
+        #
+        # All values are obvious placeholders; nothing in CI talks to
+        # real Firebase services. If a test ever DID try to round-trip
+        # through Firebase Auth / Firestore here, it would fail loudly
+        # against the dummy project id rather than silently against a
+        # real one.
+        run: |
+          cat > Storehop/Resources/GoogleService-Info.plist <<'PLIST'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>BUNDLE_ID</key><string>com.storehop.app</string>
+            <key>API_KEY</key><string>ci-placeholder-api-key</string>
+            <key>GOOGLE_APP_ID</key><string>1:000000000000:ios:0000000000000000000000</string>
+            <key>GCM_SENDER_ID</key><string>000000000000</string>
+            <key>PROJECT_ID</key><string>storehop-ci-placeholder</string>
+            <key>STORAGE_BUCKET</key><string>storehop-ci-placeholder.appspot.com</string>
+            <key>CLIENT_ID</key><string>000000000000-placeholder.apps.googleusercontent.com</string>
+            <key>REVERSED_CLIENT_ID</key><string>com.googleusercontent.apps.000000000000-placeholder</string>
+            <key>IS_ADS_ENABLED</key><false/>
+            <key>IS_ANALYTICS_ENABLED</key><false/>
+            <key>IS_APPINVITE_ENABLED</key><true/>
+            <key>IS_GCM_ENABLED</key><true/>
+            <key>IS_SIGNIN_ENABLED</key><true/>
+          </dict>
+          </plist>
+          PLIST
+
       - name: Install XcodeGen
         run: brew install xcodegen
 
