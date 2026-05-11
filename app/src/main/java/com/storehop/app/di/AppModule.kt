@@ -4,7 +4,6 @@ import com.google.firebase.auth.FirebaseAuth
 import com.storehop.app.auth.FirebaseAuthSessionProvider
 import com.storehop.app.data.util.HouseholdSessionProvider
 import com.storehop.app.data.util.IdGenerator
-import com.storehop.app.data.util.UserBackedHouseholdSessionProvider
 import com.storehop.app.data.util.UserSessionProvider
 import com.storehop.app.data.util.UuidIdGenerator
 import dagger.Binds
@@ -61,16 +60,15 @@ abstract class AppBindsModule {
     ): UserSessionProvider
 
     /**
-     * v0.7.0 Phase 1.x binding: the active household for every user is
-     * their own uid (a "household of one") until the first-launch bootstrap
-     * (Phase 2) replaces this with a real DAO-backed lookup. Wrapping
-     * [UserSessionProvider] here keeps every repository's runtime
-     * behaviour identical to v0.6.x while the codebase migrates from
-     * `userId`-scoped to `householdId`-scoped queries.
+     * v0.7.0 Phase 2 binding: [FirebaseAuthSessionProvider] resolves the
+     * active household alongside the uid during sign-in and publishes both
+     * via the same Singleton. Repositories observing either interface see
+     * a consistent (uid, householdId) pair because both ids are updated
+     * atomically after sync gating completes.
      */
     @Binds
     @Singleton
     abstract fun bindHouseholdSessionProvider(
-        impl: UserBackedHouseholdSessionProvider,
+        impl: FirebaseAuthSessionProvider,
     ): HouseholdSessionProvider
 }

@@ -6,11 +6,16 @@ import com.google.common.truth.Truth.assertThat
 import com.google.firebase.auth.AuthResult
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
+import com.storehop.app.data.dao.HouseholdMemberDao
 import com.storehop.app.data.dao.LocalOnlyMigrationDao
+import com.storehop.app.data.entity.HouseholdMember
 import com.storehop.app.sync.PullCoordinator
 import com.storehop.app.sync.PullState
 import com.storehop.app.sync.PullStateRepository
 import com.storehop.app.testing.MainDispatcherRule
+import java.time.Clock
+import java.time.Instant
+import java.time.ZoneOffset
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.coVerifyOrder
@@ -51,6 +56,14 @@ class FirebaseAuthSessionProviderTest {
         // override this stub.
         every { observe(any()) } returns kotlinx.coroutines.flow.flowOf(PullState.SUCCEEDED)
     }
+    // Phase 2: the provider resolves the user's active household from this
+    // DAO during sign-in. Default: no existing membership → provider creates
+    // a personal household (hid = uid). Tests that exercise the "already
+    // joined" path override `activeMembershipFor` per-uid.
+    private val householdMemberDao: HouseholdMemberDao = mockk(relaxed = true) {
+        coEvery { activeMembershipFor(any()) } returns null
+    }
+    private val fixedClock: Clock = Clock.fixed(Instant.ofEpochMilli(1_700_000_000_000L), ZoneOffset.UTC)
 
     /**
      * Default behavior: cloud is empty (returning user with no cloud data
@@ -307,11 +320,100 @@ class FirebaseAuthSessionProviderTest {
         scope.cancel()
     }
 
+    // ---- v0.7.0 Phase 2: household bootstrap ---------------------------------
+
+    @Test fun `cold-launch with no prior membership creates a personal household with hid equal to uid`() = runTest {
+        // First-launch-ever bootstrap (or a wipe-and-reinstall) — the user has
+        // an authed uid but no household_members row yet. The provider must
+        // insert one with hid = uid + isOwner = true before publishing the
+        // household flow.
+        every { auth.currentUser } returns mockUser("anon-uid")
+        every { auth.signInAnonymously() } returns Tasks.forResult(mockk<AuthResult>(relaxed = true))
+        coEvery { householdMemberDao.activeMembershipFor("anon-uid") } returns null
+        coEvery { migrationDao.countLocalOnlyStores() } returns 0
+        coEvery { migrationDao.countOrphanStores(any()) } returns 0
+        stubCloudEmpty()
+
+        val scope = CoroutineScope(SupervisorJob() + mainDispatcher.dispatcher)
+        val provider = newProvider(scope)
+        advanceUntilIdle()
+
+        coVerify(exactly = 1) {
+            householdMemberDao.upsert(match { it.uid == "anon-uid" && it.householdId == "anon-uid" && it.isOwner })
+        }
+        // householdId publishes alongside userId.
+        assertThat(provider.householdId.value).isEqualTo("anon-uid")
+        scope.cancel()
+    }
+
+    @Test fun `cold-launch with an existing membership reuses that household and does NOT create another`() = runTest {
+        // Returning user who previously joined Amanda's household. The
+        // provider must reuse the existing membership (no household_members
+        // upsert) and publish the shared household id.
+        every { auth.currentUser } returns mockUser("amanda-uid")
+        every { auth.signInAnonymously() } returns Tasks.forResult(mockk<AuthResult>(relaxed = true))
+        coEvery { householdMemberDao.activeMembershipFor("amanda-uid") } returns HouseholdMember(
+            uid = "amanda-uid",
+            householdId = "mike-uid",
+            displayName = "Amanda",
+            joinedAt = 100L,
+            isOwner = false,
+            createdAt = 100L,
+            updatedAt = 100L,
+            deletedAt = null,
+        )
+        coEvery { migrationDao.countLocalOnlyStores() } returns 0
+        coEvery { migrationDao.countOrphanStores(any()) } returns 0
+        stubCloudEmpty()
+
+        val scope = CoroutineScope(SupervisorJob() + mainDispatcher.dispatcher)
+        val provider = newProvider(scope)
+        advanceUntilIdle()
+
+        // No new membership row written -- the existing one is reused.
+        coVerify(exactly = 0) { householdMemberDao.upsert(any()) }
+        // The provider publishes the shared household id, not Amanda's own uid.
+        assertThat(provider.householdId.value).isEqualTo("mike-uid")
+        scope.cancel()
+    }
+
+    @Test fun `sign-out clears both userId and householdId`() = runTest {
+        every { auth.currentUser } returns mockUser("anon-uid")
+        every { auth.signInAnonymously() } returns Tasks.forResult(mockk<AuthResult>(relaxed = true))
+        val listenerSlot = slot<FirebaseAuth.AuthStateListener>()
+        every { auth.addAuthStateListener(capture(listenerSlot)) } returns Unit
+        coEvery { householdMemberDao.activeMembershipFor("anon-uid") } returns null
+        coEvery { migrationDao.countLocalOnlyStores() } returns 0
+        coEvery { migrationDao.countOrphanStores(any()) } returns 0
+        stubCloudEmpty()
+
+        val scope = CoroutineScope(SupervisorJob() + mainDispatcher.dispatcher)
+        val provider = newProvider(scope)
+        advanceUntilIdle()
+        // Sanity: both ids populated.
+        assertThat(provider.userId.value).isEqualTo("anon-uid")
+        assertThat(provider.householdId.value).isEqualTo("anon-uid")
+
+        // Fire sign-out: auth.currentUser → null.
+        val firedAuth: FirebaseAuth = mockk { every { currentUser } returns null }
+        listenerSlot.captured.onAuthStateChanged(firedAuth)
+        advanceUntilIdle()
+
+        // Both flows clear together — never an inconsistent (uid=null, hid="anon-uid") state.
+        assertThat(provider.userId.value).isNull()
+        assertThat(provider.householdId.value).isNull()
+        scope.cancel()
+    }
+
+    // -------------------------------------------------------------------------
+
     private fun newProvider(scope: CoroutineScope) = FirebaseAuthSessionProvider(
         auth = auth,
         migrationDao = migrationDao,
+        householdMemberDao = householdMemberDao,
         pullCoordinator = pullCoordinator,
         pullStateRepo = pullStateRepo,
+        clock = fixedClock,
         applicationScope = scope,
     )
 
