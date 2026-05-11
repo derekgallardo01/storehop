@@ -17,10 +17,15 @@ final class MigrationTests: XCTestCase {
         let applied = try queue.read { db in
             try Migrations.migrator().appliedMigrations(db)
         }
-        XCTAssertEqual(applied, ["v5_initial", "v6_drop_unique_name_indexes"])
+        XCTAssertEqual(applied, [
+            "v5_initial",
+            "v6_drop_unique_name_indexes",
+            "v7_categories_display_order",
+            "v8_household_scope",
+        ])
     }
 
-    func testAllSixTablesExistAfterMigration() throws {
+    func testAllSevenTablesExistAfterMigration() throws {
         let database = try makeDatabase()
         let tables = try database.queue.read { db in
             try String.fetchAll(db, sql: """
@@ -29,10 +34,12 @@ final class MigrationTests: XCTestCase {
                 ORDER BY name
                 """)
         }
+        // v0.7.0 adds household_members → seven tables total.
         XCTAssertEqual(Set(tables), [
             "categories",
             "items",
             "item_store_xref",
+            "household_members",
             "purchase_records",
             "store_category_order",
             "stores",

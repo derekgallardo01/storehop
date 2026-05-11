@@ -2,14 +2,16 @@ import XCTest
 import GRDB
 @testable import Storehop
 
-/// Pins the iOS schema to byte-shape parity with Android's Room dump for v5
-/// (`app/schemas/com.storehop.app.data.db.StorehopDatabase/5.json`). If
-/// Android adds, removes, or renames a column without a matching iOS
-/// migration, one of these assertions fails.
+/// Pins the iOS schema to byte-shape parity with Android's Room dump.
+/// Currently pinned to schema v8 (the v0.7.0 multi-user release that
+/// added a `householdId` column to all six entity tables + a new
+/// `household_members` table). Source of truth is
+/// `app/schemas/com.storehop.app.data.db.StorehopDatabase/8.json`.
 ///
-/// The expected shapes below were copied from `5.json` by hand on
-/// 2026-05-08. When Android ships v6, append a v6 migration in
-/// `Migrations.swift` and update the corresponding expected dictionaries.
+/// If Android adds, removes, or renames a column without a matching iOS
+/// migration, one of these assertions fails. When Android ships v9,
+/// append a v9 migration in `Migrations.swift` and update the
+/// corresponding expected dictionaries.
 final class SchemaParityTests: XCTestCase {
 
     private struct ColumnSpec: Equatable {
@@ -20,7 +22,7 @@ final class SchemaParityTests: XCTestCase {
         let pkPosition: Int  // 0 = not part of PK
     }
 
-    func testItemsTableMatchesAndroidSchemaV5() throws {
+    func testItemsTableMatchesAndroidSchemaV8() throws {
         try assertColumns(
             table: "items",
             expected: [
@@ -40,30 +42,33 @@ final class SchemaParityTests: XCTestCase {
                 ColumnSpec(name: "imageUrl",        type: "TEXT",    notNull: false, defaultValue: nil, pkPosition: 0),
                 ColumnSpec(name: "isStaple",        type: "INTEGER", notNull: true,  defaultValue: "0", pkPosition: 0),
                 ColumnSpec(name: "isPriority",      type: "INTEGER", notNull: true,  defaultValue: "0", pkPosition: 0),
+                ColumnSpec(name: "householdId",     type: "TEXT",    notNull: true,  defaultValue: "''", pkPosition: 0),
             ]
         )
     }
 
-    func testCategoriesTableMatchesAndroidSchemaV5() throws {
+    func testCategoriesTableMatchesAndroidSchemaV8() throws {
         try assertColumns(
             table: "categories",
             expected: [
-                ColumnSpec(name: "id",          type: "TEXT",    notNull: true,  defaultValue: nil, pkPosition: 1),
-                ColumnSpec(name: "name",        type: "TEXT",    notNull: true,  defaultValue: nil, pkPosition: 0),
-                ColumnSpec(name: "nameKey",     type: "TEXT",    notNull: false, defaultValue: nil, pkPosition: 0),
-                ColumnSpec(name: "icon",        type: "TEXT",    notNull: false, defaultValue: nil, pkPosition: 0),
-                ColumnSpec(name: "isArchived",  type: "INTEGER", notNull: true,  defaultValue: nil, pkPosition: 0),
-                ColumnSpec(name: "isSeeded",    type: "INTEGER", notNull: true,  defaultValue: nil, pkPosition: 0),
-                ColumnSpec(name: "userId",      type: "TEXT",    notNull: true,  defaultValue: nil, pkPosition: 0),
-                ColumnSpec(name: "createdAt",   type: "INTEGER", notNull: true,  defaultValue: nil, pkPosition: 0),
-                ColumnSpec(name: "updatedAt",   type: "INTEGER", notNull: true,  defaultValue: nil, pkPosition: 0),
-                ColumnSpec(name: "deletedAt",   type: "INTEGER", notNull: false, defaultValue: nil, pkPosition: 0),
-                ColumnSpec(name: "pendingSync", type: "INTEGER", notNull: true,  defaultValue: "1", pkPosition: 0),
+                ColumnSpec(name: "id",           type: "TEXT",    notNull: true,  defaultValue: nil, pkPosition: 1),
+                ColumnSpec(name: "name",         type: "TEXT",    notNull: true,  defaultValue: nil, pkPosition: 0),
+                ColumnSpec(name: "nameKey",      type: "TEXT",    notNull: false, defaultValue: nil, pkPosition: 0),
+                ColumnSpec(name: "icon",         type: "TEXT",    notNull: false, defaultValue: nil, pkPosition: 0),
+                ColumnSpec(name: "isArchived",   type: "INTEGER", notNull: true,  defaultValue: nil, pkPosition: 0),
+                ColumnSpec(name: "isSeeded",     type: "INTEGER", notNull: true,  defaultValue: nil, pkPosition: 0),
+                ColumnSpec(name: "userId",       type: "TEXT",    notNull: true,  defaultValue: nil, pkPosition: 0),
+                ColumnSpec(name: "createdAt",    type: "INTEGER", notNull: true,  defaultValue: nil, pkPosition: 0),
+                ColumnSpec(name: "updatedAt",    type: "INTEGER", notNull: true,  defaultValue: nil, pkPosition: 0),
+                ColumnSpec(name: "deletedAt",    type: "INTEGER", notNull: false, defaultValue: nil, pkPosition: 0),
+                ColumnSpec(name: "pendingSync",  type: "INTEGER", notNull: true,  defaultValue: "1", pkPosition: 0),
+                ColumnSpec(name: "displayOrder", type: "INTEGER", notNull: true,  defaultValue: "0", pkPosition: 0),
+                ColumnSpec(name: "householdId",  type: "TEXT",    notNull: true,  defaultValue: "''", pkPosition: 0),
             ]
         )
     }
 
-    func testStoresTableMatchesAndroidSchemaV5() throws {
+    func testStoresTableMatchesAndroidSchemaV8() throws {
         try assertColumns(
             table: "stores",
             expected: [
@@ -78,11 +83,12 @@ final class SchemaParityTests: XCTestCase {
                 ColumnSpec(name: "deletedAt",    type: "INTEGER", notNull: false, defaultValue: nil, pkPosition: 0),
                 ColumnSpec(name: "pendingSync",  type: "INTEGER", notNull: true,  defaultValue: "1", pkPosition: 0),
                 ColumnSpec(name: "displayOrder", type: "INTEGER", notNull: true,  defaultValue: "0", pkPosition: 0),
+                ColumnSpec(name: "householdId",  type: "TEXT",    notNull: true,  defaultValue: "''", pkPosition: 0),
             ]
         )
     }
 
-    func testItemStoreXrefTableMatchesAndroidSchemaV5() throws {
+    func testItemStoreXrefTableMatchesAndroidSchemaV8() throws {
         try assertColumns(
             table: "item_store_xref",
             expected: [
@@ -95,11 +101,12 @@ final class SchemaParityTests: XCTestCase {
                 ColumnSpec(name: "pendingSync",     type: "INTEGER", notNull: true,  defaultValue: "1", pkPosition: 0),
                 ColumnSpec(name: "isNeeded",        type: "INTEGER", notNull: true,  defaultValue: "1", pkPosition: 0),
                 ColumnSpec(name: "lastPurchasedAt", type: "INTEGER", notNull: false, defaultValue: nil, pkPosition: 0),
+                ColumnSpec(name: "householdId",     type: "TEXT",    notNull: true,  defaultValue: "''", pkPosition: 0),
             ]
         )
     }
 
-    func testStoreCategoryOrderTableMatchesAndroidSchemaV5() throws {
+    func testStoreCategoryOrderTableMatchesAndroidSchemaV8() throws {
         try assertColumns(
             table: "store_category_order",
             expected: [
@@ -112,11 +119,12 @@ final class SchemaParityTests: XCTestCase {
                 ColumnSpec(name: "updatedAt",    type: "INTEGER", notNull: true,  defaultValue: nil, pkPosition: 0),
                 ColumnSpec(name: "deletedAt",    type: "INTEGER", notNull: false, defaultValue: nil, pkPosition: 0),
                 ColumnSpec(name: "pendingSync",  type: "INTEGER", notNull: true,  defaultValue: "1", pkPosition: 0),
+                ColumnSpec(name: "householdId",  type: "TEXT",    notNull: true,  defaultValue: "''", pkPosition: 0),
             ]
         )
     }
 
-    func testPurchaseRecordsTableMatchesAndroidSchemaV5() throws {
+    func testPurchaseRecordsTableMatchesAndroidSchemaV8() throws {
         try assertColumns(
             table: "purchase_records",
             expected: [
@@ -129,6 +137,7 @@ final class SchemaParityTests: XCTestCase {
                 ColumnSpec(name: "updatedAt",   type: "INTEGER", notNull: true,  defaultValue: nil, pkPosition: 0),
                 ColumnSpec(name: "deletedAt",   type: "INTEGER", notNull: false, defaultValue: nil, pkPosition: 0),
                 ColumnSpec(name: "pendingSync", type: "INTEGER", notNull: true,  defaultValue: "1", pkPosition: 0),
+                ColumnSpec(name: "householdId", type: "TEXT",    notNull: true,  defaultValue: "''", pkPosition: 0),
             ]
         )
     }
