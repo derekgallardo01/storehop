@@ -24,7 +24,8 @@ final class RecordCodableTests: XCTestCase {
             updatedAt: 1_000,
             deletedAt: nil,
             pendingSync: true,
-            displayOrder: 0
+            displayOrder: 0,
+            householdId: "u1"
         )
         try db.queue.write { conn in
             var copy = original
@@ -50,7 +51,8 @@ final class RecordCodableTests: XCTestCase {
             updatedAt: 1_000,
             deletedAt: nil,
             pendingSync: true,
-            displayOrder: 0
+            displayOrder: 0,
+            householdId: "u1"
         )
         try db.queue.write { conn in
             var copy = original
@@ -80,7 +82,8 @@ final class RecordCodableTests: XCTestCase {
             brand: "Galbani",
             imageUrl: "https://example.com/mozz.jpg",
             isStaple: false,
-            isPriority: true
+            isPriority: true,
+            householdId: "u1"
         )
         try db.queue.write { conn in
             var copy = original
@@ -112,7 +115,8 @@ final class RecordCodableTests: XCTestCase {
                 deletedAt: nil,
                 pendingSync: true,
                 isNeeded: true,
-                lastPurchasedAt: nil
+                lastPurchasedAt: nil,
+                householdId: "u1"
             )
             try xref.insert(conn)
         }
@@ -144,7 +148,8 @@ final class RecordCodableTests: XCTestCase {
                 createdAt: 0,
                 updatedAt: 0,
                 deletedAt: nil,
-                pendingSync: true
+                pendingSync: true,
+                householdId: "u1"
             )
             try sco.insert(conn)
         }
@@ -170,7 +175,8 @@ final class RecordCodableTests: XCTestCase {
                 createdAt: 0,
                 updatedAt: 0,
                 deletedAt: nil,
-                pendingSync: true
+                pendingSync: true,
+                householdId: "u1"
             )
             try record.insert(conn)
         }
@@ -195,7 +201,8 @@ final class RecordCodableTests: XCTestCase {
                 updatedAt: 0,
                 deletedAt: nil,
                 pendingSync: true,
-                displayOrder: 0
+                displayOrder: 0,
+                householdId: "u1"
             )
             try category.insert(conn)
         }

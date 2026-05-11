@@ -85,7 +85,8 @@ final class ShopAtStoreViewModelTests: XCTestCase {
             var xref = ItemStoreXref(
                 itemId: mozzId!, storeId: "s_aldi", userId: "u1",
                 createdAt: 0, updatedAt: 0, deletedAt: nil,
-                pendingSync: true, isNeeded: true, lastPurchasedAt: nil
+                pendingSync: true, isNeeded: true, lastPurchasedAt: nil,
+                householdId: "u1"
             )
             try xref.upsert(conn)
         }
