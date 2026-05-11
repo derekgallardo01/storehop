@@ -5,16 +5,22 @@ import Foundation
 /// Started once at app launch (from `StorehopApp`'s `.task`). For the life
 /// of the process:
 ///
-///   1. Watches `session.userIdStream`. A uid change (sign-in, sign-out,
-///      anonymous→Google upgrade) cancels the previous user's push jobs
-///      and re-binds.
+///   1. Watches `(session.userIdStream, householdSession.householdIdStream)`
+///      jointly. A change in EITHER (sign-in, sign-out, anonymous→Google
+///      upgrade, join/leave household) cancels the previous push jobs and
+///      re-binds against the new (uid, householdId) pair.
 ///   2. For the active uid, observes `pullStateRepo.observe(uid)`. Push
 ///      jobs run only when state == `.succeeded`. While `.inProgress` /
 ///      `.failed` / `.needed`, push is paused — local edits accumulate
-///      `pendingSync = 1` and flush when state flips back.
-///   3. Per synced entity, watches that entity's `observePendingPush(uid)`
-///      stream. For each row in each emission, encodes to its DTO and
-///      writes to `users/{uid}/<collection>/{docId}`. On Firestore ack,
+///      `pendingSync = 1` and flush when state flips back. PullState is
+///      keyed on uid (matches Android), not householdId.
+///   3. Per synced entity, watches that entity's
+///      `observePendingPush(householdId:)` stream. For each row in each
+///      emission, encodes to its DTO and writes to
+///      `users/{householdId}/<collection>/{docId}` — the `users` segment
+///      name is preserved from v0.4 for backward compatibility;
+///      `householdId == userId` in single-member households so existing
+///      cloud data persists at the same wire path. On Firestore ack,
 ///      `markPushed` clears `pendingSync`.
 ///
 /// The pull-state gate is what closes the silent-corruption bug: a fresh
@@ -27,6 +33,7 @@ import Foundation
 final actor SyncEngine {
     private let firestore: any FirestoreClient
     private let session: any UserSessionProvider
+    private let householdSession: any HouseholdSessionProvider
     private let pullStateRepo: any PullStateRepository
 
     private let itemDao: ItemDao
@@ -36,19 +43,25 @@ final actor SyncEngine {
     private let scoDao: StoreCategoryOrderDao
     private let purchaseDao: PurchaseRecordDao
 
-    /// Outermost task: subscribed to uid changes. Cancelled in `shutdown`.
+    /// Outermost task: subscribed to (uid, householdId) changes. Cancelled
+    /// in `shutdown`.
     private var sessionTask: Task<Void, Never>?
-    /// Per-uid task: subscribed to pullState changes for that uid. Cancelled
-    /// when uid changes or on shutdown.
-    private var perUidTask: Task<Void, Never>?
+    /// Per-(uid, householdId) task: subscribed to pullState changes for the
+    /// active uid. Cancelled when EITHER changes or on shutdown.
+    private var perBindingTask: Task<Void, Never>?
     /// Live push jobs (one per entity). Spawned only when pullState ==
-    /// `.succeeded`; cancelled on uid change OR pullState transition away
-    /// from `.succeeded`.
+    /// `.succeeded`; cancelled on (uid, householdId) change OR pullState
+    /// transition away from `.succeeded`.
     private var pushTasks: [Task<Void, Never>] = []
+
+    /// Active joint binding (uid, householdId). Tracked so the joint stream
+    /// can suppress duplicate emissions.
+    private var currentBinding: (uid: String, householdId: String)?
 
     init(
         firestore: any FirestoreClient,
         session: any UserSessionProvider,
+        householdSession: any HouseholdSessionProvider,
         pullStateRepo: any PullStateRepository,
         itemDao: ItemDao,
         categoryDao: CategoryDao,
@@ -59,6 +72,7 @@ final actor SyncEngine {
     ) {
         self.firestore = firestore
         self.session = session
+        self.householdSession = householdSession
         self.pullStateRepo = pullStateRepo
         self.itemDao = itemDao
         self.categoryDao = categoryDao
@@ -71,11 +85,11 @@ final actor SyncEngine {
     /// Boot the engine. Idempotent.
     func start() {
         if sessionTask != nil { return }
-        let stream = session.userIdStream
+        let joined = Self.joinSessions(userStream: session.userIdStream, householdStream: householdSession.householdIdStream)
         sessionTask = Task { [weak self] in
-            for await uid in stream {
+            for await binding in joined {
                 guard let self else { return }
-                await self.handleUidChange(uid)
+                await self.handleBindingChange(uid: binding.uid, householdId: binding.householdId)
             }
         }
     }
@@ -85,38 +99,44 @@ final actor SyncEngine {
     func shutdown() {
         sessionTask?.cancel()
         sessionTask = nil
-        perUidTask?.cancel()
-        perUidTask = nil
+        perBindingTask?.cancel()
+        perBindingTask = nil
         for t in pushTasks { t.cancel() }
         pushTasks = []
+        currentBinding = nil
     }
 
-    // MARK: - uid handling
+    // MARK: - Binding handling
 
-    private func handleUidChange(_ uid: String?) async {
-        // Cancel everything tied to the previous uid.
-        perUidTask?.cancel()
-        perUidTask = nil
+    private func handleBindingChange(uid: String?, householdId: String?) async {
+        // Cancel everything tied to the previous binding.
+        perBindingTask?.cancel()
+        perBindingTask = nil
         for t in pushTasks { t.cancel() }
         pushTasks = []
 
-        guard let uid else { return }
+        guard let uid, let hid = householdId else {
+            currentBinding = nil
+            return
+        }
+        currentBinding = (uid: uid, householdId: hid)
 
         // Watch pull-state for this uid; flip push on/off accordingly.
+        // PullState is keyed on uid (matches Android), not householdId.
         let stateStream = pullStateRepo.observe(uid)
-        perUidTask = Task { [weak self] in
+        perBindingTask = Task { [weak self] in
             for await state in stateStream {
                 guard let self else { return }
-                await self.handlePullStateChange(uid: uid, state: state)
+                await self.handlePullStateChange(uid: uid, householdId: hid, state: state)
             }
         }
     }
 
-    private func handlePullStateChange(uid: String, state: PullState) async {
+    private func handlePullStateChange(uid: String, householdId: String, state: PullState) async {
         if state == .succeeded {
-            startPushJobsIfNeeded(uid: uid)
+            startPushJobsIfNeeded(householdId: householdId)
         } else {
-            // Pause: cancel running push jobs but keep the per-uid state
+            // Pause: cancel running push jobs but keep the per-binding state
             // observation alive so we can resume on the next .succeeded.
             for t in pushTasks { t.cancel() }
             pushTasks = []
@@ -125,29 +145,29 @@ final actor SyncEngine {
 
     // MARK: - push jobs
 
-    private func startPushJobsIfNeeded(uid: String) {
+    private func startPushJobsIfNeeded(householdId: String) {
         guard pushTasks.isEmpty else { return }
         pushTasks = [
-            startItemPushJob(uid: uid),
-            startCategoryPushJob(uid: uid),
-            startStorePushJob(uid: uid),
-            startXrefPushJob(uid: uid),
-            startScoPushJob(uid: uid),
-            startPurchasePushJob(uid: uid),
+            startItemPushJob(householdId: householdId),
+            startCategoryPushJob(householdId: householdId),
+            startStorePushJob(householdId: householdId),
+            startXrefPushJob(householdId: householdId),
+            startScoPushJob(householdId: householdId),
+            startPurchasePushJob(householdId: householdId),
         ]
     }
 
-    private func startItemPushJob(uid: String) -> Task<Void, Never> {
-        let stream = itemDao.observePendingPush(userId: uid)
+    private func startItemPushJob(householdId: String) -> Task<Void, Never> {
+        let stream = itemDao.observePendingPush(householdId: householdId)
         let dao = self.itemDao
         let firestore = self.firestore
         return Task {
             do {
                 for try await rows in stream {
                     for row in rows {
-                        let path = "users/\(uid)/\(SyncCollections.items)/\(row.id)"
+                        let path = "users/\(householdId)/\(SyncCollections.items)/\(row.id)"
                         await Self.pushOne(firestore: firestore, path: path, value: row.toDto()) {
-                            try? await dao.markPushed(userId: uid, id: row.id)
+                            try? await dao.markPushed(householdId: householdId, id: row.id)
                         }
                     }
                 }
@@ -155,22 +175,22 @@ final actor SyncEngine {
                 return
             } catch {
                 // ValueObservation rarely throws; if it does, the outer
-                // restart on uid/pullState change re-creates this job.
+                // restart on binding/pullState change re-creates this job.
             }
         }
     }
 
-    private func startCategoryPushJob(uid: String) -> Task<Void, Never> {
-        let stream = categoryDao.observePendingPush(userId: uid)
+    private func startCategoryPushJob(householdId: String) -> Task<Void, Never> {
+        let stream = categoryDao.observePendingPush(householdId: householdId)
         let dao = self.categoryDao
         let firestore = self.firestore
         return Task {
             do {
                 for try await rows in stream {
                     for row in rows {
-                        let path = "users/\(uid)/\(SyncCollections.categories)/\(row.id)"
+                        let path = "users/\(householdId)/\(SyncCollections.categories)/\(row.id)"
                         await Self.pushOne(firestore: firestore, path: path, value: row.toDto()) {
-                            try? await dao.markPushed(userId: uid, id: row.id)
+                            try? await dao.markPushed(householdId: householdId, id: row.id)
                         }
                     }
                 }
@@ -180,17 +200,17 @@ final actor SyncEngine {
         }
     }
 
-    private func startStorePushJob(uid: String) -> Task<Void, Never> {
-        let stream = storeDao.observePendingPush(userId: uid)
+    private func startStorePushJob(householdId: String) -> Task<Void, Never> {
+        let stream = storeDao.observePendingPush(householdId: householdId)
         let dao = self.storeDao
         let firestore = self.firestore
         return Task {
             do {
                 for try await rows in stream {
                     for row in rows {
-                        let path = "users/\(uid)/\(SyncCollections.stores)/\(row.id)"
+                        let path = "users/\(householdId)/\(SyncCollections.stores)/\(row.id)"
                         await Self.pushOne(firestore: firestore, path: path, value: row.toDto()) {
-                            try? await dao.markPushed(userId: uid, id: row.id)
+                            try? await dao.markPushed(householdId: householdId, id: row.id)
                         }
                     }
                 }
@@ -200,17 +220,17 @@ final actor SyncEngine {
         }
     }
 
-    private func startXrefPushJob(uid: String) -> Task<Void, Never> {
-        let stream = xrefDao.observePendingPush(userId: uid)
+    private func startXrefPushJob(householdId: String) -> Task<Void, Never> {
+        let stream = xrefDao.observePendingPush(householdId: householdId)
         let dao = self.xrefDao
         let firestore = self.firestore
         return Task {
             do {
                 for try await rows in stream {
                     for row in rows {
-                        let path = "users/\(uid)/\(SyncCollections.itemStoreXrefs)/\(row.docId)"
+                        let path = "users/\(householdId)/\(SyncCollections.itemStoreXrefs)/\(row.docId)"
                         await Self.pushOne(firestore: firestore, path: path, value: row.toDto()) {
-                            try? await dao.markPushed(userId: uid, itemId: row.itemId, storeId: row.storeId)
+                            try? await dao.markPushed(householdId: householdId, itemId: row.itemId, storeId: row.storeId)
                         }
                     }
                 }
@@ -220,17 +240,17 @@ final actor SyncEngine {
         }
     }
 
-    private func startScoPushJob(uid: String) -> Task<Void, Never> {
-        let stream = scoDao.observePendingPush(userId: uid)
+    private func startScoPushJob(householdId: String) -> Task<Void, Never> {
+        let stream = scoDao.observePendingPush(householdId: householdId)
         let dao = self.scoDao
         let firestore = self.firestore
         return Task {
             do {
                 for try await rows in stream {
                     for row in rows {
-                        let path = "users/\(uid)/\(SyncCollections.storeCategoryOrders)/\(row.docId)"
+                        let path = "users/\(householdId)/\(SyncCollections.storeCategoryOrders)/\(row.docId)"
                         await Self.pushOne(firestore: firestore, path: path, value: row.toDto()) {
-                            try? await dao.markPushed(userId: uid, storeId: row.storeId, categoryId: row.categoryId)
+                            try? await dao.markPushed(householdId: householdId, storeId: row.storeId, categoryId: row.categoryId)
                         }
                     }
                 }
@@ -240,17 +260,17 @@ final actor SyncEngine {
         }
     }
 
-    private func startPurchasePushJob(uid: String) -> Task<Void, Never> {
-        let stream = purchaseDao.observePendingPush(userId: uid)
+    private func startPurchasePushJob(householdId: String) -> Task<Void, Never> {
+        let stream = purchaseDao.observePendingPush(householdId: householdId)
         let dao = self.purchaseDao
         let firestore = self.firestore
         return Task {
             do {
                 for try await rows in stream {
                     for row in rows {
-                        let path = "users/\(uid)/\(SyncCollections.purchaseRecords)/\(row.id)"
+                        let path = "users/\(householdId)/\(SyncCollections.purchaseRecords)/\(row.id)"
                         await Self.pushOne(firestore: firestore, path: path, value: row.toDto()) {
-                            try? await dao.markPushed(userId: uid, id: row.id)
+                            try? await dao.markPushed(householdId: householdId, id: row.id)
                         }
                     }
                 }
@@ -280,5 +300,72 @@ final actor SyncEngine {
         } catch {
             // Push failed; pendingSync stays 1 for retry on next emission.
         }
+    }
+
+    // MARK: - Joint (uid, householdId) stream
+
+    /// Joins two `AsyncStream`s into a single stream of `(uid, householdId)`
+    /// snapshots. Emits whenever EITHER upstream produces a new value,
+    /// using the most recent value from each. Duplicate emissions (same
+    /// (uid, householdId) tuple twice) are suppressed. Mirrors Kotlin Flow's
+    /// `combine(...).distinctUntilChanged()`.
+    private static func joinSessions(
+        userStream: AsyncStream<String?>,
+        householdStream: AsyncStream<String?>
+    ) -> AsyncStream<(uid: String?, householdId: String?)> {
+        AsyncStream { continuation in
+            let state = JointBindingState()
+
+            let userTask = Task {
+                for await uid in userStream {
+                    if let snapshot = await state.updateUid(uid) {
+                        continuation.yield(snapshot)
+                    }
+                }
+            }
+            let householdTask = Task {
+                for await hid in householdStream {
+                    if let snapshot = await state.updateHouseholdId(hid) {
+                        continuation.yield(snapshot)
+                    }
+                }
+            }
+
+            continuation.onTermination = { _ in
+                userTask.cancel()
+                householdTask.cancel()
+            }
+        }
+    }
+}
+
+/// Actor-isolated state for `joinSessions`. Holds the latest value from
+/// each upstream so the combined stream emits the freshest pair and
+/// suppresses duplicate emissions.
+private actor JointBindingState {
+    private var uid: String?
+    private var householdId: String?
+    private var lastEmittedUid: String?
+    private var lastEmittedHouseholdId: String?
+    private var haveEmittedAtLeastOnce = false
+
+    func updateUid(_ value: String?) -> (uid: String?, householdId: String?)? {
+        uid = value
+        return snapshotIfChanged()
+    }
+
+    func updateHouseholdId(_ value: String?) -> (uid: String?, householdId: String?)? {
+        householdId = value
+        return snapshotIfChanged()
+    }
+
+    private func snapshotIfChanged() -> (uid: String?, householdId: String?)? {
+        if haveEmittedAtLeastOnce && uid == lastEmittedUid && householdId == lastEmittedHouseholdId {
+            return nil
+        }
+        haveEmittedAtLeastOnce = true
+        lastEmittedUid = uid
+        lastEmittedHouseholdId = householdId
+        return (uid: uid, householdId: householdId)
     }
 }
