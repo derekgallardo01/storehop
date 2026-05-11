@@ -284,4 +284,30 @@
         <item>Viernes</item>
         <item>Sábado</item>
     </string-array>
+
+    <!-- v0.7.0: Pantalla Ajustes → Hogar y tarjeta de entrada. -->
+    <string name="household_title">Hogar</string>
+    <string name="household_settings_subtitle">Comparte tu lista con alguien</string>
+    <string name="household_members_header">Miembros</string>
+    <string name="household_members_just_you">Solo tú</string>
+    <string name="household_members_owner_badge">Propietario</string>
+    <string name="household_generate_invite_header">Invitar a alguien</string>
+    <string name="household_invite_explanation">Comparte este código con la persona que quieras añadir. Expira en 24 horas y solo se puede usar una vez.</string>
+    <string name="household_generate_invite">Generar código de invitación</string>
+    <string name="household_invite_dialog_title">Código de invitación</string>
+    <string name="household_invite_dialog_message">Comparte este código con la persona que quieras añadir. Expira en 24 horas.</string>
+    <string name="household_invite_copy">Copiar</string>
+    <string name="household_invite_dismiss">Hecho</string>
+    <string name="household_join_with_code">Unirse con código</string>
+    <string name="household_invite_code_label">Introduce el código de 8 caracteres</string>
+    <string name="household_join_button">Unirse</string>
+    <string name="household_leave">Salir del hogar</string>
+    <string name="household_leave_confirm_title">¿Salir del hogar?</string>
+    <string name="household_leave_confirm_message">Empezarás con una lista vacía. Esto no afectará a los datos del hogar para los demás miembros.</string>
+    <string name="household_leave_confirm_button">Salir</string>
+    <string name="household_leave_cancel_button">Cancelar</string>
+    <string name="household_error_invite_not_found">No se ha encontrado el código de invitación.</string>
+    <string name="household_error_invite_expired">Este código de invitación ha expirado.</string>
+    <string name="household_error_invite_used">Este código de invitación ya se ha utilizado.</string>
+    <string name="household_error_invalid_token">Los códigos tienen 8 caracteres. Comprueba el código e inténtalo de nuevo.</string>
 </resources>

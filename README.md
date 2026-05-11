@@ -13,12 +13,15 @@ specific household) is added or renamed by the user.
 
 ## Status
 
-Android v0.6.9 (Play Closed testing); iOS v0.6.10 (parity catch-up; TestFlight-bound). Feature-complete for
-single-user v1: anonymous-first onboarding with optional Google
-Sign-In, two-way Firestore + Storage cloud sync (push and pull), Shop
-and Items tabs with item photos, share-list-as-text, theme + language
-picker (English, European Portuguese, Spanish, Italian), drag-reorder
-stores (long-press on any tile), per-store aisle ordering, cross-store
+Android v0.7.0 (Play Closed testing, multi-user); iOS v0.6.10 (parity
+catch-up; TestFlight-bound, still single-user pending the Phase 5
+mirror of the v0.7.0 household work). Android v0.7.0 adds multi-user
+household sharing on top of the existing single-user feature set:
+anonymous-first onboarding with optional Google Sign-In, two-way
+Firestore + Storage cloud sync (push and pull), Shop and Items tabs
+with item photos, share-list-as-text, theme + language picker
+(English, European Portuguese, Spanish, Italian), drag-reorder stores
+(long-press on any tile), per-store aisle ordering, cross-store
 check-off cascade, Manage Categories, hide / show checked-off items
 toggle, QuickAdd autocomplete against the master Items library, in-app
 update prompt via Play Core, CSV import / export of items and
@@ -297,22 +300,32 @@ pack remains stable across devices and across reseeds.
          name or brand" → "Search by name or brand" (was wrapping
          on Mike's Pixel). Android-only release; iOS parity to
          follow on the Mac side.
-- v0.7.0 **Multi-user account sharing** (deferred from v0.6.0).
-         Mike-asked: *"allowing multiple people to access one
-         account is probably a good one. I could see allowing
-         Amanda to access my list and add items and check off
-         items."* Lets one primary account invite collaborators
-         (spouse, family, roommate, etc.) who can read and edit
-         the same shopping list, items, stores, and categories in
-         real time over the existing Firestore sync. Touches the
-         data layer (shared doc ownership / per-doc ACL), auth
-         (invite + accept flow), Firestore security rules, and
-         several UI surfaces (invite from Settings → Account,
-         manage collaborators, conflict signals). Major feature —
-         designed as its own milestone.
+- v0.7.0 **Multi-user account sharing** ✅ shipped (Android, Play
+         Closed Testing). Mike-asked: *"allowing multiple people
+         to access one account is probably a good one. I could see
+         allowing Amanda to access my list and add items and check
+         off items."* New household abstraction sits between user
+         and entity: every item / store / category / xref / SCO /
+         purchase-record carries a `householdId` access scope.
+         Settings → Household provides invite-code generate (8-char
+         Crockford base32, 24h TTL, single-use) + join-with-code +
+         leave-household. Cross-store cascade extends to households
+         by design — Amanda buying milk at Aldi drops Mike's "milk
+         needed at Lidl" entry. Statistics deliberately stay
+         per-user: Mike sees what HE bought, not Mike + Amanda
+         combined. iOS port (Phase 5) follows; iOS stays at v0.6.10
+         single-user until that mirror lands. See CHANGELOG for the
+         deferred-to-v0.7.x list (real-time `addSnapshotListener`,
+         per-field merge, member roles, multiple households per
+         user, activity log, etc.).
 - v0.7+  Polish follow-ups and a v2 home-screen widget that actually
          does something useful. An opt-in "auto-renew staples at
          session start" toggle in Settings (was a default-on TODO
          pre-v0.6.9; re-classified to opt-in after Mike's evidence
          showed users expect "marked purchased = stays off the
-         list" — auto-renewal would surprise them).
+         list" — auto-renewal would surprise them). v0.7.0 household
+         follow-ups: real-time `addSnapshotListener` updates so
+         Amanda's checks appear on Mike's device without a refresh,
+         per-field conflict merging instead of last-write-wins,
+         cloud-side membership lookup for second-device sign-in,
+         and member roles for households that need it.

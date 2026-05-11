@@ -284,4 +284,30 @@
         <item>Venerdì</item>
         <item>Sabato</item>
     </string-array>
+
+    <!-- v0.7.0: schermata Impostazioni → Famiglia e scheda di accesso. -->
+    <string name="household_title">Famiglia</string>
+    <string name="household_settings_subtitle">Condividi la tua lista con qualcuno</string>
+    <string name="household_members_header">Membri</string>
+    <string name="household_members_just_you">Solo tu</string>
+    <string name="household_members_owner_badge">Proprietario</string>
+    <string name="household_generate_invite_header">Invita qualcuno</string>
+    <string name="household_invite_explanation">Condividi questo codice con la persona che vuoi aggiungere. Scade in 24 ore e può essere usato una sola volta.</string>
+    <string name="household_generate_invite">Genera codice invito</string>
+    <string name="household_invite_dialog_title">Codice invito</string>
+    <string name="household_invite_dialog_message">Condividi questo codice con la persona che vuoi aggiungere. Scade in 24 ore.</string>
+    <string name="household_invite_copy">Copia</string>
+    <string name="household_invite_dismiss">Fatto</string>
+    <string name="household_join_with_code">Unisciti con codice</string>
+    <string name="household_invite_code_label">Inserisci il codice a 8 caratteri</string>
+    <string name="household_join_button">Unisciti</string>
+    <string name="household_leave">Esci dalla famiglia</string>
+    <string name="household_leave_confirm_title">Uscire dalla famiglia?</string>
+    <string name="household_leave_confirm_message">Inizierai con una lista vuota. Questo non influirà sui dati della famiglia per gli altri membri.</string>
+    <string name="household_leave_confirm_button">Esci</string>
+    <string name="household_leave_cancel_button">Annulla</string>
+    <string name="household_error_invite_not_found">Codice invito non trovato.</string>
+    <string name="household_error_invite_expired">Questo codice invito è scaduto.</string>
+    <string name="household_error_invite_used">Questo codice invito è già stato utilizzato.</string>
+    <string name="household_error_invalid_token">I codici sono di 8 caratteri. Controlla il codice e riprova.</string>
 </resources>

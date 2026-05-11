@@ -287,4 +287,30 @@
         <item>Sexta-feira</item>
         <item>Sábado</item>
     </string-array>
+
+    <!-- v0.7.0: Settings → Household screen and entry-point card. -->
+    <string name="household_title">Agregado familiar</string>
+    <string name="household_settings_subtitle">Partilhar a sua lista com outra pessoa</string>
+    <string name="household_members_header">Membros</string>
+    <string name="household_members_just_you">Apenas você</string>
+    <string name="household_members_owner_badge">Proprietário</string>
+    <string name="household_generate_invite_header">Convidar alguém</string>
+    <string name="household_invite_explanation">Partilhe este código com a pessoa que pretende adicionar. Expira em 24 horas e só pode ser utilizado uma vez.</string>
+    <string name="household_generate_invite">Gerar código de convite</string>
+    <string name="household_invite_dialog_title">Código de convite</string>
+    <string name="household_invite_dialog_message">Partilhe este código com a pessoa que pretende adicionar. Expira em 24 horas.</string>
+    <string name="household_invite_copy">Copiar</string>
+    <string name="household_invite_dismiss">Concluído</string>
+    <string name="household_join_with_code">Entrar com código</string>
+    <string name="household_invite_code_label">Introduza o código de 8 caracteres</string>
+    <string name="household_join_button">Entrar</string>
+    <string name="household_leave">Sair do agregado</string>
+    <string name="household_leave_confirm_title">Sair do agregado?</string>
+    <string name="household_leave_confirm_message">Vai começar com uma lista vazia. Isto não afeta os dados do agregado para os outros membros.</string>
+    <string name="household_leave_confirm_button">Sair</string>
+    <string name="household_leave_cancel_button">Cancelar</string>
+    <string name="household_error_invite_not_found">Código de convite não encontrado.</string>
+    <string name="household_error_invite_expired">Este código de convite expirou.</string>
+    <string name="household_error_invite_used">Este código de convite já foi utilizado.</string>
+    <string name="household_error_invalid_token">Os códigos têm 8 caracteres. Verifique o código e tente novamente.</string>
 </resources>
