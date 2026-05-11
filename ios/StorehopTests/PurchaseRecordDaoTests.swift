@@ -17,7 +17,8 @@ final class PurchaseRecordDaoTests: XCTestCase {
         let record = PurchaseRecord(
             id: "p1", itemId: "i1", storeId: nil,
             purchasedAt: 1_000, userId: "u1",
-            createdAt: 0, updatedAt: 0, deletedAt: nil, pendingSync: true
+            createdAt: 0, updatedAt: 0, deletedAt: nil, pendingSync: true,
+            householdId: "u1"
         )
         try await dao.insert(record)
         do {
@@ -34,7 +35,8 @@ final class PurchaseRecordDaoTests: XCTestCase {
             try await dao.insert(PurchaseRecord(
                 id: id, itemId: "i1", storeId: nil,
                 purchasedAt: ts, userId: "u1",
-                createdAt: 0, updatedAt: 0, deletedAt: nil, pendingSync: true
+                createdAt: 0, updatedAt: 0, deletedAt: nil, pendingSync: true,
+                householdId: "u1"
             ))
         }
 
@@ -55,10 +57,11 @@ final class PurchaseRecordDaoTests: XCTestCase {
         try await dao.insert(PurchaseRecord(
             id: "p1", itemId: "i1", storeId: nil,
             purchasedAt: 1_000, userId: "u1",
-            createdAt: 0, updatedAt: 0, deletedAt: nil, pendingSync: true
+            createdAt: 0, updatedAt: 0, deletedAt: nil, pendingSync: true,
+            householdId: "u1"
         ))
-        try await dao.softDeleteForItem(userId: "u1", itemId: "i1", now: 5_000)
-        try await dao.restoreCascadeForItem(userId: "u1", itemId: "i1", deletedAt: 5_000, now: 6_000)
+        try await dao.softDeleteForItem(householdId: "u1", itemId: "i1", now: 5_000)
+        try await dao.restoreCascadeForItem(householdId: "u1", itemId: "i1", deletedAt: 5_000, now: 6_000)
 
         let live = try await db.queue.read { conn in
             try PurchaseRecord.fetchAll(conn, sql: "SELECT * FROM purchase_records WHERE deletedAt IS NULL")

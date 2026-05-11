@@ -19,8 +19,8 @@ final class StoreCategoryOrderDaoTests: XCTestCase {
 
     func testAppendIfMissingCreatesRowAtNextDisplayOrder() async throws {
         let (_, dao) = try setup()
-        try await dao.appendIfMissing(storeId: "s1", categoryId: "c1", userId: "u1", now: 1_000)
-        try await dao.appendIfMissing(storeId: "s1", categoryId: "c2", userId: "u1", now: 1_000)
+        try await dao.appendIfMissing(storeId: "s1", categoryId: "c1", householdId: "u1", userId: "u1", now: 1_000)
+        try await dao.appendIfMissing(storeId: "s1", categoryId: "c2", householdId: "u1", userId: "u1", now: 1_000)
         try await dao.appendIfMissing(storeId: "s1", categoryId: "c3", userId: "u1", now: 1_000)
 
         let rows = try await dao.findForStore(storeId: "s1").sorted { $0.displayOrder < $1.displayOrder }
@@ -30,9 +30,9 @@ final class StoreCategoryOrderDaoTests: XCTestCase {
 
     func testAppendIfMissingIsIdempotentForExistingLiveRow() async throws {
         let (_, dao) = try setup()
-        try await dao.appendIfMissing(storeId: "s1", categoryId: "c1", userId: "u1", now: 1_000)
-        try await dao.appendIfMissing(storeId: "s1", categoryId: "c1", userId: "u1", now: 2_000)
-        try await dao.appendIfMissing(storeId: "s1", categoryId: "c1", userId: "u1", now: 3_000)
+        try await dao.appendIfMissing(storeId: "s1", categoryId: "c1", householdId: "u1", userId: "u1", now: 1_000)
+        try await dao.appendIfMissing(storeId: "s1", categoryId: "c1", householdId: "u1", userId: "u1", now: 2_000)
+        try await dao.appendIfMissing(storeId: "s1", categoryId: "c1", householdId: "u1", userId: "u1", now: 3_000)
 
         let rows = try await dao.findForStore(storeId: "s1")
         XCTAssertEqual(rows.count, 1)
@@ -42,11 +42,11 @@ final class StoreCategoryOrderDaoTests: XCTestCase {
 
     func testAppendIfMissingResurrectsTombstonedRowAtTheBottom() async throws {
         let (_, dao) = try setup()
-        try await dao.appendIfMissing(storeId: "s1", categoryId: "c1", userId: "u1", now: 1_000)
-        try await dao.appendIfMissing(storeId: "s1", categoryId: "c2", userId: "u1", now: 1_000)
+        try await dao.appendIfMissing(storeId: "s1", categoryId: "c1", householdId: "u1", userId: "u1", now: 1_000)
+        try await dao.appendIfMissing(storeId: "s1", categoryId: "c2", householdId: "u1", userId: "u1", now: 1_000)
         try await dao.softDelete(storeId: "s1", categoryId: "c1", now: 2_000)
 
-        try await dao.appendIfMissing(storeId: "s1", categoryId: "c1", userId: "u1", now: 3_000)
+        try await dao.appendIfMissing(storeId: "s1", categoryId: "c1", householdId: "u1", userId: "u1", now: 3_000)
 
         let live = try await dao.findForStore(storeId: "s1").sorted { $0.displayOrder < $1.displayOrder }
         XCTAssertEqual(live.count, 2)
@@ -57,8 +57,8 @@ final class StoreCategoryOrderDaoTests: XCTestCase {
 
     func testReplaceAllForStoreTombstonesMissingAndUpsertsIncoming() async throws {
         let (_, dao) = try setup()
-        try await dao.appendIfMissing(storeId: "s1", categoryId: "c1", userId: "u1", now: 1_000)
-        try await dao.appendIfMissing(storeId: "s1", categoryId: "c2", userId: "u1", now: 1_000)
+        try await dao.appendIfMissing(storeId: "s1", categoryId: "c1", householdId: "u1", userId: "u1", now: 1_000)
+        try await dao.appendIfMissing(storeId: "s1", categoryId: "c2", householdId: "u1", userId: "u1", now: 1_000)
 
         let newOrder: [StoreCategoryOrder] = [
             TestFixtures.sco(storeId: "s1", categoryId: "c2", displayOrder: 0, now: 2_000),

@@ -30,13 +30,13 @@ final class FirestorePullCoordinatorTests: XCTestCase {
             [makeStoreDto(id: "s1", userId: "uid_alice")],
             at: "users/uid_alice/stores"
         )
-        let result = try await s.coordinator.peek(uid: "uid_alice")
+        let result = try await s.coordinator.peek(householdId: "uid_alice")
         XCTAssertTrue(result)
     }
 
     func testPeekReturnsFalseWhenStoresCollectionIsEmpty() async throws {
         let s = try makeSetup()
-        let result = try await s.coordinator.peek(uid: "uid_alice")
+        let result = try await s.coordinator.peek(householdId: "uid_alice")
         XCTAssertFalse(result)
     }
 
@@ -71,7 +71,7 @@ final class FirestorePullCoordinatorTests: XCTestCase {
             at: "users/\(uid)/purchase_records"
         )
 
-        let result = await s.coordinator.pullForUid(uid)
+        let result = await s.coordinator.pullForHousehold(uid)
         XCTAssertEqual(result, .success)
 
         try await s.db.queue.read { conn in
@@ -92,7 +92,7 @@ final class FirestorePullCoordinatorTests: XCTestCase {
             at: "users/\(uid)/stores"
         )
 
-        _ = await s.coordinator.pullForUid(uid)
+        _ = await s.coordinator.pullForHousehold(uid)
 
         let pending = try await s.db.queue.read { conn in
             try Int.fetchOne(conn, sql: "SELECT COUNT(*) FROM stores WHERE pendingSync = 1") ?? -1
@@ -102,7 +102,7 @@ final class FirestorePullCoordinatorTests: XCTestCase {
 
     func testEmptyCloudPullSucceedsWithNoLocalRows() async throws {
         let s = try makeSetup()
-        let result = await s.coordinator.pullForUid("uid_alice")
+        let result = await s.coordinator.pullForHousehold("uid_alice")
         XCTAssertEqual(result, .success)
 
         let storeCount = try await s.db.queue.read { conn in
@@ -122,7 +122,7 @@ final class FirestorePullCoordinatorTests: XCTestCase {
             at: "users/uid_alice/stores"
         )
 
-        let result = await s.coordinator.pullForUid("uid_alice")
+        let result = await s.coordinator.pullForHousehold("uid_alice")
         if case .failure = result {
             // Expected
         } else {

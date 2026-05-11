@@ -21,7 +21,8 @@ final class PullWriteDaoTests: XCTestCase {
         let purchase = PurchaseRecord(
             id: "p1", itemId: "i1", storeId: "s1",
             purchasedAt: 1_000, userId: "u1",
-            createdAt: 0, updatedAt: 0, deletedAt: nil, pendingSync: false
+            createdAt: 0, updatedAt: 0, deletedAt: nil, pendingSync: false,
+            householdId: "u1"
         )
 
         try await dao.replaceAllForUid(
