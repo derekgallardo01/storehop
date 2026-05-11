@@ -1,23 +1,31 @@
 import Foundation
 import GRDB
 
+/// v0.7.0: queries scope by `householdId`. `userId` is still required (it's
+/// the creator/audit field on each row, stamped on insert). Cross-cascade
+/// DAOs (xrefDao, scoDao) scope by `householdId`. For single-member
+/// households `householdId == userId` so behaviour matches v0.6.x exactly.
 struct StoreRepository: Sendable {
     let writer: any DatabaseWriter
     let storeDao: StoreDao
     let xrefDao: ItemStoreXrefDao
     let scoDao: StoreCategoryOrderDao
     let session: any UserSessionProvider
+    let householdSession: any HouseholdSessionProvider
     let clock: any Clock
     let ids: any IdGenerator
 
     // MARK: - Reactive
 
+    /// ViewModel-facing observer. External param stays `userId:` for source
+    /// compatibility; the DAO call forwards it as `householdId:`. In
+    /// single-member households the two values are equal.
     func observeAll(userId: String, includeArchived: Bool) -> AsyncValueObservation<[Store]> {
-        storeDao.observeAll(userId: userId, includeArchived: includeArchived)
+        storeDao.observeAll(householdId: userId, includeArchived: includeArchived)
     }
 
     func observeById(userId: String, id: String) -> AsyncValueObservation<Store?> {
-        storeDao.observeById(userId: userId, id: id)
+        storeDao.observeById(householdId: userId, id: id)
     }
 
     // MARK: - Add (with resurrect-on-re-add)
@@ -37,14 +45,15 @@ struct StoreRepository: Sendable {
             throw StoreRepositoryError.emptyName
         }
         let userId = try await session.requireSignedIn()
+        let householdId = try await householdSession.requireHouseholdId()
         let now = clock.nowMs()
         let newId = ids.newId()
 
         return try await writer.write { db -> String in
-            let existing = try StoreDao.findAnyByName(on: db, userId: userId, name: trimmed)
+            let existing = try StoreDao.findAnyByName(on: db, householdId: householdId, name: trimmed)
             switch existing {
             case .none:
-                let displayOrder = try StoreDao.nextDisplayOrder(on: db, userId: userId)
+                let displayOrder = try StoreDao.nextDisplayOrder(on: db, householdId: householdId)
                 var newStore = Store(
                     id: newId,
                     name: trimmed,
@@ -56,7 +65,8 @@ struct StoreRepository: Sendable {
                     updatedAt: now,
                     deletedAt: nil,
                     pendingSync: true,
-                    displayOrder: displayOrder
+                    displayOrder: displayOrder,
+                    householdId: householdId
                 )
                 try newStore.upsert(db)
                 return newId
@@ -83,15 +93,15 @@ struct StoreRepository: Sendable {
         guard !trimmed.isEmpty else {
             throw StoreRepositoryError.emptyName
         }
-        let userId = try await session.requireSignedIn()
+        let householdId = try await householdSession.requireHouseholdId()
         let now = clock.nowMs()
         try await writer.write { db in
-            guard var current = try StoreDao.findById(on: db, userId: userId, id: id) else { return }
+            guard var current = try StoreDao.findById(on: db, householdId: householdId, id: id) else { return }
             // Alive-only collision check. Schema v6 dropped the UNIQUE
             // constraint on (userId, name) so tombstoned rows don't block
             // name reuse. Same-id case-only changes ("Aldi" → "ALDI")
             // pass through because findByName returns the same row.
-            if let collision = try StoreDao.findByName(on: db, userId: userId, name: trimmed),
+            if let collision = try StoreDao.findByName(on: db, householdId: householdId, name: trimmed),
                collision.id != current.id {
                 throw StoreRepositoryError.duplicateName(trimmed)
             }
@@ -103,10 +113,10 @@ struct StoreRepository: Sendable {
     }
 
     func setColor(id: String, colorArgb: Int64?) async throws {
-        let userId = try await session.requireSignedIn()
+        let householdId = try await householdSession.requireHouseholdId()
         let now = clock.nowMs()
         try await writer.write { db in
-            guard var current = try StoreDao.findById(on: db, userId: userId, id: id) else { return }
+            guard var current = try StoreDao.findById(on: db, householdId: householdId, id: id) else { return }
             current.colorArgb = colorArgb
             current.updatedAt = now
             current.pendingSync = true
@@ -115,19 +125,19 @@ struct StoreRepository: Sendable {
     }
 
     func setArchived(id: String, archived: Bool) async throws {
-        let userId = try await session.requireSignedIn()
-        try await storeDao.setArchived(userId: userId, id: id, archived: archived, now: clock.nowMs())
+        let householdId = try await householdSession.requireHouseholdId()
+        try await storeDao.setArchived(householdId: householdId, id: id, archived: archived, now: clock.nowMs())
     }
 
     /// Atomic reorder: each store's displayOrder updates inside one
     /// transaction so a partial reorder (cancellation, device dies) never
     /// leaves the picker with mixed old/new positions.
     func reorderStores(orderedIds: [String]) async throws {
-        let userId = try await session.requireSignedIn()
+        let householdId = try await householdSession.requireHouseholdId()
         let now = clock.nowMs()
         try await writer.write { db in
             for (index, id) in orderedIds.enumerated() {
-                try StoreDao.setDisplayOrder(on: db, userId: userId, id: id, displayOrder: index, now: now)
+                try StoreDao.setDisplayOrder(on: db, householdId: householdId, id: id, displayOrder: index, now: now)
             }
         }
     }
@@ -135,25 +145,25 @@ struct StoreRepository: Sendable {
     // MARK: - Soft delete + undo (cascade)
 
     func softDelete(id: String) async throws {
-        let userId = try await session.requireSignedIn()
+        let householdId = try await householdSession.requireHouseholdId()
         let now = clock.nowMs()
         try await writer.write { db in
-            try StoreDao.softDelete(on: db, userId: userId, id: id, now: now)
-            try ItemStoreXrefDao.softDeleteForStore(on: db, userId: userId, storeId: id, now: now)
-            try StoreCategoryOrderDao.softDeleteForStore(on: db, userId: userId, storeId: id, now: now)
+            try StoreDao.softDelete(on: db, householdId: householdId, id: id, now: now)
+            try ItemStoreXrefDao.softDeleteForStore(on: db, householdId: householdId, storeId: id, now: now)
+            try StoreCategoryOrderDao.softDeleteForStore(on: db, householdId: householdId, storeId: id, now: now)
         }
     }
 
     func undoSoftDelete(id: String) async throws {
-        let userId = try await session.requireSignedIn()
+        let householdId = try await householdSession.requireHouseholdId()
         let now = clock.nowMs()
         try await writer.write { db in
-            guard let store = try StoreDao.findAnyById(on: db, userId: userId, id: id),
+            guard let store = try StoreDao.findAnyById(on: db, householdId: householdId, id: id),
                   let deletedAt = store.deletedAt
             else { return }
-            try StoreDao.restoreFromTombstone(on: db, userId: userId, id: id, now: now)
-            try ItemStoreXrefDao.restoreCascadeForStore(on: db, userId: userId, storeId: id, deletedAt: deletedAt, now: now)
-            try StoreCategoryOrderDao.restoreCascadeForStore(on: db, userId: userId, storeId: id, deletedAt: deletedAt, now: now)
+            try StoreDao.restoreFromTombstone(on: db, householdId: householdId, id: id, now: now)
+            try ItemStoreXrefDao.restoreCascadeForStore(on: db, householdId: householdId, storeId: id, deletedAt: deletedAt, now: now)
+            try StoreCategoryOrderDao.restoreCascadeForStore(on: db, householdId: householdId, storeId: id, deletedAt: deletedAt, now: now)
         }
     }
 }

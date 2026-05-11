@@ -5,6 +5,16 @@ import GRDB
 /// PurchaseRecordDao into the user-facing item operations. Every multi-DAO
 /// path runs inside a single `writer.write { }` transaction so partial
 /// states never reach disk or sync.
+///
+/// v0.7.0: queries scope by `householdId`. `userId` is still required (it's
+/// the creator/audit field on each row, stamped on insert).
+///
+/// Cross-cascade DAOs (xrefDao, scoDao, purchaseRecordDao) scope by
+/// `householdId` — the item is owned by the household, so cascading any
+/// delete/restore reaches every member's rows under that household. The
+/// snackbar-undo path on `purchaseRecordDao.softDeleteForItemAtTime` is
+/// the deliberate exception: it stays per-user so only the purchaser can
+/// rescind their own record.
 struct ItemRepository: Sendable {
     let writer: any DatabaseWriter
     let itemDao: ItemDao
@@ -12,19 +22,22 @@ struct ItemRepository: Sendable {
     let scoDao: StoreCategoryOrderDao
     let purchaseDao: PurchaseRecordDao
     let session: any UserSessionProvider
+    let householdSession: any HouseholdSessionProvider
     let clock: any Clock
     let ids: any IdGenerator
 
     // MARK: - Reactive
 
-    /// Caller passes the active uid; ViewModel is responsible for switching
-    /// observations on session changes (cancel + re-bind on each new uid).
+    /// Caller passes the active access-scope id (the ViewModel rebinds on
+    /// each session change). External param remains `userId:` for source
+    /// compatibility; the DAO call forwards it as `householdId:`. In
+    /// single-member households the two values are equal.
     func observeAll(userId: String) -> AsyncValueObservation<[ItemWithCategoryAndStores]> {
-        itemDao.observeAll(userId: userId)
+        itemDao.observeAll(householdId: userId)
     }
 
     func observeById(userId: String, id: String) -> AsyncValueObservation<ItemWithCategoryAndStores?> {
-        itemDao.observeById(userId: userId, id: id)
+        itemDao.observeById(householdId: userId, id: id)
     }
 
     /// One-shot read for the form's initial-load path. The form re-reads
@@ -32,7 +45,7 @@ struct ItemRepository: Sendable {
     /// the user is filling in the form.
     func fetchSnapshot(userId: String, id: String) async throws -> ItemWithCategoryAndStores? {
         try await writer.read { db in
-            try ItemWithCategoryAndStores.fetch(db, userId: userId, id: id)
+            try ItemWithCategoryAndStores.fetch(db, householdId: userId, id: id)
         }
     }
 
@@ -54,6 +67,7 @@ struct ItemRepository: Sendable {
         isPriority: Bool
     ) async throws -> String {
         let userId = try await session.requireSignedIn()
+        let householdId = try await householdSession.requireHouseholdId()
         let now = clock.nowMs()
         let id = ids.newId()
         let trimmedName = name.trim()
@@ -73,16 +87,18 @@ struct ItemRepository: Sendable {
             brand: brand.trimmedOrNil,
             imageUrl: imageUrl,
             isStaple: isStaple,
-            isPriority: isPriority
+            isPriority: isPriority,
+            householdId: householdId
         )
 
         try await writer.write { db in
             var copy = item
             try copy.upsert(db)
-            // Junction inherits userId from the parent we just wrote — the
-            // ownership invariant.
-            try ItemStoreXrefDao.setStoresForItem(on: db, itemId: id, storeIds: storeIds, userId: userId, now: now)
-            try Self.ensureSCOForCategoryAtStores(on: db, categoryId: categoryId, storeIds: storeIds, userId: userId, now: now)
+            // Junction inherits both ids from the parent we just wrote —
+            // ownership invariant. `userId` is creator/audit; `householdId`
+            // is access scope.
+            try ItemStoreXrefDao.setStoresForItem(on: db, itemId: id, storeIds: storeIds, householdId: householdId, userId: userId, now: now)
+            try Self.ensureSCOForCategoryAtStores(on: db, categoryId: categoryId, storeIds: storeIds, householdId: householdId, userId: userId, now: now)
         }
         return id
     }
@@ -99,17 +115,18 @@ struct ItemRepository: Sendable {
         isStaple: Bool,
         isPriority: Bool
     ) async throws {
-        let userId = try await session.requireSignedIn()
+        let householdId = try await householdSession.requireHouseholdId()
         let now = clock.nowMs()
 
         try await writer.write { db in
             // Preserve isNeeded / lastPurchasedAt / createdAt from the
-            // current row. The session uid above is for authorization;
-            // the *parent* uid is the source of truth for cross-table
-            // ownership — using the live session would let a mid-call
-            // sign-in/out swap break the cross-table invariant.
-            guard var current = try ItemDao.findLiveById(on: db, userId: userId, id: id) else { return }
-            let ownerId = current.userId
+            // current row. The *parent* row is the source of truth for
+            // cross-table ownership — pass the parent's householdId +
+            // userId, NOT the live session, so a mid-call sign-in/out
+            // swap can't break the cross-table invariant.
+            guard var current = try ItemDao.findLiveById(on: db, householdId: householdId, id: id) else { return }
+            let ownerHouseholdId = current.householdId
+            let ownerUserId = current.userId
 
             current.name = name.trim()
             current.categoryId = categoryId
@@ -123,40 +140,40 @@ struct ItemRepository: Sendable {
             current.pendingSync = true
             try current.upsert(db)
 
-            try ItemStoreXrefDao.setStoresForItem(on: db, itemId: id, storeIds: storeIds, userId: ownerId, now: now)
-            try Self.ensureSCOForCategoryAtStores(on: db, categoryId: categoryId, storeIds: storeIds, userId: ownerId, now: now)
+            try ItemStoreXrefDao.setStoresForItem(on: db, itemId: id, storeIds: storeIds, householdId: ownerHouseholdId, userId: ownerUserId, now: now)
+            try Self.ensureSCOForCategoryAtStores(on: db, categoryId: categoryId, storeIds: storeIds, householdId: ownerHouseholdId, userId: ownerUserId, now: now)
         }
     }
 
     // MARK: - Soft delete + undo
 
     func softDelete(id: String) async throws {
-        let userId = try await session.requireSignedIn()
+        let householdId = try await householdSession.requireHouseholdId()
         let now = clock.nowMs()
         try await writer.write { db in
             // Verify ownership before any write; cascade uses the parent's
-            // userId for cross-table ownership consistency.
-            guard let current = try ItemDao.findLiveById(on: db, userId: userId, id: id) else { return }
-            let ownerId = current.userId
+            // householdId for cross-table ownership consistency.
+            guard let current = try ItemDao.findLiveById(on: db, householdId: householdId, id: id) else { return }
+            let ownerHouseholdId = current.householdId
 
-            try ItemDao.softDelete(on: db, userId: ownerId, id: id, now: now)
-            try ItemStoreXrefDao.softDeleteForItem(on: db, userId: ownerId, itemId: id, now: now)
-            try PurchaseRecordDao.softDeleteForItem(on: db, userId: ownerId, itemId: id, now: now)
+            try ItemDao.softDelete(on: db, householdId: ownerHouseholdId, id: id, now: now)
+            try ItemStoreXrefDao.softDeleteForItem(on: db, householdId: ownerHouseholdId, itemId: id, now: now)
+            try PurchaseRecordDao.softDeleteForItem(on: db, householdId: ownerHouseholdId, itemId: id, now: now)
         }
     }
 
     func undoSoftDelete(id: String) async throws {
-        let userId = try await session.requireSignedIn()
+        let householdId = try await householdSession.requireHouseholdId()
         let now = clock.nowMs()
         try await writer.write { db in
-            guard let item = try ItemDao.findAnyById(on: db, userId: userId, id: id),
+            guard let item = try ItemDao.findAnyById(on: db, householdId: householdId, id: id),
                   let deletedAt = item.deletedAt
             else { return }
-            let ownerId = item.userId
+            let ownerHouseholdId = item.householdId
 
-            try ItemDao.restoreFromTombstone(on: db, userId: ownerId, id: id, now: now)
-            try ItemStoreXrefDao.restoreCascadeForItem(on: db, userId: ownerId, itemId: id, deletedAt: deletedAt, now: now)
-            try PurchaseRecordDao.restoreCascadeForItem(on: db, userId: ownerId, itemId: id, deletedAt: deletedAt, now: now)
+            try ItemDao.restoreFromTombstone(on: db, householdId: ownerHouseholdId, id: id, now: now)
+            try ItemStoreXrefDao.restoreCascadeForItem(on: db, householdId: ownerHouseholdId, itemId: id, deletedAt: deletedAt, now: now)
+            try PurchaseRecordDao.restoreCascadeForItem(on: db, householdId: ownerHouseholdId, itemId: id, deletedAt: deletedAt, now: now)
         }
     }
 
@@ -169,28 +186,34 @@ struct ItemRepository: Sendable {
     ///
     /// Returns the snapshot timestamp so `undoPurchase` can roll back by
     /// matching `lastPurchasedAt` precisely; returns nil if the item lookup
-    /// fails (no item or wrong owner).
+    /// fails (no item or wrong household).
     @discardableResult
     func markPurchasedAtStore(itemId: String, storeId: String) async throws -> Int64? {
         let userId = try await session.requireSignedIn()
+        let householdId = try await householdSession.requireHouseholdId()
         let now = clock.nowMs()
         let recordId = ids.newId()
 
         return try await writer.write { db -> Int64? in
-            guard let current = try ItemDao.findLiveById(on: db, userId: userId, id: itemId) else { return nil }
-            let ownerId = current.userId
+            guard let current = try ItemDao.findLiveById(on: db, householdId: householdId, id: itemId) else { return nil }
+            let ownerHouseholdId = current.householdId
 
-            try ItemStoreXrefDao.markPurchasedAcrossAllStores(on: db, userId: ownerId, itemId: itemId, now: now)
+            try ItemStoreXrefDao.markPurchasedAcrossAllStores(on: db, householdId: ownerHouseholdId, itemId: itemId, now: now)
+            // PurchaseRecord's userId is the *purchaser* (the user who
+            // clicked the checkbox), not the item's creator. Under
+            // multi-user this matters: stats filter by purchaser per the
+            // v0.7.0 design ("what I bought" not "what we bought").
             let record = PurchaseRecord(
                 id: recordId,
                 itemId: itemId,
                 storeId: storeId,
                 purchasedAt: now,
-                userId: ownerId,
+                userId: userId,
                 createdAt: now,
                 updatedAt: now,
                 deletedAt: nil,
-                pendingSync: true
+                pendingSync: true,
+                householdId: ownerHouseholdId
             )
             try PurchaseRecordDao.insert(record, on: db)
             return now
@@ -202,21 +225,26 @@ struct ItemRepository: Sendable {
     /// rolled back together.
     func undoPurchase(itemId: String, snapshotTime: Int64) async throws {
         let userId = try await session.requireSignedIn()
+        let householdId = try await householdSession.requireHouseholdId()
         let now = clock.nowMs()
         try await writer.write { db in
-            guard let current = try ItemDao.findLiveById(on: db, userId: userId, id: itemId) else { return }
-            let ownerId = current.userId
+            guard let current = try ItemDao.findLiveById(on: db, householdId: householdId, id: itemId) else { return }
+            let ownerHouseholdId = current.householdId
 
-            try ItemStoreXrefDao.restorePurchaseAcrossAllStores(on: db, userId: ownerId, itemId: itemId, lastPurchasedAt: snapshotTime, now: now)
-            try PurchaseRecordDao.softDeleteForItemAtTime(on: db, userId: ownerId, itemId: itemId, purchasedAt: snapshotTime, now: now)
+            try ItemStoreXrefDao.restorePurchaseAcrossAllStores(on: db, householdId: ownerHouseholdId, itemId: itemId, lastPurchasedAt: snapshotTime, now: now)
+            // Scope undo to the purchaser's own records (their userId),
+            // matching the insert side. Different users undoing their own
+            // purchases stays isolated even though they share the household.
+            try PurchaseRecordDao.softDeleteForItemAtTime(on: db, userId: userId, itemId: itemId, purchasedAt: snapshotTime, now: now)
         }
     }
 
     /// v0.6.1: distinct item IDs that have at least one alive xref with
-    /// `isNeeded = 1` for the active session uid. Empty stream when signed
-    /// out. Powers the Items-list +/- toggle.
+    /// `isNeeded = 1` for the active access-scope id. Powers the Items-list
+    /// +/- toggle. External param stays `userId:` for source compatibility;
+    /// forwarded as `householdId:` to the DAO.
     func observeNeededItemIds(userId: String) -> AsyncValueObservation<[String]> {
-        ItemStoreXrefDao(writer: writer).observeNeededItemIds(userId: userId)
+        ItemStoreXrefDao(writer: writer).observeNeededItemIds(householdId: userId)
     }
 
     /// v0.6.1: mark this item needed at every store it's tagged to. The
@@ -224,11 +252,11 @@ struct ItemRepository: Sendable {
     /// keeps the inverse "−" branch coherent: clearing at one store
     /// already clears at all (see [markPurchasedAcrossAllStoresNoRecord]).
     func markNeededAcrossAllStores(itemId: String) async throws {
-        let userId = try await session.requireSignedIn()
+        let householdId = try await householdSession.requireHouseholdId()
         let now = clock.nowMs()
         try await writer.write { db in
-            guard let current = try ItemDao.findLiveById(on: db, userId: userId, id: itemId) else { return }
-            try ItemStoreXrefDao.markNeededAcrossAllStores(on: db, userId: current.userId, itemId: itemId, now: now)
+            guard let current = try ItemDao.findLiveById(on: db, householdId: householdId, id: itemId) else { return }
+            try ItemStoreXrefDao.markNeededAcrossAllStores(on: db, householdId: current.householdId, itemId: itemId, now: now)
         }
     }
 
@@ -237,11 +265,11 @@ struct ItemRepository: Sendable {
     /// is on the master Items list, not at a store, so attributing the
     /// purchase to any one store would be wrong.
     func markPurchasedAcrossAllStoresNoRecord(itemId: String) async throws {
-        let userId = try await session.requireSignedIn()
+        let householdId = try await householdSession.requireHouseholdId()
         let now = clock.nowMs()
         try await writer.write { db in
-            guard let current = try ItemDao.findLiveById(on: db, userId: userId, id: itemId) else { return }
-            try ItemStoreXrefDao.markPurchasedAcrossAllStores(on: db, userId: current.userId, itemId: itemId, now: now)
+            guard let current = try ItemDao.findLiveById(on: db, householdId: householdId, id: itemId) else { return }
+            try ItemStoreXrefDao.markPurchasedAcrossAllStores(on: db, householdId: current.householdId, itemId: itemId, now: now)
         }
     }
 
@@ -249,11 +277,11 @@ struct ItemRepository: Sendable {
     /// Used to un-check a struck-through purchased staple. Doesn't touch
     /// `lastPurchasedAt` — the prior purchase still happened in history.
     func markNeededAtStore(itemId: String, storeId: String) async throws {
-        let userId = try await session.requireSignedIn()
+        let householdId = try await householdSession.requireHouseholdId()
         let now = clock.nowMs()
         try await writer.write { db in
-            guard let current = try ItemDao.findLiveById(on: db, userId: userId, id: itemId) else { return }
-            try ItemStoreXrefDao.markNeededAtStore(on: db, userId: current.userId, itemId: itemId, storeId: storeId, now: now)
+            guard let current = try ItemDao.findLiveById(on: db, householdId: householdId, id: itemId) else { return }
+            try ItemStoreXrefDao.markNeededAtStore(on: db, householdId: current.householdId, itemId: itemId, storeId: storeId, now: now)
         }
     }
 
@@ -263,28 +291,30 @@ struct ItemRepository: Sendable {
     /// xref already exists. Mirrors Android's `tagItemToStore` — the action
     /// behind the QuickAdd autocomplete's "tap a suggestion" flow.
     func tagItemToStore(itemId: String, storeId: String) async throws {
-        let userId = try await session.requireSignedIn()
+        let householdId = try await householdSession.requireHouseholdId()
         let now = clock.nowMs()
         try await writer.write { db in
-            guard let current = try ItemDao.findLiveById(on: db, userId: userId, id: itemId) else { return }
-            let ownerId = current.userId
+            guard let current = try ItemDao.findLiveById(on: db, householdId: householdId, id: itemId) else { return }
+            let ownerHouseholdId = current.householdId
+            let ownerUserId = current.userId
             let aliveXrefs = try ItemStoreXrefDao.findForItem(on: db, itemId: itemId)
             if aliveXrefs.contains(where: { $0.storeId == storeId }) {
                 // Live xref already exists -- just ensure isNeeded=true.
-                try ItemStoreXrefDao.markNeededAtStore(on: db, userId: ownerId, itemId: itemId, storeId: storeId, now: now)
+                try ItemStoreXrefDao.markNeededAtStore(on: db, householdId: ownerHouseholdId, itemId: itemId, storeId: storeId, now: now)
             } else {
                 // Either missing or only tombstoned. Upsert by primary key
                 // (itemId, storeId) replaces a tombstone or inserts fresh.
                 var xref = ItemStoreXref(
                     itemId: itemId,
                     storeId: storeId,
-                    userId: ownerId,
+                    userId: ownerUserId,
                     createdAt: now,
                     updatedAt: now,
                     deletedAt: nil,
                     pendingSync: true,
                     isNeeded: true,
-                    lastPurchasedAt: nil
+                    lastPurchasedAt: nil,
+                    householdId: ownerHouseholdId
                 )
                 try xref.upsert(db)
             }
@@ -294,14 +324,15 @@ struct ItemRepository: Sendable {
                 on: db,
                 categoryId: current.categoryId,
                 storeIds: [storeId],
-                userId: ownerId,
+                householdId: ownerHouseholdId,
+                userId: ownerUserId,
                 now: now
             )
         }
     }
 
     /// Find-or-create entry point used by the Shop-at-Store QuickAdd bar.
-    /// Trims input, then case-insensitive name-match against the user's
+    /// Trims input, then case-insensitive name-match against the household's
     /// master library:
     ///   - hit  → `tagItemToStore(existing.id, storeId)`; returns that id.
     ///   - miss → `addItem(name, storeIds: [storeId])`; returns the new id.
@@ -312,14 +343,14 @@ struct ItemRepository: Sendable {
     /// dedupe lives only here.
     @discardableResult
     func addItemFromQuickAdd(name: String, storeId: String) async throws -> String {
-        let userId = try await session.requireSignedIn()
+        let householdId = try await householdSession.requireHouseholdId()
         let trimmed = name.trim()
         precondition(!trimmed.isEmpty, "name must be non-empty")
         // One-shot read for the dedupe lookup. The downstream call (either
         // tagItemToStore or addItem) opens its own writer transaction; no
         // need to wrap them together since each is atomic.
         let existing = try await writer.read { db in
-            try ItemDao.findByName(on: db, userId: userId, name: trimmed)
+            try ItemDao.findByName(on: db, householdId: householdId, name: trimmed)
         }
         if let existing {
             try await tagItemToStore(itemId: existing.id, storeId: storeId)
@@ -347,12 +378,13 @@ struct ItemRepository: Sendable {
         on db: Database,
         categoryId: String?,
         storeIds: Set<String>,
+        householdId: String,
         userId: String,
         now: Int64
     ) throws {
         guard let categoryId else { return }
         for storeId in storeIds {
-            try StoreCategoryOrderDao.appendIfMissing(on: db, storeId: storeId, categoryId: categoryId, userId: userId, now: now)
+            try StoreCategoryOrderDao.appendIfMissing(on: db, storeId: storeId, categoryId: categoryId, householdId: householdId, userId: userId, now: now)
         }
     }
 }
