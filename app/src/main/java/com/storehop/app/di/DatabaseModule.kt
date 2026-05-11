@@ -46,6 +46,21 @@ object DatabaseModule {
             MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6,
             MIGRATION_6_7, MIGRATION_7_8,
         )
+        // v0.7.0: safety net for the downgrade direction. If a user
+        // installs a hypothetical v0.7.x / v0.8.x and then reverts to
+        // a build with this Room version, the on-disk schema is newer
+        // than what this code expects. Without this flag, Room throws
+        // IllegalStateException and the app crashes on every launch.
+        // With it, Room wipes the local DB and re-creates a fresh v8
+        // schema on first launch — the user loses local-only edits
+        // (`pendingSync = 1` rows) but the next sync pull restores
+        // every Firestore-backed row. Better than a hard crash.
+        //
+        // Note: this does NOT help the v0.7.0 → v0.6.9 downgrade
+        // path — that requires the v0.6.9 build to have this flag,
+        // which it doesn't. For that case, uninstall + reinstall
+        // is the documented workaround (see CHANGELOG).
+        .fallbackToDestructiveMigrationOnDowngrade()
         .build()
 
     @Provides fun provideItemDao(db: StorehopDatabase): ItemDao = db.itemDao()

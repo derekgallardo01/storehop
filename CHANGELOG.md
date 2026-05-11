@@ -72,6 +72,29 @@ without breaking the iOS 0.6.10 sync.
 - **Concurrent edits** stay last-write-wins via `updatedAt`. Per-field
   merging deferred to v0.7.x.
 
+### Downgrade safety (important)
+
+**v0.7.0 → v0.6.9 reverts must uninstall + reinstall, not sideload
+on top.** The schema migration v7 → v8 leaves the local DB at a
+version v0.6.9's Room doesn't recognise — sideloading the v0.6.9
+APK over a v0.7.0 install crashes on every launch
+(`IllegalStateException` from Room). The safe revert path is:
+
+  1. Tap "Uninstall" on the device's app info screen (Android wipes
+     the local DB).
+  2. Install v0.6.9 fresh.
+  3. Sign in with the same Google account; Firestore re-populates
+     every row. v0.6.9 silently ignores the new `householdId` field
+     in cloud docs.
+  4. Cost: any `pendingSync = 1` rows that never reached Firestore
+     before the uninstall are lost. Anything cloud-side is fine.
+
+For future downgrades (v0.7.x → v0.7.0 etc.), v0.7.0's Room builder
+now calls `fallbackToDestructiveMigrationOnDowngrade()` so the
+fallback path is automatic — local DB wipes + re-pulls instead of
+crashing. The flag only helps once v0.7.0 itself is in users' hands;
+the v0.6.9 revert above is the one path it can't retroactively fix.
+
 ### Deferred to v0.7.x
 
 - iOS mirror (Phase 5): every DAO + DTO + repository change ports to
