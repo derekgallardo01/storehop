@@ -52,6 +52,7 @@ class CriticalBannerCollapseE2ETest {
                     isNeeded = true, isStaple = false, isPriority = true,
                     imageUrl = null, lastPurchasedAt = null,
                     userId = E2E_UID, createdAt = 1_000L, updatedAt = 1_000L, deletedAt = null,
+                    householdId = E2E_UID,
                 ),
             )
             xrefDao.upsert(
@@ -59,6 +60,7 @@ class CriticalBannerCollapseE2ETest {
                     itemId = "e2e_item_coffee", storeId = ids.storeLidlId, userId = E2E_UID,
                     isNeeded = true, lastPurchasedAt = null,
                     createdAt = 1_000L, updatedAt = 1_000L, deletedAt = null,
+                    householdId = E2E_UID,
                 ),
             )
         }

@@ -186,7 +186,7 @@ final class ScriptablePullCoordinator: PullCoordinator, @unchecked Sendable {
     var pullResult: PullResult = .success
     var peekCallCount: Int = 0
 
-    func peek(uid: String) async throws -> Bool {
+    func peek(householdId: String) async throws -> Bool {
         peekCallCount += 1
         switch peekResult {
         case .success(let b): return b
@@ -194,7 +194,7 @@ final class ScriptablePullCoordinator: PullCoordinator, @unchecked Sendable {
         }
     }
 
-    func pullForUid(_ uid: String) async -> PullResult { pullResult }
+    func pullForHousehold(_ householdId: String) async -> PullResult { pullResult }
 }
 
 /// In-memory FirebaseAuthClient. Simulates anonymous sign-in completion,
