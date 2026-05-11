@@ -70,8 +70,8 @@ enum TestFixtures {
         isSeeded: Bool = false,
         now: Int64 = 0,
         displayOrder: Int = 0
-    ) -> Category {
-        Category(
+    ) -> Storehop.Category {
+        Storehop.Category(
             id: id,
             name: name,
             nameKey: nameKey,
@@ -136,7 +136,7 @@ extension StorehopDatabase {
     func seed(
         items: [Item] = [],
         stores: [Store] = [],
-        categories: [Category] = [],
+        categories: [Storehop.Category] = [],
         xrefs: [ItemStoreXref] = [],
         scoOrders: [StoreCategoryOrder] = [],
         purchaseRecords: [PurchaseRecord] = []
