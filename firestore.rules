@@ -109,5 +109,20 @@ service cloud.firestore {
       allow delete: if request.auth != null
                     && resource.data.createdBy == request.auth.uid;
     }
+
+    // ---- User preferences (v0.7.1) ----------------------------------------
+    //
+    // Per-user (not per-household) preference doc at `/userPrefs/{uid}`
+    // — theme, locale, sort modes, hide-checked-off toggle. Cloud-synced
+    // by `UserPreferencesSync` so the user's chosen settings survive an
+    // uninstall + reinstall across signing-cert boundaries.
+    //
+    // A user can read + write only their own preferences. No household
+    // scope: preferences are personal, not shared between household
+    // members. Mike's theme isn't Amanda's.
+    match /userPrefs/{uid} {
+      allow read, write: if request.auth != null
+                         && request.auth.uid == uid;
+    }
   }
 }

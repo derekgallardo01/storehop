@@ -315,5 +315,7 @@ class SyncEngineTest {
         xrefDao = xrefDao,
         scoDao = scoDao,
         purchaseDao = purchaseDao,
+        householdMemberDao = io.mockk.mockk(relaxed = true),
+        userPreferencesSync = io.mockk.mockk(relaxed = true),
     )
 }

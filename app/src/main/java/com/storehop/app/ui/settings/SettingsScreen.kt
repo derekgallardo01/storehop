@@ -158,6 +158,12 @@ fun SettingsScreen(
 
             SectionHeader(text = stringResource(R.string.settings_section_data))
             DataCard(snackbarHostState = snackbarHostState)
+            ForceSyncCard(
+                forceSyncState = viewModel.forceSyncState.collectAsState().value,
+                pendingCount = viewModel.pendingPushCount.collectAsState().value,
+                onForceSync = viewModel::forceSyncNow,
+                onAcknowledge = viewModel::acknowledgeForceSync,
+            )
 
             SectionHeader(text = stringResource(R.string.settings_section_about))
             AboutCard()
@@ -321,6 +327,100 @@ private fun DataCard(
                 enabled = !busy,
                 modifier = Modifier.fillMaxWidth(),
             ) { Text(stringResource(R.string.action_import_categories)) }
+        }
+    }
+}
+
+/**
+ * v0.7.1: "Force sync now" card — load-bearing for the sideload APK → Play
+ * Store transition Mike has to do. Tap the button, wait for the queue to
+ * drain + "Safe to uninstall" appears, then uninstall + reinstall from
+ * Play.
+ *
+ * State machine lives in [SettingsViewModel.forceSyncState]. UI reflects
+ * the four states:
+ *   - Idle → primary "Force sync now" button + an explainer line.
+ *   - Syncing → CircularProgressIndicator + "Syncing N items..."
+ *   - SafeToUninstall → green check + "Safe to uninstall" message.
+ *   - Failed → warning + remaining-count + "Retry" button.
+ */
+@Composable
+private fun ForceSyncCard(
+    forceSyncState: ForceSyncState,
+    pendingCount: Int,
+    onForceSync: () -> Unit,
+    onAcknowledge: () -> Unit,
+) {
+    SettingsCard(title = stringResource(R.string.settings_force_sync_title)) {
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(
+                text = stringResource(R.string.settings_force_sync_explainer),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.height(4.dp))
+            when (forceSyncState) {
+                is ForceSyncState.Idle -> {
+                    OutlinedButton(
+                        onClick = onForceSync,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text(
+                            if (pendingCount > 0) {
+                                stringResource(R.string.settings_force_sync_button_pending, pendingCount)
+                            } else {
+                                stringResource(R.string.settings_force_sync_button_idle)
+                            },
+                        )
+                    }
+                }
+                is ForceSyncState.Syncing -> {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        CircularProgressIndicator(modifier = Modifier.size(20.dp))
+                        Text(
+                            text = stringResource(
+                                R.string.settings_force_sync_in_progress,
+                                forceSyncState.pendingCount,
+                            ),
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
+                    }
+                }
+                is ForceSyncState.SafeToUninstall -> {
+                    Text(
+                        text = stringResource(R.string.settings_force_sync_safe),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    OutlinedButton(
+                        onClick = onAcknowledge,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text(stringResource(R.string.settings_force_sync_button_done))
+                    }
+                }
+                is ForceSyncState.Failed -> {
+                    Text(
+                        text = stringResource(
+                            R.string.settings_force_sync_failed,
+                            forceSyncState.pendingCount,
+                        ),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    OutlinedButton(
+                        onClick = onForceSync,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text(stringResource(R.string.settings_force_sync_button_retry))
+                    }
+                }
+            }
         }
     }
 }

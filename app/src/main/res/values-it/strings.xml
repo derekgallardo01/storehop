@@ -247,6 +247,17 @@
     <string name="import_result_summary">Importati %1$d articoli, %2$d categorie, %3$d negozi. %4$d duplicati ignorati.</string>
     <string name="import_undo_label">Annulla</string>
 
+    <!-- v0.7.1 Sincronizza ora (transizione APK → Play Store). -->
+    <string name="settings_force_sync_title">Sincronizza prima di disinstallare</string>
+    <string name="settings_force_sync_explainer">Se stai passando a una nuova installazione (disinstalla + reinstalla), tocca prima qui in modo che ogni modifica locale raggiunga il cloud. I dati nel cloud vengono ripristinati automaticamente quando accedi alla nuova installazione.</string>
+    <string name="settings_force_sync_button_idle">Sincronizza ora</string>
+    <string name="settings_force_sync_button_pending">Sincronizza ora (%1$d in attesa)</string>
+    <string name="settings_force_sync_button_done">OK</string>
+    <string name="settings_force_sync_button_retry">Riprova</string>
+    <string name="settings_force_sync_in_progress">Sincronizzazione di %1$d elemento(i)…</string>
+    <string name="settings_force_sync_safe">Disinstallazione sicura. I tuoi dati sono salvati.</string>
+    <string name="settings_force_sync_failed">%1$d elemento(i) non si sono sincronizzati. Riprova o disinstalla ora per perdere solo questi.</string>
+
     <!-- Schermata Statistiche, accessibile dalle Impostazioni. -->
     <string name="statistics_title">Statistiche</string>
     <string name="statistics_settings_link_subtitle">Vedi i tuoi modelli di spesa a colpo d\'occhio</string>

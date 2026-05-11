@@ -3,11 +3,13 @@ package com.storehop.app.sync
 import android.util.Log
 import com.google.firebase.firestore.FirebaseFirestore
 import com.storehop.app.data.dao.CategoryDao
+import com.storehop.app.data.dao.HouseholdMemberDao
 import com.storehop.app.data.dao.ItemDao
 import com.storehop.app.data.dao.ItemStoreXrefDao
 import com.storehop.app.data.dao.PurchaseRecordDao
 import com.storehop.app.data.dao.StoreCategoryOrderDao
 import com.storehop.app.data.dao.StoreDao
+import com.storehop.app.data.prefs.UserPreferencesSync
 import com.storehop.app.data.util.HouseholdSessionProvider
 import com.storehop.app.data.util.UserSessionProvider
 import com.storehop.app.sync.dto.SyncCollections
@@ -17,14 +19,17 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.withTimeoutOrNull
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -71,6 +76,8 @@ class SyncEngine @Inject constructor(
     private val xrefDao: ItemStoreXrefDao,
     private val scoDao: StoreCategoryOrderDao,
     private val purchaseDao: PurchaseRecordDao,
+    private val householdMemberDao: HouseholdMemberDao,
+    private val userPreferencesSync: UserPreferencesSync,
 ) {
     @Volatile private var pushJob: Job? = null
 
@@ -201,6 +208,54 @@ class SyncEngine @Inject constructor(
             // once rules deploy in M7, this should fall silent.
             Log.w(TAG, "Push failed for ${ref.path}: ${e.message}")
         }
+    }
+
+    /**
+     * v0.7.1: aggregated row-count of every entity table's `pendingSync = 1`
+     * rows for the active household + the household_members table (which is
+     * uid-scoped not household-scoped).
+     *
+     * Powers the Settings → Data → "Force sync now" UX: the count tells the
+     * user how many local writes haven't reached Firestore yet. When the
+     * count drops to 0 the UX shows "Safe to uninstall".
+     */
+    fun observeAllPendingCount(householdId: String): Flow<Int> = combine(
+        itemDao.countPendingPush(householdId),
+        categoryDao.countPendingPush(householdId),
+        storeDao.countPendingPush(householdId),
+        xrefDao.countPendingPush(householdId),
+        scoDao.countPendingPush(householdId),
+        purchaseDao.countPendingPush(householdId),
+        householdMemberDao.countPendingPush(),
+    ) { counts -> counts.sum() }
+
+    /**
+     * v0.7.1: nudge the push side to flush every pending row immediately,
+     * and wait until the queue is empty (or the timeout elapses).
+     *
+     * Implementation: the continuous push loop in [start] already drains
+     * `pendingSync = 1` rows on every Flow emission, so we don't need to
+     * spawn a parallel push. We just:
+     *   1. Force a synchronous push of the user-preferences doc (its
+     *      observe-and-push loop has a 500 ms debounce; this skips the
+     *      debounce wait so "Safe to uninstall" reflects the truth even
+     *      if the user toggled something a moment earlier).
+     *   2. Subscribe to [observeAllPendingCount] and suspend until it
+     *      hits 0 — or [timeoutMs] expires.
+     *
+     * Returns `true` if the queue drained, `false` if the timeout fired
+     * with rows still pending (so the UI can surface the stuck count).
+     */
+    suspend fun flushAllPending(
+        householdId: String,
+        uid: String,
+        timeoutMs: Long = 30_000L,
+    ): Boolean {
+        userPreferencesSync.flushPending(uid)
+        val drained = withTimeoutOrNull(timeoutMs) {
+            observeAllPendingCount(householdId).first { it == 0 }
+        }
+        return drained != null
     }
 
     companion object {

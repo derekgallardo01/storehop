@@ -13,10 +13,12 @@ import com.google.firebase.auth.FirebaseAuth
 import com.storehop.app.auth.GoogleSignInUseCase
 import com.storehop.app.data.prefs.ThemeMode
 import com.storehop.app.data.prefs.UserPreferencesRepository
+import com.storehop.app.data.util.HouseholdSessionProvider
 import com.storehop.app.data.util.UserSessionProvider
 import com.storehop.app.sync.PullCoordinator
 import com.storehop.app.sync.PullState
 import com.storehop.app.sync.PullStateRepository
+import com.storehop.app.sync.SyncEngine
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -43,6 +45,25 @@ data class AccountState(
     val error: String? = null,
 )
 
+/**
+ * v0.7.1: state machine for the Settings → Data → "Force sync now" UX.
+ *
+ * The user taps the button when about to uninstall (Mike's sideload →
+ * Play migration is the load-bearing case). We push every pending row
+ * + the user-prefs doc, then surface "Safe to uninstall" when the
+ * queue drains — or "Some items still pending" if the timeout fires.
+ */
+sealed class ForceSyncState {
+    /** No flush in flight; the button is in its default state. */
+    data object Idle : ForceSyncState()
+    /** Flush running; UI shows a spinner + "Syncing N items..." */
+    data class Syncing(val pendingCount: Int) : ForceSyncState()
+    /** Queue drained; UI shows "Safe to uninstall." */
+    data object SafeToUninstall : ForceSyncState()
+    /** Timed out with rows still pending; UI shows the stuck count and a retry. */
+    data class Failed(val pendingCount: Int) : ForceSyncState()
+}
+
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
     @ApplicationContext private val appContext: Context,
@@ -50,8 +71,10 @@ class SettingsViewModel @Inject constructor(
     private val googleSignIn: GoogleSignInUseCase,
     private val userPrefs: UserPreferencesRepository,
     private val sessionProvider: UserSessionProvider,
+    private val householdSession: HouseholdSessionProvider,
     private val pullCoordinator: PullCoordinator,
     private val pullStateRepo: PullStateRepository,
+    private val syncEngine: SyncEngine,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(snapshot())
@@ -226,6 +249,55 @@ class SettingsViewModel @Inject constructor(
     }
 
     fun clearError() { _state.update { it.copy(error = null) } }
+
+    /**
+     * v0.7.1: live count of `pendingSync = 1` rows across every entity for
+     * the active household + the household_members table. Powers the
+     * "Syncing N items..." UI text. Resolves to 0 when no household
+     * is active (e.g. signed-out state).
+     */
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val pendingPushCount: StateFlow<Int> = householdSession.householdId
+        .flatMapLatest { hid ->
+            if (hid == null) flowOf(0) else syncEngine.observeAllPendingCount(hid)
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000L), 0)
+
+    /**
+     * v0.7.1: state machine for the Force-sync-now button. Idle by default;
+     * `forceSyncNow()` moves it through Syncing → SafeToUninstall (success)
+     * or Syncing → Failed (timeout).
+     */
+    private val _forceSyncState = MutableStateFlow<ForceSyncState>(ForceSyncState.Idle)
+    val forceSyncState: StateFlow<ForceSyncState> = _forceSyncState.asStateFlow()
+
+    /**
+     * v0.7.1: synchronously push every pending row + the user-prefs doc, wait
+     * until the queue drains. Sets [forceSyncState] for the UI.
+     *
+     * Mike's sideload → Play upgrade tap: opens Settings → Data → taps the
+     * button → reads "Safe to uninstall" → uninstalls the sideloaded build.
+     */
+    fun forceSyncNow() {
+        if (_forceSyncState.value is ForceSyncState.Syncing) return
+        val uid = sessionProvider.userId.value ?: return
+        val hid = householdSession.householdId.value ?: return
+        viewModelScope.launch {
+            _forceSyncState.value = ForceSyncState.Syncing(pendingPushCount.value)
+            val drained = syncEngine.flushAllPending(householdId = hid, uid = uid)
+            _forceSyncState.value = if (drained) {
+                ForceSyncState.SafeToUninstall
+            } else {
+                ForceSyncState.Failed(pendingPushCount.value)
+            }
+        }
+    }
+
+    /** Reset Force-sync UX back to Idle, e.g. when the user navigates away
+     *  and back. */
+    fun acknowledgeForceSync() {
+        _forceSyncState.value = ForceSyncState.Idle
+    }
 
     /**
      * Retry the cloud-sync pull for the currently signed-in user. Wired to

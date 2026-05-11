@@ -247,6 +247,17 @@
     <string name="import_result_summary">Importados %1$d artículos, %2$d categorías, %3$d tiendas. %4$d duplicados omitidos.</string>
     <string name="import_undo_label">Deshacer</string>
 
+    <!-- v0.7.1 Sincronizar ahora (transición APK → Play Store). -->
+    <string name="settings_force_sync_title">Sincronizar antes de desinstalar</string>
+    <string name="settings_force_sync_explainer">Si vas a cambiar de instalación (desinstalar + reinstalar), toca aquí primero para que todos los cambios locales lleguen a la nube. Los datos en la nube se restauran automáticamente al iniciar sesión en la nueva instalación.</string>
+    <string name="settings_force_sync_button_idle">Sincronizar ahora</string>
+    <string name="settings_force_sync_button_pending">Sincronizar ahora (%1$d pendientes)</string>
+    <string name="settings_force_sync_button_done">OK</string>
+    <string name="settings_force_sync_button_retry">Reintentar</string>
+    <string name="settings_force_sync_in_progress">Sincronizando %1$d elemento(s)…</string>
+    <string name="settings_force_sync_safe">Puedes desinstalar con seguridad. Tus datos están guardados.</string>
+    <string name="settings_force_sync_failed">%1$d elemento(s) no se han sincronizado. Inténtalo de nuevo o desinstala ahora para perder solo estos.</string>
+
     <!-- Pantalla de Estadísticas, accesible desde Ajustes. -->
     <string name="statistics_title">Estadísticas</string>
     <string name="statistics_settings_link_subtitle">Mira tus patrones de compra de un vistazo</string>

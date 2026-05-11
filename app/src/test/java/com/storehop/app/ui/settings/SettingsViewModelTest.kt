@@ -360,7 +360,9 @@ class SettingsViewModelTest {
         googleSignIn = googleSignIn,
         userPrefs = userPrefs,
         sessionProvider = session,
+        householdSession = mockk(relaxed = true),
         pullCoordinator = pullCoordinator,
         pullStateRepo = pullStateRepo,
+        syncEngine = mockk(relaxed = true),
     )
 }

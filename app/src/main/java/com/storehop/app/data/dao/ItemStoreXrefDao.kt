@@ -149,6 +149,10 @@ interface ItemStoreXrefDao {
     @androidx.room.Query("SELECT * FROM item_store_xref WHERE householdId = :householdId AND pendingSync = 1")
     fun observePendingPush(householdId: String): kotlinx.coroutines.flow.Flow<List<ItemStoreXref>>
 
+    /** v0.7.1: row-count of pending pushes for the Force-sync-now UX. */
+    @androidx.room.Query("SELECT COUNT(*) FROM item_store_xref WHERE householdId = :householdId AND pendingSync = 1")
+    fun countPendingPush(householdId: String): kotlinx.coroutines.flow.Flow<Int>
+
     @androidx.room.Query(
         """
         UPDATE item_store_xref SET pendingSync = 0

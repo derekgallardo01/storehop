@@ -250,6 +250,17 @@
     <string name="import_result_summary">Importados %1$d artigos, %2$d categorias, %3$d lojas. %4$d duplicados ignorados.</string>
     <string name="import_undo_label">Anular</string>
 
+    <!-- v0.7.1 Sincronizar agora (transição APK → Play Store). -->
+    <string name="settings_force_sync_title">Sincronizar antes de desinstalar</string>
+    <string name="settings_force_sync_explainer">Se vai mudar para uma nova instalação (desinstalar + reinstalar), toque aqui primeiro para que todas as alterações locais cheguem à nuvem. Os dados na nuvem são restaurados automaticamente ao iniciar sessão na nova instalação.</string>
+    <string name="settings_force_sync_button_idle">Sincronizar agora</string>
+    <string name="settings_force_sync_button_pending">Sincronizar agora (%1$d pendentes)</string>
+    <string name="settings_force_sync_button_done">OK</string>
+    <string name="settings_force_sync_button_retry">Tentar novamente</string>
+    <string name="settings_force_sync_in_progress">A sincronizar %1$d item(ns)…</string>
+    <string name="settings_force_sync_safe">Pode desinstalar com segurança. Os seus dados estão guardados.</string>
+    <string name="settings_force_sync_failed">%1$d item(ns) não foram sincronizados. Tente novamente ou desinstale agora para perder apenas estes.</string>
+
     <!-- Ecrã de Estatísticas, acessível pelas Definições. -->
     <string name="statistics_title">Estatísticas</string>
     <string name="statistics_settings_link_subtitle">Veja os seus padrões de compras num relance</string>

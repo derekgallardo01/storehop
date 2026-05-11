@@ -248,6 +248,19 @@
     <string name="import_result_summary">Imported %1$d items, %2$d categories, %3$d stores. Skipped %4$d duplicates.</string>
     <string name="import_undo_label">Undo</string>
 
+    <!-- v0.7.1 Force sync now: load-bearing for users switching from a
+         sideloaded APK to the Play Store install (signing certs differ →
+         must uninstall first → local-only state must reach cloud first). -->
+    <string name="settings_force_sync_title">Sync before uninstalling</string>
+    <string name="settings_force_sync_explainer">If you\'re switching to a new install (uninstall + reinstall), tap this first so every local change reaches the cloud. Cloud-stored data restores automatically when you sign in on the new install.</string>
+    <string name="settings_force_sync_button_idle">Force sync now</string>
+    <string name="settings_force_sync_button_pending">Force sync now (%1$d pending)</string>
+    <string name="settings_force_sync_button_done">OK</string>
+    <string name="settings_force_sync_button_retry">Retry</string>
+    <string name="settings_force_sync_in_progress">Syncing %1$d item(s)…</string>
+    <string name="settings_force_sync_safe">Safe to uninstall. Your data is backed up.</string>
+    <string name="settings_force_sync_failed">%1$d item(s) couldn\'t sync. Try again, or uninstall now to lose only these.</string>
+
     <!-- Statistics screen, reachable from Settings. -->
     <string name="statistics_title">Statistics</string>
     <string name="statistics_settings_link_subtitle">See your shopping patterns at a glance</string>

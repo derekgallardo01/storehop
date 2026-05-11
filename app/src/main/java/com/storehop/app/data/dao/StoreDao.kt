@@ -121,6 +121,10 @@ interface StoreDao {
     @Query("SELECT * FROM stores WHERE householdId = :householdId AND pendingSync = 1")
     fun observePendingPush(householdId: String): Flow<List<Store>>
 
+    /** v0.7.1: row-count of pending pushes for the Force-sync-now UX. */
+    @Query("SELECT COUNT(*) FROM stores WHERE householdId = :householdId AND pendingSync = 1")
+    fun countPendingPush(householdId: String): Flow<Int>
+
     @Query("UPDATE stores SET pendingSync = 0 WHERE id = :id AND householdId = :householdId")
     suspend fun markPushed(householdId: String, id: String)
 

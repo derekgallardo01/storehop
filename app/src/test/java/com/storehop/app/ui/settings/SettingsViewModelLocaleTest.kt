@@ -57,8 +57,10 @@ class SettingsViewModelLocaleTest {
         googleSignIn = googleSignIn,
         userPrefs = userPrefs,
         sessionProvider = FakeSessionProvider("u"),
+        householdSession = mockk(relaxed = true),
         pullCoordinator = pullCoordinator,
         pullStateRepo = pullStateRepo,
+        syncEngine = mockk(relaxed = true),
     )
 
     @Test fun `setLocale TIRAMISU+ branch writes to LocaleManager and reads back`() = runTest {

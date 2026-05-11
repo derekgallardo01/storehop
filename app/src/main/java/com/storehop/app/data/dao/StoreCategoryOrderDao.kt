@@ -186,6 +186,10 @@ interface StoreCategoryOrderDao {
     @Query("SELECT * FROM store_category_order WHERE householdId = :householdId AND pendingSync = 1")
     fun observePendingPush(householdId: String): Flow<List<StoreCategoryOrder>>
 
+    /** v0.7.1: row-count of pending pushes for the Force-sync-now UX. */
+    @Query("SELECT COUNT(*) FROM store_category_order WHERE householdId = :householdId AND pendingSync = 1")
+    fun countPendingPush(householdId: String): Flow<Int>
+
     @Query(
         """
         UPDATE store_category_order SET pendingSync = 0
