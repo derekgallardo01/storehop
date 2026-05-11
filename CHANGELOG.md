@@ -9,6 +9,48 @@ For the high-level roadmap and earlier-than-0.5.0 history, see the
 
 ## Tests-only — 2026-05-11
 
+New `:benchmark` module for Macrobenchmark cold-start + scroll-FPS
+measurement. No version bump (no app behaviour change).
+
+### Added
+
+- **`:benchmark` Gradle module** (`com.android.test` plugin). Targets
+  the `:app` module's new `benchmark` build type (release-like:
+  R8 minify + resource shrinking on, but `isProfileable = true` so
+  Macrobenchmark can attach Perfetto traces). Two test classes:
+  - `StartupBenchmark`: cold + warm startup with
+    `CompilationMode.None` and `CompilationMode.Partial` variants.
+    First-launch DatabaseSeeder path is implicitly measured by cold
+    runs; subsequent cold runs reflect what 99% of users see.
+  - `ScrollBenchmark`: drives the Items list under UiAutomator,
+    flings 3× down + 3× up, reports `FrameTimingMetric` (median +
+    95th-percentile frame durations in ms). 60fps target = 16.6ms
+    p95.
+- **New `benchmark` build type on `:app`** that mirrors release
+  (minify + shrink) but with `isProfileable = true`. Not shipped to
+  Play. Required for Macrobenchmark to read traces.
+- **libs.versions.toml**: `androidx.benchmark:benchmark-macro-junit4`
+  1.3.3, `androidx.test.uiautomator:uiautomator` 2.3.0, and the
+  `com.android.test` plugin alias.
+
+### How to run
+
+```
+./gradlew :benchmark:connectedBenchmarkAndroidTest
+```
+
+on a connected physical device (emulators give noisy results — Pixel
+6+ recommended). Results land under
+`benchmark/build/outputs/connected_android_test_additional_output/`.
+
+### Not in CI
+
+Macrobenchmark needs a real device or a properly-configured AVD. GitHub
+Actions ubuntu runners don't have either; opt-in locally pre-release.
+Initial baseline numbers will land in CHANGELOG once we run on a Pixel.
+
+## Tests-only — 2026-05-11
+
 Android CI workflow + a small defensive-cast tweak in `StorehopTheme`.
 No version bump (no user-visible changes).
 

@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+
+    <!--
+        Macrobenchmark requires this flag so AGP wires the test APK to drive
+        the target app process via Perfetto. Without it, the benchmark
+        runner can't read system traces and metrics come back empty.
+    -->
+    <queries>
+        <package android:name="com.storehop.app" />
+    </queries>
+
+    <application>
+        <uses-library
+            android:name="android.test.runner"
+            android:required="true" />
+    </application>
+
+</manifest>

@@ -30,6 +30,8 @@ datastore = "1.1.1"
 appcompat = "1.7.0"
 appUpdate = "2.1.0"
 kover = "0.9.1"
+benchmarkMacro = "1.3.3"
+uiautomator = "2.3.0"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -94,8 +96,14 @@ androidx-appcompat = { group = "androidx.appcompat", name = "appcompat", version
 # and surfaces a "restart" snackbar; immediate flow blocks UI.
 play-app-update-ktx = { group = "com.google.android.play", name = "app-update-ktx", version.ref = "appUpdate" }
 
+# Macrobenchmark + UiAutomator (used by the :benchmark module to drive
+# cold-start + scroll-FPS benchmarks against a release-built APK).
+androidx-benchmark-macro-junit4 = { group = "androidx.benchmark", name = "benchmark-macro-junit4", version.ref = "benchmarkMacro" }
+androidx-uiautomator = { group = "androidx.test.uiautomator", name = "uiautomator", version.ref = "uiautomator" }
+
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
+android-test = { id = "com.android.test", version.ref = "agp" }
 kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }

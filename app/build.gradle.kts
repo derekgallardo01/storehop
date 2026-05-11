@@ -71,6 +71,22 @@ android {
         debug {
             isMinifyEnabled = false
         }
+        // Mirror release as closely as possible while allowing Macrobenchmark
+        // to attach Perfetto traces. Same minify + shrink as release, plus
+        // `isProfileable = true` so the benchmark runner can read system
+        // metrics. Not shipped to Play.
+        create("benchmark") {
+            initWith(getByName("release"))
+            matchingFallbacks += listOf("release")
+            // Macrobenchmark wants profileable so it can read traces.
+            // We keep minify on so cold-start numbers reflect production.
+            isMinifyEnabled = true
+            isShrinkResources = true
+            isDebuggable = false
+            // ProfileableMacrobenchmark replaces "debuggable" for trace
+            // attachment on API 29+.
+            isProfileable = true
+        }
     }
 
     compileOptions {

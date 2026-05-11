@@ -22,3 +22,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "storehop"
 include(":app")
+include(":benchmark")
