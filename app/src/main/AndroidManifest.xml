@@ -1,6 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
+    <!--
+      v0.7.1: declare the Play billing permission so Play Console unlocks
+      the in-app products UI. The actual Play Billing Library integration
+      lands in a follow-up release — for now the permission alone is what
+      Play needs to let us create the Premium IAP in the product catalog.
+    -->
+    <uses-permission android:name="com.android.vending.BILLING" />
+
     <application
         android:name=".StorehopApplication"
         android:allowBackup="true"
