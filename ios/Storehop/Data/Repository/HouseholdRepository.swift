@@ -249,7 +249,10 @@ final class FirestoreHouseholdRepository: HouseholdRepository, @unchecked Sendab
     /// 8-character Crockford base32 (no 0/O/1/I/L) so users can dictate the
     /// code over a phone call without confusion. ~10^12 entropy is ample
     /// given the 24-hour TTL + single-use rule.
-    private static func randomInviteToken() -> String {
+    ///
+    /// Internal (not private) so HouseholdRepositoryTests can exercise the
+    /// alphabet + length contract without spinning up Firestore.
+    static func randomInviteToken() -> String {
         let alphabet = Array(inviteAlphabet)
         var out = ""
         out.reserveCapacity(inviteTokenLength)
@@ -263,9 +266,9 @@ final class FirestoreHouseholdRepository: HouseholdRepository, @unchecked Sendab
     private static let invitesCollection = "invites"
     private static let membershipsCollection = "memberships"
     private static let householdsCollection = "households"
-    private static let inviteTokenLength = 8
-    private static let inviteTtlMillis: Int64 = 24 * 60 * 60 * 1000
+    static let inviteTokenLength = 8
+    static let inviteTtlMillis: Int64 = 24 * 60 * 60 * 1000
 
     // Crockford base32: 0-9 + A-Z minus the visually-ambiguous 0/O/1/I/L.
-    private static let inviteAlphabet = "23456789ABCDEFGHJKMNPQRSTUVWXYZ"
+    static let inviteAlphabet = "23456789ABCDEFGHJKMNPQRSTUVWXYZ"
 }

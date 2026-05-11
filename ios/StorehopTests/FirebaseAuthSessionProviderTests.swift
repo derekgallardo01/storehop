@@ -178,7 +178,8 @@ final class FirebaseAuthSessionProviderTests: XCTestCase {
 // MARK: - Test doubles
 
 /// Scriptable PullCoordinator stub. Tests set `peekResult` and `pullResult`
-/// per scenario; the test asserts on `peekCallCount` to verify gating.
+/// per scenario; the test asserts on `peekCallCount` and
+/// `pullForHouseholdCalls` to verify gating + retry invocations.
 final class ScriptablePullCoordinator: PullCoordinator, @unchecked Sendable {
     enum PeekResult {
         case success(Bool)
@@ -187,6 +188,11 @@ final class ScriptablePullCoordinator: PullCoordinator, @unchecked Sendable {
     var peekResult: PeekResult = .success(false)
     var pullResult: PullResult = .success
     var peekCallCount: Int = 0
+    /// Captures every household id passed to `pullForHousehold` in call
+    /// order. SettingsViewModel retry-pull tests assert against this so
+    /// the retry banner is wired to the same household path the auth
+    /// listener uses.
+    var pullForHouseholdCalls: [String] = []
 
     func peek(householdId: String) async throws -> Bool {
         peekCallCount += 1
@@ -196,7 +202,10 @@ final class ScriptablePullCoordinator: PullCoordinator, @unchecked Sendable {
         }
     }
 
-    func pullForHousehold(_ householdId: String) async -> PullResult { pullResult }
+    func pullForHousehold(_ householdId: String) async -> PullResult {
+        pullForHouseholdCalls.append(householdId)
+        return pullResult
+    }
 }
 
 /// In-memory FirebaseAuthClient. Simulates anonymous sign-in completion,

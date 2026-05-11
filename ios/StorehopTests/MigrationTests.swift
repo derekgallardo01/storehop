@@ -165,6 +165,129 @@ final class MigrationTests: XCTestCase {
         }
     }
 
+    // MARK: - v7 → v8 backfill (household scope)
+
+    /// Mirrors Android `MigrationTest.v7 to v8 backfills householdId ...`.
+    /// Pins the v0.7.0 scaffolding migration: alive rows get
+    /// `householdId = userId`, tombstones stay at the empty-string default,
+    /// and the new `household_members` table comes up empty.
+    func testV7ToV8BackfillsHouseholdIdEqualsUserIdOnAliveRows() throws {
+        let queue = try DatabaseQueue()
+        let migrator = Migrations.migrator()
+        try migrator.migrate(queue, upTo: "v7_categories_display_order")
+
+        // Seed v7-schema rows directly (no householdId column yet).
+        try queue.write { db in
+            try db.execute(sql: """
+                INSERT INTO categories
+                    (id, name, isArchived, isSeeded, userId, createdAt, updatedAt, pendingSync, displayOrder)
+                VALUES ('c1', 'Produce', 0, 0, 'u1', 1, 1, 0, 0)
+                """)
+            try db.execute(sql: """
+                INSERT INTO stores
+                    (id, name, isArchived, isSeeded, userId, createdAt, updatedAt, pendingSync, displayOrder)
+                VALUES ('s1', 'Lidl', 0, 0, 'u1', 1, 1, 0, 0)
+                """)
+            try db.execute(sql: """
+                INSERT INTO items
+                    (id, name, isNeeded, userId, createdAt, updatedAt, pendingSync, isStaple, isPriority)
+                VALUES ('i1', 'Bread', 1, 'u1', 1, 1, 0, 0, 0)
+                """)
+            // Dead row — should stay at the empty-string default after v8.
+            try db.execute(sql: """
+                INSERT INTO items
+                    (id, name, isNeeded, userId, createdAt, updatedAt, deletedAt, pendingSync, isStaple, isPriority)
+                VALUES ('i_dead', 'Old', 1, 'u1', 1, 1, 999, 0, 0, 0)
+                """)
+        }
+
+        // Apply v8.
+        try migrator.migrate(queue)
+
+        try queue.read { db in
+            // Alive item: householdId = userId, pendingSync bumped so the
+            // new column ships to Firestore on the next push.
+            let aliveItem = try Row.fetchOne(
+                db,
+                sql: "SELECT householdId, pendingSync FROM items WHERE id = 'i1'"
+            )
+            XCTAssertEqual(aliveItem?["householdId"] as String?, "u1")
+            XCTAssertEqual(aliveItem?["pendingSync"] as Int?, 1)
+
+            let aliveStore = try Row.fetchOne(
+                db,
+                sql: "SELECT householdId FROM stores WHERE id = 's1'"
+            )
+            XCTAssertEqual(aliveStore?["householdId"] as String?, "u1")
+
+            let aliveCat = try Row.fetchOne(
+                db,
+                sql: "SELECT householdId FROM categories WHERE id = 'c1'"
+            )
+            XCTAssertEqual(aliveCat?["householdId"] as String?, "u1")
+
+            // Tombstone left at empty-string default (the WHERE clause in
+            // the backfill skips deletedAt-NOT-NULL rows).
+            let deadItem = try Row.fetchOne(
+                db,
+                sql: "SELECT householdId FROM items WHERE id = 'i_dead'"
+            )
+            XCTAssertEqual(deadItem?["householdId"] as String?, "")
+
+            // New household_members table exists and is empty — bootstrap
+            // happens at first launch in `FirebaseAuthSessionProvider`,
+            // not inside the migration.
+            let memberCount = try Int.fetchOne(
+                db,
+                sql: "SELECT COUNT(*) FROM household_members"
+            ) ?? -1
+            XCTAssertEqual(memberCount, 0)
+        }
+    }
+
+    /// Pins that v8 lands `householdId` on every household-owned table —
+    /// not just items/stores/categories. A regression that skipped one of
+    /// xref/sco/purchase_records would leak access scope (Mike's purchases
+    /// visible to Amanda) once Amanda joins via invite.
+    func testV8AddsHouseholdIdToAllSixEntityTables() throws {
+        let queue = try DatabaseQueue()
+        try Migrations.migrator().migrate(queue)
+        try queue.read { db in
+            for table in [
+                "items", "stores", "categories",
+                "item_store_xref", "store_category_order", "purchase_records",
+            ] {
+                let rows = try Row.fetchAll(db, sql: "PRAGMA table_info(\(table))")
+                let names = rows.compactMap { $0["name"] as String? }
+                XCTAssertTrue(
+                    names.contains("householdId"),
+                    "\(table) missing householdId column after v8"
+                )
+            }
+        }
+    }
+
+    /// Pins the index on `(householdId)` for sargable WHERE-by-household
+    /// queries. Without it, every list query degrades to a table scan once
+    /// households share a userId namespace.
+    func testV8CreatesHouseholdIdIndexesOnAllSixTables() throws {
+        let queue = try DatabaseQueue()
+        try Migrations.migrator().migrate(queue)
+        try queue.read { db in
+            for table in [
+                "items", "stores", "categories",
+                "item_store_xref", "store_category_order", "purchase_records",
+            ] {
+                let rows = try Row.fetchAll(db, sql: "PRAGMA index_list(\(table))")
+                let names = rows.compactMap { $0["name"] as String? }
+                XCTAssertTrue(
+                    names.contains("index_\(table)_householdId"),
+                    "\(table) missing householdId index after v8"
+                )
+            }
+        }
+    }
+
     func testItemStoreXrefCascadesWhenItemHardDeleted() throws {
         let database = try makeDatabase()
         try database.queue.write { db in

@@ -117,4 +117,19 @@ final class SettingsViewModelTests: XCTestCase {
             s.viewModel.pullState == .failed
         }
     }
+
+    /// Mirrors Android `SettingsViewModelTest.retryPull invokes
+    /// PullCoordinator with the current uid`. Pins the wire-up of the
+    /// retry banner to `pullForHousehold` (renamed from `pullForUid` in
+    /// v0.7.0 Phase 1) against the active uid — single-member-household
+    /// alias of householdId.
+    func testRetryPullInvokesPullForHouseholdWithCurrentUid() async throws {
+        let s = try await makeSetup()
+        await s.pullStateRepo.set(.failed, for: "uid_alice")
+        try await waitForCondition { s.viewModel.pullState == .failed }
+
+        s.viewModel.retryPull()
+        try await waitForCondition { s.viewModel.pullState == .succeeded }
+        XCTAssertEqual(s.coordinator.pullForHouseholdCalls, ["uid_alice"])
+    }
 }
