@@ -110,7 +110,12 @@ final class SyncEngineTests: XCTestCase {
         await s.session.publish("u_alice")
         await s.pullStateRepo.set(.succeeded, for: "u_alice")
         await s.engine.start()
-        try await waitForCondition(timeout: 2.0) {
+        // Generous timeouts: the macos-15 CI runner takes longer than local
+        // to propagate combine(uid, hid) → cancel-and-restart-jobs →
+        // observePendingPush subscribe → GRDB ValueObservation initial
+        // value → firestore push round-trip. The 2s default was tight
+        // enough to flake on the uid-switch second wait.
+        try await waitForCondition(timeout: 5.0) {
             await s.firestore.snapshotPaths().contains("users/u_alice/stores/s1")
         }
 
@@ -119,7 +124,7 @@ final class SyncEngineTests: XCTestCase {
         await s.pullStateRepo.set(.succeeded, for: "u_bob")
         try s.db.seed(stores: [TestFixtures.store(id: "s_bob", userId: "u_bob")])
 
-        try await waitForCondition(timeout: 2.0) {
+        try await waitForCondition(timeout: 5.0) {
             await s.firestore.snapshotPaths().contains("users/u_bob/stores/s_bob")
         }
 
