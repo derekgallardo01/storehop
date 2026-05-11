@@ -74,6 +74,13 @@ jobs:
             -resultBundlePath build/build.xcresult
 
       - name: Test (unit tests only)
+        # -only-testing alone isn't enough on Xcode 16.4: the scheme still
+        # builds + launches the UITest runner host (StorehopUITests-Runner),
+        # which calls `FirebaseApp.configure()` and crashes because the CI
+        # simulator has no `GoogleService-Info.plist` (it's gitignored).
+        # `-skip-testing:StorehopUITests` prevents the runner from launching
+        # at all, so the StorehopTests bundle (pure unit tests, no Firebase
+        # init) runs cleanly.
         run: |
           xcodebuild test \
             -project Storehop.xcodeproj \
@@ -81,6 +88,7 @@ jobs:
             -destination 'platform=iOS Simulator,name=iPhone 16,OS=latest' \
             -resultBundlePath build/test.xcresult \
             -only-testing:StorehopTests \
+            -skip-testing:StorehopUITests \
             CODE_SIGNING_ALLOWED=NO
 
       - name: Upload xcresult bundles
