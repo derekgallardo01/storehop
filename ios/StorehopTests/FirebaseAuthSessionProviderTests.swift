@@ -32,8 +32,10 @@ final class FirebaseAuthSessionProviderTests: XCTestCase {
         let session = FirebaseAuthSessionProvider(
             authClient: auth,
             migrationDao: migrationDao,
+            householdMemberDao: HouseholdMemberDao(writer: db.queue),
             pullCoordinator: coordinator,
-            pullStateRepo: pullStateRepo
+            pullStateRepo: pullStateRepo,
+            clock: MutableClock(nowMs: 0)
         )
         return Setup(
             auth: auth,

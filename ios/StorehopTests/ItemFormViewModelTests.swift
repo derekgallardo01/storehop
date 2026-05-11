@@ -25,6 +25,7 @@ final class ItemFormViewModelTests: XCTestCase {
         let session = LocalOnlyUserSessionProvider(uid: uid)
         let clock = MutableClock(nowMs: 1_000)
         let writer = db.queue
+        let householdSession = LocalOnlyHouseholdSessionProvider(initialHouseholdId: uid)
         let itemRepo = ItemRepository(
             writer: writer,
             itemDao: ItemDao(writer: writer),
@@ -32,6 +33,7 @@ final class ItemFormViewModelTests: XCTestCase {
             scoDao: StoreCategoryOrderDao(writer: writer),
             purchaseDao: PurchaseRecordDao(writer: writer),
             session: session,
+            householdSession: householdSession,
             clock: clock,
             ids: SequenceIdGenerator()
         )
@@ -41,6 +43,7 @@ final class ItemFormViewModelTests: XCTestCase {
             itemDao: ItemDao(writer: writer),
             scoDao: StoreCategoryOrderDao(writer: writer),
             session: session,
+            householdSession: householdSession,
             clock: clock,
             ids: SequenceIdGenerator()
         )
@@ -50,6 +53,7 @@ final class ItemFormViewModelTests: XCTestCase {
             xrefDao: ItemStoreXrefDao(writer: writer),
             scoDao: StoreCategoryOrderDao(writer: writer),
             session: session,
+            householdSession: householdSession,
             clock: clock,
             ids: SequenceIdGenerator()
         )
@@ -134,6 +138,7 @@ final class ItemFormViewModelTests: XCTestCase {
 
         // Build a second VM in edit mode against the SAME database.
         let session = LocalOnlyUserSessionProvider(uid: "u1")
+        let householdSession = LocalOnlyHouseholdSessionProvider(initialHouseholdId: "u1")
         let clock = MutableClock(nowMs: 1_000)
         let writer = setupAdd.db.queue
         let itemRepo = ItemRepository(
@@ -142,7 +147,7 @@ final class ItemFormViewModelTests: XCTestCase {
             xrefDao: ItemStoreXrefDao(writer: writer),
             scoDao: StoreCategoryOrderDao(writer: writer),
             purchaseDao: PurchaseRecordDao(writer: writer),
-            session: session, clock: clock, ids: SequenceIdGenerator()
+            session: session, householdSession: householdSession, clock: clock, ids: SequenceIdGenerator()
         )
         let editVm = ItemFormViewModel(
             itemId: id,
@@ -150,12 +155,12 @@ final class ItemFormViewModelTests: XCTestCase {
             categoryRepository: CategoryRepository(
                 writer: writer, categoryDao: CategoryDao(writer: writer),
                 itemDao: ItemDao(writer: writer), scoDao: StoreCategoryOrderDao(writer: writer),
-                session: session, clock: clock, ids: SequenceIdGenerator()
+                session: session, householdSession: householdSession, clock: clock, ids: SequenceIdGenerator()
             ),
             storeRepository: StoreRepository(
                 writer: writer, storeDao: StoreDao(writer: writer),
                 xrefDao: ItemStoreXrefDao(writer: writer), scoDao: StoreCategoryOrderDao(writer: writer),
-                session: session, clock: clock, ids: SequenceIdGenerator()
+                session: session, householdSession: householdSession, clock: clock, ids: SequenceIdGenerator()
             ),
             imageUploader: NoOpImageUploader(),
             undoEventBus: UndoEventBus(),
@@ -183,6 +188,7 @@ final class ItemFormViewModelTests: XCTestCase {
 
         // Build an edit-mode VM and listen for the undo event.
         let session = LocalOnlyUserSessionProvider(uid: "u1")
+        let householdSession = LocalOnlyHouseholdSessionProvider(initialHouseholdId: "u1")
         let clock = MutableClock(nowMs: 1_000)
         let writer = s.db.queue
         let undoBus = UndoEventBus()
@@ -202,17 +208,17 @@ final class ItemFormViewModelTests: XCTestCase {
                 xrefDao: ItemStoreXrefDao(writer: writer),
                 scoDao: StoreCategoryOrderDao(writer: writer),
                 purchaseDao: PurchaseRecordDao(writer: writer),
-                session: session, clock: clock, ids: SequenceIdGenerator()
+                session: session, householdSession: householdSession, clock: clock, ids: SequenceIdGenerator()
             ),
             categoryRepository: CategoryRepository(
                 writer: writer, categoryDao: CategoryDao(writer: writer),
                 itemDao: ItemDao(writer: writer), scoDao: StoreCategoryOrderDao(writer: writer),
-                session: session, clock: clock, ids: SequenceIdGenerator()
+                session: session, householdSession: householdSession, clock: clock, ids: SequenceIdGenerator()
             ),
             storeRepository: StoreRepository(
                 writer: writer, storeDao: StoreDao(writer: writer),
                 xrefDao: ItemStoreXrefDao(writer: writer), scoDao: StoreCategoryOrderDao(writer: writer),
-                session: session, clock: clock, ids: SequenceIdGenerator()
+                session: session, householdSession: householdSession, clock: clock, ids: SequenceIdGenerator()
             ),
             imageUploader: NoOpImageUploader(),
             undoEventBus: undoBus,

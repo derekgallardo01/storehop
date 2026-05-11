@@ -21,6 +21,7 @@ final class CategoryRepositoryTests: XCTestCase {
             itemDao: ItemDao(writer: writer),
             scoDao: StoreCategoryOrderDao(writer: writer),
             session: session,
+            householdSession: LocalOnlyHouseholdSessionProvider(initialHouseholdId: "u1"),
             clock: clock,
             ids: SequenceIdGenerator()
         )

@@ -23,6 +23,7 @@ final class SyncEngineTests: XCTestCase {
         let engine = SyncEngine(
             firestore: firestore,
             session: session,
+            householdSession: session,
             pullStateRepo: pullStateRepo,
             itemDao: ItemDao(writer: writer),
             categoryDao: CategoryDao(writer: writer),
@@ -194,13 +195,20 @@ final actor RecordingFirestoreClient: FirestoreClient {
 }
 
 /// Drivable session provider for tests. Publish a uid via `publish(_:)`
-/// to fire the engine's pump.
-final class TestSession: UserSessionProvider, @unchecked Sendable {
+/// to fire the engine's pump. Also conforms to `HouseholdSessionProvider`
+/// and mirrors the uid onto the household id so single-member-household
+/// behaviour holds in tests (matches `LocalOnlyHouseholdSessionProvider`).
+final class TestSession: UserSessionProvider, HouseholdSessionProvider, @unchecked Sendable {
     private let lock = NSLock()
     private var current: String?
     private var continuations: [UUID: AsyncStream<String?>.Continuation] = [:]
+    private var hidContinuations: [UUID: AsyncStream<String?>.Continuation] = [:]
 
     var currentUserId: String? {
+        get async { lock.lock(); defer { lock.unlock() }; return current }
+    }
+
+    var currentHouseholdId: String? {
         get async { lock.lock(); defer { lock.unlock() }; return current }
     }
 
@@ -220,12 +228,30 @@ final class TestSession: UserSessionProvider, @unchecked Sendable {
         }
     }
 
+    var householdIdStream: AsyncStream<String?> {
+        AsyncStream { continuation in
+            let id = UUID()
+            self.lock.lock()
+            self.hidContinuations[id] = continuation
+            let initial = self.current
+            self.lock.unlock()
+            continuation.yield(initial)
+            continuation.onTermination = { @Sendable _ in
+                self.lock.lock()
+                self.hidContinuations[id] = nil
+                self.lock.unlock()
+            }
+        }
+    }
+
     func publish(_ uid: String?) async {
         lock.lock()
         current = uid
         let conts = Array(continuations.values)
+        let hidConts = Array(hidContinuations.values)
         lock.unlock()
         for c in conts { c.yield(uid) }
+        for c in hidConts { c.yield(uid) }
         // Give consumers a moment to react.
         try? await Task.sleep(nanoseconds: 30_000_000)
     }

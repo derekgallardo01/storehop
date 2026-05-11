@@ -21,6 +21,7 @@ final class StoreRepositoryTests: XCTestCase {
             xrefDao: ItemStoreXrefDao(writer: writer),
             scoDao: StoreCategoryOrderDao(writer: writer),
             session: session,
+            householdSession: LocalOnlyHouseholdSessionProvider(initialHouseholdId: "u1"),
             clock: clock,
             ids: SequenceIdGenerator()
         )

@@ -21,7 +21,7 @@ final class StoreCategoryOrderDaoTests: XCTestCase {
         let (_, dao) = try setup()
         try await dao.appendIfMissing(storeId: "s1", categoryId: "c1", householdId: "u1", userId: "u1", now: 1_000)
         try await dao.appendIfMissing(storeId: "s1", categoryId: "c2", householdId: "u1", userId: "u1", now: 1_000)
-        try await dao.appendIfMissing(storeId: "s1", categoryId: "c3", userId: "u1", now: 1_000)
+        try await dao.appendIfMissing(storeId: "s1", categoryId: "c3", householdId: "u1", userId: "u1", now: 1_000)
 
         let rows = try await dao.findForStore(storeId: "s1").sorted { $0.displayOrder < $1.displayOrder }
         XCTAssertEqual(rows.map(\.categoryId), ["c1", "c2", "c3"])

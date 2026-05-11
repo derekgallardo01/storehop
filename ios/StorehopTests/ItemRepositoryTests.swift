@@ -25,6 +25,7 @@ final class ItemRepositoryTests: XCTestCase {
             scoDao: StoreCategoryOrderDao(writer: writer),
             purchaseDao: PurchaseRecordDao(writer: writer),
             session: session,
+            householdSession: LocalOnlyHouseholdSessionProvider(initialHouseholdId: uid),
             clock: clock,
             ids: SequenceIdGenerator()
         )
@@ -265,6 +266,7 @@ final class ItemRepositoryTests: XCTestCase {
             scoDao: StoreCategoryOrderDao(writer: writer),
             purchaseDao: PurchaseRecordDao(writer: writer),
             session: NoSessionProvider(),
+            householdSession: LocalOnlyHouseholdSessionProvider(initialHouseholdId: nil),
             clock: SystemClock(),
             ids: UuidV4Generator()
         )

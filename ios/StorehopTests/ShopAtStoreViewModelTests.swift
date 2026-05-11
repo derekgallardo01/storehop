@@ -23,9 +23,10 @@ final class ShopAtStoreViewModelTests: XCTestCase {
             categories: [TestFixtures.category(id: "c_dairy", name: "Dairy", userId: uid)]
         )
         let session = LocalOnlyUserSessionProvider(uid: uid)
+        let householdSession = LocalOnlyHouseholdSessionProvider(initialHouseholdId: uid)
         let clock = MutableClock(nowMs: 1_000)
         let writer = db.queue
-        let repos = makeRepositories(writer: writer, session: session, clock: clock)
+        let repos = makeRepositories(writer: writer, session: session, householdSession: householdSession, clock: clock)
         // Fresh UserDefaults suite per test so toggle state doesn't leak.
         let suite = UserDefaults(suiteName: "test-\(UUID().uuidString)")!
         let prefs = LiveUserPreferencesRepository(defaults: suite)
@@ -280,7 +281,7 @@ final class ShopAtStoreViewModelTests: XCTestCase {
 
     // MARK: - Helpers
 
-    private func makeRepositories(writer: any DatabaseWriter, session: any UserSessionProvider, clock: any Clock) -> (
+    private func makeRepositories(writer: any DatabaseWriter, session: any UserSessionProvider, householdSession: any HouseholdSessionProvider, clock: any Clock) -> (
         shopping: ShoppingRepository,
         item: ItemRepository,
         store: StoreRepository
@@ -295,12 +296,12 @@ final class ShopAtStoreViewModelTests: XCTestCase {
 
         let item = ItemRepository(
             writer: writer, itemDao: itemDao, xrefDao: xrefDao, scoDao: scoDao,
-            purchaseDao: purchaseDao, session: session, clock: clock,
-            ids: SequenceIdGenerator()
+            purchaseDao: purchaseDao, session: session, householdSession: householdSession,
+            clock: clock, ids: SequenceIdGenerator()
         )
         let store = StoreRepository(
             writer: writer, storeDao: storeDao, xrefDao: xrefDao, scoDao: scoDao,
-            session: session, clock: clock, ids: SequenceIdGenerator()
+            session: session, householdSession: householdSession, clock: clock, ids: SequenceIdGenerator()
         )
         let shopping = ShoppingRepository(shoppingDao: shoppingDao, storeDao: storeDao, session: session)
         return (shopping, item, store)
