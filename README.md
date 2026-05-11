@@ -310,6 +310,9 @@ pack remains stable across devices and across reseeds.
          several UI surfaces (invite from Settings → Account,
          manage collaborators, conflict signals). Major feature —
          designed as its own milestone.
-- v0.7+  Polish follow-ups (e.g. tightening the in-session staple
-         flag's renewal behavior) and a v2 home-screen widget that
-         actually does something useful.
+- v0.7+  Polish follow-ups and a v2 home-screen widget that actually
+         does something useful. An opt-in "auto-renew staples at
+         session start" toggle in Settings (was a default-on TODO
+         pre-v0.6.9; re-classified to opt-in after Mike's evidence
+         showed users expect "marked purchased = stays off the
+         list" — auto-renewal would surprise them).
