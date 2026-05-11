@@ -60,6 +60,21 @@ struct SettingsView: View {
                         .foregroundStyle(.red)
                         .font(StorehopTypography.bodySmall)
                 }
+                // v0.7.0: Settings → Household tap-target sits directly
+                // under the Account section since invites are only useful
+                // for signed-in users (an anonymous user can still tap
+                // through and see "Just you").
+                NavigationLink {
+                    HouseholdView()
+                } label: {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(String(localized: "household_title"))
+                            .font(StorehopTypography.titleMedium)
+                        Text(String(localized: "household_settings_subtitle"))
+                            .font(StorehopTypography.bodySmall)
+                            .foregroundStyle(StorehopColors.onSurfaceVariant)
+                    }
+                }
             }
 
             // Theme picker.

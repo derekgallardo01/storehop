@@ -3,6 +3,9 @@ package com.storehop.app.di
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.storage.FirebaseStorage
+import com.storehop.app.data.util.FakeHouseholdSessionProvider
+import com.storehop.app.data.util.HouseholdSessionProvider
+import com.storehop.app.data.util.HouseholdSwitcher
 import com.storehop.app.data.util.IdGenerator
 import com.storehop.app.data.util.LocalOnlyUserSessionProvider
 import com.storehop.app.data.util.UserSessionProvider
@@ -10,6 +13,7 @@ import com.storehop.app.data.util.UuidIdGenerator
 import dagger.Binds
 import dagger.Module
 import dagger.Provides
+import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
 import dagger.hilt.testing.TestInstallIn
 import io.mockk.mockk
@@ -90,4 +94,49 @@ abstract class TestAppBindsModule {
     abstract fun bindUserSessionProvider(
         impl: LocalOnlyUserSessionProvider,
     ): UserSessionProvider
+}
+
+/**
+ * v0.7.0: bind the new HouseholdSessionProvider + HouseholdSwitcher
+ * surfaces with a `FakeHouseholdSessionProvider` instance pre-seeded to
+ * `local-only` (the same sentinel `LocalOnlyUserSessionProvider` emits).
+ * Tests run as a single-member household where uid == householdId, so
+ * every household-scoped query lands the same row set the userId-scoped
+ * queries did pre-v0.7.0. E2E tests that need to simulate a household
+ * switch can grab this instance via Hilt and call `setHouseholdId`.
+ *
+ * Uses `@InstallIn` (not `@TestInstallIn`) because there's no
+ * production module to replace — the production HouseholdSessionProvider
+ * + HouseholdSwitcher bindings live on `AppBindsModule` which the
+ * sibling `TestAppBindsModule` above replaces. This module adds the
+ * test-only equivalents into the same SingletonComponent without
+ * conflicting.
+ */
+@Module
+@InstallIn(SingletonComponent::class)
+object TestHouseholdSessionModule {
+
+    @Provides
+    @Singleton
+    fun provideFakeHouseholdSession(): FakeHouseholdSessionProvider =
+        FakeHouseholdSessionProvider(initial = LocalOnlyUserSessionProvider.LOCAL_ONLY)
+
+    @Provides
+    fun provideHouseholdSession(fake: FakeHouseholdSessionProvider): HouseholdSessionProvider =
+        fake
+
+    /**
+     * The instrumented tests don't drive an invite-accept / leave flow
+     * (no Firestore round-trip in a mock'd setup), so we bind a no-op
+     * HouseholdSwitcher that satisfies the DI graph without actually
+     * doing anything. HouseholdRepository tests cover the switch logic
+     * with a mock at the JVM-unit-test level.
+     */
+    @Provides
+    @Singleton
+    fun provideHouseholdSwitcher(): HouseholdSwitcher = NoOpHouseholdSwitcher()
+}
+
+private class NoOpHouseholdSwitcher : HouseholdSwitcher {
+    override suspend fun switchToHousehold(newHouseholdId: String) { /* no-op */ }
 }

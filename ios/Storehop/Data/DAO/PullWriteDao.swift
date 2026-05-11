@@ -53,4 +53,43 @@ struct PullWriteDao: Sendable {
             }
         }
     }
+
+    /// v0.7.0 Phase 3: hard-delete every household-scoped row for
+    /// [householdId]. Used when the user accepts another household's
+    /// invite (their personal household's data is dropped and the new
+    /// shared household is then pulled in) or when they leave a shared
+    /// household. Single transaction so the wipe is all-or-nothing.
+    ///
+    /// Children-before-parents because of FK constraints — xrefs and
+    /// SCOs reference stores/categories/items, so they must clear first.
+    /// `household_members` rows are intentionally NOT touched here; the
+    /// caller manages those.
+    func wipeAllForHousehold(householdId: String) async throws {
+        try await writer.write { db in
+            try db.execute(
+                sql: "DELETE FROM item_store_xref WHERE householdId = ?",
+                arguments: [householdId]
+            )
+            try db.execute(
+                sql: "DELETE FROM store_category_order WHERE householdId = ?",
+                arguments: [householdId]
+            )
+            try db.execute(
+                sql: "DELETE FROM purchase_records WHERE householdId = ?",
+                arguments: [householdId]
+            )
+            try db.execute(
+                sql: "DELETE FROM items WHERE householdId = ?",
+                arguments: [householdId]
+            )
+            try db.execute(
+                sql: "DELETE FROM categories WHERE householdId = ?",
+                arguments: [householdId]
+            )
+            try db.execute(
+                sql: "DELETE FROM stores WHERE householdId = ?",
+                arguments: [householdId]
+            )
+        }
+    }
 }

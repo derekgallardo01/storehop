@@ -24,7 +24,7 @@ struct HouseholdView: View {
                 let vm = HouseholdViewModel(
                     repository: container.householdRepository,
                     userSession: container.session,
-                    householdSession: container.session
+                    householdSession: container.householdSession
                 )
                 vm.bind()
                 viewModel = vm

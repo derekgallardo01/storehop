@@ -5160,6 +5160,222 @@
         "es": { "stringUnit": { "state": "translated", "value": "%lld categorías eliminadas." } },
         "it": { "stringUnit": { "state": "translated", "value": "%lld categorie eliminate." } }
       }
+    },
+    "household_title": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Household" } },
+        "pt-PT": { "stringUnit": { "state": "translated", "value": "Agregado familiar" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Hogar" } },
+        "it": { "stringUnit": { "state": "translated", "value": "Famiglia" } }
+      }
+    },
+    "household_settings_subtitle": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Share your list with someone" } },
+        "pt-PT": { "stringUnit": { "state": "translated", "value": "Partilhar a sua lista com outra pessoa" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Comparte tu lista con alguien" } },
+        "it": { "stringUnit": { "state": "translated", "value": "Condividi la tua lista con qualcuno" } }
+      }
+    },
+    "household_members_header": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Members" } },
+        "pt-PT": { "stringUnit": { "state": "translated", "value": "Membros" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Miembros" } },
+        "it": { "stringUnit": { "state": "translated", "value": "Membri" } }
+      }
+    },
+    "household_members_just_you": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Just you" } },
+        "pt-PT": { "stringUnit": { "state": "translated", "value": "Apenas você" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Solo tú" } },
+        "it": { "stringUnit": { "state": "translated", "value": "Solo tu" } }
+      }
+    },
+    "household_members_owner_badge": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Owner" } },
+        "pt-PT": { "stringUnit": { "state": "translated", "value": "Proprietário" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Propietario" } },
+        "it": { "stringUnit": { "state": "translated", "value": "Proprietario" } }
+      }
+    },
+    "household_generate_invite_header": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Invite someone" } },
+        "pt-PT": { "stringUnit": { "state": "translated", "value": "Convidar alguém" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Invitar a alguien" } },
+        "it": { "stringUnit": { "state": "translated", "value": "Invita qualcuno" } }
+      }
+    },
+    "household_invite_explanation": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Share this code with someone you want to add. It expires in 24 hours and can only be used once." } },
+        "pt-PT": { "stringUnit": { "state": "translated", "value": "Partilhe este código com a pessoa que pretende adicionar. Expira em 24 horas e só pode ser utilizado uma vez." } },
+        "es": { "stringUnit": { "state": "translated", "value": "Comparte este código con la persona que quieras añadir. Expira en 24 horas y solo se puede usar una vez." } },
+        "it": { "stringUnit": { "state": "translated", "value": "Condividi questo codice con la persona che vuoi aggiungere. Scade in 24 ore e può essere usato una sola volta." } }
+      }
+    },
+    "household_generate_invite": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Generate invite code" } },
+        "pt-PT": { "stringUnit": { "state": "translated", "value": "Gerar código de convite" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Generar código de invitación" } },
+        "it": { "stringUnit": { "state": "translated", "value": "Genera codice invito" } }
+      }
+    },
+    "household_invite_dialog_title": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Invite code" } },
+        "pt-PT": { "stringUnit": { "state": "translated", "value": "Código de convite" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Código de invitación" } },
+        "it": { "stringUnit": { "state": "translated", "value": "Codice invito" } }
+      }
+    },
+    "household_invite_dialog_message": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Share this code with the person you want to add. It expires in 24 hours." } },
+        "pt-PT": { "stringUnit": { "state": "translated", "value": "Partilhe este código com a pessoa que pretende adicionar. Expira em 24 horas." } },
+        "es": { "stringUnit": { "state": "translated", "value": "Comparte este código con la persona que quieras añadir. Expira en 24 horas." } },
+        "it": { "stringUnit": { "state": "translated", "value": "Condividi questo codice con la persona che vuoi aggiungere. Scade in 24 ore." } }
+      }
+    },
+    "household_invite_copy": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Copy" } },
+        "pt-PT": { "stringUnit": { "state": "translated", "value": "Copiar" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Copiar" } },
+        "it": { "stringUnit": { "state": "translated", "value": "Copia" } }
+      }
+    },
+    "household_invite_dismiss": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Done" } },
+        "pt-PT": { "stringUnit": { "state": "translated", "value": "Concluído" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Hecho" } },
+        "it": { "stringUnit": { "state": "translated", "value": "Fatto" } }
+      }
+    },
+    "household_join_with_code": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Join with code" } },
+        "pt-PT": { "stringUnit": { "state": "translated", "value": "Entrar com código" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Unirse con código" } },
+        "it": { "stringUnit": { "state": "translated", "value": "Unisciti con codice" } }
+      }
+    },
+    "household_invite_code_label": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Enter the 8-character code" } },
+        "pt-PT": { "stringUnit": { "state": "translated", "value": "Introduza o código de 8 caracteres" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Introduce el código de 8 caracteres" } },
+        "it": { "stringUnit": { "state": "translated", "value": "Inserisci il codice a 8 caratteri" } }
+      }
+    },
+    "household_join_button": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Join" } },
+        "pt-PT": { "stringUnit": { "state": "translated", "value": "Entrar" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Unirse" } },
+        "it": { "stringUnit": { "state": "translated", "value": "Unisciti" } }
+      }
+    },
+    "household_leave": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Leave household" } },
+        "pt-PT": { "stringUnit": { "state": "translated", "value": "Sair do agregado" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Salir del hogar" } },
+        "it": { "stringUnit": { "state": "translated", "value": "Esci dalla famiglia" } }
+      }
+    },
+    "household_leave_confirm_title": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Leave household?" } },
+        "pt-PT": { "stringUnit": { "state": "translated", "value": "Sair do agregado?" } },
+        "es": { "stringUnit": { "state": "translated", "value": "¿Salir del hogar?" } },
+        "it": { "stringUnit": { "state": "translated", "value": "Uscire dalla famiglia?" } }
+      }
+    },
+    "household_leave_confirm_message": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "You'll start fresh with an empty list. This won't affect the household's data for other members." } },
+        "pt-PT": { "stringUnit": { "state": "translated", "value": "Vai começar com uma lista vazia. Isto não afeta os dados do agregado para os outros membros." } },
+        "es": { "stringUnit": { "state": "translated", "value": "Empezarás con una lista vacía. Esto no afectará a los datos del hogar para los demás miembros." } },
+        "it": { "stringUnit": { "state": "translated", "value": "Inizierai con una lista vuota. Questo non influirà sui dati della famiglia per gli altri membri." } }
+      }
+    },
+    "household_leave_confirm_button": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Leave" } },
+        "pt-PT": { "stringUnit": { "state": "translated", "value": "Sair" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Salir" } },
+        "it": { "stringUnit": { "state": "translated", "value": "Esci" } }
+      }
+    },
+    "household_leave_cancel_button": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Cancel" } },
+        "pt-PT": { "stringUnit": { "state": "translated", "value": "Cancelar" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Cancelar" } },
+        "it": { "stringUnit": { "state": "translated", "value": "Annulla" } }
+      }
+    },
+    "household_error_invite_not_found": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Invite code not found." } },
+        "pt-PT": { "stringUnit": { "state": "translated", "value": "Código de convite não encontrado." } },
+        "es": { "stringUnit": { "state": "translated", "value": "No se ha encontrado el código de invitación." } },
+        "it": { "stringUnit": { "state": "translated", "value": "Codice invito non trovato." } }
+      }
+    },
+    "household_error_invite_expired": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "This invite code has expired." } },
+        "pt-PT": { "stringUnit": { "state": "translated", "value": "Este código de convite expirou." } },
+        "es": { "stringUnit": { "state": "translated", "value": "Este código de invitación ha expirado." } },
+        "it": { "stringUnit": { "state": "translated", "value": "Questo codice invito è scaduto." } }
+      }
+    },
+    "household_error_invite_used": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "This invite code has already been used." } },
+        "pt-PT": { "stringUnit": { "state": "translated", "value": "Este código de convite já foi utilizado." } },
+        "es": { "stringUnit": { "state": "translated", "value": "Este código de invitación ya se ha utilizado." } },
+        "it": { "stringUnit": { "state": "translated", "value": "Questo codice invito è già stato utilizzato." } }
+      }
+    },
+    "household_error_invalid_token": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Codes are 8 characters. Double-check the code and try again." } },
+        "pt-PT": { "stringUnit": { "state": "translated", "value": "Os códigos têm 8 caracteres. Verifique o código e tente novamente." } },
+        "es": { "stringUnit": { "state": "translated", "value": "Los códigos tienen 8 caracteres. Comprueba el código e inténtalo de nuevo." } },
+        "it": { "stringUnit": { "state": "translated", "value": "I codici sono di 8 caratteri. Controlla il codice e riprova." } }
+      }
     }
   },
   "version": "1.0"

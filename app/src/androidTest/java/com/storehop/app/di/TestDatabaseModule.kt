@@ -3,6 +3,7 @@ package com.storehop.app.di
 import android.content.Context
 import androidx.room.Room
 import com.storehop.app.data.dao.CategoryDao
+import com.storehop.app.data.dao.HouseholdMemberDao
 import com.storehop.app.data.dao.ItemDao
 import com.storehop.app.data.dao.ItemStoreXrefDao
 import com.storehop.app.data.dao.LocalOnlyMigrationDao
@@ -46,4 +47,5 @@ object TestDatabaseModule {
     @Provides fun provideShoppingDao(db: StorehopDatabase): ShoppingDao = db.shoppingDao()
     @Provides fun providePurchaseRecordDao(db: StorehopDatabase): PurchaseRecordDao = db.purchaseRecordDao()
     @Provides fun provideLocalOnlyMigrationDao(db: StorehopDatabase): LocalOnlyMigrationDao = db.localOnlyMigrationDao()
+    @Provides fun provideHouseholdMemberDao(db: StorehopDatabase): HouseholdMemberDao = db.householdMemberDao()
 }

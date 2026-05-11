@@ -88,7 +88,10 @@ final class FirestoreHouseholdRepository: HouseholdRepository, @unchecked Sendab
 
     func observeMembers() -> AsyncStream<[HouseholdMember]> {
         // Bridge from the household stream — every time the active household
-        // flips, re-key the DAO observation.
+        // flips, re-key the DAO observation. The DAO returns a throwing
+        // AsyncValueObservation (GRDB convention); on iteration error we
+        // emit an empty list and let the next householdIdStream tick
+        // restart things rather than poisoning the AsyncStream.
         AsyncStream { continuation in
             let task = Task {
                 for await hid in householdSession.householdIdStream {
@@ -96,8 +99,12 @@ final class FirestoreHouseholdRepository: HouseholdRepository, @unchecked Sendab
                         continuation.yield([])
                         continue
                     }
-                    for await members in householdMemberDao.observeMembersOf(householdId: hid) {
-                        continuation.yield(members)
+                    do {
+                        for try await members in householdMemberDao.observeMembersOf(householdId: hid) {
+                            continuation.yield(members)
+                        }
+                    } catch {
+                        continuation.yield([])
                     }
                 }
                 continuation.finish()
