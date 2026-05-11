@@ -15,4 +15,12 @@ struct StorePickerItemRow: FetchableRecord, Decodable, Hashable, Sendable {
     let itemName: String
     let isPriority: Bool
     let isNeeded: Bool
+    let isStaple: Bool
+    /// `true` iff `isx.lastPurchasedAt` falls inside the current session
+    /// window — computed in SQL via a `CASE WHEN ... THEN 1 ELSE 0 END` so
+    /// the repo doesn't need to re-thread `sessionStartMs` to partition
+    /// staples. A priority staple that hasn't been bought this session
+    /// still counts as "on the list" for chip / banner purposes; one bought
+    /// this session moves to picked-up.
+    let purchasedThisSession: Bool
 }

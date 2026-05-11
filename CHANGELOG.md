@@ -7,6 +7,75 @@ project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 For the high-level roadmap and earlier-than-0.5.0 history, see the
 "Roadmap" section in the [README](README.md).
 
+## [0.6.7] - 2026-05-11
+
+Mike-reported: *"Something is amiss re the display of critical items in
+the 'where are you shopping?' and store listing pages. Some items are
+not showing. Some items are showing when they shouldn't."* Two
+intersecting bugs — fixed together.
+
+### Fixed
+
+- **Shop-at-Store banner no longer flags purchased priority items as
+  critical** (Android). The in-store critical-items banner was sourcing
+  its names from the unfiltered `allRows` filtered only by `isPriority`.
+  `allRows` includes items still visible because of the session-window
+  OR clause (priority items checked off this session) and the staple OR
+  clause (priority staples carried over from prior trips), so a row
+  could be struck-through in the list below while the banner still
+  counted it as critical. Now filters by `isPriority && isNeeded`:
+  "critical" means "still unbought." iOS already had this filter; no
+  iOS change needed for Bug A.
+
+- **Store Picker chip + banner now surface priority staples carried
+  over from prior sessions** (Android + iOS). The picker's source query
+  (`observeStorePickerItems`) only returned rows where `isNeeded=1` or
+  the xref was purchased within the active session — missing the
+  staple OR clause that `shoppingListForStore` has. A priority staple
+  the user checked off last week (`isNeeded=0`, `isStaple=1`,
+  `lastPurchasedAt` outside session) was silently dropped from the
+  picker's badge even though the in-store list still shows it. Fixed:
+  extended the SQL WHERE to mirror `shoppingListForStore`'s OR-clause
+  shape, added a SQL-side `purchasedThisSession` flag (CASE on
+  `lastPurchasedAt >= sessionStartMs`), and the repo partition now
+  treats a row as "still on the list" when `isNeeded=1` OR
+  (`isStaple=1` AND not bought this session). So a priority staple
+  unbought-this-session counts as critical; bought-this-session moves
+  to the picked-up bucket.
+
+iOS port mirrors the SQL + repo partition change line-for-line. The
+DAO test that inlined the picker SQL was updated to match.
+
+### Not in scope (deferred)
+
+The deeper fix is to *auto-renew* priority staples at session start
+(flip `isNeeded=1` on every priority staple whose `lastPurchasedAt`
+predates the session), per the TODO(0.6) at
+[`ShoppingDao.kt:30-41`](app/src/main/java/com/storehop/app/data/dao/ShoppingDao.kt#L30-L41).
+That would make the in-store row also re-appear as "needs buying" this
+trip rather than as "purchased / struck-through". Tracked as a v0.7+
+roadmap item per project memory; this release keeps the change surface
+narrow to the display fix Mike reported.
+
+### Tests
+
+- Android: 440 → 443 unit tests, 0 failures.
+  - `ShopAtStoreViewModelTest`: +1 pinning that priority items with
+    `isNeeded=false` (session-window survivors + prior-session staples)
+    are excluded from `criticalNames`.
+  - `ShoppingRepositoryImplTest`: +2 pinning the new picker partition
+    semantics (priority staple unbought-this-session is critical;
+    bought-this-session is not).
+- iOS: `ShoppingDaoTests.testStorePickerItemsReturnsOneRowPerStore`
+  updated to use the new SQL shape + four-argument binding.
+
+### Versions
+
+- Android: versionCode 42 → 43, versionName 0.6.6 → 0.6.7.
+- iOS: MARKETING_VERSION 0.6.4 → 0.6.7 (catches up the version skip
+  from v0.6.5 / v0.6.6 which were Android-only), CURRENT_PROJECT_VERSION
+  20 → 21.
+
 ## [0.6.6] - 2026-05-10
 
 ### Fixed

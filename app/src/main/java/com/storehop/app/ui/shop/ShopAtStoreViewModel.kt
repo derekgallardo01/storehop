@@ -127,10 +127,16 @@ class ShopAtStoreViewModel @Inject constructor(
                 rowsAlphabetic = if (sortMode == SortMode.ALPHABETIC) {
                     filtered.sortedBy { it.itemName.lowercase() }
                 } else emptyList(),
-                // Critical names come from the unfiltered list -- neither the
-                // search nor the visibility toggle should hide critical needs
-                // from the banner.
-                criticalNames = allRows.filter { it.isPriority }.map { it.itemName },
+                // Critical names come from the unfiltered list (search + the
+                // hide-purchased toggle don't suppress critical needs from
+                // the banner) but MUST be gated on isNeeded -- otherwise
+                // priority items already checked off this session, and
+                // priority staples carried over from prior trips, keep
+                // showing as "critical" while the row underneath is
+                // struck-through. "Critical" means "still unbought".
+                criticalNames = allRows
+                    .filter { it.isPriority && it.isNeeded }
+                    .map { it.itemName },
                 query = q,
                 showPurchased = showP,
                 sortMode = sortMode,

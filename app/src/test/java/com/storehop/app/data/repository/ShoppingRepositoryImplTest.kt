@@ -105,6 +105,48 @@ class ShoppingRepositoryImplTest {
         }
     }
 
+    @Test fun `observeStorePickerRows treats priority staple bought prior session as critical`() = runTest {
+        // Bug B regression (v0.6.7): a priority staple that was purchased
+        // in a prior session has isNeeded=0 (planned renewStaplesForNewSession
+        // hasn't shipped yet — separate work) but is still "on the list" for
+        // picker badge purposes. The chip + banner must surface it as
+        // critical until the user buys it again this session.
+        val milkId = "$TEST_USER_ID-milk"
+        db.itemDao().upsert(
+            item(milkId, "Milk", "cat_dairy_eggs", isPriority = true, isStaple = true),
+        )
+        // Override the seeded xref: not currently needed; never purchased.
+        db.itemStoreXrefDao().upsert(
+            xref(milkId, "store_lidl", isNeeded = false, lastPurchasedAt = null),
+        )
+
+        repo.observeStorePickerRows(NO_WINDOW).test {
+            val rows = awaitItem().associateBy { it.store.id }
+            assertThat(rows["store_lidl"]!!.criticalItemNames).contains("Milk")
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test fun `observeStorePickerRows excludes priority staple bought this session from criticals`() = runTest {
+        // Same priority staple, but purchased this session: should fall out
+        // of criticalItemNames and count toward pickedUpInSessionCount.
+        val milkId = "$TEST_USER_ID-milk"
+        db.itemDao().upsert(
+            item(milkId, "Milk", "cat_dairy_eggs", isPriority = true, isStaple = true),
+        )
+        // Session window starts at 100; lastPurchasedAt=500 is inside it.
+        db.itemStoreXrefDao().upsert(
+            xref(milkId, "store_lidl", isNeeded = false, lastPurchasedAt = 500L),
+        )
+
+        repo.observeStorePickerRows(sessionStartMs = 100L).test {
+            val rows = awaitItem().associateBy { it.store.id }
+            assertThat(rows["store_lidl"]!!.criticalItemNames).doesNotContain("Milk")
+            assertThat(rows["store_lidl"]!!.pickedUpInSessionCount).isAtLeast(1)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
     @Test fun `observeStorePickerRows excludes archived stores`() = runTest {
         // Archive Lidl; Continente should still be present, Lidl should not.
         db.storeDao().upsert(store("store_lidl", "Lidl", isArchived = true))
@@ -174,9 +216,16 @@ class ShoppingRepositoryImplTest {
         isPriority = isPriority, isStaple = isStaple,
     )
 
-    private fun xref(itemId: String, storeId: String, userId: String = TEST_USER_ID) = ItemStoreXref(
+    private fun xref(
+        itemId: String,
+        storeId: String,
+        userId: String = TEST_USER_ID,
+        isNeeded: Boolean = true,
+        lastPurchasedAt: Long? = null,
+    ) = ItemStoreXref(
         itemId = itemId, storeId = storeId, userId = userId,
         createdAt = 1L, updatedAt = 1L, deletedAt = null,
+        isNeeded = isNeeded, lastPurchasedAt = lastPurchasedAt,
     )
 
     companion object {

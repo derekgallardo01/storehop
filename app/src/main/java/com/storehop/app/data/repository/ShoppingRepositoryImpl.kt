@@ -39,7 +39,19 @@ class ShoppingRepositoryImpl @Inject constructor(
                     val byStore = items.groupBy { it.storeId }
                     stores.map { store ->
                         val rows = byStore[store.id].orEmpty()
-                        val (needed, pickedUp) = rows.partition { it.isNeeded }
+                        // A row is "still on the list" for picker purposes if
+                        // isNeeded=1, OR if it's a staple that hasn't been
+                        // bought this session yet. A priority staple that the
+                        // user checked off last week still counts as critical
+                        // until they buy it this trip -- otherwise the picker
+                        // chip silently drops a real need (the in-store view
+                        // still surfaces the row because of the staple OR
+                        // clause in shoppingListForStore). pickedUpThisSession
+                        // gets the staples-bought-this-session bucket plus
+                        // any non-staple just checked off.
+                        val (needed, pickedUp) = rows.partition {
+                            it.isNeeded || (it.isStaple && !it.purchasedThisSession)
+                        }
                         StorePickerRow(
                             store = store,
                             neededCount = needed.size,

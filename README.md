@@ -13,7 +13,7 @@ specific household) is added or renamed by the user.
 
 ## Status
 
-v0.6.6. Shipping to Google Play Closed testing. Feature-complete for
+v0.6.7. Shipping to Google Play Closed testing. Feature-complete for
 single-user v1: anonymous-first onboarding with optional Google
 Sign-In, two-way Firestore + Storage cloud sync (push and pull), Shop
 and Items tabs with item photos, share-list-as-text, theme + language
@@ -29,7 +29,7 @@ the Play Console listing answers and
 policy hosted at the Play listing's required URL.
 
 An iOS port lives in [`ios/`](ios/) — SwiftUI + GRDB + Firebase iOS
-SDK, mirroring the Android architecture 1:1. As of v0.6.6 it's
+SDK, mirroring the Android architecture 1:1. As of v0.6.7 it's
 caught up to feature parity (with the natural exception of the
 in-app update prompt, since the App Store has no equivalent API).
 Not yet shipped to TestFlight or the App Store.
@@ -196,6 +196,16 @@ pack remains stable across devices and across reseeds.
          3s auto-dismiss). iOS marketing version bumped from 0.5.1
          to 0.5.15. iOS Edit aisles intentionally keeps the
          platform-idiomatic `.onMove` + `EditButton` pattern.
+- v0.6.7 Fix Mike-reported critical-items display bug across the
+         Store Picker and Shop-at-Store screens. Two intersecting
+         bugs: the in-store banner was flagging priority items
+         already checked off this session (or carried over as
+         staples from prior trips) as still-critical, and the
+         picker was silently hiding priority staples that the
+         user checked off last week. Both fixed; iOS already had
+         the Bug A filter, mirrored the Bug B SQL + partition
+         change. The deeper auto-renew-staples-at-session fix
+         stays a separate v0.7+ item per project memory.
 - v0.6.6 Follow-up fix: drag now actually commits on Manage
          Categories. v0.6.5 unblocked the drag gesture but the drop
          was a visual no-op -- the row snapped back to its original

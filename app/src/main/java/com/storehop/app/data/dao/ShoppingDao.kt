@@ -119,7 +119,11 @@ interface ShoppingDao {
                i.id         AS itemId,
                i.name       AS itemName,
                i.isPriority AS isPriority,
-               isx.isNeeded AS isNeeded
+               isx.isNeeded AS isNeeded,
+               i.isStaple   AS isStaple,
+               CASE WHEN isx.lastPurchasedAt IS NOT NULL
+                     AND isx.lastPurchasedAt >= :sessionStartMs
+                    THEN 1 ELSE 0 END AS purchasedThisSession
         FROM items i
         INNER JOIN item_store_xref isx
                ON isx.itemId = i.id
@@ -129,6 +133,7 @@ interface ShoppingDao {
           AND i.userId = :userId
           AND (
                 isx.isNeeded = 1
+             OR i.isStaple = 1
              OR (isx.lastPurchasedAt IS NOT NULL AND isx.lastPurchasedAt >= :sessionStartMs)
           )
         """,

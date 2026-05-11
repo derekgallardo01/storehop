@@ -192,6 +192,31 @@ class ShopAtStoreViewModelTest {
         }
     }
 
+    @Test fun `criticalNames excludes priority items that are not currently needed`() = runTest {
+        // Bug A regression (v0.6.7): allRows includes priority items that
+        // have already been checked off (session OR clause keeps them
+        // visible struck-through) and priority staples carried over from
+        // prior sessions (staple OR clause). Neither should appear on the
+        // critical banner -- "critical" means "still unbought".
+        rowsFlow.value = listOf(
+            row("milk", "Milk", isPriority = true, isNeeded = true),
+            row("eggs", "Eggs", isPriority = true, isNeeded = false),
+            row("bread", "Bread", isPriority = true, isNeeded = false, isStaple = true),
+        )
+        coEvery { shoppingRepo.shoppingListForStore(any(), any()) } returns rowsFlow
+        coEvery { storeRepo.observeById(any()) } returns flowOf(testStore())
+
+        val vm = newVm()
+        vm.uiState.test {
+            awaitItem()
+            advanceUntilIdle()
+            val state = expectMostRecentItem()
+            // Only the still-needed Milk is on the banner.
+            assertThat(state.criticalNames).containsExactly("Milk")
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
     @Test fun `criticalNames is unaffected by the visibility toggle`() = runTest {
         // The critical-needs banner is sourced from the unfiltered rows, so
         // hiding checked-off items must never drop a critical item from the
