@@ -35,10 +35,26 @@ service cloud.firestore {
     // Every entity (items, stores, categories, item_store_xref,
     // store_category_order, purchase_records) lives under
     // `/users/{householdId}/<collection>/{doc}`. Read + write requires
-    // the requesting user be a member of the household.
+    // EITHER:
+    //   (a) the requesting uid equals the household id — covers the
+    //       single-member-household case where uid == householdId. This
+    //       branch also matches v0.6.x semantics so existing users keep
+    //       reading + writing their own data without depending on a
+    //       not-yet-pushed `/memberships/{uid}/households/{uid}` doc on
+    //       first launch. Without this fallback, first-launch v0.7.0 would
+    //       deadlock: the membership doc is `pendingSync = 1` waiting on
+    //       SyncEngine; SyncEngine is gated on pullState=SUCCEEDED;
+    //       pullState requires a successful peek; peek's read needs
+    //       isMember which depends on the not-yet-pushed membership doc.
+    //   (b) the requesting uid is a member of the household via the
+    //       `/memberships/{uid}/households/{hid}` ledger. This is the
+    //       shared-household case (Amanda joining Mike's household).
     match /users/{householdId}/{collection}/{doc} {
       allow read, write: if request.auth != null
-                         && isMember(request.auth.uid, householdId);
+                         && (
+                              request.auth.uid == householdId
+                              || isMember(request.auth.uid, householdId)
+                            );
     }
 
     // ---- Membership ledger -------------------------------------------------
