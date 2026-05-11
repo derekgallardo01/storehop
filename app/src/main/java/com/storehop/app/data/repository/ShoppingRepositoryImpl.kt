@@ -3,7 +3,7 @@ package com.storehop.app.data.repository
 import com.storehop.app.data.dao.ShoppingDao
 import com.storehop.app.data.dao.StoreDao
 import com.storehop.app.data.db.relations.ShoppingRow
-import com.storehop.app.data.util.UserSessionProvider
+import com.storehop.app.data.util.HouseholdSessionProvider
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
@@ -13,28 +13,28 @@ import javax.inject.Inject
 class ShoppingRepositoryImpl @Inject constructor(
     private val dao: ShoppingDao,
     private val storeDao: StoreDao,
-    private val session: UserSessionProvider,
+    private val householdSession: HouseholdSessionProvider,
 ) : ShoppingRepository {
 
     override fun shoppingListForStore(
         storeId: String,
         sessionStartMs: Long,
     ): Flow<List<ShoppingRow>> =
-        session.userId.flatMapLatest { uid ->
-            if (uid == null) flowOf(emptyList())
-            else dao.shoppingListForStore(uid, storeId, sessionStartMs)
+        householdSession.householdId.flatMapLatest { hid ->
+            if (hid == null) flowOf(emptyList())
+            else dao.shoppingListForStore(hid, storeId, sessionStartMs)
         }
 
     override fun observeStorePickerRows(
         sessionStartMs: Long,
     ): Flow<List<StorePickerRow>> =
-        session.userId.flatMapLatest { uid ->
-            if (uid == null) {
+        householdSession.householdId.flatMapLatest { hid ->
+            if (hid == null) {
                 flowOf(emptyList())
             } else {
                 combine(
-                    storeDao.observeAll(uid, includeArchived = false),
-                    dao.observeStorePickerItems(uid, sessionStartMs),
+                    storeDao.observeAll(hid, includeArchived = false),
+                    dao.observeStorePickerItems(hid, sessionStartMs),
                 ) { stores, items ->
                     val byStore = items.groupBy { it.storeId }
                     stores.map { store ->

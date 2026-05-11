@@ -8,7 +8,7 @@ import com.storehop.app.data.entity.Item
 import com.storehop.app.data.entity.ItemStoreXref
 import com.storehop.app.data.entity.Store
 import com.storehop.app.data.entity.StoreCategoryOrder
-import com.storehop.app.testing.FakeSessionProvider
+import com.storehop.app.data.util.FakeHouseholdSessionProvider
 import com.storehop.app.testing.OTHER_USER_ID
 import com.storehop.app.testing.TEST_USER_ID
 import com.storehop.app.testing.createTestDb
@@ -32,16 +32,16 @@ import org.robolectric.RobolectricTestRunner
 class ShoppingRepositoryImplTest {
 
     private lateinit var db: StorehopDatabase
-    private lateinit var session: FakeSessionProvider
+    private lateinit var householdSession: FakeHouseholdSessionProvider
     private lateinit var repo: ShoppingRepositoryImpl
 
     @Before fun setup() {
         db = createTestDb(seeded = false)
-        session = FakeSessionProvider(initial = TEST_USER_ID)
+        householdSession = FakeHouseholdSessionProvider(initial = TEST_USER_ID)
         repo = ShoppingRepositoryImpl(
             dao = db.shoppingDao(),
             storeDao = db.storeDao(),
-            session = session,
+            householdSession = householdSession,
         )
         seedFixture(TEST_USER_ID)
     }
@@ -49,7 +49,7 @@ class ShoppingRepositoryImplTest {
     @After fun tearDown() { db.close() }
 
     @Test fun `shoppingListForStore returns empty list when session uid is null`() = runTest {
-        session.setUserId(null)
+        householdSession.setHouseholdId(null)
         repo.shoppingListForStore("store_lidl", NO_WINDOW).test {
             assertThat(awaitItem()).isEmpty()
             cancelAndIgnoreRemainingEvents()
@@ -64,16 +64,17 @@ class ShoppingRepositoryImplTest {
         }
     }
 
-    @Test fun `shoppingListForStore re-keys when session uid changes`() = runTest {
-        // Seed a different uid's data alongside TEST_USER_ID's.
+    @Test fun `shoppingListForStore re-keys when session household changes`() = runTest {
+        // Seed a different household's data alongside TEST_USER_ID's.
         seedFixture(OTHER_USER_ID, itemNamePrefix = "Other-")
 
         repo.shoppingListForStore("store_lidl", NO_WINDOW).test {
             // First emission: TEST_USER_ID's items.
             assertThat(awaitItem().map { it.itemName }).containsExactly("Milk", "Eggs")
 
-            // Sign-in to a different uid -> flow re-emits with that uid's items.
-            session.setUserId(OTHER_USER_ID)
+            // Switch to a different household -> flow re-emits with that
+            // household's items.
+            householdSession.setHouseholdId(OTHER_USER_ID)
             assertThat(awaitItem().map { it.itemName })
                 .containsExactly("Other-Milk", "Other-Eggs")
 
@@ -82,7 +83,7 @@ class ShoppingRepositoryImplTest {
     }
 
     @Test fun `observeStorePickerRows returns empty when session uid is null`() = runTest {
-        session.setUserId(null)
+        householdSession.setHouseholdId(null)
         repo.observeStorePickerRows(NO_WINDOW).test {
             assertThat(awaitItem()).isEmpty()
             cancelAndIgnoreRemainingEvents()

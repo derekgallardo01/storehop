@@ -146,20 +146,23 @@ class ShoppingDaoTest {
         }
     }
 
-    @Test fun `the query is scoped by userId on both items and item_store_xref`() = runTest {
-        // Insert another user's item tagged to the same store and confirm it's invisible.
+    @Test fun `the query is scoped by householdId on both items and item_store_xref`() = runTest {
+        // Insert another household's item tagged to the same store and confirm
+        // it's invisible to TEST_USER_ID's household view.
         runBlockingDb {
             db.itemDao().upsert(
                 com.storehop.app.data.entity.Item(
                     id = "their_milk", name = "OtherMilk", categoryId = "cat_dairy_eggs",
                     notes = null, quantity = null, isNeeded = true, lastPurchasedAt = null,
                     userId = "other-user", createdAt = 1L, updatedAt = 1L, deletedAt = null,
+                    householdId = "other-user",
                 ),
             )
             db.itemStoreXrefDao().upsert(
                 com.storehop.app.data.entity.ItemStoreXref(
                     itemId = "their_milk", storeId = "store_lidl", userId = "other-user",
                     createdAt = 1L, updatedAt = 1L, deletedAt = null,
+                    householdId = "other-user",
                 ),
             )
         }
@@ -168,7 +171,7 @@ class ShoppingDaoTest {
             assertThat(names).doesNotContain("OtherMilk")
             cancelAndIgnoreRemainingEvents()
         }
-        // And the other user only sees their own item.
+        // And the other household only sees its own item.
         db.shoppingDao().shoppingListForStore("other-user", "store_lidl", NO_WINDOW).test {
             assertThat(awaitItem().map { it.itemName }).containsExactly("OtherMilk")
             cancelAndIgnoreRemainingEvents()

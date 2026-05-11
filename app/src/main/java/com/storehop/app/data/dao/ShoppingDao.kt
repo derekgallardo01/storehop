@@ -6,6 +6,13 @@ import com.storehop.app.data.db.relations.ShoppingRow
 import com.storehop.app.data.db.relations.StorePickerItemRow
 import kotlinx.coroutines.flow.Flow
 
+/**
+ * v0.7.0 access scope: queries filter by `householdId` on both `items`
+ * and `item_store_xref` (not `userId`). `userId` remains on each row as
+ * creator/audit metadata; `householdId` is what scopes who can see and
+ * mutate the rows. For single-member households both columns hold the
+ * same value, so behaviour matches v0.6.x exactly.
+ */
 @Dao
 interface ShoppingDao {
 
@@ -67,7 +74,7 @@ interface ShoppingDao {
         FROM items i
         INNER JOIN item_store_xref isx
                ON isx.itemId = i.id
-              AND isx.userId = :userId
+              AND isx.householdId = :householdId
               AND isx.deletedAt IS NULL
         LEFT  JOIN categories c
                ON c.id = i.categoryId AND c.deletedAt IS NULL
@@ -82,7 +89,7 @@ interface ShoppingDao {
              OR i.isStaple = 1
              OR (isx.lastPurchasedAt IS NOT NULL AND isx.lastPurchasedAt >= :sessionStartMs)
           )
-          AND i.userId = :userId
+          AND i.householdId = :householdId
         ORDER BY isx.isNeeded DESC,
                  COALESCE(sco.displayOrder, 9999),
                  c.name COLLATE NOCASE,
@@ -90,7 +97,7 @@ interface ShoppingDao {
         """,
     )
     fun shoppingListForStore(
-        userId: String,
+        householdId: String,
         storeId: String,
         sessionStartMs: Long,
     ): Flow<List<ShoppingRow>>
@@ -122,10 +129,10 @@ interface ShoppingDao {
         FROM items i
         INNER JOIN item_store_xref isx
                ON isx.itemId = i.id
-              AND isx.userId = :userId
+              AND isx.householdId = :householdId
               AND isx.deletedAt IS NULL
         WHERE i.deletedAt IS NULL
-          AND i.userId = :userId
+          AND i.householdId = :householdId
           AND (
                 isx.isNeeded = 1
              OR (isx.lastPurchasedAt IS NOT NULL AND isx.lastPurchasedAt >= :sessionStartMs)
@@ -133,7 +140,7 @@ interface ShoppingDao {
         """,
     )
     fun observeStorePickerItems(
-        userId: String,
+        householdId: String,
         sessionStartMs: Long,
     ): Flow<List<StorePickerItemRow>>
 }
