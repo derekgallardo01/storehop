@@ -13,7 +13,15 @@ specific household) is added or renamed by the user.
 
 ## Status
 
-Android **v0.7.0** (Play Closed testing) shipped multi-user household
+Android **v0.7.1** (Play Closed testing) ships a lossless
+sideload-APK → Play migration path on top of v0.7.0: user
+preferences (theme, language, sort modes, hide-checked-off) now
+cloud-sync to `/userPrefs/{uid}` via Firestore, and Settings → Data
+gains a "Force sync now" button so beta testers can drain every
+pending write before uninstalling. Full runbook at
+[`docs/v0.7.1-migration.md`](docs/v0.7.1-migration.md).
+
+Android **v0.7.0** shipped multi-user household
 sharing on top of the existing single-user feature set: invite-code
 generate (8-char Crockford base32, 24h TTL, single-use) + join + leave,
 household-scoped data for every entity (items, stores, categories,
@@ -38,11 +46,13 @@ policy hosted at the Play listing's required URL.
 
 iOS port (in [`ios/`](ios/) — SwiftUI + GRDB + Firebase iOS SDK,
 mirrors the Android architecture 1:1): marketing version still
-**v0.6.10** but `main` carries the full Phase 5 mirror of the v0.7.0
+**v0.6.10**. `main` carries the full Phase 5 mirror of the v0.7.0
 multi-user code (schema v8, HouseholdRepository / View / ViewModel,
 household-scoped DAOs, sync DTO + path updates, parity unit tests).
-Bumping iOS to v0.7.0 + TestFlight push is gated on a Mac-side
-`xcodebuild test` pass + 2-device manual smoke run. Not yet on
+The v0.7.1 cloud-prefs + force-sync work hasn't been mirrored to iOS
+yet — deferred to a future Mac-side session. Bumping iOS will skip
+straight from 0.6.10 → 0.7.1 once both ship together, gated on
+`xcodebuild test` + a 2-device manual smoke run. Not yet on
 TestFlight or the App Store.
 
 ## Tech stack

@@ -7,6 +7,94 @@ project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 For the high-level roadmap and earlier-than-0.5.0 history, see the
 "Roadmap" section in the [README](README.md).
 
+## [0.7.1] - 2026-05-11
+
+**Lossless sideload-APK → Play Store transition (Android).** Closes
+the two local-only data surfaces that would otherwise vanish when a
+user uninstalls a sideloaded APK and reinstalls from Play Closed
+Testing (signing certs differ → in-place update refused →
+uninstall mandatory). The load-bearing case is Mike's beta cycle —
+he's been running upload-key-signed APKs since v0.3.x and is now
+ready to switch to the Play distribution.
+
+### Added (Android)
+
+- **Cloud-synced user preferences** at Firestore `/userPrefs/{uid}`.
+  Theme (system/light/dark), locale tag (en/pt-PT/es/it/""),
+  hide-checked-off toggle, and the Shop / Items sort modes now write
+  through to Firestore on every change (500 ms debounce) and pull
+  back on every auth-state-stream emission. Last-write-wins by
+  `updatedAt`, same model as every other entity. The **load-bearing
+  case**: cold-launching v0.7.1 captures the user's existing prefs
+  to Firestore on the first auth tick — even if they never open
+  Settings — so that the post-uninstall Play install can rehydrate
+  them on Google sign-in. Adds `localeTag` to DataStore (was OS-only
+  via per-app locale API, lost on cert-change uninstall).
+- **Settings → Data → "Sync before uninstalling" card**. New section
+  with a "Force sync now" button. Tapping it pushes every
+  `pendingSync = 1` row to Firestore + the prefs doc (skipping the
+  500 ms debounce) and shows "Safe to uninstall" when the queue
+  drains. 30-second timeout; if rows are stuck the UX shows the
+  remaining count + a retry button. Wired so Mike can verify cleanly
+  before he uninstalls.
+
+### Changed (Android)
+
+- **SyncEngine** gains `observeAllPendingCount(householdId)` and
+  `flushAllPending(householdId, uid)`. Each entity DAO gains
+  `countPendingPush(householdId)`. `HouseholdMemberDao` gains
+  `countPendingPush()` (no household scope — memberships are uid-
+  scoped). These don't change the steady-state push path; the new
+  count flows just expose what the existing push loop is already
+  draining.
+
+### Firestore security rules
+
+- New `/userPrefs/{uid}` block — read + write only when
+  `request.auth.uid == uid`. Mirrors the existing
+  `/memberships/{uid}/...` pattern. **Deploy via Firebase Console
+  before sharing the v0.7.1 APK** or pref writes silently
+  `PERMISSION_DENIED` (the app stays functional — prefs just don't
+  cloud-sync until rules deploy).
+
+### Sideload → Play migration runbook
+
+See [`docs/v0.7.1-migration.md`](docs/v0.7.1-migration.md) for the
+end-to-end checklist. Summary:
+1. User receives v0.7.1 sideloaded APK (still upload-key signed, so
+   in-place updates over v0.7.0 — no uninstall yet).
+2. User opens v0.7.1. Prefs auto-push to cloud on the first auth
+   tick.
+3. User opens Settings → Data → "Force sync now". Waits for
+   "Safe to uninstall."
+4. User uninstalls the sideloaded build.
+5. User installs from Play Closed Testing (app-signing-key signed).
+6. User signs in with the same Google account. Cloud pull
+   rehydrates items + photos + memberships + **prefs**. Identical
+   UI state to step 3.
+
+### Tests
+
+- Android: 8 new cases on `UserPreferencesSyncTest` pinning every
+  reconcile branch (cloud-absent push, cloud-older push, cloud-newer
+  pull, equal-no-op, blank-uid guard, error-swallow). 6 new cases
+  on `UserPreferencesRepositoryTest` covering localeTag round-trip,
+  the updatedAt-on-every-setter contract, the aggregated snapshot
+  Flow, and `applyRemoteSnapshot` preserving the cloud's updatedAt
+  (load-bearing for LWW).
+
+### iOS (deferred to v0.7.2 or a future session)
+
+The iOS port carries the v0.7.0 multi-user Phase 5 code on `main` but
+the v0.7.1 cloud-prefs + Force-sync work hasn't been mirrored yet —
+that's a separate Mac-side session. iOS stays at marketing version
+0.6.10 until both ship together.
+
+### Versions
+
+- Android: `versionCode 50 → 51`, `versionName 0.7.0 → 0.7.1`.
+- iOS: unchanged (still 0.6.10 marketing).
+
 ## [0.7.0] - 2026-05-11
 
 **Multi-user account sharing — household model (Android).** Mike asked
