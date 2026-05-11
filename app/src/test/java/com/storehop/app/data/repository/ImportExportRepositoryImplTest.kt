@@ -186,7 +186,8 @@ class ImportExportRepositoryImplTest {
             ),
         )
         db.itemStoreXrefDao().setStoresForItem(
-            itemId = "milk-1", storeIds = setOf(lidlId), userId = TEST_USER_ID, now = 1L,
+            itemId = "milk-1", storeIds = setOf(lidlId),
+            householdId = TEST_USER_ID, userId = TEST_USER_ID, now = 1L,
         )
 
         // CSV that tries to "overwrite" Milk with different brand and stores.
@@ -358,7 +359,7 @@ class ImportExportRepositoryImplTest {
         )
         db.itemStoreXrefDao().setStoresForItem(
             itemId = "i_milk", storeIds = setOf("store_lidl", "store_aldi"),
-            userId = TEST_USER_ID, now = 1L,
+            householdId = TEST_USER_ID, userId = TEST_USER_ID, now = 1L,
         )
 
         val csv = repo.exportItemsCsv()

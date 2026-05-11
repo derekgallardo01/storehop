@@ -30,6 +30,7 @@ class ItemStoreXrefDaoTest {
                     id = "milk", name = "Milk", categoryId = null, notes = null,
                     quantity = null, isNeeded = true, lastPurchasedAt = null,
                     userId = TEST_USER_ID, createdAt = 1L, updatedAt = 1L, deletedAt = null,
+                    householdId = TEST_USER_ID,
                 ),
             )
             listOf("store_a", "store_b", "store_c").forEach {
@@ -38,6 +39,7 @@ class ItemStoreXrefDaoTest {
                         id = it, name = it, colorArgb = null,
                         isArchived = false, isSeeded = false, userId = TEST_USER_ID,
                         createdAt = 1L, updatedAt = 1L, deletedAt = null,
+                        householdId = TEST_USER_ID,
                     ),
                 )
             }
@@ -50,6 +52,7 @@ class ItemStoreXrefDaoTest {
         dao.setStoresForItem(
             itemId = "milk",
             storeIds = setOf("store_a", "store_b"),
+            householdId = TEST_USER_ID,
             userId = TEST_USER_ID,
             now = 100L,
         )
@@ -64,7 +67,7 @@ class ItemStoreXrefDaoTest {
         dao.upsert(xref("milk", "store_b"))
         dao.upsert(xref("milk", "store_c"))
 
-        dao.setStoresForItem("milk", setOf("store_a", "store_c"), TEST_USER_ID, now = 200L)
+        dao.setStoresForItem("milk", setOf("store_a", "store_c"), TEST_USER_ID, TEST_USER_ID, now = 200L)
 
         val live = dao.findForItem("milk")
         assertThat(live.map { it.storeId }).containsExactly("store_a", "store_c")
@@ -78,7 +81,7 @@ class ItemStoreXrefDaoTest {
         dao.upsert(xref("milk", "store_b"))
         val before = dao.findForItem("milk").map { it.createdAt }.toSet()
 
-        dao.setStoresForItem("milk", setOf("store_a", "store_b"), TEST_USER_ID, now = 999L)
+        dao.setStoresForItem("milk", setOf("store_a", "store_b"), TEST_USER_ID, TEST_USER_ID, now = 999L)
 
         val after = dao.findForItem("milk")
         // No new xrefs created (same createdAt), nothing tombstoned.
@@ -156,9 +159,9 @@ class ItemStoreXrefDaoTest {
 
     // ---- v0.6.1: bulk-needed + observeNeededItemIds for the +/- toggle -----
 
-    @Test fun `markNeededAcrossAllStores updates only alive xrefs for the target item+user`() = runTest {
-        // Live xrefs at two stores for the target user, plus a tombstoned
-        // one at a third, plus an unrelated user's xref. Only the two live
+    @Test fun `markNeededAcrossAllStores updates only alive xrefs for the target item+household`() = runTest {
+        // Live xrefs at two stores for the target household, plus a tombstoned
+        // one at a third, plus an unrelated household's xref. Only the two live
         // rows for the target should be flipped.
         dao.upsert(xref("milk", "store_a", now = 1L).copy(isNeeded = false, lastPurchasedAt = 100L))
         dao.upsert(xref("milk", "store_b", now = 1L).copy(isNeeded = false, lastPurchasedAt = 100L))
@@ -166,14 +169,15 @@ class ItemStoreXrefDaoTest {
             xref("milk", "store_c", now = 1L)
                 .copy(isNeeded = false, lastPurchasedAt = 100L, deletedAt = 50L),
         )
-        // Insert the foreign-user Item first (FK), then its xref. Reuses
+        // Insert the foreign-household Item first (FK), then its xref. Reuses
         // store_c as the FK target -- the FK is on storeId alone, not
-        // (storeId, userId).
+        // (storeId, householdId).
         db.itemDao().upsert(
             Item(
                 id = "milk_other", name = "Milk", categoryId = null, notes = null,
                 quantity = null, isNeeded = true, lastPurchasedAt = null,
                 userId = "OTHER_USER", createdAt = 1L, updatedAt = 1L, deletedAt = null,
+                householdId = "OTHER_USER",
             ),
         )
         dao.upsert(
@@ -181,6 +185,7 @@ class ItemStoreXrefDaoTest {
                 itemId = "milk_other", storeId = "store_c", userId = "OTHER_USER",
                 isNeeded = false, lastPurchasedAt = 100L,
                 createdAt = 1L, updatedAt = 1L, deletedAt = null,
+                householdId = "OTHER_USER",
             ),
         )
 
@@ -188,7 +193,7 @@ class ItemStoreXrefDaoTest {
 
         // Two live rows flipped to needed + lastPurchasedAt cleared.
         val targetLive = dao.findForItem("milk")
-            .filter { it.userId == TEST_USER_ID }
+            .filter { it.householdId == TEST_USER_ID }
             .associateBy { it.storeId }
         assertThat(targetLive["store_a"]!!.isNeeded).isTrue()
         assertThat(targetLive["store_a"]!!.lastPurchasedAt).isNull()
@@ -200,9 +205,9 @@ class ItemStoreXrefDaoTest {
         assertThat(countAll("item_store_xref",
             "itemId='milk' AND storeId='store_c' AND deletedAt IS NOT NULL AND isNeeded=0")).isEqualTo(1)
 
-        // Foreign user's xref untouched (now keyed on the milk_other item).
+        // Foreign household's xref untouched (now keyed on the milk_other item).
         assertThat(countAll("item_store_xref",
-            "itemId='milk_other' AND userId='OTHER_USER' AND isNeeded=0")).isEqualTo(1)
+            "itemId='milk_other' AND householdId='OTHER_USER' AND isNeeded=0")).isEqualTo(1)
     }
 
     @Test fun `observeNeededItemIds returns DISTINCT itemIds where alive AND isNeeded=1`() = runTest {
@@ -214,6 +219,7 @@ class ItemStoreXrefDaoTest {
                     quantity = null, isNeeded = true, lastPurchasedAt = null,
                     userId = if (id == "foreignItem") "OTHER_USER" else TEST_USER_ID,
                     createdAt = 1L, updatedAt = 1L, deletedAt = null,
+                    householdId = if (id == "foreignItem") "OTHER_USER" else TEST_USER_ID,
                 ),
             )
         }
@@ -228,11 +234,12 @@ class ItemStoreXrefDaoTest {
         dao.upsert(xref("eggs", "store_b", now = 1L).copy(isNeeded = false))
         // cheese: ALL xrefs not-needed. Should NOT surface.
         dao.upsert(xref("cheese", "store_a", now = 1L).copy(isNeeded = false))
-        // foreignItem: needed but for a different user. Should NOT surface.
+        // foreignItem: needed but for a different household. Should NOT surface.
         dao.upsert(
             ItemStoreXref(
                 itemId = "foreignItem", storeId = "store_a", userId = "OTHER_USER",
                 isNeeded = true, createdAt = 1L, updatedAt = 1L, deletedAt = null,
+                householdId = "OTHER_USER",
             ),
         )
 
@@ -243,6 +250,7 @@ class ItemStoreXrefDaoTest {
     private fun xref(itemId: String, storeId: String, now: Long = 1L) = ItemStoreXref(
         itemId = itemId, storeId = storeId, userId = TEST_USER_ID,
         createdAt = now, updatedAt = now, deletedAt = null,
+        householdId = TEST_USER_ID,
     )
 
     private fun countAll(table: String, where: String): Int {

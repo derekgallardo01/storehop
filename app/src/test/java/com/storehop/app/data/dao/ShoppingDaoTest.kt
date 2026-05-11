@@ -226,29 +226,34 @@ class ShoppingDaoTest {
         id = id, name = name, colorArgb = null,
         isArchived = false, isSeeded = false, userId = TEST_USER_ID,
         createdAt = 1L, updatedAt = 1L, deletedAt = null,
+        householdId = TEST_USER_ID,
     )
 
     private fun cat(id: String, name: String) = Category(
         id = id, name = name, nameKey = id, icon = null,
         isArchived = false, isSeeded = false, userId = TEST_USER_ID,
         createdAt = 1L, updatedAt = 1L, deletedAt = null,
+        householdId = TEST_USER_ID,
     )
 
     private fun sco(storeId: String, categoryId: String, order: Int) = StoreCategoryOrder(
         storeId = storeId, categoryId = categoryId, displayOrder = order,
         isSeeded = false, userId = TEST_USER_ID,
         createdAt = 1L, updatedAt = 1L, deletedAt = null,
+        householdId = TEST_USER_ID,
     )
 
     private fun item(id: String, name: String, categoryId: String?) = Item(
         id = id, name = name, categoryId = categoryId, notes = null, quantity = null,
         isNeeded = true, lastPurchasedAt = null, userId = TEST_USER_ID,
         createdAt = 1L, updatedAt = 1L, deletedAt = null,
+        householdId = TEST_USER_ID,
     )
 
     private fun xref(itemId: String, storeId: String) = ItemStoreXref(
         itemId = itemId, storeId = storeId, userId = TEST_USER_ID,
         createdAt = 1L, updatedAt = 1L, deletedAt = null,
+        householdId = TEST_USER_ID,
     )
 
     private fun runBlockingDb(block: suspend () -> Unit) =

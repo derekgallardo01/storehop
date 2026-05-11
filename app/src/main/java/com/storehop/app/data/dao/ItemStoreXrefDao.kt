@@ -7,6 +7,19 @@ import androidx.room.Upsert
 import com.storehop.app.data.entity.ItemStoreXref
 import kotlinx.coroutines.flow.Flow
 
+/**
+ * v0.7.0 access scope: queries filter by `householdId` (not `userId`).
+ *
+ * `userId` remains on each xref as creator/audit metadata — copied from
+ * the parent item at insert time so cross-table ownership stays coherent
+ * across session changes. `householdId` is what scopes who can see and
+ * mutate the row. For single-member households both columns hold the
+ * same value, so behaviour matches v0.6.x exactly.
+ *
+ * [setStoresForItem] takes both: `householdId` to scope the existing-row
+ * lookup and to stamp on new rows, plus `userId` to carry the parent's
+ * creator stamp through onto the freshly-inserted junction rows.
+ */
 @Dao
 interface ItemStoreXrefDao {
 
@@ -40,25 +53,25 @@ interface ItemStoreXrefDao {
         """
         UPDATE item_store_xref
         SET deletedAt = :now, updatedAt = :now, pendingSync = 1
-        WHERE itemId = :itemId AND storeId = :storeId AND userId = :userId
+        WHERE itemId = :itemId AND storeId = :storeId AND householdId = :householdId
         """,
     )
-    suspend fun softDelete(userId: String, itemId: String, storeId: String, now: Long)
+    suspend fun softDelete(householdId: String, itemId: String, storeId: String, now: Long)
 
     /**
      * Cascade-tombstone every live xref for an item. Used by the item soft-delete
      * flow so a deleted item doesn't leave xref orphans (the cross-store-sync
      * `ShoppingDao` query INNER JOINs through xrefs, so live xrefs against a
-     * deleted item would surface ghost rows). Scoped by `userId`.
+     * deleted item would surface ghost rows). Scoped by `householdId`.
      */
     @Query(
         """
         UPDATE item_store_xref
         SET deletedAt = :now, updatedAt = :now, pendingSync = 1
-        WHERE itemId = :itemId AND userId = :userId AND deletedAt IS NULL
+        WHERE itemId = :itemId AND householdId = :householdId AND deletedAt IS NULL
         """,
     )
-    suspend fun softDeleteForItem(userId: String, itemId: String, now: Long)
+    suspend fun softDeleteForItem(householdId: String, itemId: String, now: Long)
 
     /**
      * Cascade-tombstone every live xref pointing at a store. Used by the store
@@ -70,10 +83,10 @@ interface ItemStoreXrefDao {
         """
         UPDATE item_store_xref
         SET deletedAt = :now, updatedAt = :now, pendingSync = 1
-        WHERE storeId = :storeId AND userId = :userId AND deletedAt IS NULL
+        WHERE storeId = :storeId AND householdId = :householdId AND deletedAt IS NULL
         """,
     )
-    suspend fun softDeleteForStore(userId: String, storeId: String, now: Long)
+    suspend fun softDeleteForStore(householdId: String, storeId: String, now: Long)
 
     /**
      * Restore the cascade-tombstoned xrefs for a store. Filters by the exact
@@ -84,31 +97,32 @@ interface ItemStoreXrefDao {
         """
         UPDATE item_store_xref
         SET deletedAt = NULL, updatedAt = :now, pendingSync = 1
-        WHERE storeId = :storeId AND userId = :userId AND deletedAt = :deletedAt
+        WHERE storeId = :storeId AND householdId = :householdId AND deletedAt = :deletedAt
         """,
     )
-    suspend fun restoreCascadeForStore(userId: String, storeId: String, deletedAt: Long, now: Long)
+    suspend fun restoreCascadeForStore(householdId: String, storeId: String, deletedAt: Long, now: Long)
 
     /** Inverse of [softDeleteForItem]; same `deletedAt`-filter pattern. */
     @Query(
         """
         UPDATE item_store_xref
         SET deletedAt = NULL, updatedAt = :now, pendingSync = 1
-        WHERE itemId = :itemId AND userId = :userId AND deletedAt = :deletedAt
+        WHERE itemId = :itemId AND householdId = :householdId AND deletedAt = :deletedAt
         """,
     )
-    suspend fun restoreCascadeForItem(userId: String, itemId: String, deletedAt: Long, now: Long)
+    suspend fun restoreCascadeForItem(householdId: String, itemId: String, deletedAt: Long, now: Long)
 
     /**
      * Replace the set of stores an item is tagged to.
      * Tombstones any xref no longer in [storeIds] and upserts the new set.
-     * `userId` is the parent item's userId — copied here to enforce the
-     * cross-table ownership invariant.
+     * `householdId` scopes who owns the row (the parent item's householdId);
+     * `userId` is the parent's creator-stamp copied onto the new junction rows.
      */
     @Transaction
     suspend fun setStoresForItem(
         itemId: String,
         storeIds: Set<String>,
+        householdId: String,
         userId: String,
         now: Long,
     ) {
@@ -116,7 +130,7 @@ interface ItemStoreXrefDao {
         val existingIds = existing.map { it.storeId }.toSet()
         val toRemove = existingIds - storeIds
         val toAdd = storeIds - existingIds
-        toRemove.forEach { softDelete(userId, itemId, it, now) }
+        toRemove.forEach { softDelete(householdId, itemId, it, now) }
         toAdd.forEach { storeId ->
             upsert(
                 ItemStoreXref(
@@ -126,21 +140,22 @@ interface ItemStoreXrefDao {
                     createdAt = now,
                     updatedAt = now,
                     deletedAt = null,
+                    householdId = householdId,
                 ),
             )
         }
     }
 
-    @androidx.room.Query("SELECT * FROM item_store_xref WHERE userId = :userId AND pendingSync = 1")
-    fun observePendingPush(userId: String): kotlinx.coroutines.flow.Flow<List<ItemStoreXref>>
+    @androidx.room.Query("SELECT * FROM item_store_xref WHERE householdId = :householdId AND pendingSync = 1")
+    fun observePendingPush(householdId: String): kotlinx.coroutines.flow.Flow<List<ItemStoreXref>>
 
     @androidx.room.Query(
         """
         UPDATE item_store_xref SET pendingSync = 0
-        WHERE itemId = :itemId AND storeId = :storeId AND userId = :userId
+        WHERE itemId = :itemId AND storeId = :storeId AND householdId = :householdId
         """,
     )
-    suspend fun markPushed(userId: String, itemId: String, storeId: String)
+    suspend fun markPushed(householdId: String, itemId: String, storeId: String)
 
     /**
      * Mark this single (itemId, storeId) xref purchased at this store only.
@@ -156,10 +171,10 @@ interface ItemStoreXrefDao {
             lastPurchasedAt = :now,
             updatedAt = :now,
             pendingSync = 1
-        WHERE itemId = :itemId AND storeId = :storeId AND userId = :userId
+        WHERE itemId = :itemId AND storeId = :storeId AND householdId = :householdId
         """,
     )
-    suspend fun markPurchasedAtStore(userId: String, itemId: String, storeId: String, now: Long)
+    suspend fun markPurchasedAtStore(householdId: String, itemId: String, storeId: String, now: Long)
 
     /**
      * Cascade-mark every live xref for [itemId] as purchased: a single
@@ -179,10 +194,10 @@ interface ItemStoreXrefDao {
             lastPurchasedAt = :now,
             updatedAt = :now,
             pendingSync = 1
-        WHERE itemId = :itemId AND userId = :userId AND deletedAt IS NULL
+        WHERE itemId = :itemId AND householdId = :householdId AND deletedAt IS NULL
         """,
     )
-    suspend fun markPurchasedAcrossAllStores(userId: String, itemId: String, now: Long)
+    suspend fun markPurchasedAcrossAllStores(householdId: String, itemId: String, now: Long)
 
     /**
      * Restore the (itemId, storeId) row to needed at this store. Used to
@@ -195,10 +210,10 @@ interface ItemStoreXrefDao {
         SET isNeeded = 1,
             updatedAt = :now,
             pendingSync = 1
-        WHERE itemId = :itemId AND storeId = :storeId AND userId = :userId
+        WHERE itemId = :itemId AND storeId = :storeId AND householdId = :householdId
         """,
     )
-    suspend fun markNeededAtStore(userId: String, itemId: String, storeId: String, now: Long)
+    suspend fun markNeededAtStore(householdId: String, itemId: String, storeId: String, now: Long)
 
     /**
      * Inverse of [markPurchasedAcrossAllStores], filtered by exact
@@ -215,13 +230,13 @@ interface ItemStoreXrefDao {
             lastPurchasedAt = NULL,
             updatedAt = :now,
             pendingSync = 1
-        WHERE itemId = :itemId AND userId = :userId
+        WHERE itemId = :itemId AND householdId = :householdId
             AND lastPurchasedAt = :lastPurchasedAt
             AND isNeeded = 0
         """,
     )
     suspend fun restorePurchaseAcrossAllStores(
-        userId: String,
+        householdId: String,
         itemId: String,
         lastPurchasedAt: Long,
         now: Long,
@@ -242,22 +257,22 @@ interface ItemStoreXrefDao {
             lastPurchasedAt = NULL,
             updatedAt = :now,
             pendingSync = 1
-        WHERE itemId = :itemId AND userId = :userId AND deletedAt IS NULL
+        WHERE itemId = :itemId AND householdId = :householdId AND deletedAt IS NULL
         """,
     )
-    suspend fun markNeededAcrossAllStores(userId: String, itemId: String, now: Long)
+    suspend fun markNeededAcrossAllStores(householdId: String, itemId: String, now: Long)
 
     /**
      * Distinct item IDs that have at least one alive xref with `isNeeded = 1`
-     * for the given user. Powers the v0.6.1 +/− toggle on the Items list:
-     * the screen shows "−" when the item is on the list at any tagged
-     * store, "+" otherwise.
+     * for the given household. Powers the v0.6.1 +/− toggle on the Items
+     * list: the screen shows "−" when the item is on the list at any
+     * tagged store, "+" otherwise.
      */
     @Query(
         """
         SELECT DISTINCT itemId FROM item_store_xref
-        WHERE userId = :userId AND deletedAt IS NULL AND isNeeded = 1
+        WHERE householdId = :householdId AND deletedAt IS NULL AND isNeeded = 1
         """,
     )
-    fun observeNeededItemIds(userId: String): Flow<List<String>>
+    fun observeNeededItemIds(householdId: String): Flow<List<String>>
 }

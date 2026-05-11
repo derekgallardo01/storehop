@@ -24,10 +24,11 @@ import javax.inject.Inject
 /**
  * v0.7.0: queries scope by `householdId`. `userId` is still required (it's
  * the creator/audit field on each row, stamped on insert). Cross-cascade
- * DAOs (xrefDao, purchaseRecordDao, scoDao) still take `userId: String`
- * named parameters but receive the item's `userId` value (identical to
- * householdId in single-member households; will be revisited per-DAO when
- * those flip to household-scoped filters).
+ * DAOs that have already migrated (xrefDao) take `householdId`; the
+ * remaining ones (purchaseRecordDao, scoDao) still take `userId: String`
+ * named parameters and receive the item's `userId` (which equals
+ * householdId in single-member households; revisited per-DAO when those
+ * flip to household-scoped filters).
  */
 class ItemRepositoryImpl @Inject constructor(
     private val db: StorehopDatabase,
@@ -87,8 +88,9 @@ class ItemRepositoryImpl @Inject constructor(
                 householdId = householdId,
             ),
         )
-        // Junction inherits userId from the parent we just wrote — ownership invariant.
-        xrefDao.setStoresForItem(id, storeIds, userId, now)
+        // Junction inherits both ids from the parent we just wrote — ownership
+        // invariant. `userId` is creator/audit; `householdId` is access scope.
+        xrefDao.setStoresForItem(id, storeIds, householdId, userId, now)
         ensureSCOForCategoryAtStores(categoryId, storeIds, userId, now)
         id
     }
@@ -124,10 +126,11 @@ class ItemRepositoryImpl @Inject constructor(
                 pendingSync = true,
             ),
         )
-        // Pass the parent's userId, NOT session.currentUserId() — the parent is the
-        // source of truth for ownership; using the live session would let a mid-call
-        // sign-in/out swap break the cross-table invariant.
-        xrefDao.setStoresForItem(id, storeIds, current.userId, now)
+        // Pass the parent's householdId + userId, NOT session.currentUserId() —
+        // the parent is the source of truth for ownership; using the live
+        // session would let a mid-call sign-in/out swap break the cross-table
+        // invariant.
+        xrefDao.setStoresForItem(id, storeIds, current.householdId, current.userId, now)
         ensureSCOForCategoryAtStores(categoryId, storeIds, current.userId, now)
     }
 
@@ -141,7 +144,7 @@ class ItemRepositoryImpl @Inject constructor(
             ?: return@withTransaction
         val now = clock.millis()
         itemDao.softDelete(householdId, id, now)
-        xrefDao.softDeleteForItem(current.userId, id, now)
+        xrefDao.softDeleteForItem(current.householdId, id, now)
         purchaseRecordDao.softDeleteForItem(current.userId, id, now)
     }
 
@@ -151,7 +154,7 @@ class ItemRepositoryImpl @Inject constructor(
         val deletedAt = item.deletedAt ?: return@withTransaction
         val now = clock.millis()
         itemDao.restoreFromTombstone(householdId, id, now)
-        xrefDao.restoreCascadeForItem(item.userId, id, deletedAt, now)
+        xrefDao.restoreCascadeForItem(item.householdId, id, deletedAt, now)
         purchaseRecordDao.restoreCascadeForItem(item.userId, id, deletedAt, now)
     }
 
@@ -175,9 +178,8 @@ class ItemRepositoryImpl @Inject constructor(
             val now = clock.millis()
             val current = itemDao.observeById(householdId, itemId).first()?.item
                 ?: return@withTransaction null
-            val ownerId = current.userId
 
-            xrefDao.markPurchasedAcrossAllStores(ownerId, itemId, now)
+            xrefDao.markPurchasedAcrossAllStores(current.householdId, itemId, now)
             // PurchaseRecord's userId is the *purchaser* (the user who clicked
             // the checkbox), not the item's creator. Under multi-user this
             // matters: stats filter by purchaser per the v0.7.0 design ("what
@@ -191,9 +193,8 @@ class ItemRepositoryImpl @Inject constructor(
         val householdId = requireHousehold()
         val current = itemDao.observeById(householdId, itemId).first()?.item
             ?: return@withTransaction
-        val ownerId = current.userId
         val now = clock.millis()
-        xrefDao.restorePurchaseAcrossAllStores(ownerId, itemId, snapshotTime, now)
+        xrefDao.restorePurchaseAcrossAllStores(current.householdId, itemId, snapshotTime, now)
         // Scope undo to the purchaser's own records (their userId), matching
         // the insert side. Different users undoing their own purchases stays
         // isolated even though they share the household.
@@ -204,20 +205,20 @@ class ItemRepositoryImpl @Inject constructor(
         val householdId = requireHousehold()
         val current = itemDao.observeById(householdId, itemId).first()?.item
             ?: return@withTransaction
-        xrefDao.markNeededAtStore(current.userId, itemId, storeId, clock.millis())
+        xrefDao.markNeededAtStore(current.householdId, itemId, storeId, clock.millis())
     }
 
     override suspend fun tagItemToStore(itemId: String, storeId: String) = db.withTransaction {
         val householdId = requireHousehold()
         val current = itemDao.observeById(householdId, itemId).first()?.item
             ?: return@withTransaction
-        val ownerId = current.userId
+        val ownerUserId = current.userId
         val now = clock.millis()
         val aliveXref = xrefDao.findForItem(itemId).firstOrNull { it.storeId == storeId }
         if (aliveXref != null) {
             // Live xref already exists -- just ensure isNeeded=true. Idempotent;
             // no-op when the row was already needed.
-            xrefDao.markNeededAtStore(ownerId, itemId, storeId, now)
+            xrefDao.markNeededAtStore(current.householdId, itemId, storeId, now)
         } else {
             // Either no xref exists or only a tombstoned one. Upsert by primary
             // key (itemId, storeId) replaces a tombstone or inserts fresh; either
@@ -226,18 +227,18 @@ class ItemRepositoryImpl @Inject constructor(
                 ItemStoreXref(
                     itemId = itemId,
                     storeId = storeId,
-                    userId = ownerId,
+                    userId = ownerUserId,
                     createdAt = now,
                     updatedAt = now,
                     deletedAt = null,
                     isNeeded = true,
-                    householdId = householdId,
+                    householdId = current.householdId,
                 ),
             )
         }
         // Mirror addItem's behavior: ensure the SCO row exists so the category
         // can be aisle-ordered at this store.
-        ensureSCOForCategoryAtStores(current.categoryId, setOf(storeId), ownerId, now)
+        ensureSCOForCategoryAtStores(current.categoryId, setOf(storeId), ownerUserId, now)
     }
 
     override suspend fun addItemFromQuickAdd(name: String, storeId: String): String {
@@ -284,7 +285,7 @@ class ItemRepositoryImpl @Inject constructor(
         val householdId = requireHousehold()
         val current = itemDao.observeById(householdId, itemId).first()?.item
             ?: return@withTransaction
-        xrefDao.markNeededAcrossAllStores(current.userId, itemId, clock.millis())
+        xrefDao.markNeededAcrossAllStores(current.householdId, itemId, clock.millis())
     }
 
     override suspend fun markPurchasedAcrossAllStores(itemId: String) = db.withTransaction {
@@ -295,7 +296,7 @@ class ItemRepositoryImpl @Inject constructor(
         // the item from every tagged store; the user is on the master Items
         // list, not at a store, so attributing the purchase to any one
         // store would be wrong.
-        xrefDao.markPurchasedAcrossAllStores(current.userId, itemId, clock.millis())
+        xrefDao.markPurchasedAcrossAllStores(current.householdId, itemId, clock.millis())
     }
 
     private fun requireSignedIn(): String =
