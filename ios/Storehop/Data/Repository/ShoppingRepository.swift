@@ -52,15 +52,13 @@ struct ShoppingRepository: Sendable {
             let byStore = Dictionary(grouping: items, by: \.storeId)
             return stores.map { store in
                 let rows = byStore[store.id, default: []]
-                // A row is "still on the list" for picker purposes if
-                // isNeeded=1, OR if it's a staple that hasn't been bought
-                // this session yet. A priority staple the user checked off
-                // last week still counts as critical until they buy it this
-                // trip — otherwise the picker chip silently drops a real
-                // need (the in-store view still surfaces the row because of
-                // the staple OR clause in shoppingListForStore).
-                let needed = rows.filter { $0.isNeeded || ($0.isStaple && !$0.purchasedThisSession) }
-                let pickedUp = rows.filter { !($0.isNeeded || ($0.isStaple && !$0.purchasedThisSession)) }
+                // Picker semantics (v0.6.9, per Mike): a row counts as
+                // "still on the list" only when isNeeded=1. The in-store
+                // view deliberately keeps struck-through staples visible
+                // for the user's convenience, but the picker badge +
+                // banner are strictly the needed-count.
+                let needed = rows.filter { $0.isNeeded }
+                let pickedUp = rows.filter { !$0.isNeeded }
                 return StorePickerRow(
                     store: store,
                     neededCount: needed.count,

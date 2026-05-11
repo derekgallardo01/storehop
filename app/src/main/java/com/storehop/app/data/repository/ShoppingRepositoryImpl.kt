@@ -39,19 +39,15 @@ class ShoppingRepositoryImpl @Inject constructor(
                     val byStore = items.groupBy { it.storeId }
                     stores.map { store ->
                         val rows = byStore[store.id].orEmpty()
-                        // A row is "still on the list" for picker purposes if
-                        // isNeeded=1, OR if it's a staple that hasn't been
-                        // bought this session yet. A priority staple that the
-                        // user checked off last week still counts as critical
-                        // until they buy it this trip -- otherwise the picker
-                        // chip silently drops a real need (the in-store view
-                        // still surfaces the row because of the staple OR
-                        // clause in shoppingListForStore). pickedUpThisSession
-                        // gets the staples-bought-this-session bucket plus
-                        // any non-staple just checked off.
-                        val (needed, pickedUp) = rows.partition {
-                            it.isNeeded || (it.isStaple && !it.purchasedThisSession)
-                        }
+                        // Picker semantics (v0.6.9, per Mike): a row counts as
+                        // "still on the list" only when isNeeded=1. The in-
+                        // store view deliberately keeps struck-through staples
+                        // visible for the user's convenience, but the picker
+                        // badge + banner are strictly the needed-count. When
+                        // the user marks a staple purchased it disappears
+                        // from the picker even though it's still in the in-
+                        // store list.
+                        val (needed, pickedUp) = rows.partition { it.isNeeded }
                         StorePickerRow(
                             store = store,
                             neededCount = needed.size,

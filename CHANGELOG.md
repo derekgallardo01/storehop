@@ -7,6 +7,63 @@ project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 For the high-level roadmap and earlier-than-0.5.0 history, see the
 "Roadmap" section in the [README](README.md).
 
+## [0.6.9] - 2026-05-11
+
+Mike-reported follow-up to v0.6.7: the Store Picker was reporting
+"10 critical items needed" with 5 per store, but tapping into a store
+showed only 1. The in-store screen was correct; the picker was
+over-counting.
+
+### Fixed
+
+- **Store Picker no longer treats marked-purchased staples as
+  critical.** Root cause: v0.6.7's "Bug B" fix extended the picker's
+  source query to include staples, then changed the repo partition to
+  treat `isStaple && !purchasedThisSession` rows as "needed" for
+  chip/banner purposes. The intent was "a priority staple the user
+  checked off last week is still on the list, just struck-through
+  in-store — the picker badge should also surface it." Mike's
+  evidence contradicts that mental model: when he marks a staple
+  purchased, he expects it to drop off the picker even if it's a
+  staple. Reverted the partition to `isNeeded` only, dropped the
+  staple OR clause from `observeStorePickerItems`, and removed the
+  `isStaple` + `purchasedThisSession` fields from `StorePickerItemRow`.
+  The in-store view still surfaces struck-through staples (the
+  `isStaple` OR clause in `shoppingListForStore` is unchanged) — that
+  was always the correct UX. The picker badge + banner are now
+  strictly the count of explicitly-needed items.
+
+  v0.6.7's other fix ("Bug A": Shop-at-Store banner filters by
+  `isPriority && isNeeded`) is unchanged and still correct — it's
+  what produces the right "1 critical item" count Mike sees in-store.
+
+### Tests
+
+- `ShoppingRepositoryImplTest`:
+  - Inverted: `observeStorePickerRows excludes priority staple bought
+    prior session from criticals` (was previously the opposite
+    assertion under v0.6.7). Now pins Mike's mental model: a
+    marked-purchased staple is gone from the picker badge regardless
+    of session timing.
+  - Kept: `observeStorePickerRows excludes priority staple bought
+    this session from criticals` (also correct under the new partition).
+
+Total: 443 unit tests, 0 failures.
+
+### Re-classified
+
+- TODO(0.6) in `ShoppingDao.kt` about
+  `renewStaplesForNewSession` is now flagged as an opt-in toggle
+  rather than a default — Mike's evidence implies auto-renewal would
+  surprise users ("I marked it purchased, why is it back?"). The
+  toggle, if implemented, would live in Settings → Display or
+  Settings → Data.
+
+### Versions
+
+- Android: versionCode 44 → 45, versionName 0.6.8 → 0.6.9.
+- iOS: MARKETING_VERSION 0.6.8 → 0.6.9, CURRENT_PROJECT_VERSION 22 → 23.
+
 ## Tests-only — 2026-05-11
 
 New `:benchmark` module for Macrobenchmark cold-start + scroll-FPS

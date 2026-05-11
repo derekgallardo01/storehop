@@ -19,13 +19,4 @@ data class StorePickerItemRow(
     @ColumnInfo(name = "itemName") val itemName: String,
     @ColumnInfo(name = "isPriority") val isPriority: Boolean,
     @ColumnInfo(name = "isNeeded") val isNeeded: Boolean,
-    @ColumnInfo(name = "isStaple") val isStaple: Boolean,
-    /**
-     * 1 iff `isx.lastPurchasedAt` falls inside the current session window,
-     * computed in SQL so the repo doesn't need to re-thread `sessionStartMs`
-     * to partition staples. Used by the picker repo: a staple that hasn't
-     * been bought this session still counts as "on the list" for chip /
-     * banner purposes; one bought this session moves to picked-up.
-     */
-    @ColumnInfo(name = "purchasedThisSession") val purchasedThisSession: Boolean,
 )

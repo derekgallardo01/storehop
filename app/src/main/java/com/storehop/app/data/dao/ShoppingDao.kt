@@ -27,18 +27,17 @@ interface ShoppingDao {
      *    it on the next visit -- a new ViewModel anchors a fresh window and
      *    previously purchased non-staples fall outside it.
      *
-     * TODO(0.6): isStaple does not auto-renew at session boundaries. The OR
-     * clause keeps the row visible across sessions, but `isx.isNeeded` stays
-     * at 0 from the prior trip's check-off, so the row appears as "purchased"
-     * (checkbox on, optionally struck) instead of "needed again." Worse,
-     * `observeStorePickerItems` (the badge query) lacks the staple OR-clause
-     * entirely, so the Lidl badge shows "Nothing needed" while the per-store
-     * list still has the staple row. Verified end-to-end on emulator
-     * 2026-05-08. Planned fix for v0.6: a `renewStaplesForNewSession(uid,
-     * sessionStartMs)` DAO method that flips `isNeeded=1` on every xref where
-     * the linked item is a staple AND `lastPurchasedAt < sessionStartMs`,
-     * called once per process start from `ShoppingSessionTracker`. Don't
-     * surprise-fix in unrelated work — see memory project_isstaple_session_renewal.md.
+     * Note (re-classified 2026-05-11 per v0.6.9): staples do NOT auto-renew
+     * across sessions, by design. The OR clause keeps the row visible in
+     * the in-store list (struck-through) for the user's convenience, but
+     * `isx.isNeeded` stays at 0 from the prior trip's check-off, and the
+     * picker badge / banner treats it as off-the-list. Mike's evidence
+     * (v0.6.9 screenshots): when he marks a staple purchased, he expects
+     * it to disappear from the picker even if it's a staple. An earlier
+     * v0.6.7 attempt to auto-resurface staples on the picker
+     * over-included; reverted. If we ever want auto-renewal it should be
+     * an explicit Settings toggle, not a default. See memory
+     * project_isstaple_session_renewal.md.
      *
      * Sort order: needed rows first (in this store's aisle order), then
      * purchased rows at the bottom. Items in categories with no
@@ -119,11 +118,7 @@ interface ShoppingDao {
                i.id         AS itemId,
                i.name       AS itemName,
                i.isPriority AS isPriority,
-               isx.isNeeded AS isNeeded,
-               i.isStaple   AS isStaple,
-               CASE WHEN isx.lastPurchasedAt IS NOT NULL
-                     AND isx.lastPurchasedAt >= :sessionStartMs
-                    THEN 1 ELSE 0 END AS purchasedThisSession
+               isx.isNeeded AS isNeeded
         FROM items i
         INNER JOIN item_store_xref isx
                ON isx.itemId = i.id
@@ -133,7 +128,6 @@ interface ShoppingDao {
           AND i.userId = :userId
           AND (
                 isx.isNeeded = 1
-             OR i.isStaple = 1
              OR (isx.lastPurchasedAt IS NOT NULL AND isx.lastPurchasedAt >= :sessionStartMs)
           )
         """,

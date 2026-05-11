@@ -105,31 +105,36 @@ class ShoppingRepositoryImplTest {
         }
     }
 
-    @Test fun `observeStorePickerRows treats priority staple bought prior session as critical`() = runTest {
-        // Bug B regression (v0.6.7): a priority staple that was purchased
-        // in a prior session has isNeeded=0 (planned renewStaplesForNewSession
-        // hasn't shipped yet — separate work) but is still "on the list" for
-        // picker badge purposes. The chip + banner must surface it as
-        // critical until the user buys it again this session.
+    @Test fun `observeStorePickerRows excludes priority staple bought prior session from criticals`() = runTest {
+        // v0.6.9 regression test (Mike-reported): a priority staple that
+        // was checked off in a prior session has isNeeded=0. The picker
+        // badge + banner must respect that -- "marked purchased = off the
+        // list" is the user mental model, even for staples. The in-store
+        // view still surfaces the row struck-through (via the staple OR
+        // clause in shoppingListForStore), but the picker count drops it.
         val milkId = "$TEST_USER_ID-milk"
         db.itemDao().upsert(
             item(milkId, "Milk", "cat_dairy_eggs", isPriority = true, isStaple = true),
         )
-        // Override the seeded xref: not currently needed; never purchased.
+        // Override the seeded xref: not currently needed; never purchased
+        // this session (lastPurchasedAt = null falls back to "before any
+        // session start").
         db.itemStoreXrefDao().upsert(
             xref(milkId, "store_lidl", isNeeded = false, lastPurchasedAt = null),
         )
 
         repo.observeStorePickerRows(NO_WINDOW).test {
             val rows = awaitItem().associateBy { it.store.id }
-            assertThat(rows["store_lidl"]!!.criticalItemNames).contains("Milk")
+            assertThat(rows["store_lidl"]!!.criticalItemNames).doesNotContain("Milk")
             cancelAndIgnoreRemainingEvents()
         }
     }
 
     @Test fun `observeStorePickerRows excludes priority staple bought this session from criticals`() = runTest {
-        // Same priority staple, but purchased this session: should fall out
-        // of criticalItemNames and count toward pickedUpInSessionCount.
+        // Same priority staple, purchased this session: still excluded
+        // from criticalItemNames. With the v0.6.9 partition (isNeeded only),
+        // this is straightforward -- the row has isNeeded=0 so it falls
+        // into pickedUp regardless of session timing.
         val milkId = "$TEST_USER_ID-milk"
         db.itemDao().upsert(
             item(milkId, "Milk", "cat_dairy_eggs", isPriority = true, isStaple = true),
