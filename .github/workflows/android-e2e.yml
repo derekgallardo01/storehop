@@ -185,10 +185,11 @@ jobs:
           # against the booted device. --no-build-cache because the
           # build cache occasionally serves a stale instrumentation
           # APK that's missing the latest test class.
-          script: |
-            ./gradlew :app:connectedDebugAndroidTest \
-              --console=plain \
-              --no-build-cache
+          #
+          # Note: the emulator-runner action's `script` runs each line as
+          # a separate command, so backslash line continuations don't
+          # apply — the whole gradle invocation lives on one line.
+          script: ./gradlew :app:connectedDebugAndroidTest --console=plain --no-build-cache
 
       - name: Upload Android test report
         if: always()

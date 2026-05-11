@@ -20,6 +20,9 @@ struct ItemStoreXref: Codable, FetchableRecord, MutablePersistableRecord, Hashab
     var pendingSync: Bool
     var isNeeded: Bool
     var lastPurchasedAt: Int64?
+    /// v0.7.0 multi-user access scope. See `Item.householdId` for the full
+    /// rationale; single-member households have `householdId == userId`.
+    var householdId: String = ""
 
     enum Columns {
         static let itemId          = Column(CodingKeys.itemId)
@@ -31,5 +34,6 @@ struct ItemStoreXref: Codable, FetchableRecord, MutablePersistableRecord, Hashab
         static let pendingSync     = Column(CodingKeys.pendingSync)
         static let isNeeded        = Column(CodingKeys.isNeeded)
         static let lastPurchasedAt = Column(CodingKeys.lastPurchasedAt)
+        static let householdId     = Column(CodingKeys.householdId)
     }
 }

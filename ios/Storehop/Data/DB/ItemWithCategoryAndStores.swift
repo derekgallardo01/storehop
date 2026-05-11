@@ -13,30 +13,30 @@ struct ItemWithCategoryAndStores: Hashable, Sendable {
     let category: Category?
     let stores: [Store]
 
-    /// Snapshot fetch for a single item by id, scoped to the parent userId.
+    /// Snapshot fetch for a single item by id, scoped to the parent household.
     /// Returns nil if the item is tombstoned or doesn't exist.
-    static func fetch(_ db: Database, userId: String, id: String) throws -> ItemWithCategoryAndStores? {
+    static func fetch(_ db: Database, householdId: String, id: String) throws -> ItemWithCategoryAndStores? {
         guard let item = try Item.fetchOne(
             db,
-            sql: "SELECT * FROM items WHERE id = ? AND userId = ? AND deletedAt IS NULL",
-            arguments: [id, userId]
+            sql: "SELECT * FROM items WHERE id = ? AND householdId = ? AND deletedAt IS NULL",
+            arguments: [id, householdId]
         ) else {
             return nil
         }
         return try assemble(db, item: item)
     }
 
-    /// Snapshot fetch for every live item belonging to the user, sorted by
-    /// name with case-insensitive collation (matches Android's ORDER BY).
-    static func fetchAll(_ db: Database, userId: String) throws -> [ItemWithCategoryAndStores] {
+    /// Snapshot fetch for every live item belonging to the household, sorted
+    /// by name with case-insensitive collation (matches Android's ORDER BY).
+    static func fetchAll(_ db: Database, householdId: String) throws -> [ItemWithCategoryAndStores] {
         let items = try Item.fetchAll(
             db,
             sql: """
                 SELECT * FROM items
-                WHERE userId = ? AND deletedAt IS NULL
+                WHERE householdId = ? AND deletedAt IS NULL
                 ORDER BY name COLLATE NOCASE
                 """,
-            arguments: [userId]
+            arguments: [householdId]
         )
         return try items.map { try assemble(db, item: $0) }
     }

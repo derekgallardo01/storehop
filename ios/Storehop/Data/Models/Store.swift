@@ -15,6 +15,9 @@ struct Store: Codable, FetchableRecord, MutablePersistableRecord, Identifiable, 
     var deletedAt: Int64?
     var pendingSync: Bool
     var displayOrder: Int
+    /// v0.7.0 multi-user access scope. See `Item.householdId` for the full
+    /// rationale; single-member households have `householdId == userId`.
+    var householdId: String = ""
 
     enum Columns {
         static let id           = Column(CodingKeys.id)
@@ -28,5 +31,6 @@ struct Store: Codable, FetchableRecord, MutablePersistableRecord, Identifiable, 
         static let deletedAt    = Column(CodingKeys.deletedAt)
         static let pendingSync  = Column(CodingKeys.pendingSync)
         static let displayOrder = Column(CodingKeys.displayOrder)
+        static let householdId  = Column(CodingKeys.householdId)
     }
 }

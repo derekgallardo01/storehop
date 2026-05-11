@@ -28,6 +28,13 @@ struct Item: Codable, FetchableRecord, MutablePersistableRecord, Identifiable, H
     var imageUrl: String?
     var isStaple: Bool
     var isPriority: Bool
+    /// v0.7.0 multi-user access scope. Every entity belongs to one
+    /// household. Single-member households have `householdId == userId`
+    /// (auto-migrated on first launch by the v7→v8 schema migration).
+    /// When a user joins another household via invite, every write here
+    /// uses the new householdId so the data lands in the shared
+    /// Firestore path. `userId` stays as creator/audit metadata.
+    var householdId: String = ""
 
     enum Columns {
         static let id              = Column(CodingKeys.id)
@@ -46,5 +53,6 @@ struct Item: Codable, FetchableRecord, MutablePersistableRecord, Identifiable, H
         static let imageUrl        = Column(CodingKeys.imageUrl)
         static let isStaple        = Column(CodingKeys.isStaple)
         static let isPriority      = Column(CodingKeys.isPriority)
+        static let householdId     = Column(CodingKeys.householdId)
     }
 }

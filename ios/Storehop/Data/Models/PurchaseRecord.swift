@@ -19,6 +19,9 @@ struct PurchaseRecord: Codable, FetchableRecord, MutablePersistableRecord, Ident
     var updatedAt: Int64
     var deletedAt: Int64?
     var pendingSync: Bool
+    /// v0.7.0 multi-user access scope. See `Item.householdId` for the full
+    /// rationale; single-member households have `householdId == userId`.
+    var householdId: String = ""
 
     enum Columns {
         static let id          = Column(CodingKeys.id)
@@ -30,5 +33,6 @@ struct PurchaseRecord: Codable, FetchableRecord, MutablePersistableRecord, Ident
         static let updatedAt   = Column(CodingKeys.updatedAt)
         static let deletedAt   = Column(CodingKeys.deletedAt)
         static let pendingSync = Column(CodingKeys.pendingSync)
+        static let householdId = Column(CodingKeys.householdId)
     }
 }

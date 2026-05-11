@@ -206,6 +206,77 @@ enum Migrations {
                 """)
         }
 
+        // v8: v0.7.0 multi-user household scope. Mirrors Android's
+        // MIGRATION_7_8. Adds `householdId TEXT NOT NULL DEFAULT ''`
+        // to every household-owned table + an index for the new
+        // filter column, backfills `householdId = userId` on alive rows
+        // (single-member households mirror the user's own uid), and
+        // re-flags pendingSync so the new column syncs to Firestore on
+        // the next push. New `household_members` table is the local
+        // mirror of `/memberships/{uid}/households/{hid}` Firestore docs.
+        migrator.registerMigration("v8_household_scope") { db in
+            // 1. Add householdId to every household-owned table + an
+            //    index so the new WHERE-householdId queries are sargable.
+            for table in [
+                "items",
+                "stores",
+                "categories",
+                "item_store_xref",
+                "store_category_order",
+                "purchase_records",
+            ] {
+                try db.execute(sql: """
+                    ALTER TABLE \(table) ADD COLUMN householdId TEXT NOT NULL DEFAULT ''
+                    """)
+                try db.execute(sql: """
+                    CREATE INDEX index_\(table)_householdId ON \(table)(householdId)
+                    """)
+            }
+
+            // 2. Backfill: every alive row's householdId mirrors its
+            //    userId. Tombstones are intentionally NOT touched —
+            //    they'll never be queried by householdId (deletedAt IS
+            //    NOT NULL filters them out), and sync won't push the
+            //    rewrite either.
+            for table in [
+                "items",
+                "stores",
+                "categories",
+                "item_store_xref",
+                "store_category_order",
+                "purchase_records",
+            ] {
+                try db.execute(sql: """
+                    UPDATE \(table)
+                    SET householdId = userId, pendingSync = 1
+                    WHERE deletedAt IS NULL
+                    """)
+            }
+
+            // 3. New household_members table. Composite PK (uid, hid) so
+            //    one user can belong to multiple households (v0.7.x; for
+            //    v0.7.0 the active-household query just picks the latest
+            //    `joinedAt` row). Soft-delete via deletedAt mirrors every
+            //    other entity.
+            try db.execute(sql: """
+                CREATE TABLE household_members (
+                    uid TEXT NOT NULL,
+                    householdId TEXT NOT NULL,
+                    displayName TEXT,
+                    joinedAt INTEGER NOT NULL,
+                    isOwner INTEGER NOT NULL,
+                    createdAt INTEGER NOT NULL,
+                    updatedAt INTEGER NOT NULL,
+                    deletedAt INTEGER,
+                    pendingSync INTEGER NOT NULL DEFAULT 1,
+                    PRIMARY KEY(uid, householdId)
+                )
+                """)
+            try db.execute(sql: "CREATE INDEX index_household_members_uid ON household_members (uid)")
+            try db.execute(sql: "CREATE INDEX index_household_members_householdId ON household_members (householdId)")
+            try db.execute(sql: "CREATE INDEX index_household_members_deletedAt ON household_members (deletedAt)")
+        }
+
         return migrator
     }
 }

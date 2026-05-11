@@ -9,104 +9,112 @@ import GRDB
 ///     connection so a repository can compose multiple DAO writes inside a
 ///     single transaction. GRDB's `write` is not reentrant, so this split
 ///     is mandatory for cross-DAO atomicity.
+///
+/// v0.7.0 access scope: queries filter by `householdId` (not `userId`).
+/// `userId` remains on the entity as creator/audit metadata but is no
+/// longer part of the access predicate. For single-member households
+/// (everyone pre-Phase 3) `householdId == userId` on every row, so the
+/// behavioural result is unchanged. When a user accepts an invite the
+/// shared rows have `householdId = inviter.uid` and both members see
+/// them via the household filter.
 struct StoreDao: Sendable {
     let writer: any DatabaseWriter
 
     // MARK: - Reactive
 
-    func observeAll(userId: String, includeArchived: Bool) -> AsyncValueObservation<[Store]> {
+    func observeAll(householdId: String, includeArchived: Bool) -> AsyncValueObservation<[Store]> {
         ValueObservation
             .tracking { db in
                 try Store.fetchAll(db, sql: """
                     SELECT * FROM stores
-                    WHERE userId = ? AND deletedAt IS NULL
+                    WHERE householdId = ? AND deletedAt IS NULL
                       AND (? = 1 OR isArchived = 0)
                     ORDER BY displayOrder ASC, name COLLATE NOCASE
-                    """, arguments: [userId, includeArchived ? 1 : 0])
+                    """, arguments: [householdId, includeArchived ? 1 : 0])
             }
             .values(in: writer)
     }
 
-    func observeById(userId: String, id: String) -> AsyncValueObservation<Store?> {
+    func observeById(householdId: String, id: String) -> AsyncValueObservation<Store?> {
         ValueObservation
             .tracking { db in
                 try Store.fetchOne(db, sql: """
                     SELECT * FROM stores
-                    WHERE id = ? AND userId = ? AND deletedAt IS NULL
-                    """, arguments: [id, userId])
+                    WHERE id = ? AND householdId = ? AND deletedAt IS NULL
+                    """, arguments: [id, householdId])
             }
             .values(in: writer)
     }
 
-    func observePendingPush(userId: String) -> AsyncValueObservation<[Store]> {
+    func observePendingPush(householdId: String) -> AsyncValueObservation<[Store]> {
         ValueObservation
             .tracking { db in
-                try Store.fetchAll(db, sql: "SELECT * FROM stores WHERE userId = ? AND pendingSync = 1", arguments: [userId])
+                try Store.fetchAll(db, sql: "SELECT * FROM stores WHERE householdId = ? AND pendingSync = 1", arguments: [householdId])
             }
             .values(in: writer)
     }
 
     // MARK: - Snapshot reads (instance API + on: Database for repo transactions)
 
-    func findById(userId: String, id: String) async throws -> Store? {
-        try await writer.read { db in try Self.findById(on: db, userId: userId, id: id) }
+    func findById(householdId: String, id: String) async throws -> Store? {
+        try await writer.read { db in try Self.findById(on: db, householdId: householdId, id: id) }
     }
 
-    static func findById(on db: Database, userId: String, id: String) throws -> Store? {
+    static func findById(on db: Database, householdId: String, id: String) throws -> Store? {
         try Store.fetchOne(db, sql: """
             SELECT * FROM stores
-            WHERE id = ? AND userId = ? AND deletedAt IS NULL
-            """, arguments: [id, userId])
+            WHERE id = ? AND householdId = ? AND deletedAt IS NULL
+            """, arguments: [id, householdId])
     }
 
-    func findByName(userId: String, name: String) async throws -> Store? {
-        try await writer.read { db in try Self.findByName(on: db, userId: userId, name: name) }
+    func findByName(householdId: String, name: String) async throws -> Store? {
+        try await writer.read { db in try Self.findByName(on: db, householdId: householdId, name: name) }
     }
 
     /// Live-only by-name lookup. Used inside repository transactions
     /// (e.g. rename) to detect collisions without including tombstoned
     /// rows — the v6 (Android v0.5.5) fix.
-    static func findByName(on db: Database, userId: String, name: String) throws -> Store? {
+    static func findByName(on db: Database, householdId: String, name: String) throws -> Store? {
         try Store.fetchOne(db, sql: """
             SELECT * FROM stores
-            WHERE userId = ? AND deletedAt IS NULL
+            WHERE householdId = ? AND deletedAt IS NULL
               AND name = ? COLLATE NOCASE
             LIMIT 1
-            """, arguments: [userId, name])
+            """, arguments: [householdId, name])
     }
 
     /// Tombstone-aware lookup; powers the resurrect-on-re-add path.
-    func findAnyByName(userId: String, name: String) async throws -> Store? {
-        try await writer.read { db in try Self.findAnyByName(on: db, userId: userId, name: name) }
+    func findAnyByName(householdId: String, name: String) async throws -> Store? {
+        try await writer.read { db in try Self.findAnyByName(on: db, householdId: householdId, name: name) }
     }
 
-    static func findAnyByName(on db: Database, userId: String, name: String) throws -> Store? {
+    static func findAnyByName(on db: Database, householdId: String, name: String) throws -> Store? {
         try Store.fetchOne(db, sql: """
             SELECT * FROM stores
-            WHERE userId = ?
+            WHERE householdId = ?
               AND name = ? COLLATE NOCASE
             LIMIT 1
-            """, arguments: [userId, name])
+            """, arguments: [householdId, name])
     }
 
-    func findAnyById(userId: String, id: String) async throws -> Store? {
-        try await writer.read { db in try Self.findAnyById(on: db, userId: userId, id: id) }
+    func findAnyById(householdId: String, id: String) async throws -> Store? {
+        try await writer.read { db in try Self.findAnyById(on: db, householdId: householdId, id: id) }
     }
 
-    static func findAnyById(on db: Database, userId: String, id: String) throws -> Store? {
-        try Store.fetchOne(db, sql: "SELECT * FROM stores WHERE id = ? AND userId = ? LIMIT 1", arguments: [id, userId])
+    static func findAnyById(on db: Database, householdId: String, id: String) throws -> Store? {
+        try Store.fetchOne(db, sql: "SELECT * FROM stores WHERE id = ? AND householdId = ? LIMIT 1", arguments: [id, householdId])
     }
 
-    func nextDisplayOrder(userId: String) async throws -> Int {
-        try await writer.read { db in try Self.nextDisplayOrder(on: db, userId: userId) }
+    func nextDisplayOrder(householdId: String) async throws -> Int {
+        try await writer.read { db in try Self.nextDisplayOrder(on: db, householdId: householdId) }
     }
 
-    static func nextDisplayOrder(on db: Database, userId: String) throws -> Int {
+    static func nextDisplayOrder(on db: Database, householdId: String) throws -> Int {
         try Int.fetchOne(db, sql: """
             SELECT COALESCE(MAX(displayOrder), -1) + 1
             FROM stores
-            WHERE userId = ? AND deletedAt IS NULL
-            """, arguments: [userId]) ?? 0
+            WHERE householdId = ? AND deletedAt IS NULL
+            """, arguments: [householdId]) ?? 0
     }
 
     // MARK: - Writes
@@ -125,57 +133,57 @@ struct StoreDao: Sendable {
         }
     }
 
-    func setArchived(userId: String, id: String, archived: Bool, now: Int64) async throws {
+    func setArchived(householdId: String, id: String, archived: Bool, now: Int64) async throws {
         try await writer.write { db in
             try db.execute(sql: """
                 UPDATE stores
                 SET isArchived = ?, updatedAt = ?, pendingSync = 1
-                WHERE id = ? AND userId = ?
-                """, arguments: [archived, now, id, userId])
+                WHERE id = ? AND householdId = ?
+                """, arguments: [archived, now, id, householdId])
         }
     }
 
-    func softDelete(userId: String, id: String, now: Int64) async throws {
-        try await writer.write { db in try Self.softDelete(on: db, userId: userId, id: id, now: now) }
+    func softDelete(householdId: String, id: String, now: Int64) async throws {
+        try await writer.write { db in try Self.softDelete(on: db, householdId: householdId, id: id, now: now) }
     }
 
-    static func softDelete(on db: Database, userId: String, id: String, now: Int64) throws {
+    static func softDelete(on db: Database, householdId: String, id: String, now: Int64) throws {
         try db.execute(sql: """
             UPDATE stores
             SET deletedAt = ?, updatedAt = ?, pendingSync = 1
-            WHERE id = ? AND userId = ?
-            """, arguments: [now, now, id, userId])
+            WHERE id = ? AND householdId = ?
+            """, arguments: [now, now, id, householdId])
     }
 
-    func restoreFromTombstone(userId: String, id: String, now: Int64) async throws {
-        try await writer.write { db in try Self.restoreFromTombstone(on: db, userId: userId, id: id, now: now) }
+    func restoreFromTombstone(householdId: String, id: String, now: Int64) async throws {
+        try await writer.write { db in try Self.restoreFromTombstone(on: db, householdId: householdId, id: id, now: now) }
     }
 
-    static func restoreFromTombstone(on db: Database, userId: String, id: String, now: Int64) throws {
+    static func restoreFromTombstone(on db: Database, householdId: String, id: String, now: Int64) throws {
         try db.execute(sql: """
             UPDATE stores
             SET deletedAt = NULL, updatedAt = ?, pendingSync = 1
-            WHERE id = ? AND userId = ?
-            """, arguments: [now, id, userId])
+            WHERE id = ? AND householdId = ?
+            """, arguments: [now, id, householdId])
     }
 
-    func setDisplayOrder(userId: String, id: String, displayOrder: Int, now: Int64) async throws {
+    func setDisplayOrder(householdId: String, id: String, displayOrder: Int, now: Int64) async throws {
         try await writer.write { db in
-            try Self.setDisplayOrder(on: db, userId: userId, id: id, displayOrder: displayOrder, now: now)
+            try Self.setDisplayOrder(on: db, householdId: householdId, id: id, displayOrder: displayOrder, now: now)
         }
     }
 
-    static func setDisplayOrder(on db: Database, userId: String, id: String, displayOrder: Int, now: Int64) throws {
+    static func setDisplayOrder(on db: Database, householdId: String, id: String, displayOrder: Int, now: Int64) throws {
         try db.execute(sql: """
             UPDATE stores
             SET displayOrder = ?, updatedAt = ?, pendingSync = 1
-            WHERE id = ? AND userId = ?
-            """, arguments: [displayOrder, now, id, userId])
+            WHERE id = ? AND householdId = ?
+            """, arguments: [displayOrder, now, id, householdId])
     }
 
-    func markPushed(userId: String, id: String) async throws {
+    func markPushed(householdId: String, id: String) async throws {
         try await writer.write { db in
-            try db.execute(sql: "UPDATE stores SET pendingSync = 0 WHERE id = ? AND userId = ?", arguments: [id, userId])
+            try db.execute(sql: "UPDATE stores SET pendingSync = 0 WHERE id = ? AND householdId = ?", arguments: [id, householdId])
         }
     }
 }
