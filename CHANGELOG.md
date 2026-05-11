@@ -7,6 +7,44 @@ project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 For the high-level roadmap and earlier-than-0.5.0 history, see the
 "Roadmap" section in the [README](README.md).
 
+## Tests-only — 2026-05-11
+
+Android CI workflow + a small defensive-cast tweak in `StorehopTheme`.
+No version bump (no user-visible changes).
+
+### Added
+
+- **`.github/workflows/android-ci.yml`** — mirrors the existing iOS CI
+  pattern. Runs on push (branch wildcard, paths-filtered to `app/`,
+  `gradle/`, build files, and the workflow itself) and PR-to-main.
+  Sets up JDK 17 + the Gradle cache, then runs
+  `./gradlew :app:testDebugUnitTest :app:lintDebug`. Uploads unit-test
+  + lint reports as artifacts on every run (retained 7 days). 30-min
+  timeout. iOS already had its own workflow; Android catches up.
+
+### Changed
+
+- **`StorehopTheme` cast is now defensive.** Previously
+  `(view.context as Activity).window` would throw `ClassCastException`
+  if the Compose tree was ever hosted under a non-Activity context
+  (Paparazzi screenshot renderers, Compose-for-Web, etc.). The
+  `view.isInEditMode` guard didn't fire in those cases. Now uses
+  `as? Activity` and skips the SideEffect when the cast is null —
+  same runtime behaviour on a real device, but the theme no longer
+  crashes headless render targets.
+
+### Out of scope (attempted, deferred)
+
+- **Paparazzi screenshot tests** — attempted, then reverted. Paparazzi
+  1.3.5's test listener calls
+  `TestResultsProvider.hasOutput(Long, TestOutputEvent.Destination)`,
+  a Gradle internal API removed in Gradle 9.x. Applying the Paparazzi
+  plugin breaks the entire `testDebugUnitTest` task regardless of
+  whether any screenshot tests are present. Versions 1.3.6 / 2.0.0
+  aren't published. Wait for a Gradle-9-compatible Paparazzi release,
+  or evaluate Roborazzi (uses the standard Robolectric test runner
+  and doesn't hook the test listener).
+
 ## [0.6.8] - 2026-05-11
 
 UX polish bundle: empty-state illustrations, a dark-theme contrast fix,
