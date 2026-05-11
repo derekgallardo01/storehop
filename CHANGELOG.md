@@ -71,6 +71,9 @@ without breaking the iOS 0.6.10 sync.
   prominently in case users find it surprising.
 - **Concurrent edits** stay last-write-wins via `updatedAt`. Per-field
   merging deferred to v0.7.x.
+- **Settings → About** loses the "Source code on GitHub" link. The
+  privacy policy link stays as the only outbound link. Same change
+  applied to iOS so the two ports' About sections stay parallel.
 
 ### Downgrade safety (important)
 
