@@ -90,6 +90,17 @@ targets:
     platform: iOS
     sources:
       - path: StorehopTests
+    resources:
+      # The seed JSONs are bundled into the main app via the Storehop target,
+      # but xcodebuild's `type: folder` reference doesn't always land them in
+      # the simulator bundle on macos-15 CI runners (works fine locally).
+      # Adding the same folder as a resource on the test target gives the
+      # DatabaseSeeder's fallback `Bundle(for: BundleAnchor.self)` lookup a
+      # reliable place to find them. Tests that exercise the production seed
+      # path then succeed in both contexts. No-op overhead in production
+      # builds — the StorehopTests bundle isn't shipped to users.
+      - path: Storehop/Resources/seed
+        type: folder
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.storehop.app.tests
