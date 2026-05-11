@@ -660,10 +660,10 @@ private fun SectionHeader(text: String) {
 }
 
 /**
- * About card: app version + build number, privacy-policy link, and a
- * source-code link to the public GitHub repo. Tapping a link launches
- * the default browser via an ACTION_VIEW intent — no in-app webview
- * (avoids a dependency, keeps the trust boundary at the browser).
+ * About card: app version + build number + a privacy-policy link.
+ * Tapping the link launches the default browser via an ACTION_VIEW
+ * intent — no in-app webview (avoids a dependency, keeps the trust
+ * boundary at the browser).
  */
 @Composable
 private fun AboutCard() {
@@ -684,12 +684,6 @@ private fun AboutCard() {
                 label = stringResource(R.string.settings_about_privacy),
                 onClick = {
                     context.openUrl("https://derekgallardo01.github.io/storehop/privacy-policy")
-                },
-            )
-            AboutLinkRow(
-                label = stringResource(R.string.settings_about_open_source),
-                onClick = {
-                    context.openUrl("https://github.com/derekgallardo01/storehop")
                 },
             )
         }

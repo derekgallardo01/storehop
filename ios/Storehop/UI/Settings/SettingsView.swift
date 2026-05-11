@@ -119,8 +119,8 @@ struct SettingsView: View {
                 }
             }
 
-            // About: version + privacy + source code. Mirrors Android's
-            // v0.6.8 AboutCard so the two ports surface the same metadata.
+            // About: version + privacy link. Mirrors Android's AboutCard so
+            // the two ports surface the same metadata.
             Section(header: Text(String(localized: "settings_section_about"))) {
                 AboutSection()
             }
@@ -250,16 +250,6 @@ private struct AboutSection: View {
             Link(destination: URL(string: "https://derekgallardo01.github.io/storehop/privacy-policy")!) {
                 HStack {
                     Text(String(localized: "settings_about_privacy"))
-                        .font(StorehopTypography.bodyLarge)
-                    Spacer()
-                    Image(systemName: "chevron.right")
-                        .foregroundStyle(StorehopColors.onSurfaceVariant)
-                }
-                .padding(.vertical, 8)
-            }
-            Link(destination: URL(string: "https://github.com/derekgallardo01/storehop")!) {
-                HStack {
-                    Text(String(localized: "settings_about_open_source"))
                         .font(StorehopTypography.bodyLarge)
                     Spacer()
                     Image(systemName: "chevron.right")
