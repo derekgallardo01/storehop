@@ -2,6 +2,7 @@ package com.storehop.app.data.repository
 
 import com.google.common.truth.Truth.assertThat
 import com.storehop.app.data.db.StorehopDatabase
+import com.storehop.app.data.util.FakeHouseholdSessionProvider
 import com.storehop.app.data.util.IdGenerator
 import com.storehop.app.testing.FakeSessionProvider
 import com.storehop.app.testing.TEST_USER_ID
@@ -36,6 +37,7 @@ class CategoryRepositoryImplTest {
             ids = object : IdGenerator { override fun newId(): String = UUID.randomUUID().toString() },
             clock = Clock.fixed(Instant.ofEpochMilli(50_000L), ZoneOffset.UTC),
             session = FakeSessionProvider("local-only"),
+            householdSession = FakeHouseholdSessionProvider("local-only"),
         )
     }
     @After fun tearDown() { db.close() }
@@ -211,6 +213,7 @@ class CategoryRepositoryImplTest {
             ids = object : IdGenerator { override fun newId(): String = UUID.randomUUID().toString() },
             clock = Clock.fixed(Instant.ofEpochMilli(50_000L), ZoneOffset.UTC),
             session = FakeSessionProvider("some-other-user"),
+            householdSession = FakeHouseholdSessionProvider("some-other-user"),
         )
 
         otherRepo.rename("cat_produce", "HIJACKED")
@@ -281,6 +284,7 @@ class CategoryRepositoryImplTest {
             ids = object : IdGenerator { override fun newId(): String = UUID.randomUUID().toString() },
             clock = Clock.fixed(Instant.ofEpochMilli(50_000L), ZoneOffset.UTC),
             session = FakeSessionProvider("some-other-user"),
+            householdSession = FakeHouseholdSessionProvider("some-other-user"),
         )
 
         otherRepo.setArchived("cat_produce", archived = true)

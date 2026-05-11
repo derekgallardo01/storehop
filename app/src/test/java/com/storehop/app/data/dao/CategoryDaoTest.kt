@@ -100,8 +100,8 @@ class CategoryDaoTest {
         // The (userId, name) index is per-user. (DB uniqueness was dropped
         // in v6; the per-user scoping is still meaningful for query speed
         // and as a contract for the application-layer add/rename guards.)
-        dao.upsert(cat("cat_user_a", "Wine").copy(userId = "user-A"))
-        dao.upsert(cat("cat_user_b", "Wine").copy(userId = "user-B"))
+        dao.upsert(cat("cat_user_a", "Wine").copy(userId = "user-A", householdId = "user-A"))
+        dao.upsert(cat("cat_user_b", "Wine").copy(userId = "user-B", householdId = "user-B"))
         assertThat(dao.observeAll("user-A", includeArchived = false).first().map { it.name })
             .containsExactly("Wine")
         assertThat(dao.observeAll("user-B", includeArchived = false).first().map { it.name })
@@ -112,5 +112,7 @@ class CategoryDaoTest {
         id = id, name = name, nameKey = null, icon = null,
         isArchived = false, isSeeded = false, userId = TEST_USER_ID,
         createdAt = 1L, updatedAt = 1L, deletedAt = null,
+        // v0.7.0: single-member households have householdId == userId.
+        householdId = TEST_USER_ID,
     )
 }
