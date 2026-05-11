@@ -131,5 +131,7 @@ class StoreDaoTest {
         isArchived = isArchived, isSeeded = false, userId = TEST_USER_ID,
         createdAt = 1L, updatedAt = 1L, deletedAt = deletedAt,
         displayOrder = displayOrder,
+        // v0.7.0: single-member households have householdId == userId.
+        householdId = TEST_USER_ID,
     )
 }

@@ -4,6 +4,7 @@ import com.google.common.truth.Truth.assertThat
 import com.storehop.app.data.db.StorehopDatabase
 import com.storehop.app.data.entity.Item
 import com.storehop.app.data.entity.Store
+import com.storehop.app.data.util.FakeHouseholdSessionProvider
 import com.storehop.app.data.util.IdGenerator
 import com.storehop.app.testing.FakeSessionProvider
 import com.storehop.app.testing.TEST_USER_ID
@@ -36,6 +37,7 @@ class ImportExportRepositoryImplTest {
     private lateinit var db: StorehopDatabase
     private lateinit var repo: ImportExportRepositoryImpl
     private val session = FakeSessionProvider(TEST_USER_ID)
+    private val householdSession = FakeHouseholdSessionProvider(TEST_USER_ID)
     private val clock = Clock.fixed(Instant.ofEpochMilli(50_000L), ZoneOffset.UTC)
     private val ids = object : IdGenerator { override fun newId(): String = UUID.randomUUID().toString() }
 
@@ -58,6 +60,7 @@ class ImportExportRepositoryImplTest {
             db = db, dao = db.storeDao(),
             xrefDao = db.itemStoreXrefDao(), scoDao = db.storeCategoryOrderDao(),
             ids = ids, clock = clock, session = session,
+            householdSession = householdSession,
         )
         repo = ImportExportRepositoryImpl(
             db = db,
@@ -96,6 +99,7 @@ class ImportExportRepositoryImplTest {
                 db = db, dao = db.storeDao(),
                 xrefDao = db.itemStoreXrefDao(), scoDao = db.storeCategoryOrderDao(),
                 ids = ids, clock = clock, session = session,
+                householdSession = householdSession,
             ),
             itemRepository = throwingItemRepo,
             session = session,
@@ -124,6 +128,7 @@ class ImportExportRepositoryImplTest {
                 db = db, dao = db.storeDao(),
                 xrefDao = db.itemStoreXrefDao(), scoDao = db.storeCategoryOrderDao(),
                 ids = ids, clock = clock, session = session,
+                householdSession = householdSession,
             ),
             itemRepository = ItemRepositoryImpl(
                 db = db, itemDao = db.itemDao(), xrefDao = db.itemStoreXrefDao(),

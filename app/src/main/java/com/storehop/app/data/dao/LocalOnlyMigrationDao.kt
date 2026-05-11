@@ -30,22 +30,28 @@ interface LocalOnlyMigrationDao {
         claimPurchaseRecords(uid)
     }
 
-    @Query("UPDATE items SET userId = :uid WHERE userId = 'local-only'")
+    // v0.7.0 each claim re-stamps BOTH userId and householdId so the
+    // single-member household invariant (`householdId == userId`) holds
+    // after sign-in. The user is now in a personal household whose id
+    // equals their fresh uid; if they later accept an invite their
+    // householdId will diverge from their uid via the household session
+    // provider, not via this claim path.
+    @Query("UPDATE items SET userId = :uid, householdId = :uid WHERE userId = 'local-only'")
     suspend fun claimItems(uid: String)
 
-    @Query("UPDATE categories SET userId = :uid WHERE userId = 'local-only'")
+    @Query("UPDATE categories SET userId = :uid, householdId = :uid WHERE userId = 'local-only'")
     suspend fun claimCategories(uid: String)
 
-    @Query("UPDATE stores SET userId = :uid WHERE userId = 'local-only'")
+    @Query("UPDATE stores SET userId = :uid, householdId = :uid WHERE userId = 'local-only'")
     suspend fun claimStores(uid: String)
 
-    @Query("UPDATE item_store_xref SET userId = :uid WHERE userId = 'local-only'")
+    @Query("UPDATE item_store_xref SET userId = :uid, householdId = :uid WHERE userId = 'local-only'")
     suspend fun claimItemStoreXrefs(uid: String)
 
-    @Query("UPDATE store_category_order SET userId = :uid WHERE userId = 'local-only'")
+    @Query("UPDATE store_category_order SET userId = :uid, householdId = :uid WHERE userId = 'local-only'")
     suspend fun claimStoreCategoryOrders(uid: String)
 
-    @Query("UPDATE purchase_records SET userId = :uid WHERE userId = 'local-only'")
+    @Query("UPDATE purchase_records SET userId = :uid, householdId = :uid WHERE userId = 'local-only'")
     suspend fun claimPurchaseRecords(uid: String)
 
     @Query("SELECT COUNT(*) FROM stores WHERE userId = 'local-only'")
@@ -75,22 +81,22 @@ interface LocalOnlyMigrationDao {
         claimOrphanPurchaseRecords(uid)
     }
 
-    @Query("UPDATE items SET userId = :uid WHERE userId != :uid AND userId != 'local-only'")
+    @Query("UPDATE items SET userId = :uid, householdId = :uid WHERE userId != :uid AND userId != 'local-only'")
     suspend fun claimOrphanItems(uid: String)
 
-    @Query("UPDATE categories SET userId = :uid WHERE userId != :uid AND userId != 'local-only'")
+    @Query("UPDATE categories SET userId = :uid, householdId = :uid WHERE userId != :uid AND userId != 'local-only'")
     suspend fun claimOrphanCategories(uid: String)
 
-    @Query("UPDATE stores SET userId = :uid WHERE userId != :uid AND userId != 'local-only'")
+    @Query("UPDATE stores SET userId = :uid, householdId = :uid WHERE userId != :uid AND userId != 'local-only'")
     suspend fun claimOrphanStores(uid: String)
 
-    @Query("UPDATE item_store_xref SET userId = :uid WHERE userId != :uid AND userId != 'local-only'")
+    @Query("UPDATE item_store_xref SET userId = :uid, householdId = :uid WHERE userId != :uid AND userId != 'local-only'")
     suspend fun claimOrphanItemStoreXrefs(uid: String)
 
-    @Query("UPDATE store_category_order SET userId = :uid WHERE userId != :uid AND userId != 'local-only'")
+    @Query("UPDATE store_category_order SET userId = :uid, householdId = :uid WHERE userId != :uid AND userId != 'local-only'")
     suspend fun claimOrphanStoreCategoryOrders(uid: String)
 
-    @Query("UPDATE purchase_records SET userId = :uid WHERE userId != :uid AND userId != 'local-only'")
+    @Query("UPDATE purchase_records SET userId = :uid, householdId = :uid WHERE userId != :uid AND userId != 'local-only'")
     suspend fun claimOrphanPurchaseRecords(uid: String)
 
     /** Count of stores under any uid other than local-only AND the current session uid. */

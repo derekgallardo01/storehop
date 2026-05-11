@@ -7,6 +7,7 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import com.storehop.app.data.db.StorehopDatabase
+import com.storehop.app.data.util.FakeHouseholdSessionProvider
 import com.storehop.app.data.util.IdGenerator
 import com.storehop.app.testing.FakeSessionProvider
 import com.storehop.app.testing.TEST_USER_ID
@@ -42,6 +43,8 @@ class StoreRepositoryImplTest {
             clock = Clock.fixed(Instant.ofEpochMilli(50_000L), ZoneOffset.UTC),
             // Same sentinel as the seed pack so the unique-(userId,name) index applies.
             session = FakeSessionProvider("local-only"),
+            // v0.7.0: household scope mirrors userId for single-member households.
+            householdSession = FakeHouseholdSessionProvider("local-only"),
         )
     }
 
@@ -464,6 +467,7 @@ class StoreRepositoryImplTest {
             ids = object : IdGenerator { override fun newId(): String = UUID.randomUUID().toString() },
             clock = Clock.fixed(Instant.ofEpochMilli(99_999L), ZoneOffset.UTC),
             session = FakeSessionProvider("local-only"),
+            householdSession = FakeHouseholdSessionProvider("local-only"),
         )
 
         repo.softDelete("store_lidl")              // ts = 50_000L
@@ -495,6 +499,10 @@ class StoreRepositoryImplTest {
             ids = object : IdGenerator { override fun newId(): String = UUID.randomUUID().toString() },
             clock = Clock.fixed(Instant.ofEpochMilli(50_000L), ZoneOffset.UTC),
             session = FakeSessionProvider("some-other-user"),
+            // Different household from the seed too: ensures the "owned by
+            // another user" isolation test exercises the household filter,
+            // not just the userId filter (which no longer scopes access).
+            householdSession = FakeHouseholdSessionProvider("some-other-user"),
         )
 
         otherRepo.setArchived("store_lidl", archived = true)

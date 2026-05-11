@@ -47,10 +47,14 @@ class DatabaseSeeder @Inject constructor(
                 db.execSQL(
                     """
                     INSERT OR IGNORE INTO stores
-                    (id, name, colorArgb, isArchived, isSeeded, userId, createdAt, updatedAt, deletedAt, displayOrder)
-                    VALUES (?, ?, NULL, 0, 1, ?, ?, ?, NULL, ?)
+                    (id, name, colorArgb, isArchived, isSeeded, userId, createdAt, updatedAt, deletedAt, displayOrder, householdId)
+                    VALUES (?, ?, NULL, 0, 1, ?, ?, ?, NULL, ?, ?)
                     """.trimIndent(),
-                    arrayOf<Any?>(s.id, s.name, USER_ID, SEED_TIMESTAMP, SEED_TIMESTAMP, index),
+                    // v0.7.0: seeded rows live in the local-only household
+                    // (`householdId = userId`) so the new household-scoped
+                    // queries see them. The orphan-uid claim path re-stamps
+                    // both columns when the user signs in with Google.
+                    arrayOf<Any?>(s.id, s.name, USER_ID, SEED_TIMESTAMP, SEED_TIMESTAMP, index, USER_ID),
                 )
             }
             db.setTransactionSuccessful()
@@ -68,10 +72,10 @@ class DatabaseSeeder @Inject constructor(
                 db.execSQL(
                     """
                     INSERT OR IGNORE INTO categories
-                    (id, name, nameKey, icon, isArchived, isSeeded, userId, createdAt, updatedAt, deletedAt)
-                    VALUES (?, ?, ?, ?, 0, 1, ?, ?, ?, NULL)
+                    (id, name, nameKey, icon, isArchived, isSeeded, userId, createdAt, updatedAt, deletedAt, householdId)
+                    VALUES (?, ?, ?, ?, 0, 1, ?, ?, ?, NULL, ?)
                     """.trimIndent(),
-                    arrayOf<Any?>(c.id, c.name, c.nameKey, c.icon, USER_ID, SEED_TIMESTAMP, SEED_TIMESTAMP),
+                    arrayOf<Any?>(c.id, c.name, c.nameKey, c.icon, USER_ID, SEED_TIMESTAMP, SEED_TIMESTAMP, USER_ID),
                 )
             }
             db.setTransactionSuccessful()
@@ -89,10 +93,10 @@ class DatabaseSeeder @Inject constructor(
                 db.execSQL(
                     """
                     INSERT OR IGNORE INTO store_category_order
-                    (storeId, categoryId, displayOrder, isSeeded, userId, createdAt, updatedAt, deletedAt)
-                    VALUES (?, ?, ?, 1, ?, ?, ?, NULL)
+                    (storeId, categoryId, displayOrder, isSeeded, userId, createdAt, updatedAt, deletedAt, householdId)
+                    VALUES (?, ?, ?, 1, ?, ?, ?, NULL, ?)
                     """.trimIndent(),
-                    arrayOf<Any?>(o.storeId, o.categoryId, o.displayOrder, USER_ID, SEED_TIMESTAMP, SEED_TIMESTAMP),
+                    arrayOf<Any?>(o.storeId, o.categoryId, o.displayOrder, USER_ID, SEED_TIMESTAMP, SEED_TIMESTAMP, USER_ID),
                 )
             }
             db.setTransactionSuccessful()
