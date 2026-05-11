@@ -32,7 +32,7 @@ android {
         applicationId = "com.storehop.app"
         minSdk = 26
         targetSdk = 35
-        versionCode = 52
+        versionCode = 53
         versionName = "0.7.1"
 
         // Custom runner swaps in HiltTestApplication so @HiltAndroidTest works.
@@ -353,6 +353,11 @@ dependencies {
     implementation(libs.androidx.datastore.preferences)
     implementation(libs.androidx.appcompat)
     implementation(libs.play.app.update.ktx)
+    // v0.7.1.2: Play Billing Library on the classpath so Play accepts the
+    // upload for in-app products. Actual BillingClient integration follows
+    // in v0.8 — for now the dep alone satisfies Play's "must use 6.0.1+"
+    // check.
+    implementation(libs.play.billing)
 
     testImplementation(libs.junit)
     testImplementation(libs.truth)
