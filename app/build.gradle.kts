@@ -32,8 +32,8 @@ android {
         applicationId = "com.storehop.app"
         minSdk = 26
         targetSdk = 35
-        versionCode = 43
-        versionName = "0.6.7"
+        versionCode = 44
+        versionName = "0.6.8"
 
         // Custom runner swaps in HiltTestApplication so @HiltAndroidTest works.
         testInstrumentationRunner = "com.storehop.app.HiltTestRunner"
@@ -80,6 +80,9 @@ android {
 
     buildFeatures {
         compose = true
+        // BuildConfig is referenced by Settings → About to surface
+        // VERSION_NAME + VERSION_CODE at runtime.
+        buildConfig = true
     }
 
     testOptions {

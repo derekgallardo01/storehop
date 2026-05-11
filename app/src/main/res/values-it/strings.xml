@@ -59,6 +59,13 @@
     <string name="account_sign_out_helper">Uscire rimuove la vista sincronizzata con il cloud da questo dispositivo e ti riporta a un account anonimo locale. I tuoi dati nel cloud restano al sicuro nel tuo account Google e ricompaiono al successivo accesso.</string>
 
     <!-- Impostazioni. -->
+    <string name="settings_section_account">Account</string>
+    <string name="settings_section_display">Visualizzazione</string>
+    <string name="settings_section_data">Dati</string>
+    <string name="settings_section_about">Informazioni</string>
+    <string name="settings_about_version_format">Storehop %1$s (build %2$d)</string>
+    <string name="settings_about_privacy">Informativa sulla privacy</string>
+    <string name="settings_about_open_source">Codice sorgente su GitHub</string>
     <string name="settings_theme_title">Tema</string>
     <string name="settings_theme_system">Segui il sistema</string>
     <string name="settings_theme_light">Chiaro</string>
@@ -76,8 +83,10 @@
     <string name="sort_alphabetic_cd">Passa all\'ordine alfabetico</string>
     <string name="sort_category_cd">Passa all\'ordine per categoria</string>
     <string name="items_uncategorised_label">(senza categoria)</string>
-    <string name="items_empty_no_query">Ancora nessun articolo: tocca + per aggiungerne uno</string>
-    <string name="items_empty_with_query">Nessun articolo corrisponde a \"%1$s\"</string>
+    <string name="items_empty_no_query_title">Ancora nessun articolo</string>
+    <string name="items_empty_no_query_body">Tocca + per aggiungere un articolo</string>
+    <string name="items_empty_search_title">Nessuna corrispondenza</string>
+    <string name="items_empty_search_body">Nulla corrisponde a \"%1$s\"</string>
     <string name="form_field_name">Nome</string>
     <string name="form_field_brand_optional">Marca (opzionale)</string>
     <string name="form_field_category">Categoria</string>
@@ -114,8 +123,12 @@
     <string name="action_hide_purchased">Nascondi articoli segnati</string>
     <string name="search_store_placeholder">Cerca nella lista di questo negozio</string>
     <string name="aisle_format">%1$s (corsia %2$d)</string>
-    <string name="shop_empty_no_query">Ancora nessun articolo qui: aggiungili nella scheda Articoli e associali a questo negozio</string>
-    <string name="shop_empty_with_query">Nessuna corrispondenza per \"%1$s\"</string>
+    <string name="shop_empty_no_query_title">Ancora nessun articolo qui</string>
+    <string name="shop_empty_no_query_body">Aggiungi articoli nella scheda Articoli e associali a questo negozio</string>
+    <string name="shop_empty_search_title">Nessuna corrispondenza</string>
+    <string name="shop_empty_search_body">Nulla qui corrisponde a \"%1$s\"</string>
+    <string name="storepicker_empty_title">Aggiungi il tuo primo negozio</string>
+    <string name="storepicker_empty_body">I negozi in cui fai la spesa più spesso compaiono qui. Tocca + per aggiungerne uno.</string>
     <string name="quick_add_placeholder">Aggiungi un articolo…</string>
 
     <!-- Aggiornamenti dell\'app. -->

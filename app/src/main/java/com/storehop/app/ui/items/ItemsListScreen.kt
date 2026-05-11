@@ -28,6 +28,8 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material.icons.outlined.Inventory2
+import androidx.compose.material.icons.outlined.SearchOff
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -62,6 +64,7 @@ import androidx.compose.ui.platform.LocalContext
 import com.storehop.app.R
 import com.storehop.app.data.db.relations.ItemWithCategoryAndStores
 import com.storehop.app.data.prefs.SortMode
+import com.storehop.app.ui.util.EmptyState
 import com.storehop.app.ui.util.UndoBar
 import com.storehop.app.ui.util.UndoBarState
 import com.storehop.app.ui.util.UndoEvent
@@ -211,7 +214,20 @@ fun ItemsListScreen(
                     SortMode.CATEGORY -> state.sections.isEmpty()
                 }
                 if (isEmpty) {
-                    EmptyState(query = query)
+                    val q = query.trim()
+                    if (q.isEmpty()) {
+                        EmptyState(
+                            icon = Icons.Outlined.Inventory2,
+                            title = stringResource(R.string.items_empty_no_query_title),
+                            body = stringResource(R.string.items_empty_no_query_body),
+                        )
+                    } else {
+                        EmptyState(
+                            icon = Icons.Outlined.SearchOff,
+                            title = stringResource(R.string.items_empty_search_title),
+                            body = stringResource(R.string.items_empty_search_body, q),
+                        )
+                    }
                 } else {
                     LazyColumn(
                         contentPadding = PaddingValues(bottom = 96.dp),
@@ -389,17 +405,3 @@ private fun ItemRow(
     }
 }
 
-@Composable
-private fun EmptyState(query: String) {
-    Box(
-        modifier = Modifier.fillMaxSize().padding(24.dp),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(
-            text = if (query.isBlank()) stringResource(R.string.items_empty_no_query)
-                   else stringResource(R.string.items_empty_with_query, query),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-    }
-}

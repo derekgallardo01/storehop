@@ -61,6 +61,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
+import androidx.core.net.toUri
+import com.storehop.app.BuildConfig
 import com.storehop.app.R
 import com.storehop.app.data.prefs.ThemeMode
 import com.storehop.app.sync.PullState
@@ -110,6 +112,13 @@ fun SettingsScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
+            // StatisticsCard sits above the section headers as a featured
+            // deep-link, since Stats is reached only from here (no bottom-nav
+            // entry). Grouping it under a section header of one would look
+            // thin.
+            StatisticsCard(onOpen = onOpenStatistics)
+
+            SectionHeader(text = stringResource(R.string.settings_section_account))
             if (pullState == PullState.FAILED) {
                 CloudSyncBanner(onRetry = viewModel::retryPull)
             }
@@ -118,7 +127,8 @@ fun SettingsScreen(
                 onSignIn = { viewModel.signInWithGoogle(context) },
                 onSignOut = viewModel::signOut,
             )
-            StatisticsCard(onOpen = onOpenStatistics)
+
+            SectionHeader(text = stringResource(R.string.settings_section_display))
             ThemeCard(
                 selected = themeMode,
                 onSelect = viewModel::setThemeMode,
@@ -138,7 +148,12 @@ fun SettingsScreen(
                     context.findActivity()?.recreate()
                 },
             )
+
+            SectionHeader(text = stringResource(R.string.settings_section_data))
             DataCard(snackbarHostState = snackbarHostState)
+
+            SectionHeader(text = stringResource(R.string.settings_section_about))
+            AboutCard()
         }
     }
 }
@@ -581,4 +596,88 @@ private tailrec fun Context.findActivity(): Activity? = when (this) {
     is Activity -> this
     is ContextWrapper -> baseContext.findActivity()
     else -> null
+}
+
+/**
+ * Section label that introduces a group of related cards. Compact + low
+ * visual weight (titleSmall, onSurfaceVariant, leading padding) so it
+ * orients the eye without competing with the card titles below it. Used
+ * to break the previously-flat Settings screen into Account / Display /
+ * Data / About zones.
+ */
+@Composable
+private fun SectionHeader(text: String) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.titleSmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        fontWeight = FontWeight.SemiBold,
+        modifier = Modifier.padding(start = 4.dp, top = 8.dp, bottom = 4.dp),
+    )
+}
+
+/**
+ * About card: app version + build number, privacy-policy link, and a
+ * source-code link to the public GitHub repo. Tapping a link launches
+ * the default browser via an ACTION_VIEW intent — no in-app webview
+ * (avoids a dependency, keeps the trust boundary at the browser).
+ */
+@Composable
+private fun AboutCard() {
+    val context = LocalContext.current
+    SettingsCard(title = stringResource(R.string.settings_section_about)) {
+        Column {
+            Text(
+                text = stringResource(
+                    R.string.settings_about_version_format,
+                    BuildConfig.VERSION_NAME,
+                    BuildConfig.VERSION_CODE,
+                ),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.padding(vertical = 8.dp),
+            )
+            AboutLinkRow(
+                label = stringResource(R.string.settings_about_privacy),
+                onClick = {
+                    context.openUrl("https://derekgallardo01.github.io/storehop/privacy-policy")
+                },
+            )
+            AboutLinkRow(
+                label = stringResource(R.string.settings_about_open_source),
+                onClick = {
+                    context.openUrl("https://github.com/derekgallardo01/storehop")
+                },
+            )
+        }
+    }
+}
+
+@Composable
+private fun AboutLinkRow(label: String, onClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.weight(1f),
+        )
+        Icon(
+            Icons.Filled.ChevronRight,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
+/** Launch [url] in the user's default browser. */
+private fun Context.openUrl(url: String) {
+    val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, url.toUri())
+    runCatching { startActivity(intent) } // No-op if no browser; better than crashing.
 }

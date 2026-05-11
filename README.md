@@ -13,7 +13,7 @@ specific household) is added or renamed by the user.
 
 ## Status
 
-v0.6.7. Shipping to Google Play Closed testing. Feature-complete for
+v0.6.8. Shipping to Google Play Closed testing. Feature-complete for
 single-user v1: anonymous-first onboarding with optional Google
 Sign-In, two-way Firestore + Storage cloud sync (push and pull), Shop
 and Items tabs with item photos, share-list-as-text, theme + language
@@ -29,7 +29,7 @@ the Play Console listing answers and
 policy hosted at the Play listing's required URL.
 
 An iOS port lives in [`ios/`](ios/) — SwiftUI + GRDB + Firebase iOS
-SDK, mirroring the Android architecture 1:1. As of v0.6.7 it's
+SDK, mirroring the Android architecture 1:1. As of v0.6.8 it's
 caught up to feature parity (with the natural exception of the
 in-app update prompt, since the App Store has no equivalent API).
 Not yet shipped to TestFlight or the App Store.
@@ -196,6 +196,17 @@ pack remains stable across devices and across reseeds.
          3s auto-dismiss). iOS marketing version bumped from 0.5.1
          to 0.5.15. iOS Edit aisles intentionally keeps the
          platform-idiomatic `.onMove` + `EditButton` pattern.
+- v0.6.8 UX polish bundle: empty-state illustrations on Items /
+         Shop-at-Store / Store Picker (large Material Symbols
+         icon + split title/body, replacing the old flat-text
+         empty states); Settings reorganised into Account /
+         Display / Data / About section headers + a new About
+         card with version, privacy policy, and source-code
+         links; dark-theme contrast audit fixed one WCAG AA
+         failure (onSurfaceVariant on surfaceVariant was 4.20:1
+         in light mode, now 5.30:1 — every other pair already
+         passed). iOS gets the matching About section; iOS
+         empty-state icons defer.
 - v0.6.7 Fix Mike-reported critical-items display bug across the
          Store Picker and Shop-at-Store screens. Two intersecting
          bugs: the in-store banner was flagging priority items

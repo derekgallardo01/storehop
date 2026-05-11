@@ -62,6 +62,13 @@
     <string name="account_sign_out_helper">Terminar sessão remove a vista sincronizada deste dispositivo e regressa a uma conta anónima local. Os dados na nuvem permanecem seguros na sua conta Google e voltam a aparecer quando iniciar sessão novamente.</string>
 
     <!-- Definições. -->
+    <string name="settings_section_account">Conta</string>
+    <string name="settings_section_display">Apresentação</string>
+    <string name="settings_section_data">Dados</string>
+    <string name="settings_section_about">Sobre</string>
+    <string name="settings_about_version_format">Storehop %1$s (compilação %2$d)</string>
+    <string name="settings_about_privacy">Política de privacidade</string>
+    <string name="settings_about_open_source">Código-fonte no GitHub</string>
     <string name="settings_theme_title">Tema</string>
     <string name="settings_theme_system">Seguir o sistema</string>
     <string name="settings_theme_light">Claro</string>
@@ -79,8 +86,10 @@
     <string name="sort_alphabetic_cd">Mudar para ordem alfabética</string>
     <string name="sort_category_cd">Mudar para ordem por categoria</string>
     <string name="items_uncategorised_label">(sem categoria)</string>
-    <string name="items_empty_no_query">Ainda sem artigos — toque em + para adicionar</string>
-    <string name="items_empty_with_query">Sem resultados para \"%1$s\"</string>
+    <string name="items_empty_no_query_title">Ainda sem artigos</string>
+    <string name="items_empty_no_query_body">Toque em + para adicionar um artigo</string>
+    <string name="items_empty_search_title">Sem resultados</string>
+    <string name="items_empty_search_body">Nada corresponde a \"%1$s\"</string>
     <string name="form_field_name">Nome</string>
     <string name="form_field_brand_optional">Marca (opcional)</string>
     <string name="form_field_category">Categoria</string>
@@ -117,8 +126,12 @@
     <string name="action_hide_purchased">Ocultar artigos marcados</string>
     <string name="search_store_placeholder">Procurar na lista desta loja</string>
     <string name="aisle_format">%1$s (corredor %2$d)</string>
-    <string name="shop_empty_no_query">Ainda sem artigos aqui — adicione artigos no separador Artigos e associe-os a esta loja</string>
-    <string name="shop_empty_with_query">Sem resultados para \"%1$s\"</string>
+    <string name="shop_empty_no_query_title">Ainda sem artigos aqui</string>
+    <string name="shop_empty_no_query_body">Adicione artigos no separador Artigos e associe-os a esta loja</string>
+    <string name="shop_empty_search_title">Sem resultados</string>
+    <string name="shop_empty_search_body">Nada aqui corresponde a \"%1$s\"</string>
+    <string name="storepicker_empty_title">Adicione a sua primeira loja</string>
+    <string name="storepicker_empty_body">As lojas onde compra mais frequentemente aparecem aqui. Toque em + para adicionar uma.</string>
     <string name="quick_add_placeholder">Adicionar um artigo…</string>
 
     <!-- Atualização da app. -->

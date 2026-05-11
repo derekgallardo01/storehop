@@ -3858,6 +3858,42 @@
         }
       }
     },
+    "settings_section_about": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "About" } },
+        "pt-PT": { "stringUnit": { "state": "translated", "value": "Sobre" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Acerca de" } },
+        "it": { "stringUnit": { "state": "translated", "value": "Informazioni" } }
+      }
+    },
+    "settings_about_version_format %@ %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Storehop %1$@ (build %2$@)" } },
+        "pt-PT": { "stringUnit": { "state": "translated", "value": "Storehop %1$@ (compilação %2$@)" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Storehop %1$@ (compilación %2$@)" } },
+        "it": { "stringUnit": { "state": "translated", "value": "Storehop %1$@ (build %2$@)" } }
+      }
+    },
+    "settings_about_privacy": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Privacy policy" } },
+        "pt-PT": { "stringUnit": { "state": "translated", "value": "Política de privacidade" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Política de privacidad" } },
+        "it": { "stringUnit": { "state": "translated", "value": "Informativa sulla privacy" } }
+      }
+    },
+    "settings_about_open_source": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Source code on GitHub" } },
+        "pt-PT": { "stringUnit": { "state": "translated", "value": "Código-fonte no GitHub" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Código fuente en GitHub" } },
+        "it": { "stringUnit": { "state": "translated", "value": "Codice sorgente su GitHub" } }
+      }
+    },
     "shop_quick_add_placeholder": {
       "extractionState": "manual",
       "localizations": {

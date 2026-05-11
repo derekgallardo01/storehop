@@ -12,7 +12,11 @@ private val SageOnLight     = Color(0xFFFFFFFF)
 private val SageContainerL  = Color(0xFFD8E5D5)
 private val SageOnContainerL = Color(0xFF1F3322)
 
-private val WarmGrayL       = Color(0xFF6F6A60)
+// Darker warm-gray for `onSurfaceVariant` than the original #6F6A60: the
+// old value yielded 4.20:1 on `surfaceVariant` (#EFECE6) which fails WCAG
+// AA for normal text. #5E594F is 5.30:1, comfortably above AA. Also drives
+// `secondary`; the brand accent stays warm-neutral, slightly deeper.
+private val WarmGrayL       = Color(0xFF5E594F)
 private val WarmOffWhite    = Color(0xFFFAF8F4)
 private val WarmCharcoal    = Color(0xFF2A2825)
 private val SurfaceVarL     = Color(0xFFEFECE6)

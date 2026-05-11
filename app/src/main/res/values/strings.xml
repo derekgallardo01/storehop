@@ -59,6 +59,13 @@
     <string name="account_sign_out_helper">Signing out clears the cloud-synced view on this device and drops you back to a local-only anonymous account. Your cloud data stays safe under your Google account and reappears when you sign in again.</string>
 
     <!-- Settings screen. -->
+    <string name="settings_section_account">Account</string>
+    <string name="settings_section_display">Display</string>
+    <string name="settings_section_data">Data</string>
+    <string name="settings_section_about">About</string>
+    <string name="settings_about_version_format">Storehop %1$s (build %2$d)</string>
+    <string name="settings_about_privacy">Privacy policy</string>
+    <string name="settings_about_open_source">Source code on GitHub</string>
     <string name="settings_theme_title">Theme</string>
     <string name="settings_theme_system">Follow system</string>
     <string name="settings_theme_light">Light</string>
@@ -76,8 +83,10 @@
     <string name="sort_alphabetic_cd">Switch to alphabetic sort</string>
     <string name="sort_category_cd">Switch to category sort</string>
     <string name="items_uncategorised_label">(uncategorised)</string>
-    <string name="items_empty_no_query">No items yet — tap + to add one</string>
-    <string name="items_empty_with_query">No items match \"%1$s\"</string>
+    <string name="items_empty_no_query_title">No items yet</string>
+    <string name="items_empty_no_query_body">Tap + to add an item</string>
+    <string name="items_empty_search_title">No matches</string>
+    <string name="items_empty_search_body">Nothing matches \"%1$s\"</string>
     <string name="form_field_name">Name</string>
     <string name="form_field_brand_optional">Brand (optional)</string>
     <string name="form_field_category">Category</string>
@@ -114,8 +123,12 @@
     <string name="action_hide_purchased">Hide checked-off items</string>
     <string name="search_store_placeholder">Search this store\'s list</string>
     <string name="aisle_format">%1$s (aisle %2$d)</string>
-    <string name="shop_empty_no_query">No items here yet — add items in the Items tab and tag them to this store</string>
-    <string name="shop_empty_with_query">No matches for \"%1$s\"</string>
+    <string name="shop_empty_no_query_title">Nothing tagged here yet</string>
+    <string name="shop_empty_no_query_body">Add items in the Items tab and tag them to this store</string>
+    <string name="shop_empty_search_title">No matches</string>
+    <string name="shop_empty_search_body">Nothing here matches \"%1$s\"</string>
+    <string name="storepicker_empty_title">Add your first store</string>
+    <string name="storepicker_empty_body">Stores you shop at most often live here. Tap + to add one.</string>
     <string name="quick_add_placeholder">Add an item…</string>
 
     <!-- In-app updates. -->

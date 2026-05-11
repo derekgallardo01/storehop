@@ -30,6 +30,7 @@ import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material.icons.outlined.Store
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.AssistChipDefaults
@@ -70,6 +71,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.storehop.app.R
 import com.storehop.app.data.repository.StorePickerRow
+import com.storehop.app.ui.util.EmptyState
 import com.storehop.app.ui.util.UndoBar
 import com.storehop.app.ui.util.UndoBarState
 import com.storehop.app.ui.util.WordCaps
@@ -148,6 +150,14 @@ fun StorePickerScreen(
     ) { padding ->
         Column(modifier = Modifier.padding(padding).fillMaxSize()) {
             criticalSummary?.let { CriticalNeedsBanner(state = it) }
+            if (localRows.isEmpty()) {
+                EmptyState(
+                    icon = Icons.Outlined.Store,
+                    title = stringResource(R.string.storepicker_empty_title),
+                    body = stringResource(R.string.storepicker_empty_body),
+                )
+                return@Column
+            }
             LazyColumn(
                 state = lazyListState,
                 modifier = Modifier.fillMaxSize(),

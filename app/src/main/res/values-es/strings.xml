@@ -59,6 +59,13 @@
     <string name="account_sign_out_helper">Cerrar sesión elimina la vista sincronizada con la nube de este dispositivo y vuelve a una cuenta anónima local. Tus datos en la nube permanecen seguros en tu cuenta de Google y reaparecen al iniciar sesión de nuevo.</string>
 
     <!-- Ajustes. -->
+    <string name="settings_section_account">Cuenta</string>
+    <string name="settings_section_display">Visualización</string>
+    <string name="settings_section_data">Datos</string>
+    <string name="settings_section_about">Acerca de</string>
+    <string name="settings_about_version_format">Storehop %1$s (compilación %2$d)</string>
+    <string name="settings_about_privacy">Política de privacidad</string>
+    <string name="settings_about_open_source">Código fuente en GitHub</string>
     <string name="settings_theme_title">Tema</string>
     <string name="settings_theme_system">Seguir el sistema</string>
     <string name="settings_theme_light">Claro</string>
@@ -76,8 +83,10 @@
     <string name="sort_alphabetic_cd">Cambiar a orden alfabético</string>
     <string name="sort_category_cd">Cambiar a orden por categoría</string>
     <string name="items_uncategorised_label">(sin categoría)</string>
-    <string name="items_empty_no_query">Aún no hay artículos: pulsa + para añadir uno</string>
-    <string name="items_empty_with_query">Ningún artículo coincide con \"%1$s\"</string>
+    <string name="items_empty_no_query_title">Aún no hay artículos</string>
+    <string name="items_empty_no_query_body">Pulsa + para añadir un artículo</string>
+    <string name="items_empty_search_title">Sin coincidencias</string>
+    <string name="items_empty_search_body">Nada coincide con \"%1$s\"</string>
     <string name="form_field_name">Nombre</string>
     <string name="form_field_brand_optional">Marca (opcional)</string>
     <string name="form_field_category">Categoría</string>
@@ -114,8 +123,12 @@
     <string name="action_hide_purchased">Ocultar artículos marcados</string>
     <string name="search_store_placeholder">Buscar en la lista de esta tienda</string>
     <string name="aisle_format">%1$s (pasillo %2$d)</string>
-    <string name="shop_empty_no_query">Aún no hay artículos aquí: añade artículos en la pestaña Artículos y asígnalos a esta tienda</string>
-    <string name="shop_empty_with_query">Sin coincidencias para \"%1$s\"</string>
+    <string name="shop_empty_no_query_title">Aún no hay artículos aquí</string>
+    <string name="shop_empty_no_query_body">Añade artículos en la pestaña Artículos y asígnalos a esta tienda</string>
+    <string name="shop_empty_search_title">Sin coincidencias</string>
+    <string name="shop_empty_search_body">Nada aquí coincide con \"%1$s\"</string>
+    <string name="storepicker_empty_title">Añade tu primera tienda</string>
+    <string name="storepicker_empty_body">Las tiendas en las que compras con más frecuencia aparecen aquí. Pulsa + para añadir una.</string>
     <string name="quick_add_placeholder">Añadir un artículo…</string>
 
     <!-- Actualizaciones de la app. -->

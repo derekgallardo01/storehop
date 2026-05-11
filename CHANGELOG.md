@@ -7,6 +7,60 @@ project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 For the high-level roadmap and earlier-than-0.5.0 history, see the
 "Roadmap" section in the [README](README.md).
 
+## [0.6.8] - 2026-05-11
+
+UX polish bundle: empty-state illustrations, a dark-theme contrast fix,
+and a Settings reorg with section headers + a new About section.
+
+### Added
+
+- **Empty-state illustrations** (Android). Items, Shop-at-Store, and
+  Store Picker tabs now render a large Material Symbols icon + a title
+  + a body line when there's nothing to show, instead of a single flat
+  caption. Items uses `Inventory2` (no-query) / `SearchOff` (search
+  miss); Shop uses `ShoppingCart` (no-query) / `SearchOff` (search
+  miss); Store Picker uses `Store` (previously no empty state at all —
+  blank list). Strings split into title + body keys in all four
+  locales (`*_empty_no_query_title` / `_body`, `*_empty_search_title`
+  / `_body`, plus `storepicker_empty_title` / `_body`). Shared
+  `EmptyState(icon, title, body)` Composable lives in
+  `ui/util/EmptyState.kt` so future surfaces can pull the same look.
+
+- **Settings → About** (Android + iOS). New section at the bottom of
+  Settings with the app version (`VERSION_NAME` + `VERSION_CODE`),
+  a Privacy policy link
+  (`derekgallardo01.github.io/storehop/privacy-policy`), and a Source
+  code link (`github.com/derekgallardo01/storehop`). Links open in the
+  user's default browser. Surfaces metadata that previously required
+  digging through Play Store or the README.
+
+### Changed
+
+- **Settings: grouped sections** (Android). The previously-flat list
+  now uses section headers (`Account` / `Display` / `Data` / `About`)
+  with the Statistics deep-link floated above as a featured tile.
+  iOS already used native Section headers (Form pattern); the iOS
+  port gains the new About section at the bottom to mirror Android.
+
+- **Dark-theme contrast tweak** (Android, both light + dark
+  schemes). `WarmGrayL` (used by `secondary` and `onSurfaceVariant`)
+  darkened from `#6F6A60` to `#5E594F`. The old value was 4.20:1 on
+  `surfaceVariant` (`#EFECE6`), failing WCAG AA (4.5:1) for normal
+  text. The new value is 5.30:1, comfortably above AA. Dark scheme
+  was already 7.80:1 — no change needed there. Audit found no other
+  failures: every other Light/Dark token pair was already ≥6:1.
+
+### Tests
+
+- Android: 443 unit tests, 0 failures (no test-count delta — the
+  changes are UI-layer only; existing tests cover the ViewModels +
+  data layer unchanged).
+
+### Versions
+
+- Android: versionCode 43 → 44, versionName 0.6.7 → 0.6.8.
+- iOS: MARKETING_VERSION 0.6.7 → 0.6.8, CURRENT_PROJECT_VERSION 21 → 22.
+
 ## [0.6.7] - 2026-05-11
 
 Mike-reported: *"Something is amiss re the display of critical items in

@@ -38,6 +38,8 @@ import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.outlined.CheckCircle
+import androidx.compose.material.icons.outlined.SearchOff
+import androidx.compose.material.icons.outlined.ShoppingCart
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
@@ -77,6 +79,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.storehop.app.R
 import com.storehop.app.data.db.relations.ShoppingRow
 import com.storehop.app.data.prefs.SortMode
+import com.storehop.app.ui.util.EmptyState
 import com.storehop.app.ui.util.UndoBar
 import com.storehop.app.ui.util.UndoBarState
 import com.storehop.app.ui.util.WordCaps
@@ -244,7 +247,20 @@ fun ShopAtStoreScreen(
                     SortMode.ALPHABETIC -> state.rowsAlphabetic.isEmpty()
                 }
                 if (isEmpty) {
-                    EmptyState(query = state.query)
+                    val q = state.query.trim()
+                    if (q.isEmpty()) {
+                        EmptyState(
+                            icon = Icons.Outlined.ShoppingCart,
+                            title = stringResource(R.string.shop_empty_no_query_title),
+                            body = stringResource(R.string.shop_empty_no_query_body),
+                        )
+                    } else {
+                        EmptyState(
+                            icon = Icons.Outlined.SearchOff,
+                            title = stringResource(R.string.shop_empty_search_title),
+                            body = stringResource(R.string.shop_empty_search_body, q),
+                        )
+                    }
                 } else {
                     // Single closure shared between both sort modes -- the row
                     // rendering is identical, only the grouping changes.
@@ -579,18 +595,3 @@ private fun ShopAtStoreRow(
     }
 }
 
-@Composable
-private fun EmptyState(query: String) {
-    Box(
-        modifier = Modifier.fillMaxSize().padding(24.dp),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(
-            text = if (query.isBlank()) stringResource(R.string.shop_empty_no_query)
-                   else stringResource(R.string.shop_empty_with_query, query),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-        )
-    }
-}

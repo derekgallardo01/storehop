@@ -103,6 +103,12 @@ struct SettingsView: View {
                     }
                 }
             }
+
+            // About: version + privacy + source code. Mirrors Android's
+            // v0.6.8 AboutCard so the two ports surface the same metadata.
+            Section(header: Text(String(localized: "settings_section_about"))) {
+                AboutSection()
+            }
         }
         .navigationTitle(String(localized: "title_settings"))
         .navigationBarTitleDisplayMode(.inline)
@@ -208,6 +214,44 @@ private struct AccountCard: View {
             Text(String(localized: "account_sign_out_helper"))
                 .font(StorehopTypography.bodySmall)
                 .foregroundStyle(StorehopColors.onSurfaceVariant)
+        }
+    }
+}
+
+/// About card: version + privacy + source links. The two link rows open
+/// the URLs in the user's default browser via `UIApplication.open(_:)`.
+private struct AboutSection: View {
+    private var versionString: String {
+        let v = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "?"
+        let b = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "?"
+        return String(format: String(localized: "settings_about_version_format %@ %@"), v, b)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text(versionString)
+                .font(StorehopTypography.bodyMedium)
+                .padding(.vertical, 8)
+            Link(destination: URL(string: "https://derekgallardo01.github.io/storehop/privacy-policy")!) {
+                HStack {
+                    Text(String(localized: "settings_about_privacy"))
+                        .font(StorehopTypography.bodyLarge)
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .foregroundStyle(StorehopColors.onSurfaceVariant)
+                }
+                .padding(.vertical, 8)
+            }
+            Link(destination: URL(string: "https://github.com/derekgallardo01/storehop")!) {
+                HStack {
+                    Text(String(localized: "settings_about_open_source"))
+                        .font(StorehopTypography.bodyLarge)
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .foregroundStyle(StorehopColors.onSurfaceVariant)
+                }
+                .padding(.vertical, 8)
+            }
         }
     }
 }
