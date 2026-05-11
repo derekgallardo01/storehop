@@ -248,11 +248,17 @@ final class ShopAtStoreViewModelTests: XCTestCase {
         _ = try await s.itemRepository.addItem(name: "Almond Milk", categoryId: nil, storeIds: [], quantity: nil, notes: nil, brand: nil, imageUrl: nil, isStaple: false, isPriority: false)
         _ = try await s.itemRepository.addItem(name: "Eggs", categoryId: nil, storeIds: [], quantity: nil, notes: nil, brand: nil, imageUrl: nil, isStaple: false, isPriority: false)
 
-        // Wait for the master-items observation to feed through.
-        try await waitForCondition { !s.viewModel.quickAddSuggestions.isEmpty || s.viewModel.quickAddInput == "MIL" }
-
+        // Set quickAddInput FIRST so the eventual masterItems delivery
+        // triggers a refreshQuickAddSuggestions with a non-empty needle.
+        // (Previously the test waited for suggestions to appear before
+        // setting the needle, which was impossible — suggestions stay
+        // empty until input is non-empty.)
         s.viewModel.quickAddInput = "MIL"
-        try await waitForCondition {
+        // Generous timeout for the CI runner — the macos-15 simulator is
+        // slower than local at propagating GRDB ValueObservation updates,
+        // and the test got flaky at the default 1s. 5s is well within
+        // total test budget and gives the observation plenty of slack.
+        try await waitForCondition(timeout: 5.0) {
             !s.viewModel.quickAddSuggestions.isEmpty
         }
         let names = s.viewModel.quickAddSuggestions.map(\.name)

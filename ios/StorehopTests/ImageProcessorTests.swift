@@ -52,16 +52,18 @@ final class ImageProcessorTests: XCTestCase {
     func testBurnInOrientationProducesUpOrientationForRotatedInput() {
         // A 100×200 image marked with .right orientation displays as 200×100.
         // After burning in, the resulting image has its pixels rotated and
-        // the orientation flag flips to .up.
+        // the orientation flag flips to .up — the new pixel-size matches
+        // the previously-displayed size.
         let rotated = makeSolidImage(width: 100, height: 200, color: .purple, orientation: .right)
         let result = ImageProcessor.burnInOrientation(rotated)
         XCTAssertEqual(result.imageOrientation, .up)
-        // After burn-in, the size matches the original UIImage.size which
-        // is in the displayed orientation. .right means the underlying
-        // pixels are 100×200 but display as 200×100; UIImage.size returns
-        // the displayed size, so we expect 200×100 here.
-        XCTAssertEqual(result.size.width, 100)  // displayed-size matches input
-        XCTAssertEqual(result.size.height, 200)
+        // .right means the underlying pixels are 100×200 but display as
+        // 200×100; UIImage.size returns the displayed size, so we expect
+        // 200×100 here. (Prior version of this test had the width/height
+        // asserts swapped vs the comment — pre-existing copy-paste bug
+        // surfaced once iOS CI started actually running the test phase.)
+        XCTAssertEqual(result.size.width, 200)
+        XCTAssertEqual(result.size.height, 100)
     }
 
     // MARK: - Full pipeline
