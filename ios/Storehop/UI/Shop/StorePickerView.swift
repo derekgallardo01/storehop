@@ -40,11 +40,22 @@ struct StorePickerView: View {
         @Bindable var vm = viewModel
         return ZStack(alignment: .bottomTrailing) {
             List {
-                if !viewModel.criticalAcrossStores.isEmpty {
+                if let banner = viewModel.criticalBannerState {
                     Section {
-                        CriticalNeedsBanner(names: viewModel.criticalAcrossStores)
+                        CriticalNeedsBanner(state: banner)
                             .listRowBackground(Color.clear)
                             .listRowInsets(EdgeInsets())
+                    }
+                }
+                if viewModel.rows.isEmpty {
+                    Section {
+                        EmptyState(
+                            systemImage: "storefront",
+                            title: String(localized: "storepicker_empty_title"),
+                            body: String(localized: "storepicker_empty_body")
+                        )
+                        .listRowBackground(Color.clear)
+                        .listRowInsets(EdgeInsets())
                     }
                 }
                 Section {
@@ -262,13 +273,18 @@ private struct CriticalChip: View {
 }
 
 /// Collapsed by default: shows just the title + count chevron. Tap to
-/// reveal the full comma-joined list. Mirrors the in-store banner's
-/// collapse pattern that v0.6.0 added on Android. The deeper Android
-/// v0.5.6 "best-store breakdown" lives on the ViewModel side and is a
-/// follow-up; here we get visual parity for the click-to-expand
-/// affordance.
+/// Routing-aware critical-needs banner — v0.6.10 iOS parity catch-up
+/// with Android v0.5.6. Collapsed shows the total count + a "Most at
+/// <store> (<N>)" hint so the user knows where to shop first. Expanded
+/// shows the per-store breakdown, with each store's critical names
+/// comma-joined on its own line.
+///
+/// On Android the same data shape is `CriticalBannerState`; on iOS it
+/// lives in `StorePickerViewModel.criticalBannerState`. Single-store
+/// case hides the "Most at" hint (just shows the count) since there's
+/// no routing decision to make.
 private struct CriticalNeedsBanner: View {
-    let names: [String]
+    let state: CriticalBannerState
     @State private var expanded = false
 
     var body: some View {
@@ -276,20 +292,47 @@ private struct CriticalNeedsBanner: View {
             HStack(alignment: .center, spacing: 12) {
                 Image(systemName: "exclamationmark.triangle.fill")
                     .foregroundStyle(StorehopColors.onPrimaryContainer)
-                Text(String(localized: "critical_needs_banner_title"))
-                    .font(StorehopTypography.titleSmall.weight(.semibold))
-                    .foregroundStyle(StorehopColors.onPrimaryContainer)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(String(
+                        format: String(localized: "critical_needs_count %lld"),
+                        state.totalCount
+                    ))
+                        .font(StorehopTypography.titleSmall.weight(.semibold))
+                        .foregroundStyle(StorehopColors.onPrimaryContainer)
+                    if !state.singleStore {
+                        Text(String(
+                            format: String(localized: "critical_needs_most_at %@ %lld"),
+                            state.topStoreName,
+                            state.topStoreCount
+                        ))
+                            .font(StorehopTypography.bodySmall)
+                            .foregroundStyle(StorehopColors.onPrimaryContainer)
+                    }
+                }
                 Spacer()
                 Image(systemName: expanded ? "chevron.up" : "chevron.down")
                     .foregroundStyle(StorehopColors.onPrimaryContainer)
                     .accessibilityHidden(true)
             }
             if expanded {
-                Text(names.joined(separator: ", "))
-                    .font(StorehopTypography.bodyMedium)
-                    .foregroundStyle(StorehopColors.onPrimaryContainer)
-                    .padding(.top, 6)
-                    .padding(.leading, 28)
+                VStack(alignment: .leading, spacing: 8) {
+                    ForEach(Array(state.byStore.enumerated()), id: \.offset) { _, entry in
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(String(
+                                format: String(localized: "critical_needs_store_header %@ %lld"),
+                                entry.0,
+                                entry.1.count
+                            ))
+                                .font(StorehopTypography.labelMedium.weight(.semibold))
+                                .foregroundStyle(StorehopColors.onPrimaryContainer)
+                            Text(entry.1.joined(separator: ", "))
+                                .font(StorehopTypography.bodyMedium)
+                                .foregroundStyle(StorehopColors.onPrimaryContainer)
+                        }
+                    }
+                }
+                .padding(.top, 8)
+                .padding(.leading, 28)
             }
         }
         .padding(12)

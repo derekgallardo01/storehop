@@ -1,13 +1,38 @@
 import Foundation
 import Observation
 
+/// Snapshot of the critical-needs banner's state. Computed by the VM and
+/// consumed by `CriticalNeedsBanner`. `byStore` lists only stores that have
+/// at least one critical item, preserving the user's display order. Mirrors
+/// `CriticalBannerState` in Android's `StorePickerViewModel.kt`.
+struct CriticalBannerState: Equatable, Sendable {
+    let totalCount: Int
+    let topStoreName: String
+    let topStoreCount: Int
+    let singleStore: Bool
+    /// (store name, list of critical item names at that store).
+    let byStore: [(String, [String])]
+
+    static func == (lhs: CriticalBannerState, rhs: CriticalBannerState) -> Bool {
+        lhs.totalCount == rhs.totalCount
+            && lhs.topStoreName == rhs.topStoreName
+            && lhs.topStoreCount == rhs.topStoreCount
+            && lhs.singleStore == rhs.singleStore
+            && lhs.byStore.count == rhs.byStore.count
+            && zip(lhs.byStore, rhs.byStore).allSatisfy { l, r in l.0 == r.0 && l.1 == r.1 }
+    }
+}
+
 @Observable
 @MainActor
 final class StorePickerViewModel {
     var rows: [StorePickerRow] = []
-    /// Cross-store critical names — every priority+needed item across all
-    /// stores, deduped by name. Drives the banner above the picker list.
-    var criticalAcrossStores: [String] = []
+    /// Routing-aware summary of priority+needed items across stores. Nil
+    /// when nothing critical is needed (banner hidden). When present,
+    /// names the single store that covers the most criticals so the user
+    /// knows where to shop first. Ties resolve to whichever store appears
+    /// earlier in `rows` (which is already in user display order).
+    var criticalBannerState: CriticalBannerState?
 
     /// Last-error string from add/rename. Bound to dialogs as inline
     /// supportingText. Reset to nil on successful submit.
@@ -55,14 +80,39 @@ final class StorePickerViewModel {
 
     private func applyRows(_ rows: [StorePickerRow]) {
         self.rows = rows
+        self.criticalBannerState = Self.makeBannerState(from: rows)
+    }
+
+    /// Build the routing-aware banner state. Walks rows in display order so
+    /// ties on critical count resolve to whichever store comes first
+    /// (matches Android: `maxByOrNull` returns the first match on equal
+    /// counts when iterating a list).
+    private static func makeBannerState(from rows: [StorePickerRow]) -> CriticalBannerState? {
+        let withCriticals = rows.filter { !$0.criticalItemNames.isEmpty }
+        guard !withCriticals.isEmpty else { return nil }
+
+        // Distinct count across all stores (an item tagged to N stores
+        // counts once toward the total).
         var seen: Set<String> = []
-        var deduped: [String] = []
-        for row in rows {
-            for name in row.criticalItemNames where seen.insert(name).inserted {
-                deduped.append(name)
-            }
+        for row in withCriticals {
+            for name in row.criticalItemNames { seen.insert(name) }
         }
-        self.criticalAcrossStores = deduped
+        let total = seen.count
+
+        // First store with the max critical count (preserves display
+        // order on ties).
+        var top = withCriticals[0]
+        for row in withCriticals.dropFirst() where row.criticalItemNames.count > top.criticalItemNames.count {
+            top = row
+        }
+
+        return CriticalBannerState(
+            totalCount: total,
+            topStoreName: top.store.name,
+            topStoreCount: top.criticalItemNames.count,
+            singleStore: withCriticals.count == 1,
+            byStore: withCriticals.map { ($0.store.name, $0.criticalItemNames) }
+        )
     }
 
     // MARK: - Reorder

@@ -46,19 +46,49 @@ struct ShopAtStoreView: View {
                             .listRowInsets(EdgeInsets())
                     }
                 }
-                switch viewModel.sortMode {
-                case .category:
-                    ForEach(viewModel.sections) { section in
-                        Section(header: Text(sectionHeader(section)).font(StorehopTypography.titleSmall)) {
-                            ForEach(section.rows) { row in
-                                shoppingRow(row, viewModel: viewModel)
-                            }
+                // Empty state when there are no rows in the active sort mode.
+                let isEmpty = viewModel.sortMode == .alphabetic
+                    ? viewModel.alphabeticRows.isEmpty
+                    : viewModel.sections.isEmpty
+                if isEmpty {
+                    Section {
+                        let trimmed = viewModel.query.trimmingCharacters(in: .whitespacesAndNewlines)
+                        if trimmed.isEmpty {
+                            EmptyState(
+                                systemImage: "cart",
+                                title: String(localized: "shop_empty_no_query_title"),
+                                body: String(localized: "shop_empty_no_query_body")
+                            )
+                            .listRowBackground(Color.clear)
+                            .listRowInsets(EdgeInsets())
+                        } else {
+                            EmptyState(
+                                systemImage: "magnifyingglass",
+                                title: String(localized: "shop_empty_search_title"),
+                                body: String(
+                                    format: String(localized: "shop_empty_search_body %@"),
+                                    trimmed
+                                )
+                            )
+                            .listRowBackground(Color.clear)
+                            .listRowInsets(EdgeInsets())
                         }
                     }
-                case .alphabetic:
-                    Section {
-                        ForEach(viewModel.alphabeticRows) { row in
-                            shoppingRow(row, viewModel: viewModel)
+                } else {
+                    switch viewModel.sortMode {
+                    case .category:
+                        ForEach(viewModel.sections) { section in
+                            Section(header: Text(sectionHeader(section)).font(StorehopTypography.titleSmall)) {
+                                ForEach(section.rows) { row in
+                                    shoppingRow(row, viewModel: viewModel)
+                                }
+                            }
+                        }
+                    case .alphabetic:
+                        Section {
+                            ForEach(viewModel.alphabeticRows) { row in
+                                shoppingRow(row, viewModel: viewModel)
+                            }
                         }
                     }
                 }

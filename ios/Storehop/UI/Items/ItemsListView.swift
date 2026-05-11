@@ -41,11 +41,27 @@ struct ItemsListView: View {
                     : viewModel.sections.isEmpty
                 if isEmpty {
                     Section {
-                        Text(viewModel.query.isEmpty
-                             ? String(localized: "items_empty")
-                             : String(format: String(localized: "items_search_no_match %@"), viewModel.query))
-                            .font(StorehopTypography.bodyMedium)
-                            .foregroundStyle(StorehopColors.onSurfaceVariant)
+                        let trimmed = viewModel.query.trimmingCharacters(in: .whitespacesAndNewlines)
+                        if trimmed.isEmpty {
+                            EmptyState(
+                                systemImage: "tray",
+                                title: String(localized: "items_empty_no_query_title"),
+                                body: String(localized: "items_empty_no_query_body")
+                            )
+                            .listRowBackground(Color.clear)
+                            .listRowInsets(EdgeInsets())
+                        } else {
+                            EmptyState(
+                                systemImage: "magnifyingglass",
+                                title: String(localized: "items_empty_search_title"),
+                                body: String(
+                                    format: String(localized: "items_empty_search_body %@"),
+                                    trimmed
+                                )
+                            )
+                            .listRowBackground(Color.clear)
+                            .listRowInsets(EdgeInsets())
+                        }
                     }
                 } else {
                     switch viewModel.sortMode {

@@ -7,6 +7,59 @@ project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 For the high-level roadmap and earlier-than-0.5.0 history, see the
 "Roadmap" section in the [README](README.md).
 
+## [0.6.10] - 2026-05-11
+
+iOS-only parity catch-up: closes three long-standing gaps where the
+iOS port lagged behind Android. **Android: unchanged** (no version
+bump, no behaviour change — the Android code shipped these features
+in v0.5.6 and v0.6.8 already).
+
+### Added (iOS)
+
+- **StorePicker "best-store-covering-most-criticals" banner uplift**
+  (Android v0.5.6 parity). The cross-store critical-needs banner used
+  to show a flat comma-list of critical item names when expanded. Now
+  computes a routing-aware `CriticalBannerState` (total count + the
+  store covering the most criticals + per-store breakdown) and
+  surfaces it as: collapsed shows "N critical items needed / Most at
+  <store> (<count>)"; expanded shows a per-store breakdown with each
+  store's critical names underneath its own header. Single-store case
+  drops the "Most at" line (no routing decision to make).
+  `StorePickerViewModel` adds `criticalBannerState: CriticalBannerState?`
+  in place of the old `criticalAcrossStores: [String]`.
+
+- **Empty-state illustrations on Items / Shop-at-Store / Store Picker**
+  (Android v0.6.8 parity). Shared
+  [`ui/util/EmptyState.swift`](ios/Storehop/UI/Util/EmptyState.swift)
+  view: large SF Symbol + title + body (mirrors the Compose Composable
+  in `ui/util/EmptyState.kt`). Items uses `tray` (no-query) /
+  `magnifyingglass` (search miss); Shop uses `cart` / `magnifyingglass`;
+  Store Picker uses `storefront` (previously no empty state at all —
+  the SwiftUI List just rendered blank). Strings added in all four
+  locales (en, pt-PT, es, it).
+
+### Changed (iOS)
+
+- **Dark-theme contrast tweak** (Android v0.6.8 parity). The
+  `Text/OnSurfaceVariant` and `Brand/Secondary` Color Sets in
+  `Assets.xcassets` had light-mode value `#6F6A60`, giving 4.20:1
+  contrast on `Surface/SurfaceVariant` (`#EFECE6`) — fails WCAG AA
+  for normal text. Darkened to `#5E594F` (5.30:1, AA-compliant). Dark
+  variant unchanged (already 7.80:1).
+
+### iOS test parity (still pending)
+
+- StorePickerViewModelTests doesn't exist on iOS (only Android has
+  the `CriticalSummary*` test suite). The iOS implementation mirrors
+  Android line-for-line and was hand-verified against the
+  `StorePickerViewModelTest` matrix; a Mac-side test pass is the
+  follow-up.
+
+### Versions
+
+- iOS: MARKETING_VERSION 0.6.9 → 0.6.10, CURRENT_PROJECT_VERSION 23 → 24.
+- Android: unchanged (versionCode 45, versionName 0.6.9).
+
 ## [0.6.9] - 2026-05-11
 
 Mike-reported follow-up to v0.6.7: the Store Picker was reporting

@@ -13,7 +13,7 @@ specific household) is added or renamed by the user.
 
 ## Status
 
-v0.6.9. Shipping to Google Play Closed testing. Feature-complete for
+Android v0.6.9 (Play Closed testing); iOS v0.6.10 (parity catch-up; TestFlight-bound). Feature-complete for
 single-user v1: anonymous-first onboarding with optional Google
 Sign-In, two-way Firestore + Storage cloud sync (push and pull), Shop
 and Items tabs with item photos, share-list-as-text, theme + language
@@ -29,7 +29,7 @@ the Play Console listing answers and
 policy hosted at the Play listing's required URL.
 
 An iOS port lives in [`ios/`](ios/) — SwiftUI + GRDB + Firebase iOS
-SDK, mirroring the Android architecture 1:1. As of v0.6.9 it's
+SDK, mirroring the Android architecture 1:1. As of v0.6.10 it's
 caught up to feature parity (with the natural exception of the
 in-app update prompt, since the App Store has no equivalent API).
 Not yet shipped to TestFlight or the App Store.
@@ -196,6 +196,15 @@ pack remains stable across devices and across reseeds.
          3s auto-dismiss). iOS marketing version bumped from 0.5.1
          to 0.5.15. iOS Edit aisles intentionally keeps the
          platform-idiomatic `.onMove` + `EditButton` pattern.
+- v0.6.10 iOS parity catch-up (iOS-only; Android unchanged). Three
+          long-standing gaps closed: the StorePicker banner now has
+          the same "Most at <store> (<N>)" routing hint + per-store
+          breakdown Android shipped in v0.5.6; Items / Shop-at-Store
+          / Store Picker now have empty-state illustrations (SF
+          Symbol + title + body) matching Android v0.6.8; the
+          OnSurfaceVariant + Secondary palette colours were darkened
+          to fix a WCAG AA contrast failure (4.20:1 → 5.30:1) the
+          Android theme audit caught in v0.6.8.
 - v0.6.9 Fix Mike-reported Store Picker over-counting criticals
          (banner said "10 critical needed" with 5 per store; in-
          store correctly said "1"). Root cause: v0.6.7's picker

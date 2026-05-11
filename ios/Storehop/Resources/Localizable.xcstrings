@@ -4954,6 +4954,123 @@
         "it": { "stringUnit": { "state": "translated", "value": "%lld articoli critici" } }
       }
     },
+    "critical_needs_count %lld": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "%lld critical items needed" } },
+        "pt-PT": { "stringUnit": { "state": "translated", "value": "%lld artigos críticos em falta" } },
+        "es": { "stringUnit": { "state": "translated", "value": "%lld artículos críticos necesarios" } },
+        "it": { "stringUnit": { "state": "translated", "value": "%lld articoli critici necessari" } }
+      }
+    },
+    "critical_needs_most_at %@ %lld": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Most at %1$@ (%2$lld)" } },
+        "pt-PT": { "stringUnit": { "state": "translated", "value": "Mais em %1$@ (%2$lld)" } },
+        "es": { "stringUnit": { "state": "translated", "value": "La mayoría en %1$@ (%2$lld)" } },
+        "it": { "stringUnit": { "state": "translated", "value": "La maggior parte da %1$@ (%2$lld)" } }
+      }
+    },
+    "critical_needs_store_header %@ %lld": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "%1$@ (%2$lld)" } },
+        "pt-PT": { "stringUnit": { "state": "translated", "value": "%1$@ (%2$lld)" } },
+        "es": { "stringUnit": { "state": "translated", "value": "%1$@ (%2$lld)" } },
+        "it": { "stringUnit": { "state": "translated", "value": "%1$@ (%2$lld)" } }
+      }
+    },
+    "items_empty_no_query_title": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "No items yet" } },
+        "pt-PT": { "stringUnit": { "state": "translated", "value": "Ainda sem artigos" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Aún no hay artículos" } },
+        "it": { "stringUnit": { "state": "translated", "value": "Ancora nessun articolo" } }
+      }
+    },
+    "items_empty_no_query_body": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Tap + to add an item" } },
+        "pt-PT": { "stringUnit": { "state": "translated", "value": "Toque em + para adicionar um artigo" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Pulsa + para añadir un artículo" } },
+        "it": { "stringUnit": { "state": "translated", "value": "Tocca + per aggiungere un articolo" } }
+      }
+    },
+    "items_empty_search_title": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "No matches" } },
+        "pt-PT": { "stringUnit": { "state": "translated", "value": "Sem resultados" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Sin coincidencias" } },
+        "it": { "stringUnit": { "state": "translated", "value": "Nessuna corrispondenza" } }
+      }
+    },
+    "items_empty_search_body %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Nothing matches \"%@\"" } },
+        "pt-PT": { "stringUnit": { "state": "translated", "value": "Nada corresponde a \"%@\"" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Nada coincide con \"%@\"" } },
+        "it": { "stringUnit": { "state": "translated", "value": "Nulla corrisponde a \"%@\"" } }
+      }
+    },
+    "shop_empty_no_query_title": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Nothing tagged here yet" } },
+        "pt-PT": { "stringUnit": { "state": "translated", "value": "Ainda sem artigos aqui" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Aún no hay artículos aquí" } },
+        "it": { "stringUnit": { "state": "translated", "value": "Ancora nessun articolo qui" } }
+      }
+    },
+    "shop_empty_no_query_body": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Add items in the Items tab and tag them to this store" } },
+        "pt-PT": { "stringUnit": { "state": "translated", "value": "Adicione artigos no separador Artigos e associe-os a esta loja" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Añade artículos en la pestaña Artículos y asígnalos a esta tienda" } },
+        "it": { "stringUnit": { "state": "translated", "value": "Aggiungi articoli nella scheda Articoli e associali a questo negozio" } }
+      }
+    },
+    "shop_empty_search_title": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "No matches" } },
+        "pt-PT": { "stringUnit": { "state": "translated", "value": "Sem resultados" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Sin coincidencias" } },
+        "it": { "stringUnit": { "state": "translated", "value": "Nessuna corrispondenza" } }
+      }
+    },
+    "shop_empty_search_body %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Nothing here matches \"%@\"" } },
+        "pt-PT": { "stringUnit": { "state": "translated", "value": "Nada aqui corresponde a \"%@\"" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Nada aquí coincide con \"%@\"" } },
+        "it": { "stringUnit": { "state": "translated", "value": "Nulla qui corrisponde a \"%@\"" } }
+      }
+    },
+    "storepicker_empty_title": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Add your first store" } },
+        "pt-PT": { "stringUnit": { "state": "translated", "value": "Adicione a sua primeira loja" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Añade tu primera tienda" } },
+        "it": { "stringUnit": { "state": "translated", "value": "Aggiungi il tuo primo negozio" } }
+      }
+    },
+    "storepicker_empty_body": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Stores you shop at most often live here. Tap + to add one." } },
+        "pt-PT": { "stringUnit": { "state": "translated", "value": "As lojas onde compra mais frequentemente aparecem aqui. Toque em + para adicionar uma." } },
+        "es": { "stringUnit": { "state": "translated", "value": "Las tiendas en las que compras con más frecuencia aparecen aquí. Pulsa + para añadir una." } },
+        "it": { "stringUnit": { "state": "translated", "value": "I negozi in cui fai la spesa più spesso compaiono qui. Tocca + per aggiungerne uno." } }
+      }
+    },
     "critical_banner_expand_cd": {
       "extractionState": "manual",
       "localizations": {
