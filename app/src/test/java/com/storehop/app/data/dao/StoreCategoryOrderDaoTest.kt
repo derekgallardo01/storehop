@@ -56,7 +56,7 @@ class StoreCategoryOrderDaoTest {
             sco("cat_a", 0), sco("cat_b", 1),
         ), now = 100L)
 
-        dao.appendIfMissing("store_lidl", "cat_c", TEST_USER_ID, now = 200L)
+        dao.appendIfMissing("store_lidl", "cat_c", TEST_USER_ID, TEST_USER_ID, now = 200L)
 
         val rows = dao.findForStore("store_lidl").sortedBy { it.displayOrder }
         assertThat(rows.map { it.categoryId to it.displayOrder })
@@ -69,7 +69,7 @@ class StoreCategoryOrderDaoTest {
     }
 
     @Test fun `appendIfMissing on the empty store starts at displayOrder = 0`() = runTest {
-        dao.appendIfMissing("store_lidl", "cat_a", TEST_USER_ID, now = 100L)
+        dao.appendIfMissing("store_lidl", "cat_a", TEST_USER_ID, TEST_USER_ID, now = 100L)
 
         val row = dao.findForStore("store_lidl").single()
         assertThat(row.displayOrder).isEqualTo(0)
@@ -81,7 +81,7 @@ class StoreCategoryOrderDaoTest {
         val seededRow = dao.findForStore("store_lidl").single().copy(isSeeded = true)
         dao.upsert(seededRow)
 
-        dao.appendIfMissing("store_lidl", "cat_a", TEST_USER_ID, now = 200L)
+        dao.appendIfMissing("store_lidl", "cat_a", TEST_USER_ID, TEST_USER_ID, now = 200L)
 
         val row = dao.findForStore("store_lidl").single()
         assertThat(row.displayOrder).isEqualTo(7)
@@ -96,7 +96,7 @@ class StoreCategoryOrderDaoTest {
         ), now = 100L)
         dao.softDelete("store_lidl", "cat_a", now = 150L)
 
-        dao.appendIfMissing("store_lidl", "cat_a", TEST_USER_ID, now = 200L)
+        dao.appendIfMissing("store_lidl", "cat_a", TEST_USER_ID, TEST_USER_ID, now = 200L)
 
         val live = dao.findForStore("store_lidl").sortedBy { it.displayOrder }
         assertThat(live.map { it.categoryId to it.displayOrder })

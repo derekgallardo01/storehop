@@ -91,7 +91,7 @@ class ItemRepositoryImpl @Inject constructor(
         // Junction inherits both ids from the parent we just wrote — ownership
         // invariant. `userId` is creator/audit; `householdId` is access scope.
         xrefDao.setStoresForItem(id, storeIds, householdId, userId, now)
-        ensureSCOForCategoryAtStores(categoryId, storeIds, userId, now)
+        ensureSCOForCategoryAtStores(categoryId, storeIds, householdId, userId, now)
         id
     }
 
@@ -131,7 +131,7 @@ class ItemRepositoryImpl @Inject constructor(
         // session would let a mid-call sign-in/out swap break the cross-table
         // invariant.
         xrefDao.setStoresForItem(id, storeIds, current.householdId, current.userId, now)
-        ensureSCOForCategoryAtStores(categoryId, storeIds, current.userId, now)
+        ensureSCOForCategoryAtStores(categoryId, storeIds, current.householdId, current.userId, now)
     }
 
     override suspend fun softDelete(id: String) = db.withTransaction {
@@ -238,7 +238,7 @@ class ItemRepositoryImpl @Inject constructor(
         }
         // Mirror addItem's behavior: ensure the SCO row exists so the category
         // can be aisle-ordered at this store.
-        ensureSCOForCategoryAtStores(current.categoryId, setOf(storeId), ownerUserId, now)
+        ensureSCOForCategoryAtStores(current.categoryId, setOf(storeId), current.householdId, ownerUserId, now)
     }
 
     override suspend fun addItemFromQuickAdd(name: String, storeId: String): String {
@@ -266,12 +266,13 @@ class ItemRepositoryImpl @Inject constructor(
     private suspend fun ensureSCOForCategoryAtStores(
         categoryId: String?,
         storeIds: Set<String>,
+        householdId: String,
         userId: String,
         now: Long,
     ) {
         if (categoryId == null) return
         for (storeId in storeIds) {
-            scoDao.appendIfMissing(storeId, categoryId, userId, now)
+            scoDao.appendIfMissing(storeId, categoryId, householdId, userId, now)
         }
     }
 
