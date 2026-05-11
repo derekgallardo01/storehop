@@ -29,6 +29,18 @@ interface HouseholdSessionProvider {
 }
 
 /**
+ * v0.7.0 Phase 3: write-side hook used by `HouseholdRepository` after an
+ * invite-accept or leave-household action. Calling `switchToHousehold`
+ * re-runs the same sync gate the auth listener uses (peek + pull or
+ * claim) against the new household and then publishes it via
+ * [HouseholdSessionProvider.householdId]. Implemented by
+ * [com.storehop.app.auth.FirebaseAuthSessionProvider] in production.
+ */
+interface HouseholdSwitcher {
+    suspend fun switchToHousehold(newHouseholdId: String)
+}
+
+/**
  * Test-only stand-in. Mirrors [LocalOnlyUserSessionProvider] for the
  * household abstraction so unit tests can construct repositories that
  * filter by household without standing up auth.

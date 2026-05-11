@@ -2,6 +2,8 @@ package com.storehop.app.di
 
 import com.storehop.app.data.repository.CategoryRepository
 import com.storehop.app.data.repository.CategoryRepositoryImpl
+import com.storehop.app.data.repository.HouseholdRepository
+import com.storehop.app.data.repository.HouseholdRepositoryImpl
 import com.storehop.app.data.repository.ImportExportRepository
 import com.storehop.app.data.repository.ImportExportRepositoryImpl
 import com.storehop.app.data.repository.ItemRepository
@@ -48,4 +50,9 @@ abstract class RepositoryModule {
     abstract fun bindImportExportRepository(
         impl: ImportExportRepositoryImpl,
     ): ImportExportRepository
+
+    @Binds @Singleton
+    abstract fun bindHouseholdRepository(
+        impl: HouseholdRepositoryImpl,
+    ): HouseholdRepository
 }

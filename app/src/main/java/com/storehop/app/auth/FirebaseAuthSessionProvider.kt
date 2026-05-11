@@ -6,6 +6,7 @@ import com.storehop.app.data.dao.HouseholdMemberDao
 import com.storehop.app.data.dao.LocalOnlyMigrationDao
 import com.storehop.app.data.entity.HouseholdMember
 import com.storehop.app.data.util.HouseholdSessionProvider
+import com.storehop.app.data.util.HouseholdSwitcher
 import com.storehop.app.data.util.UserSessionProvider
 import com.storehop.app.sync.PullCoordinator
 import com.storehop.app.sync.PullState
@@ -55,7 +56,7 @@ class FirebaseAuthSessionProvider @Inject constructor(
     private val pullStateRepo: PullStateRepository,
     private val clock: Clock,
     private val applicationScope: CoroutineScope,
-) : UserSessionProvider, HouseholdSessionProvider {
+) : UserSessionProvider, HouseholdSessionProvider, HouseholdSwitcher {
 
     /**
      * Raw pipe from the auth listener. Internal-only -- observers see the gated
@@ -183,6 +184,30 @@ class FirebaseAuthSessionProvider @Inject constructor(
             ),
         )
         return uid
+    }
+
+    /**
+     * v0.7.0 Phase 3: re-point the active household after an invite-accept
+     * (Amanda joining Mike's household) or a leave-household action.
+     * Re-runs the same sync gate the auth listener uses so the cloud
+     * pull executes against the new path and pullState transitions
+     * correctly. Updates [householdId] only after sync completes so
+     * observing repos don't briefly see the new id with stale local data.
+     *
+     * No-op if no user is signed in.
+     */
+    override suspend fun switchToHousehold(newHouseholdId: String) {
+        val uid = _userId.value ?: run {
+            Log.w(TAG, "switchToHousehold($newHouseholdId) ignored: no signed-in user")
+            return
+        }
+        if (_householdId.value == newHouseholdId) {
+            Log.i(TAG, "switchToHousehold($newHouseholdId) is a no-op (already active)")
+            return
+        }
+        Log.i(TAG, "Switching household for uid=$uid: ${_householdId.value} -> $newHouseholdId")
+        runSyncFor(uid = uid, householdId = newHouseholdId)
+        _householdId.value = newHouseholdId
     }
 
     /**

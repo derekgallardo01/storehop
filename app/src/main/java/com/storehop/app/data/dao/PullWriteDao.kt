@@ -48,4 +48,27 @@ class PullWriteDao @Inject constructor(
         db.storeCategoryOrderDao().upsertFromCloud(scoOrders)
         db.purchaseRecordDao().upsertFromCloud(purchaseRecords)
     }
+
+    /**
+     * v0.7.0 Phase 3: hard-delete every household-scoped row for
+     * [householdId]. Used when the user accepts another household's invite
+     * (their personal household's data is dropped and the new shared
+     * household is then pulled in) or when they leave a shared household
+     * (the shared rows are dropped and a fresh personal household is
+     * created). Single transaction so the wipe is all-or-nothing.
+     *
+     * Children-before-parents because of FK constraints: xrefs and SCOs
+     * reference stores/categories/items, so they must clear first.
+     * `household_members` rows are intentionally NOT touched here — the
+     * caller manages those.
+     */
+    suspend fun wipeAllForHousehold(householdId: String) = db.withTransaction {
+        val sqlDb = db.openHelper.writableDatabase
+        sqlDb.execSQL("DELETE FROM item_store_xref WHERE householdId = ?", arrayOf(householdId))
+        sqlDb.execSQL("DELETE FROM store_category_order WHERE householdId = ?", arrayOf(householdId))
+        sqlDb.execSQL("DELETE FROM purchase_records WHERE householdId = ?", arrayOf(householdId))
+        sqlDb.execSQL("DELETE FROM items WHERE householdId = ?", arrayOf(householdId))
+        sqlDb.execSQL("DELETE FROM categories WHERE householdId = ?", arrayOf(householdId))
+        sqlDb.execSQL("DELETE FROM stores WHERE householdId = ?", arrayOf(householdId))
+    }
 }
