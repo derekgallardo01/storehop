@@ -49,7 +49,8 @@ final class RecordCodableTests: XCTestCase {
             createdAt: 1_000,
             updatedAt: 1_000,
             deletedAt: nil,
-            pendingSync: true
+            pendingSync: true,
+            displayOrder: 0
         )
         try db.queue.write { conn in
             var copy = original
@@ -193,7 +194,8 @@ final class RecordCodableTests: XCTestCase {
                 createdAt: 0,
                 updatedAt: 0,
                 deletedAt: nil,
-                pendingSync: true
+                pendingSync: true,
+                displayOrder: 0
             )
             try category.insert(conn)
         }
