@@ -125,19 +125,27 @@ class FirebaseAuthSessionProvider @Inject constructor(
      * paused — Settings shows a Retry banner.
      */
     private suspend fun runSyncFor(uid: String) {
+        // v0.7.0: until Phase 2 wires the real first-launch bootstrap,
+        // single-member households mirror uid → householdId. The peek + pull
+        // hit `/users/{householdId}/...` on the wire, which equals
+        // `/users/{uid}/...` here, so existing v0.6.x cloud data stays at
+        // the same path. Phase 2 will publish the resolved household id via
+        // HouseholdSessionProvider so this provider can read it from there
+        // rather than aliasing it from uid.
+        val householdId = uid
         pullStateRepo.set(uid, PullState.IN_PROGRESS)
         try {
-            val cloudHasData = pullCoordinator.peek(uid)
+            val cloudHasData = pullCoordinator.peek(householdId)
             if (cloudHasData) {
-                Log.i(TAG, "Cloud has data for uid=$uid; pulling")
-                val result = pullCoordinator.pullForUid(uid)
+                Log.i(TAG, "Cloud has data for hid=$householdId; pulling")
+                val result = pullCoordinator.pullForHousehold(householdId)
                 val finalState = when (result) {
                     is PullCoordinator.PullResult.Success -> PullState.SUCCEEDED
                     is PullCoordinator.PullResult.Failure -> PullState.FAILED
                 }
                 pullStateRepo.set(uid, finalState)
             } else {
-                Log.i(TAG, "Cloud is empty for uid=$uid; running orphan-claim path")
+                Log.i(TAG, "Cloud is empty for hid=$householdId; running orphan-claim path")
                 runClaimsFor(uid)
                 pullStateRepo.set(uid, PullState.SUCCEEDED)
             }

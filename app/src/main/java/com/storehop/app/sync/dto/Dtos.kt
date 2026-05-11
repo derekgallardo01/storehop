@@ -10,8 +10,11 @@ import androidx.annotation.Keep
  *   reflective deserialization needs.
  * - **No-arg constructor with `var` fields and JVM defaults**, NOT data classes
  *   — Firestore's `toObject()` / `fromObject()` requires this shape.
- * - `userId` field for defense-in-depth: path-based scoping (`/users/{uid}/...`)
- *   is the source of truth, but having it in the doc body makes audits trivial.
+ * - `userId` field for creator/audit traceability AND `householdId` for the
+ *   v0.7.0 multi-user access scope. For single-member households the two
+ *   columns hold the same value, so the wire format stays backward-compatible
+ *   with v0.6.x DTOs that lacked `householdId` (a missing field deserialises
+ *   to "", which the schema-v8 migration then backfills to `userId`).
  * - All timestamps as `Long` epoch millis (matches the entity columns; avoids
  *   Firestore's `Timestamp` type's nanosecond precision and the `@ServerTimestamp`
  *   semantics that don't fit our last-write-wins model).
@@ -37,6 +40,7 @@ class ItemDto(
     var imageUrl: String? = null,
     var isStaple: Boolean = false,
     var isPriority: Boolean = false,
+    var householdId: String = "",
 )
 
 @Keep
@@ -55,6 +59,7 @@ class CategoryDto(
     // older docs deserialising cleanly (their backfill happened during the
     // schema v6 -> v7 migration on each device).
     var displayOrder: Int = 0,
+    var householdId: String = "",
 )
 
 @Keep
@@ -69,6 +74,7 @@ class StoreDto(
     var updatedAt: Long = 0L,
     var deletedAt: Long? = null,
     var displayOrder: Int = 0,
+    var householdId: String = "",
 )
 
 @Keep
@@ -81,6 +87,7 @@ class ItemStoreXrefDto(
     var deletedAt: Long? = null,
     var isNeeded: Boolean = true,
     var lastPurchasedAt: Long? = null,
+    var householdId: String = "",
 )
 
 @Keep
@@ -93,6 +100,7 @@ class StoreCategoryOrderDto(
     var createdAt: Long = 0L,
     var updatedAt: Long = 0L,
     var deletedAt: Long? = null,
+    var householdId: String = "",
 )
 
 @Keep
@@ -105,4 +113,5 @@ class PurchaseRecordDto(
     var createdAt: Long = 0L,
     var updatedAt: Long = 0L,
     var deletedAt: Long? = null,
+    var householdId: String = "",
 )

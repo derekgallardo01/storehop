@@ -12,6 +12,11 @@ import com.storehop.app.data.entity.StoreCategoryOrder
  * (v0.4). DTOs omit `pendingSync` (cloud doesn't care); inverse mappers
  * always set it to `false` because pulled rows are by definition already in
  * the cloud, so they don't need to be re-pushed.
+ *
+ * v0.7.0: every mapper carries `householdId` in both directions. Older
+ * Firestore documents (written by v0.6.x clients) deserialise with
+ * `householdId = ""`; the v7→v8 Room migration backfills these to
+ * `householdId = userId` on the next pull cycle.
  */
 
 fun Item.toDto() = ItemDto(
@@ -30,6 +35,7 @@ fun Item.toDto() = ItemDto(
     imageUrl = imageUrl,
     isStaple = isStaple,
     isPriority = isPriority,
+    householdId = householdId,
 )
 
 fun Category.toDto() = CategoryDto(
@@ -44,6 +50,7 @@ fun Category.toDto() = CategoryDto(
     updatedAt = updatedAt,
     deletedAt = deletedAt,
     displayOrder = displayOrder,
+    householdId = householdId,
 )
 
 fun Store.toDto() = StoreDto(
@@ -57,6 +64,7 @@ fun Store.toDto() = StoreDto(
     updatedAt = updatedAt,
     deletedAt = deletedAt,
     displayOrder = displayOrder,
+    householdId = householdId,
 )
 
 fun ItemStoreXref.toDto() = ItemStoreXrefDto(
@@ -68,6 +76,7 @@ fun ItemStoreXref.toDto() = ItemStoreXrefDto(
     deletedAt = deletedAt,
     isNeeded = isNeeded,
     lastPurchasedAt = lastPurchasedAt,
+    householdId = householdId,
 )
 
 fun StoreCategoryOrder.toDto() = StoreCategoryOrderDto(
@@ -79,6 +88,7 @@ fun StoreCategoryOrder.toDto() = StoreCategoryOrderDto(
     createdAt = createdAt,
     updatedAt = updatedAt,
     deletedAt = deletedAt,
+    householdId = householdId,
 )
 
 fun PurchaseRecord.toDto() = PurchaseRecordDto(
@@ -90,6 +100,7 @@ fun PurchaseRecord.toDto() = PurchaseRecordDto(
     createdAt = createdAt,
     updatedAt = updatedAt,
     deletedAt = deletedAt,
+    householdId = householdId,
 )
 
 // ---- DTO → Entity (pull side, v0.4) -------------------------------------
@@ -99,6 +110,11 @@ fun PurchaseRecord.toDto() = PurchaseRecordDto(
 // would cause every pull to immediately re-push the same data, potentially
 // overwriting newer cloud edits made by another device between pull start
 // and push.
+//
+// v0.7.0: `householdId` falls back to `userId` when the cloud document was
+// written by a v0.6.x client and so doesn't carry the field. The schema-v8
+// migration applies the same fallback for pre-migration local rows; the
+// two paths converge on `householdId == userId` for single-member households.
 
 fun ItemDto.toEntity() = Item(
     id = id,
@@ -117,6 +133,7 @@ fun ItemDto.toEntity() = Item(
     imageUrl = imageUrl,
     isStaple = isStaple,
     isPriority = isPriority,
+    householdId = householdId.ifEmpty { userId },
 )
 
 fun CategoryDto.toEntity() = Category(
@@ -132,6 +149,7 @@ fun CategoryDto.toEntity() = Category(
     deletedAt = deletedAt,
     pendingSync = false,
     displayOrder = displayOrder,
+    householdId = householdId.ifEmpty { userId },
 )
 
 fun StoreDto.toEntity() = Store(
@@ -146,6 +164,7 @@ fun StoreDto.toEntity() = Store(
     deletedAt = deletedAt,
     pendingSync = false,
     displayOrder = displayOrder,
+    householdId = householdId.ifEmpty { userId },
 )
 
 fun ItemStoreXrefDto.toEntity() = ItemStoreXref(
@@ -158,6 +177,7 @@ fun ItemStoreXrefDto.toEntity() = ItemStoreXref(
     pendingSync = false,
     isNeeded = isNeeded,
     lastPurchasedAt = lastPurchasedAt,
+    householdId = householdId.ifEmpty { userId },
 )
 
 fun StoreCategoryOrderDto.toEntity() = StoreCategoryOrder(
@@ -170,6 +190,7 @@ fun StoreCategoryOrderDto.toEntity() = StoreCategoryOrder(
     updatedAt = updatedAt,
     deletedAt = deletedAt,
     pendingSync = false,
+    householdId = householdId.ifEmpty { userId },
 )
 
 fun PurchaseRecordDto.toEntity() = PurchaseRecord(
@@ -182,11 +203,21 @@ fun PurchaseRecordDto.toEntity() = PurchaseRecord(
     updatedAt = updatedAt,
     deletedAt = deletedAt,
     pendingSync = false,
+    householdId = householdId.ifEmpty { userId },
 )
 
 /**
  * The Firestore collection name for each entity. Documents live under
- * `/users/{uid}/<collection>/<docId>`.
+ * `/users/{householdId}/<collection>/<docId>`.
+ *
+ * Note: the `users` segment name is preserved from the v0.4 path. v0.7.0
+ * re-interprets `{users/x}` semantically as `{households/x}` — for single-
+ * member households `householdId == userId`, so existing cloud data
+ * persists at the same wire path. Renaming the collection to `households`
+ * would orphan every existing user's data, which is unacceptable for
+ * Play Closed Testing roll-out; we keep the legacy name and rely on the
+ * new `householdId` field inside each document for cross-household
+ * isolation in the upcoming Firestore security rules.
  */
 object SyncCollections {
     const val ITEMS = "items"

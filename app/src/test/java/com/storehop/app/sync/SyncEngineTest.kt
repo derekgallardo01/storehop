@@ -17,6 +17,8 @@ import com.storehop.app.data.entity.ItemStoreXref
 import com.storehop.app.data.entity.PurchaseRecord
 import com.storehop.app.data.entity.Store
 import com.storehop.app.data.entity.StoreCategoryOrder
+import com.storehop.app.data.util.FakeHouseholdSessionProvider
+import com.storehop.app.data.util.HouseholdSessionProvider
 import com.storehop.app.data.util.UserSessionProvider
 import com.storehop.app.testing.FakeSessionProvider
 import com.storehop.app.testing.MainDispatcherRule
@@ -238,8 +240,11 @@ class SyncEngineTest {
 
     @Test fun `uid switch cancels the previous user's pending observers`() = runTest {
         stubFirestorePath()
-        // Two distinct flows for the two uids; the first must be cancelled
-        // once the session uid flips so we don't keep pushing for a stale user.
+        // Two distinct flows for the two households; the first must be
+        // cancelled once the session flips so we don't keep pushing for a
+        // stale user. v0.7.0: in single-member households a uid switch
+        // implies a household switch too — sign-out + sign-in-with-other-
+        // account propagates both ids together.
         val firstFlow = MutableStateFlow<List<Item>>(emptyList())
         val secondFlow = MutableStateFlow<List<Item>>(emptyList())
         every { itemDao.observePendingPush("first-uid") } returns firstFlow
@@ -251,18 +256,20 @@ class SyncEngineTest {
         every { purchaseDao.observePendingPush(any()) } returns flowOf(emptyList())
 
         val session = FakeSessionProvider(initial = "first-uid")
+        val householdSession = FakeHouseholdSessionProvider(initial = "first-uid")
         val scope = CoroutineScope(SupervisorJob() + mainDispatcher.dispatcher)
-        val engine = newEngine(session, scope)
+        val engine = newEngine(session, scope, householdSession = householdSession)
         engine.start()
         advanceUntilIdle()
 
         session.setUserId("second-uid")
+        householdSession.setHouseholdId("second-uid")
         advanceUntilIdle()
 
-        // After the flip we should see the second uid's observer wired up.
-        // The first uid's flow gets cancelled (collectLatest semantics on the
-        // outer session flow), so emitting onto firstFlow must NOT trigger a
-        // push.
+        // After the flip we should see the second household's observer wired
+        // up. The first household's flow gets cancelled (collectLatest
+        // semantics on the outer session flow), so emitting onto firstFlow
+        // must NOT trigger a push.
         firstFlow.value = listOf(
             Item(
                 id = "ghost", name = "Ghost", categoryId = null, notes = null,
@@ -290,9 +297,16 @@ class SyncEngineTest {
         session: UserSessionProvider,
         scope: CoroutineScope,
         pullStateRepo: PullStateRepository = stubSucceededPullState(),
+        householdSession: HouseholdSessionProvider =
+            // Default: mirror session.userId so single-member household behaviour
+            // is the baseline. Test cases that exercise household-switch
+            // semantics will be added when Phase 3's invite flow lands; for
+            // now every uid resolves to a household with the same id.
+            FakeHouseholdSessionProvider(initial = session.userId.value),
     ) = SyncEngine(
         firestore = firestore,
         session = session,
+        householdSession = householdSession,
         pullStateRepo = pullStateRepo,
         applicationScope = scope,
         itemDao = itemDao,

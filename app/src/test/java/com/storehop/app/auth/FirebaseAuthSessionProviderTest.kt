@@ -120,7 +120,7 @@ class FirebaseAuthSessionProviderTest {
         advanceUntilIdle()
 
         coVerify(exactly = 0) { pullCoordinator.peek(any()) }
-        coVerify(exactly = 0) { pullCoordinator.pullForUid(any()) }
+        coVerify(exactly = 0) { pullCoordinator.pullForHousehold(any()) }
         scope.cancel()
     }
 
@@ -130,7 +130,7 @@ class FirebaseAuthSessionProviderTest {
         val listenerSlot = slot<FirebaseAuth.AuthStateListener>()
         every { auth.addAuthStateListener(capture(listenerSlot)) } returns Unit
         coEvery { pullCoordinator.peek("google-uid") } returns true
-        coEvery { pullCoordinator.pullForUid("google-uid") } returns
+        coEvery { pullCoordinator.pullForHousehold("google-uid") } returns
             PullCoordinator.PullResult.Success(1, 1, 1, 1, 1, 1)
 
         val scope = CoroutineScope(SupervisorJob() + mainDispatcher.dispatcher)
@@ -143,7 +143,7 @@ class FirebaseAuthSessionProviderTest {
         advanceUntilIdle()
 
         // Pull ran; orphan-claim did NOT (cloud is authoritative).
-        coVerify(exactly = 1) { pullCoordinator.pullForUid("google-uid") }
+        coVerify(exactly = 1) { pullCoordinator.pullForHousehold("google-uid") }
         coVerify(exactly = 0) { migrationDao.claimAllOrphanRowsAs(any()) }
         coVerify(exactly = 0) { migrationDao.claimAllLocalOnlyRowsAs(any()) }
         // pullState transitions: IN_PROGRESS then SUCCEEDED.
@@ -174,7 +174,7 @@ class FirebaseAuthSessionProviderTest {
 
         // Orphan-claim ran; pull did NOT (cloud was empty for this uid).
         coVerify(exactly = 1) { migrationDao.claimAllOrphanRowsAs("google-uid") }
-        coVerify(exactly = 0) { pullCoordinator.pullForUid(any()) }
+        coVerify(exactly = 0) { pullCoordinator.pullForHousehold(any()) }
         coVerifyOrder {
             pullStateRepo.set("google-uid", PullState.IN_PROGRESS)
             pullStateRepo.set("google-uid", PullState.SUCCEEDED)
@@ -188,7 +188,7 @@ class FirebaseAuthSessionProviderTest {
         val listenerSlot = slot<FirebaseAuth.AuthStateListener>()
         every { auth.addAuthStateListener(capture(listenerSlot)) } returns Unit
         coEvery { pullCoordinator.peek("google-uid") } returns true
-        coEvery { pullCoordinator.pullForUid("google-uid") } returns
+        coEvery { pullCoordinator.pullForHousehold("google-uid") } returns
             PullCoordinator.PullResult.Failure(RuntimeException("network"))
 
         val scope = CoroutineScope(SupervisorJob() + mainDispatcher.dispatcher)
@@ -236,7 +236,7 @@ class FirebaseAuthSessionProviderTest {
         advanceUntilIdle()
 
         // Neither pull NOR orphan-claim ran -- we don't know which is right.
-        coVerify(exactly = 0) { pullCoordinator.pullForUid(any()) }
+        coVerify(exactly = 0) { pullCoordinator.pullForHousehold(any()) }
         coVerify(exactly = 0) { migrationDao.claimAllOrphanRowsAs(any()) }
         coVerifyOrder {
             pullStateRepo.set("google-uid", PullState.IN_PROGRESS)
@@ -270,7 +270,7 @@ class FirebaseAuthSessionProviderTest {
 
         // Sign-out is a "no sync needed" path; no pull, no claim, no state writes.
         coVerify(exactly = 0) { pullCoordinator.peek(any()) }
-        coVerify(exactly = 0) { pullCoordinator.pullForUid(any()) }
+        coVerify(exactly = 0) { pullCoordinator.pullForHousehold(any()) }
         coVerify(exactly = 0) { migrationDao.claimAllOrphanRowsAs(any()) }
         coVerify(exactly = 0) { migrationDao.claimAllLocalOnlyRowsAs(any()) }
         scope.cancel()

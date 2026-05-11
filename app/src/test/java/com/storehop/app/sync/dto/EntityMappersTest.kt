@@ -167,6 +167,7 @@ class EntityMappersTest {
             pendingSync = true,
             brand = "Mimosa", imageUrl = "https://img/x.jpg",
             isStaple = true, isPriority = true,
+            householdId = "u",
         )
         val roundTripped = original.toDto().toEntity()
         // pendingSync flips; everything else stays.
@@ -179,6 +180,7 @@ class EntityMappersTest {
             isArchived = false, isSeeded = true, userId = "u",
             createdAt = 1L, updatedAt = 2L, deletedAt = null,
             pendingSync = true,
+            householdId = "u",
         )
         assertThat(original.toDto().toEntity()).isEqualTo(original.copy(pendingSync = false))
     }
@@ -189,6 +191,7 @@ class EntityMappersTest {
             isArchived = false, isSeeded = true, userId = "u",
             createdAt = 1L, updatedAt = 2L, deletedAt = null,
             pendingSync = true, displayOrder = 7,
+            householdId = "u",
         )
         assertThat(original.toDto().toEntity()).isEqualTo(original.copy(pendingSync = false))
     }
@@ -199,6 +202,7 @@ class EntityMappersTest {
             createdAt = 1L, updatedAt = 2L, deletedAt = null,
             pendingSync = true,
             isNeeded = false, lastPurchasedAt = 500L,
+            householdId = "u",
         )
         assertThat(original.toDto().toEntity()).isEqualTo(original.copy(pendingSync = false))
     }
@@ -209,6 +213,7 @@ class EntityMappersTest {
             isSeeded = false, userId = "u",
             createdAt = 1L, updatedAt = 2L, deletedAt = null,
             pendingSync = true,
+            householdId = "u",
         )
         assertThat(original.toDto().toEntity()).isEqualTo(original.copy(pendingSync = false))
     }
@@ -218,6 +223,7 @@ class EntityMappersTest {
             id = "p1", itemId = "i1", storeId = "s1", purchasedAt = 999L,
             userId = "u", createdAt = 1L, updatedAt = 2L, deletedAt = null,
             pendingSync = true,
+            householdId = "u",
         )
         assertThat(original.toDto().toEntity()).isEqualTo(original.copy(pendingSync = false))
     }

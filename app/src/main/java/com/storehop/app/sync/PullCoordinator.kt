@@ -23,16 +23,22 @@ import javax.inject.Singleton
  * Pull side of the sync engine (v0.4).
  *
  * Two responsibilities:
- *  1. [peek] — cheap "does this uid have any cloud data?" check. One
- *     `.limit(1).get()` against `users/{uid}/stores`. Drives the branch in
- *     [com.storehop.app.auth.FirebaseAuthSessionProvider]: cloud has data ->
- *     pull path; cloud empty -> existing orphan-claim path.
- *  2. [pullForUid] — fetch all six subcollections for a uid in parallel, map
- *     to entities, write in a single all-or-nothing Room transaction.
+ *  1. [peek] — cheap "does this household have any cloud data?" check. One
+ *     `.limit(1).get()` against `users/{householdId}/stores`. Drives the
+ *     branch in [com.storehop.app.auth.FirebaseAuthSessionProvider]: cloud
+ *     has data -> pull path; cloud empty -> existing orphan-claim path.
+ *  2. [pullForHousehold] — fetch all six subcollections for a household in
+ *     parallel, map to entities, write in a single all-or-nothing Room
+ *     transaction.
  *
- * Mutex guards [pullForUid] per-uid so a double sign-in tap can't race
- * itself. The mutex is process-wide; in practice only one uid is ever
- * being pulled at a time, so the simpler single-Mutex is fine.
+ * v0.7.0: the wire path stays `/users/{X}/...` — see [SyncCollections] —
+ * with X now interpreted as `householdId`. Single-member households have
+ * `householdId == userId` so existing cloud data persists at the same path.
+ *
+ * Mutex guards [pullForHousehold] per-household so a double sign-in tap
+ * can't race itself. The mutex is process-wide; in practice only one
+ * household is ever being pulled at a time, so the simpler single-Mutex
+ * is fine.
  */
 @Singleton
 class PullCoordinator @Inject constructor(
@@ -55,17 +61,18 @@ class PullCoordinator @Inject constructor(
     }
 
     /**
-     * Returns `true` if `users/{uid}/stores` contains at least one document.
-     * Throws on network/permission errors (caller decides how to handle).
+     * Returns `true` if `users/{householdId}/stores` contains at least one
+     * document. Throws on network/permission errors (caller decides how to
+     * handle).
      *
-     * Uses `stores` rather than `items` because every account has a stores
+     * Uses `stores` rather than `items` because every household has a stores
      * collection (seeded set ensures it), but only ever exists in cloud once
      * the device has pushed at least once. So presence of stores is the
-     * cleanest "is this a returning user" signal.
+     * cleanest "is this a returning household" signal.
      */
-    suspend fun peek(uid: String): Boolean {
+    suspend fun peek(householdId: String): Boolean {
         val snap = firestore.collection("users")
-            .document(uid)
+            .document(householdId)
             .collection(SyncCollections.STORES)
             .limit(1)
             .get()
@@ -74,46 +81,46 @@ class PullCoordinator @Inject constructor(
     }
 
     /**
-     * Pull every cloud row for [uid] and write to local Room in a single
-     * transaction. Returns [PullResult.Success] with per-entity counts on
-     * success, [PullResult.Failure] on any error (network, deserialization,
+     * Pull every cloud row for [householdId] and write to local Room in a
+     * single transaction. Returns [PullResult.Success] with per-entity counts
+     * on success, [PullResult.Failure] on any error (network, deserialization,
      * DB).
      *
      * Cloud always wins on pull: pulled rows write `pendingSync = false` so
-     * they don't immediately re-push. A user's prior local edits to the same
-     * row id are overwritten -- documented v0.4 limitation; merge-anon-to-
-     * cloud is a v0.5 question.
+     * they don't immediately re-push. Any prior local edits to the same row
+     * id are overwritten -- documented v0.4 limitation; merge-anon-to-cloud
+     * is a v0.5 question.
      */
-    suspend fun pullForUid(uid: String): PullResult = mutex.withLock {
+    suspend fun pullForHousehold(householdId: String): PullResult = mutex.withLock {
         try {
-            val userDoc = firestore.collection("users").document(uid)
+            val householdDoc = firestore.collection("users").document(householdId)
 
             coroutineScope {
                 // Fetch all six collections in parallel. Any failure
                 // propagates and the catch below maps to PullResult.Failure;
                 // the Room transaction never opens, so local DB is untouched.
                 val itemsAsync = async {
-                    userDoc.collection(SyncCollections.ITEMS)
+                    householdDoc.collection(SyncCollections.ITEMS)
                         .get().await().toObjects(ItemDto::class.java).map { it.toEntity() }
                 }
                 val categoriesAsync = async {
-                    userDoc.collection(SyncCollections.CATEGORIES)
+                    householdDoc.collection(SyncCollections.CATEGORIES)
                         .get().await().toObjects(CategoryDto::class.java).map { it.toEntity() }
                 }
                 val storesAsync = async {
-                    userDoc.collection(SyncCollections.STORES)
+                    householdDoc.collection(SyncCollections.STORES)
                         .get().await().toObjects(StoreDto::class.java).map { it.toEntity() }
                 }
                 val xrefsAsync = async {
-                    userDoc.collection(SyncCollections.ITEM_STORE_XREFS)
+                    householdDoc.collection(SyncCollections.ITEM_STORE_XREFS)
                         .get().await().toObjects(ItemStoreXrefDto::class.java).map { it.toEntity() }
                 }
                 val scosAsync = async {
-                    userDoc.collection(SyncCollections.STORE_CATEGORY_ORDERS)
+                    householdDoc.collection(SyncCollections.STORE_CATEGORY_ORDERS)
                         .get().await().toObjects(StoreCategoryOrderDto::class.java).map { it.toEntity() }
                 }
                 val purchaseRecordsAsync = async {
-                    userDoc.collection(SyncCollections.PURCHASE_RECORDS)
+                    householdDoc.collection(SyncCollections.PURCHASE_RECORDS)
                         .get().await().toObjects(PurchaseRecordDto::class.java).map { it.toEntity() }
                 }
 
@@ -126,7 +133,7 @@ class PullCoordinator @Inject constructor(
 
                 Log.i(
                     TAG,
-                    "Pull for uid=$uid: ${items.size} items, ${categories.size} categories, " +
+                    "Pull for hid=$householdId: ${items.size} items, ${categories.size} categories, " +
                         "${stores.size} stores, ${xrefs.size} xrefs, ${scos.size} scos, " +
                         "${purchaseRecords.size} purchaseRecords",
                 )
@@ -150,7 +157,7 @@ class PullCoordinator @Inject constructor(
                 )
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Pull failed for uid=$uid", e)
+            Log.e(TAG, "Pull failed for hid=$householdId", e)
             PullResult.Failure(e)
         }
     }

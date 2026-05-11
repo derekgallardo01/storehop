@@ -8,6 +8,7 @@ import com.storehop.app.data.dao.ItemStoreXrefDao
 import com.storehop.app.data.dao.PurchaseRecordDao
 import com.storehop.app.data.dao.StoreCategoryOrderDao
 import com.storehop.app.data.dao.StoreDao
+import com.storehop.app.data.util.HouseholdSessionProvider
 import com.storehop.app.data.util.UserSessionProvider
 import com.storehop.app.sync.dto.SyncCollections
 import com.storehop.app.sync.dto.docId
@@ -18,8 +19,8 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
@@ -33,9 +34,12 @@ import javax.inject.Singleton
  * Started once from [com.storehop.app.StorehopApplication.onCreate]. For the life
  * of the process:
  *
- *   1. Subscribes to [UserSessionProvider.userId] via `collectLatest` so that a
- *      uid change (sign-in / sign-out / anon-to-Google upgrade) cancels the
- *      previous user's push jobs and starts fresh ones.
+ *   1. Subscribes to ([UserSessionProvider.userId], [HouseholdSessionProvider.householdId])
+ *      jointly via `collectLatest` so EITHER a uid change (sign-in/out) or a
+ *      householdId change (joining/leaving a household) cancels the previous
+ *      jobs and starts fresh ones. PullState is keyed by uid; push jobs key
+ *      off `householdId` because that's the access scope for the rows being
+ *      pushed.
  *
  *   2. Per synced entity, watches that entity's `pendingSync = 1` Flow via
  *      `collect` (NOT `collectLatest`) so a successful push -- which itself
@@ -43,20 +47,22 @@ import javax.inject.Singleton
  *      in-flight loop processing the rest of the batch. With `collect`, the
  *      next emission is buffered and processed after the current loop returns.
  *      Each row gets serialized to its DTO and written to
- *      `/users/{uid}/<collection>/{docId}`. On Firestore ack, `markPushed`
- *      flips `pendingSync` to 0.
+ *      `/users/{householdId}/<collection>/{docId}` — the `users` segment
+ *      name is preserved from v0.4 for backward compatibility; `householdId`
+ *      equals `userId` for single-member households so existing data lands
+ *      at the same wire path. On Firestore ack, `markPushed` flips
+ *      `pendingSync` to 0.
  *
  * Failures (network, PERMISSION_DENIED, etc.) bubble up as exceptions; the row
  * stays `pendingSync = 1` and will be retried the next time its Flow re-emits.
  * Firestore's own offline queue covers transient network drops; durable loss
  * (app process killed mid-write) is recovered by the on-restart re-emission.
- *
- * Pull side lands in M5.
  */
 @Singleton
 class SyncEngine @Inject constructor(
     private val firestore: FirebaseFirestore,
     private val session: UserSessionProvider,
+    private val householdSession: HouseholdSessionProvider,
     private val pullStateRepo: PullStateRepository,
     private val applicationScope: CoroutineScope,
     private val itemDao: ItemDao,
@@ -84,86 +90,93 @@ class SyncEngine @Inject constructor(
     @OptIn(ExperimentalCoroutinesApi::class)
     fun start() {
         applicationScope.launch {
-            session.userId
-                .filterNotNull()
-                .flatMapLatest { uid ->
-                    pullStateRepo.observe(uid).map { state -> uid to state }
+            // Join (uid, householdId) so the engine restarts when EITHER
+            // changes. uid drives the PullState gate; householdId scopes the
+            // rows that get pushed.
+            combine(session.userId, householdSession.householdId) { uid, hid -> uid to hid }
+                .flatMapLatest { (uid, hid) ->
+                    if (uid == null || hid == null) {
+                        // Sign-out or no household yet: cancel + idle.
+                        kotlinx.coroutines.flow.flowOf(Triple(null, null, PullState.NEEDED))
+                    } else {
+                        pullStateRepo.observe(uid).map { state -> Triple(uid, hid, state) }
+                    }
                 }
                 .distinctUntilChanged()
-                .collectLatest { (uid, state) ->
+                .collectLatest { (uid, hid, state) ->
                     pushJob?.cancel()
-                    pushJob = if (state == PullState.SUCCEEDED) {
-                        Log.i(TAG, "PullState=SUCCEEDED for uid=$uid; starting push jobs")
-                        launchPushJobsFor(uid)
+                    pushJob = if (uid != null && hid != null && state == PullState.SUCCEEDED) {
+                        Log.i(TAG, "PullState=SUCCEEDED for uid=$uid hid=$hid; starting push jobs")
+                        launchPushJobsFor(hid)
                     } else {
-                        Log.i(TAG, "PullState=$state for uid=$uid; push paused")
+                        Log.i(TAG, "PullState=$state for uid=$uid hid=$hid; push paused")
                         null
                     }
                 }
         }
     }
 
-    private fun CoroutineScope.launchPushJobsFor(uid: String): Job = launch {
-        Log.i(TAG, "Starting push jobs for uid=$uid")
-        val userDoc = firestore.collection("users").document(uid)
+    private fun CoroutineScope.launchPushJobsFor(householdId: String): Job = launch {
+        Log.i(TAG, "Starting push jobs for householdId=$householdId")
+        val householdDoc = firestore.collection("users").document(householdId)
 
         launch {
-            itemDao.observePendingPush(uid).collect { rows ->
+            itemDao.observePendingPush(householdId).collect { rows ->
                 rows.forEach { row ->
-                    pushOne(userDoc.collection(SyncCollections.ITEMS).document(row.id), row.toDto()) {
-                        itemDao.markPushed(uid, row.id)
+                    pushOne(householdDoc.collection(SyncCollections.ITEMS).document(row.id), row.toDto()) {
+                        itemDao.markPushed(householdId, row.id)
                     }
                 }
             }
         }
 
         launch {
-            categoryDao.observePendingPush(uid).collect { rows ->
+            categoryDao.observePendingPush(householdId).collect { rows ->
                 rows.forEach { row ->
-                    pushOne(userDoc.collection(SyncCollections.CATEGORIES).document(row.id), row.toDto()) {
-                        categoryDao.markPushed(uid, row.id)
+                    pushOne(householdDoc.collection(SyncCollections.CATEGORIES).document(row.id), row.toDto()) {
+                        categoryDao.markPushed(householdId, row.id)
                     }
                 }
             }
         }
 
         launch {
-            storeDao.observePendingPush(uid).collect { rows ->
+            storeDao.observePendingPush(householdId).collect { rows ->
                 rows.forEach { row ->
-                    pushOne(userDoc.collection(SyncCollections.STORES).document(row.id), row.toDto()) {
-                        storeDao.markPushed(uid, row.id)
+                    pushOne(householdDoc.collection(SyncCollections.STORES).document(row.id), row.toDto()) {
+                        storeDao.markPushed(householdId, row.id)
                     }
                 }
             }
         }
 
         launch {
-            xrefDao.observePendingPush(uid).collect { rows ->
+            xrefDao.observePendingPush(householdId).collect { rows ->
                 rows.forEach { row ->
                     val docId = row.docId()
-                    pushOne(userDoc.collection(SyncCollections.ITEM_STORE_XREFS).document(docId), row.toDto()) {
-                        xrefDao.markPushed(uid, row.itemId, row.storeId)
+                    pushOne(householdDoc.collection(SyncCollections.ITEM_STORE_XREFS).document(docId), row.toDto()) {
+                        xrefDao.markPushed(householdId, row.itemId, row.storeId)
                     }
                 }
             }
         }
 
         launch {
-            scoDao.observePendingPush(uid).collect { rows ->
+            scoDao.observePendingPush(householdId).collect { rows ->
                 rows.forEach { row ->
                     val docId = row.docId()
-                    pushOne(userDoc.collection(SyncCollections.STORE_CATEGORY_ORDERS).document(docId), row.toDto()) {
-                        scoDao.markPushed(uid, row.storeId, row.categoryId)
+                    pushOne(householdDoc.collection(SyncCollections.STORE_CATEGORY_ORDERS).document(docId), row.toDto()) {
+                        scoDao.markPushed(householdId, row.storeId, row.categoryId)
                     }
                 }
             }
         }
 
         launch {
-            purchaseDao.observePendingPush(uid).collect { rows ->
+            purchaseDao.observePendingPush(householdId).collect { rows ->
                 rows.forEach { row ->
-                    pushOne(userDoc.collection(SyncCollections.PURCHASE_RECORDS).document(row.id), row.toDto()) {
-                        purchaseDao.markPushed(uid, row.id)
+                    pushOne(householdDoc.collection(SyncCollections.PURCHASE_RECORDS).document(row.id), row.toDto()) {
+                        purchaseDao.markPushed(householdId, row.id)
                     }
                 }
             }

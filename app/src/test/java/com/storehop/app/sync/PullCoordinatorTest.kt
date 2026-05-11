@@ -93,7 +93,7 @@ class PullCoordinatorTest {
             purchaseRecords = listOf(purchaseDto("p1")),
         )
 
-        val result = coordinator.pullForUid("uid")
+        val result = coordinator.pullForHousehold("uid")
         assertThat(result).isInstanceOf(PullCoordinator.PullResult.Success::class.java)
         result as PullCoordinator.PullResult.Success
         assertThat(result.itemCount).isEqualTo(1)
@@ -114,7 +114,7 @@ class PullCoordinatorTest {
     @Test fun `empty cloud pull writes empty lists and returns zero counts`() = runTest {
         stubPullForUid(uid = "uid")
 
-        val result = coordinator.pullForUid("uid")
+        val result = coordinator.pullForHousehold("uid")
         assertThat(result).isInstanceOf(PullCoordinator.PullResult.Success::class.java)
         result as PullCoordinator.PullResult.Success
         assertThat(result.itemCount).isEqualTo(0)
@@ -131,7 +131,7 @@ class PullCoordinatorTest {
         // Items subcollection blows up -- DB never gets written.
         stubPullForUid(uid = "uid", itemsThrow = RuntimeException("network"))
 
-        val result = coordinator.pullForUid("uid")
+        val result = coordinator.pullForHousehold("uid")
         assertThat(result).isInstanceOf(PullCoordinator.PullResult.Failure::class.java)
 
         // Critical: PullWriteDao is NEVER called -- no partial state lands.
@@ -141,7 +141,7 @@ class PullCoordinatorTest {
     }
 
     @Test fun `mutex serializes two concurrent pulls for the same uid`() = runTest {
-        // Two parallel pullForUid calls must not interleave: PullWriteDao
+        // Two parallel pullForHousehold calls must not interleave: PullWriteDao
         // must only see one transaction at a time. We stub the DAO to delay
         // so we can observe ordering.
         stubPullForUid(uid = "uid")
@@ -150,8 +150,8 @@ class PullCoordinatorTest {
         }
 
         coroutineScope {
-            val a = async { coordinator.pullForUid("uid") }
-            val b = async { coordinator.pullForUid("uid") }
+            val a = async { coordinator.pullForHousehold("uid") }
+            val b = async { coordinator.pullForHousehold("uid") }
             a.await()
             b.await()
         }

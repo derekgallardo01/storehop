@@ -237,9 +237,13 @@ class SettingsViewModel @Inject constructor(
      */
     fun retryPull() {
         val uid = sessionProvider.userId.value ?: return
+        // v0.7.0: single-member household → householdId == uid. Phase 2 will
+        // publish a real householdId via HouseholdSessionProvider; until then,
+        // mirror uid so the legacy retry button keeps working.
+        val householdId = uid
         viewModelScope.launch {
             pullStateRepo.set(uid, PullState.IN_PROGRESS)
-            val result = pullCoordinator.pullForUid(uid)
+            val result = pullCoordinator.pullForHousehold(householdId)
             pullStateRepo.set(
                 uid,
                 if (result is PullCoordinator.PullResult.Success) PullState.SUCCEEDED

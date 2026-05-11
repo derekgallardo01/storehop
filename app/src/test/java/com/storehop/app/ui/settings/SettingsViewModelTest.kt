@@ -211,14 +211,14 @@ class SettingsViewModelTest {
             every { displayName } returns "U"
             every { photoUrl } returns null
         }
-        coEvery { pullCoordinator.pullForUid("google-uid") } returns
+        coEvery { pullCoordinator.pullForHousehold("google-uid") } returns
             PullCoordinator.PullResult.Success(0, 0, 0, 0, 0, 0)
 
         val vm = newVm(FakeSessionProvider(initial = "google-uid"))
         vm.retryPull()
         advanceUntilIdle()
 
-        coVerify(exactly = 1) { pullCoordinator.pullForUid("google-uid") }
+        coVerify(exactly = 1) { pullCoordinator.pullForHousehold("google-uid") }
         // State transitions IN_PROGRESS -> SUCCEEDED on retry success.
         coVerify { pullStateRepo.set("google-uid", PullState.IN_PROGRESS) }
         coVerify { pullStateRepo.set("google-uid", PullState.SUCCEEDED) }
@@ -232,7 +232,7 @@ class SettingsViewModelTest {
             every { displayName } returns null
             every { photoUrl } returns null
         }
-        coEvery { pullCoordinator.pullForUid("google-uid") } returns
+        coEvery { pullCoordinator.pullForHousehold("google-uid") } returns
             PullCoordinator.PullResult.Failure(RuntimeException("network"))
 
         val vm = newVm(FakeSessionProvider(initial = "google-uid"))
@@ -249,7 +249,7 @@ class SettingsViewModelTest {
         vm.retryPull()
         advanceUntilIdle()
 
-        coVerify(exactly = 0) { pullCoordinator.pullForUid(any()) }
+        coVerify(exactly = 0) { pullCoordinator.pullForHousehold(any()) }
         coVerify(exactly = 0) { pullStateRepo.set(any(), any()) }
     }
 
