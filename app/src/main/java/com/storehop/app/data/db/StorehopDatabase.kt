@@ -3,6 +3,7 @@ package com.storehop.app.data.db
 import androidx.room.Database
 import androidx.room.RoomDatabase
 import com.storehop.app.data.dao.CategoryDao
+import com.storehop.app.data.dao.HouseholdMemberDao
 import com.storehop.app.data.dao.ItemDao
 import com.storehop.app.data.dao.ItemStoreXrefDao
 import com.storehop.app.data.dao.LocalOnlyMigrationDao
@@ -11,6 +12,7 @@ import com.storehop.app.data.dao.ShoppingDao
 import com.storehop.app.data.dao.StoreCategoryOrderDao
 import com.storehop.app.data.dao.StoreDao
 import com.storehop.app.data.entity.Category
+import com.storehop.app.data.entity.HouseholdMember
 import com.storehop.app.data.entity.Item
 import com.storehop.app.data.entity.ItemStoreXref
 import com.storehop.app.data.entity.PurchaseRecord
@@ -25,8 +27,9 @@ import com.storehop.app.data.entity.StoreCategoryOrder
         ItemStoreXref::class,
         StoreCategoryOrder::class,
         PurchaseRecord::class,
+        HouseholdMember::class,
     ],
-    version = 7,
+    version = 8,
     exportSchema = true,
 )
 abstract class StorehopDatabase : RoomDatabase() {
@@ -39,6 +42,7 @@ abstract class StorehopDatabase : RoomDatabase() {
     abstract fun shoppingDao(): ShoppingDao
     abstract fun purchaseRecordDao(): PurchaseRecordDao
     abstract fun localOnlyMigrationDao(): LocalOnlyMigrationDao
+    abstract fun householdMemberDao(): HouseholdMemberDao
 
     companion object {
         const val NAME: String = "storehop.db"

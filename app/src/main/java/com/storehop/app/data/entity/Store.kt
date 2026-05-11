@@ -18,6 +18,7 @@ import androidx.room.PrimaryKey
         // rationale.
         Index(value = ["userId", "name"]),
         Index("userId"),
+        Index("householdId"),
         Index("deletedAt"),
     ],
 )
@@ -39,4 +40,6 @@ data class Store(
      * can drag them where they want. Lower number sorts higher.
      */
     @ColumnInfo(defaultValue = "0") val displayOrder: Int = 0,
+    /** v0.7.0 multi-user household access scope. See [Item.householdId]. */
+    @ColumnInfo(defaultValue = "''") val householdId: String = "",
 )

@@ -117,6 +117,49 @@ class MigrationTest {
         }
     }
 
+    @Test fun `v7 to v8 backfills householdId equals userId on alive rows and creates household_members table`() {
+        // v0.7.0 scaffolding migration. Every entity gains a `householdId`
+        // column whose backfilled value mirrors `userId` so the single-
+        // user world keeps working identically. Tombstones get the
+        // default empty string and don't need re-pushing.
+        withV1Db { db ->
+            db.execSQL("INSERT INTO categories(id,name,nameKey,icon,isArchived,isSeeded,userId,createdAt,updatedAt,deletedAt) " +
+                "VALUES('c1','Produce',NULL,NULL,0,0,'u1',1,1,NULL)")
+            db.execSQL("INSERT INTO stores(id,name,colorArgb,isArchived,isSeeded,userId,createdAt,updatedAt,deletedAt) " +
+                "VALUES('s1','Lidl',NULL,0,0,'u1',1,1,NULL)")
+            db.execSQL("INSERT INTO items(id,name,categoryId,notes,quantity,isNeeded,lastPurchasedAt,userId,createdAt,updatedAt,deletedAt) " +
+                "VALUES('i1','Bread','c1',NULL,NULL,1,NULL,'u1',1,1,NULL)")
+            // Dead row stays at default empty householdId after migration.
+            db.execSQL("INSERT INTO items(id,name,categoryId,notes,quantity,isNeeded,lastPurchasedAt,userId,createdAt,updatedAt,deletedAt) " +
+                "VALUES('i_dead','Old',NULL,NULL,NULL,1,NULL,'u1',1,1,999)")
+        }.migrateTo(8).use { db ->
+            // Alive rows: householdId = userId. pendingSync flipped to 1
+            // so the new column ships to Firestore on the next push.
+            db.queryRow("SELECT householdId, pendingSync FROM items WHERE id='i1'") { c ->
+                assertThat(c.getString(0)).isEqualTo("u1")
+                assertThat(c.getInt(1)).isEqualTo(1)
+            }
+            db.queryRow("SELECT householdId FROM stores WHERE id='s1'") { c ->
+                assertThat(c.getString(0)).isEqualTo("u1")
+            }
+            db.queryRow("SELECT householdId FROM categories WHERE id='c1'") { c ->
+                assertThat(c.getString(0)).isEqualTo("u1")
+            }
+
+            // Tombstone left at empty-string default; never read by live
+            // queries so the value doesn't matter.
+            db.queryRow("SELECT householdId FROM items WHERE id='i_dead'") { c ->
+                assertThat(c.getString(0)).isEqualTo("")
+            }
+
+            // New household_members table exists and is empty (bootstrap
+            // happens in code at first launch, not in the migration).
+            db.queryRow("SELECT COUNT(*) FROM household_members") { c ->
+                assertThat(c.getInt(0)).isEqualTo(0)
+            }
+        }
+    }
+
     @Test fun `v6 to v7 dense-ranks categories by name within each user`() {
         // Two users so we can confirm the ordering is per-user.
         withV1Db { db ->
@@ -290,7 +333,7 @@ class MigrationTest {
         fun migrateTo(targetVersion: Int): DbHandle {
             val migrations = listOf(
                 MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5,
-                MIGRATION_5_6, MIGRATION_6_7,
+                MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8,
             )
             val needed = migrations.filter { it.endVersion <= targetVersion }
             needed.forEach { it.migrate(db) }

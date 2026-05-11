@@ -25,6 +25,7 @@ import androidx.room.Index
     indices = [
         Index("storeId"),
         Index("userId"),
+        Index("householdId"),
         Index("deletedAt"),
     ],
 )
@@ -50,4 +51,6 @@ data class ItemStoreXref(
      * screen so the user can undo a mis-tap before leaving the store.
      */
     val lastPurchasedAt: Long? = null,
+    /** v0.7.0 multi-user household access scope. See [Item.householdId]. */
+    @ColumnInfo(defaultValue = "''") val householdId: String = "",
 )

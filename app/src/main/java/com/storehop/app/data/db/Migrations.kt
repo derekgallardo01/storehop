@@ -145,6 +145,79 @@ val MIGRATION_5_6 = object : Migration(5, 6) {
  * Bumps `pendingSync = 1` on every touched row so the new column lands
  * in Firestore on the next push.
  */
+/**
+ * v7 -> v8: introduce the `householdId` column on every per-user entity +
+ * a new `household_members` table for the v0.7.0 multi-user account-sharing
+ * feature.
+ *
+ * Scaffolding migration only — every backfilled row keeps `householdId =
+ * userId` so the single-user world keeps working byte-for-byte. Query
+ * changes that actually filter by `householdId` ship in follow-up phases.
+ *
+ * Per-row backfill rationale: today every user's data is keyed by `userId`;
+ * after the migration each user is implicitly a "household of one" whose
+ * id equals their uid. When someone later accepts an invite, their
+ * `HouseholdSessionProvider.householdId` flips to the inviter's
+ * `householdId` (= the inviter's uid), at which point all writes go to
+ * the shared household path.
+ *
+ * Bumps `pendingSync = 1` on every touched alive row so the new column
+ * lands in Firestore on the next push. Tombstones are left untouched —
+ * they're not read by any live query path and don't need re-pushing.
+ *
+ * The new `household_members` table is initially empty; the first-launch
+ * bootstrap in [com.storehop.app.auth.FirebaseAuthSessionProvider]
+ * (Phase 2) seeds the active user's personal-household row.
+ */
+val MIGRATION_7_8 = object : Migration(7, 8) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        // Add householdId to every per-user entity. Empty-string default
+        // so existing test fixtures + entity constructors keep compiling;
+        // the UPDATE below populates real values for live rows.
+        val tables = listOf(
+            "items",
+            "stores",
+            "categories",
+            "item_store_xref",
+            "store_category_order",
+            "purchase_records",
+        )
+        for (table in tables) {
+            db.execSQL("ALTER TABLE `$table` ADD COLUMN `householdId` TEXT NOT NULL DEFAULT ''")
+            // Backfill alive rows to `householdId = userId`. Tombstones
+            // get the default empty string -- they're invisible to live
+            // queries and don't need re-pushing.
+            db.execSQL(
+                "UPDATE `$table` SET householdId = userId, pendingSync = 1 WHERE deletedAt IS NULL",
+            )
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_${table}_householdId` ON `$table` (`householdId`)")
+        }
+
+        // New household_members table. Composite PK (uid, householdId)
+        // matches the entity. Indices match what HouseholdMember.kt
+        // declares -- Room verifies on first open.
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS `household_members` (
+                `uid` TEXT NOT NULL,
+                `householdId` TEXT NOT NULL,
+                `displayName` TEXT,
+                `joinedAt` INTEGER NOT NULL,
+                `isOwner` INTEGER NOT NULL,
+                `createdAt` INTEGER NOT NULL,
+                `updatedAt` INTEGER NOT NULL,
+                `deletedAt` INTEGER,
+                `pendingSync` INTEGER NOT NULL DEFAULT 1,
+                PRIMARY KEY(`uid`, `householdId`)
+            )
+            """.trimIndent(),
+        )
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_household_members_uid` ON `household_members` (`uid`)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_household_members_householdId` ON `household_members` (`householdId`)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_household_members_deletedAt` ON `household_members` (`deletedAt`)")
+    }
+}
+
 val MIGRATION_6_7 = object : Migration(6, 7) {
     override fun migrate(db: SupportSQLiteDatabase) {
         db.execSQL("ALTER TABLE `categories` ADD COLUMN `displayOrder` INTEGER NOT NULL DEFAULT 0")
