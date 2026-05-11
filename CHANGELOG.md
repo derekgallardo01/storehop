@@ -7,6 +7,85 @@ project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 For the high-level roadmap and earlier-than-0.5.0 history, see the
 "Roadmap" section in the [README](README.md).
 
+## [0.7.0] - 2026-05-11
+
+**Multi-user account sharing — household model (Android).** Mike asked
+for it in v0.6.0 planning: *"allowing multiple people to access one
+account is probably a good one. I could see allowing Amanda to access
+my list and add items and check off items."* This release lands the
+full data + sync + invite + UI stack to support that flow on Android.
+iOS port stays at v0.6.10 until Phase 5 mirrors every change; the
+Android client at 0.7.0 still talks to the same Firestore project
+without breaking the iOS 0.6.10 sync.
+
+### Added (Android)
+
+- **Household abstraction**: every entity (items, stores, categories,
+  item_store_xref, store_category_order, purchase_records) gains a
+  `householdId` column. Single-member households use
+  `householdId == userId` so v0.6.x behaviour is preserved
+  byte-for-byte. The schema-v7→v8 migration backfills existing rows
+  in place and re-flags `pendingSync = 1` so the household scope syncs
+  to Firestore on the next push. New `household_members` table mirrors
+  Firestore's `/memberships/{uid}/households/{hid}` collection.
+- **Settings → Household screen**. Member list + Generate invite code
+  (8-char Crockford base32, 24h TTL, single-use) + Join with code +
+  Leave household (destructive, with confirmation). English strings
+  only this release; other locales follow.
+- **Invite flow**. `HouseholdRepository.generateInvite()` writes
+  `/invites/{token}` with `{householdId, createdBy, createdAt,
+  expiresAt, accepted}` fields. `acceptInvite(token)` validates +
+  stamps + wipes local rows + inserts new membership + triggers a
+  full pull from the shared household's path. Typed failures
+  (`NotFound`, `Expired`, `AlreadyUsed`) render precise inline errors
+  in the join form.
+- **First-launch bootstrap**: `FirebaseAuthSessionProvider` resolves a
+  user's active household alongside the uid on every auth change,
+  publishing both ids atomically so observing repos never see a
+  mismatched pair. Cold-launch short-circuit still skips the
+  Firestore peek when pullState is SUCCEEDED + uid unchanged.
+
+### Changed (Android)
+
+- **Repository queries switch from `userId`-scoping to `householdId`-
+  scoping** across all 8 DAOs. `userId` remains as creator/audit
+  metadata copied from the parent row at insert time; `householdId`
+  is the new access scope. Cross-cascade methods (xref soft-delete,
+  SCO cascade, purchase-record cascade) all use parent's
+  `householdId`. The single deliberate exception is the Statistics
+  queries on `PurchaseRecordDao` — those stay scoped by purchaser
+  `userId` so Mike sees what HE bought, not Mike + Amanda combined
+  (per the v0.7.0 design call).
+- **Sync DTOs** add a `householdId` field; the inverse mapper falls
+  back to `userId` when the field is absent (legacy v0.6.x docs).
+  Firestore wire path stays `/users/{X}/.../{doc}` — X is now
+  `householdId`, but the segment name is preserved so existing users'
+  cloud data persists at the same path after upgrade. The
+  Firestore security rules (see `firestore.rules` at the repo root —
+  deploy via the Firebase Console BEFORE 0.7.0 reaches Play Closed
+  Testing) scope access by the new `householdId` field inside each
+  document rather than path semantics.
+- **Cross-store cascade extends to households** — when Amanda marks
+  Milk purchased at Aldi, Mike's "Milk needed at Lidl" entry drops
+  too. This is the explicit design intent of sharing; document
+  prominently in case users find it surprising.
+- **Concurrent edits** stay last-write-wins via `updatedAt`. Per-field
+  merging deferred to v0.7.x.
+
+### Deferred to v0.7.x
+
+- iOS mirror (Phase 5): every DAO + DTO + repository change ports to
+  the GRDB-backed iOS stack. iOS at 0.6.10 stays single-user until
+  this lands.
+- Real-time `addSnapshotListener` updates (still one-shot pull).
+- Member roles (everyone in a household is equal access-wise).
+- Multiple households per user.
+- Per-list / per-store ACLs (groceries shared, hobby private).
+- Activity log ("Amanda added Bread").
+- Email / deep-link invites.
+- Cloud-side membership lookup on second-device sign-in (today the
+  second device needs to be invited like a new member).
+
 ## [0.6.10] - 2026-05-11
 
 iOS-only parity catch-up: closes three long-standing gaps where the

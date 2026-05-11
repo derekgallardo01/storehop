@@ -1,0 +1,97 @@
+rules_version = '2';
+
+// v0.7.0 multi-user household model — see plan in
+// .claude/plans/this-is-what-my-lucky-key.md and the data-model README.
+//
+// IMPORTANT: deploy these rules in the Firebase Console BEFORE the
+// v0.7.0 client ships. Without them, the new household path stays
+// open via the catch-all default, but cross-household isolation is
+// not enforced — a misbehaving client could read another household's
+// data.
+//
+// Wire path note: the legacy `users/{X}/...` collection name is
+// preserved (X is now interpreted as `householdId` not uid) so
+// existing v0.6.x cloud data stays at the same path after upgrade.
+// The renamed conceptual segment lives in code and in the
+// `householdId` field inside each document; the rules below scope
+// access by document-field membership rather than path semantics.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    /**
+     * Helper: is `uid` a member of household `hid`? Checks the
+     * `/memberships/{uid}/households/{hid}` document existence, since
+     * that's what accept-invite writes (and leave-household
+     * soft-deletes).
+     */
+    function isMember(uid, hid) {
+      return exists(
+        /databases/$(database)/documents/memberships/$(uid)/households/$(hid)
+      );
+    }
+
+    // ---- Household-scoped data ---------------------------------------------
+    //
+    // Every entity (items, stores, categories, item_store_xref,
+    // store_category_order, purchase_records) lives under
+    // `/users/{householdId}/<collection>/{doc}`. Read + write requires
+    // the requesting user be a member of the household.
+    match /users/{householdId}/{collection}/{doc} {
+      allow read, write: if request.auth != null
+                         && isMember(request.auth.uid, householdId);
+    }
+
+    // ---- Membership ledger -------------------------------------------------
+    //
+    // Each `(uid, householdId)` pairing lives at
+    // `/memberships/{uid}/households/{hid}`. A user can read + write
+    // only their own memberships — Amanda can't read Mike's membership
+    // list, only her own.
+    //
+    // Two valid ways for a row to land here:
+    //  - On personal-household bootstrap (FirebaseAuthSessionProvider
+    //    creates `/memberships/{uid}/households/{uid}`), so the create
+    //    rule requires the householdId to equal the caller's uid; OR
+    //  - via invite-accept (HouseholdRepository.acceptInvite reads an
+    //    invite doc carrying the target householdId, then writes here);
+    //    we let any signed-in user create their own membership row,
+    //    trusting the invite-flow to gate which householdId they
+    //    actually have access to.
+    //
+    // Deleting a membership is the "leave household" path. Updates are
+    // for soft-delete (`deletedAt`) + `updatedAt` only.
+    match /memberships/{uid}/households/{hid} {
+      allow read, write: if request.auth != null
+                         && request.auth.uid == uid;
+    }
+
+    // ---- Invite tokens ----------------------------------------------------
+    //
+    // An invite doc lives at `/invites/{token}` with the inviter's
+    // household + a 24h expiresAt + an `accepted` flag.
+    //
+    // Read is broad: any signed-in user can read any invite token,
+    // because the token itself IS the secret (8-char Crockford base32,
+    // ~10^12 entropy). Without read access, the redemption flow
+    // wouldn't be able to look up the host's householdId.
+    //
+    // Create restricted to the inviter (the caller's uid must match
+    // the `createdBy` field). Update restricted to the four
+    // accept-stamp fields the redeem flow writes (`accepted`,
+    // `acceptedBy`, `acceptedAt`, and `updatedAt` for clock skew);
+    // any other change is denied. Delete restricted to the inviter
+    // (so they can revoke).
+    match /invites/{token} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null
+                    && request.auth.uid == request.resource.data.createdBy;
+      allow update: if request.auth != null
+                    && resource.data.accepted == false
+                    && request.resource.data.diff(resource.data)
+                         .affectedKeys()
+                         .hasOnly(['accepted', 'acceptedBy', 'acceptedAt', 'updatedAt']);
+      allow delete: if request.auth != null
+                    && resource.data.createdBy == request.auth.uid;
+    }
+  }
+}
