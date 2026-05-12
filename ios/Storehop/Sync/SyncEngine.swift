@@ -42,6 +42,17 @@ final actor SyncEngine {
     private let xrefDao: ItemStoreXrefDao
     private let scoDao: StoreCategoryOrderDao
     private let purchaseDao: PurchaseRecordDao
+    /// v0.7.1.3: explicit DAO for the household_members push job. The
+    /// v0.7.0 implementation created the personal-household membership
+    /// row locally but never pushed it — see the Android fix commit
+    /// d6bd1a2 for the bug. Optional so existing test constructors keep
+    /// working; when nil, the household_members push job is skipped.
+    private let householdMemberDao: HouseholdMemberDao?
+    /// v0.7.1: prefs cloud-sync. Used by `flushAllPending` to bypass the
+    /// 500 ms debounce and synchronously push the latest snapshot before
+    /// signalling "Safe to uninstall." Optional for the same back-compat
+    /// reason.
+    private let userPreferencesSync: UserPreferencesSync?
 
     /// Outermost task: subscribed to (uid, householdId) changes. Cancelled
     /// in `shutdown`.
@@ -68,7 +79,9 @@ final actor SyncEngine {
         storeDao: StoreDao,
         xrefDao: ItemStoreXrefDao,
         scoDao: StoreCategoryOrderDao,
-        purchaseDao: PurchaseRecordDao
+        purchaseDao: PurchaseRecordDao,
+        householdMemberDao: HouseholdMemberDao? = nil,
+        userPreferencesSync: UserPreferencesSync? = nil
     ) {
         self.firestore = firestore
         self.session = session
@@ -80,6 +93,8 @@ final actor SyncEngine {
         self.xrefDao = xrefDao
         self.scoDao = scoDao
         self.purchaseDao = purchaseDao
+        self.householdMemberDao = householdMemberDao
+        self.userPreferencesSync = userPreferencesSync
     }
 
     /// Boot the engine. Idempotent.
@@ -147,7 +162,7 @@ final actor SyncEngine {
 
     private func startPushJobsIfNeeded(householdId: String) {
         guard pushTasks.isEmpty else { return }
-        pushTasks = [
+        var tasks: [Task<Void, Never>] = [
             startItemPushJob(householdId: householdId),
             startCategoryPushJob(householdId: householdId),
             startStorePushJob(householdId: householdId),
@@ -155,6 +170,50 @@ final actor SyncEngine {
             startScoPushJob(householdId: householdId),
             startPurchasePushJob(householdId: householdId),
         ]
+        // v0.7.1.3 fix: also push household_members rows. v0.7.0 created
+        // the personal-household membership locally with pendingSync = 1
+        // but had no push job; the path-uid fallback in firestore.rules
+        // masked the gap for single-user flows until v0.7.1's
+        // Force-sync count surfaced it.
+        if let memberDao = householdMemberDao {
+            tasks.append(startHouseholdMemberPushJob(dao: memberDao))
+        }
+        pushTasks = tasks
+    }
+
+    private func startHouseholdMemberPushJob(dao: HouseholdMemberDao) -> Task<Void, Never> {
+        let stream = dao.observePendingPush()
+        let firestore = self.firestore
+        return Task {
+            do {
+                for try await rows in stream {
+                    for row in rows {
+                        // Memberships live at `/memberships/{uid}/households/{hid}`
+                        // — uid-scoped, NOT household-scoped. Each row carries
+                        // both ids.
+                        let path = "memberships/\(row.uid)/households/\(row.householdId)"
+                        // Inline payload Map (no DTO) since the shape is
+                        // small and we don't decode it back the same way.
+                        // Mirrors Android's pushOne with mapOf<String, Any?>.
+                        let payload = HouseholdMemberPayload(
+                            uid: row.uid,
+                            householdId: row.householdId,
+                            displayName: row.displayName,
+                            joinedAt: row.joinedAt,
+                            isOwner: row.isOwner,
+                            createdAt: row.createdAt,
+                            updatedAt: row.updatedAt,
+                            deletedAt: row.deletedAt
+                        )
+                        await Self.pushOne(firestore: firestore, path: path, value: payload) {
+                            try? await dao.markPushed(uid: row.uid, householdId: row.householdId)
+                        }
+                    }
+                }
+            } catch is CancellationError {
+                return
+            } catch {}
+        }
     }
 
     private func startItemPushJob(householdId: String) -> Task<Void, Never> {
@@ -280,6 +339,120 @@ final actor SyncEngine {
         }
     }
 
+    // MARK: - v0.7.1 Force-sync surface
+
+    /// v0.7.1: aggregated row-count of every entity table's
+    /// `pendingSync = 1` rows for the active household, plus the
+    /// `household_members` table (uid-scoped, not household-scoped).
+    /// Mirrors Android `SyncEngine.observeAllPendingCount`.
+    ///
+    /// Powers the Settings → Data → "Force sync now" UX. When this
+    /// drops to 0 the UX shows "Safe to uninstall."
+    nonisolated func observeAllPendingCount(householdId: String) -> AsyncStream<Int> {
+        AsyncStream { continuation in
+            let itemStream = itemDao.countPendingPush(householdId: householdId)
+            let categoryStream = categoryDao.countPendingPush(householdId: householdId)
+            let storeStream = storeDao.countPendingPush(householdId: householdId)
+            let xrefStream = xrefDao.countPendingPush(householdId: householdId)
+            let scoStream = scoDao.countPendingPush(householdId: householdId)
+            let purchaseStream = purchaseDao.countPendingPush(householdId: householdId)
+            let memberStream = householdMemberDao?.countPendingPush()
+
+            let aggregator = PendingCountAggregator()
+            let tasks: [Task<Void, Never>] = [
+                Task {
+                    do {
+                        for try await c in itemStream {
+                            if let sum = await aggregator.update(.items, c) { continuation.yield(sum) }
+                        }
+                    } catch {}
+                },
+                Task {
+                    do {
+                        for try await c in categoryStream {
+                            if let sum = await aggregator.update(.categories, c) { continuation.yield(sum) }
+                        }
+                    } catch {}
+                },
+                Task {
+                    do {
+                        for try await c in storeStream {
+                            if let sum = await aggregator.update(.stores, c) { continuation.yield(sum) }
+                        }
+                    } catch {}
+                },
+                Task {
+                    do {
+                        for try await c in xrefStream {
+                            if let sum = await aggregator.update(.xrefs, c) { continuation.yield(sum) }
+                        }
+                    } catch {}
+                },
+                Task {
+                    do {
+                        for try await c in scoStream {
+                            if let sum = await aggregator.update(.sco, c) { continuation.yield(sum) }
+                        }
+                    } catch {}
+                },
+                Task {
+                    do {
+                        for try await c in purchaseStream {
+                            if let sum = await aggregator.update(.purchases, c) { continuation.yield(sum) }
+                        }
+                    } catch {}
+                },
+            ]
+
+            var memberTask: Task<Void, Never>?
+            if let memberStream {
+                memberTask = Task {
+                    do {
+                        for try await c in memberStream {
+                            if let sum = await aggregator.update(.members, c) { continuation.yield(sum) }
+                        }
+                    } catch {}
+                }
+            }
+
+            continuation.onTermination = { _ in
+                for t in tasks { t.cancel() }
+                memberTask?.cancel()
+            }
+        }
+    }
+
+    /// v0.7.1: nudge the push side to flush every pending row + the
+    /// user-prefs doc immediately, and wait until the queue is empty
+    /// (or the timeout elapses).
+    ///
+    /// Returns `true` if the queue drained, `false` if rows are still
+    /// pending at the timeout (UI surfaces the stuck count).
+    nonisolated func flushAllPending(
+        householdId: String,
+        uid: String,
+        timeoutNanos: UInt64 = 30 * NSEC_PER_SEC
+    ) async -> Bool {
+        await userPreferencesSync?.flushPending(uid: uid)
+        return await withTaskGroup(of: Bool.self) { group in
+            group.addTask {
+                for await count in self.observeAllPendingCount(householdId: householdId) {
+                    if count == 0 { return true }
+                }
+                return false
+            }
+            group.addTask {
+                try? await Task.sleep(nanoseconds: timeoutNanos)
+                return false
+            }
+            let result = await group.next() ?? false
+            group.cancelAll()
+            return result
+        }
+    }
+
+    // MARK: - pushOne
+
     /// Push a single document. On Firestore success, calls `markClean` so
     /// the corresponding `pendingSync` flips to 0. On failure, leaves the
     /// row at `pendingSync = 1` — it'll retry on the next observation
@@ -336,6 +509,41 @@ final actor SyncEngine {
                 householdTask.cancel()
             }
         }
+    }
+}
+
+/// Codable payload for the `household_members` push job. Inline struct
+/// rather than a generated DTO since the shape is small and we don't
+/// decode it back via this same Codable path — the pull side uses a
+/// different Firestore query shape. Mirrors Android's mapOf payload in
+/// `SyncEngine.startHouseholdMembersPushJob`.
+private struct HouseholdMemberPayload: Codable, Sendable {
+    let uid: String
+    let householdId: String
+    let displayName: String?
+    let joinedAt: Int64
+    let isOwner: Bool
+    let createdAt: Int64
+    let updatedAt: Int64
+    let deletedAt: Int64?
+}
+
+/// Actor-isolated state for `observeAllPendingCount`. Holds the latest
+/// count from each entity stream so the aggregated sum re-emits with
+/// fresh values each time any one of them changes.
+private actor PendingCountAggregator {
+    enum Source { case items, categories, stores, xrefs, sco, purchases, members }
+    private var counts: [Source: Int] = [:]
+    private var lastSum: Int = -1
+
+    func update(_ source: Source, _ count: Int) -> Int? {
+        counts[source] = count
+        let sum = counts.values.reduce(0, +)
+        if sum != lastSum {
+            lastSum = sum
+            return sum
+        }
+        return nil
     }
 }
 

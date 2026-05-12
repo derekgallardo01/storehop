@@ -71,6 +71,18 @@ struct HouseholdMemberDao: Sendable {
             .values(in: writer)
     }
 
+    /// v0.7.1: row-count of pending pushes for the Force-sync-now UX.
+    /// Unlike entity DAOs, memberships are uid-scoped not household-
+    /// scoped, so no householdId parameter. Force-sync aggregates this
+    /// count alongside the household-scoped counts from the other DAOs.
+    func countPendingPush() -> AsyncValueObservation<Int> {
+        ValueObservation
+            .tracking { db in
+                try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM household_members WHERE pendingSync = 1") ?? 0
+            }
+            .values(in: writer)
+    }
+
     // MARK: - Writes
 
     func upsert(_ member: HouseholdMember) async throws {

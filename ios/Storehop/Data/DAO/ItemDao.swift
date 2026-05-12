@@ -44,6 +44,15 @@ struct ItemDao: Sendable {
             .values(in: writer)
     }
 
+    /// v0.7.1: row-count of pending pushes for the Force-sync-now UX.
+    func countPendingPush(householdId: String) -> AsyncValueObservation<Int> {
+        ValueObservation
+            .tracking { db in
+                try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM items WHERE householdId = ? AND pendingSync = 1", arguments: [householdId]) ?? 0
+            }
+            .values(in: writer)
+    }
+
     // MARK: - Snapshot reads
 
     func findAnyById(householdId: String, id: String) async throws -> Item? {

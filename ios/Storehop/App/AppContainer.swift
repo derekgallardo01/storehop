@@ -49,6 +49,9 @@ final class AppContainer {
     let undoEventBus: UndoEventBus
     let imageUploader: any ImageUploader
     let userPreferences: any UserPreferencesRepository
+    /// v0.7.1 cloud-prefs sync. Optional — preview / some test paths
+    /// skip the real Firestore wiring and pass nil.
+    let userPreferencesSync: UserPreferencesSync?
 
     init(
         clock: Clock,
@@ -67,7 +70,8 @@ final class AppContainer {
             _ memberDao: HouseholdMemberDao,
             _ writeDao: PullWriteDao
         ) -> any HouseholdRepository,
-        imageUploader: any ImageUploader = NoOpImageUploader()
+        imageUploader: any ImageUploader = NoOpImageUploader(),
+        userPreferencesSync: UserPreferencesSync? = nil
     ) {
         self.clock = clock
         self.ids = ids
@@ -167,6 +171,7 @@ final class AppContainer {
         self.undoEventBus = UndoEventBus()
         self.imageUploader = imageUploader
 
+        self.userPreferencesSync = userPreferencesSync
         self.syncEngine = SyncEngine(
             firestore: firestoreClient,
             session: session,
@@ -177,7 +182,9 @@ final class AppContainer {
             storeDao: storeDao,
             xrefDao: itemStoreXrefDao,
             scoDao: storeCategoryOrderDao,
-            purchaseDao: purchaseRecordDao
+            purchaseDao: purchaseRecordDao,
+            householdMemberDao: householdMemberDao,
+            userPreferencesSync: userPreferencesSync
         )
     }
 
@@ -235,7 +242,8 @@ final class AppContainer {
                         clock: clock
                     )
                 },
-                imageUploader: FirebaseImageUploader(session: session)
+                imageUploader: FirebaseImageUploader(session: session),
+                userPreferencesSync: userPreferencesSync
             )
         } catch {
             fatalError("Failed to initialize Storehop database: \(error)")
