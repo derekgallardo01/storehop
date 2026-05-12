@@ -5376,6 +5376,87 @@
         "es": { "stringUnit": { "state": "translated", "value": "Los códigos tienen 8 caracteres. Comprueba el código e inténtalo de nuevo." } },
         "it": { "stringUnit": { "state": "translated", "value": "I codici sono di 8 caratteri. Controlla il codice e riprova." } }
       }
+    },
+    "settings_force_sync_title": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Sync before uninstalling" } },
+        "pt-PT": { "stringUnit": { "state": "translated", "value": "Sincronizar antes de desinstalar" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Sincronizar antes de desinstalar" } },
+        "it": { "stringUnit": { "state": "translated", "value": "Sincronizza prima di disinstallare" } }
+      }
+    },
+    "settings_force_sync_explainer": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "If you're switching to a new install (uninstall + reinstall), tap this first so every local change reaches the cloud. Cloud-stored data restores automatically when you sign in on the new install." } },
+        "pt-PT": { "stringUnit": { "state": "translated", "value": "Se vai trocar de instalação (desinstalar e reinstalar), toque aqui primeiro para que todas as alterações locais cheguem à nuvem. Os dados na nuvem são restaurados automaticamente quando iniciar sessão na nova instalação." } },
+        "es": { "stringUnit": { "state": "translated", "value": "Si vas a cambiar de instalación (desinstalar + reinstalar), toca aquí primero para que todos los cambios locales lleguen a la nube. Los datos en la nube se restauran automáticamente al iniciar sesión en la nueva instalación." } },
+        "it": { "stringUnit": { "state": "translated", "value": "Se stai passando a una nuova installazione (disinstalla + reinstalla), tocca prima qui in modo che ogni modifica locale raggiunga il cloud. I dati nel cloud vengono ripristinati automaticamente quando accedi alla nuova installazione." } }
+      }
+    },
+    "settings_force_sync_button_idle": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Force sync now" } },
+        "pt-PT": { "stringUnit": { "state": "translated", "value": "Sincronizar agora" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Sincronizar ahora" } },
+        "it": { "stringUnit": { "state": "translated", "value": "Sincronizza ora" } }
+      }
+    },
+    "settings_force_sync_button_pending %lld": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Force sync now (%lld pending)" } },
+        "pt-PT": { "stringUnit": { "state": "translated", "value": "Sincronizar agora (%lld pendentes)" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Sincronizar ahora (%lld pendientes)" } },
+        "it": { "stringUnit": { "state": "translated", "value": "Sincronizza ora (%lld in attesa)" } }
+      }
+    },
+    "settings_force_sync_button_done": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "OK" } },
+        "pt-PT": { "stringUnit": { "state": "translated", "value": "OK" } },
+        "es": { "stringUnit": { "state": "translated", "value": "OK" } },
+        "it": { "stringUnit": { "state": "translated", "value": "OK" } }
+      }
+    },
+    "settings_force_sync_button_retry": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Retry" } },
+        "pt-PT": { "stringUnit": { "state": "translated", "value": "Tentar novamente" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Reintentar" } },
+        "it": { "stringUnit": { "state": "translated", "value": "Riprova" } }
+      }
+    },
+    "settings_force_sync_in_progress %lld": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Syncing %lld item(s)…" } },
+        "pt-PT": { "stringUnit": { "state": "translated", "value": "A sincronizar %lld item(ns)…" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Sincronizando %lld elemento(s)…" } },
+        "it": { "stringUnit": { "state": "translated", "value": "Sincronizzazione di %lld elemento(i)…" } }
+      }
+    },
+    "settings_force_sync_safe": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Safe to uninstall. Your data is backed up." } },
+        "pt-PT": { "stringUnit": { "state": "translated", "value": "Pode desinstalar com segurança. Os seus dados estão guardados." } },
+        "es": { "stringUnit": { "state": "translated", "value": "Puedes desinstalar con seguridad. Tus datos están guardados." } },
+        "it": { "stringUnit": { "state": "translated", "value": "Disinstallazione sicura. I tuoi dati sono salvati." } }
+      }
+    },
+    "settings_force_sync_failed %lld": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "%lld item(s) couldn't sync. Try again, or uninstall now to lose only these." } },
+        "pt-PT": { "stringUnit": { "state": "translated", "value": "%lld item(ns) não foram sincronizados. Tente novamente ou desinstale agora para perder apenas estes." } },
+        "es": { "stringUnit": { "state": "translated", "value": "%lld elemento(s) no se han sincronizado. Inténtalo de nuevo o desinstala ahora para perder solo estos." } },
+        "it": { "stringUnit": { "state": "translated", "value": "%lld elemento(i) non si sono sincronizzati. Riprova o disinstalla ora per perdere solo questi." } }
+      }
     }
   },
   "version": "1.0"

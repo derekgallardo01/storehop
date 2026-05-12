@@ -104,6 +104,10 @@ struct SettingsView: View {
             // CSV import / export.
             DataSettingsSection()
 
+            // v0.7.1: Force-sync-now — drains every pendingSync = 1
+            // row + the user-prefs doc so the user can safely uninstall.
+            ForceSyncSection()
+
             // Statistics.
             Section {
                 NavigationLink {
