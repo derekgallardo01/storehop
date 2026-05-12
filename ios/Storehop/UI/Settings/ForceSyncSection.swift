@@ -78,9 +78,14 @@ struct ForceSyncSection: View {
     }
 
     private func forceSyncTapped() {
-        guard case .idle = state else {
-            // Already running — guard against double-tap.
-            if case .failed = state { /* allowed re-entry */ } else { return }
+        // Allow re-entry from .idle (first tap) and .failed (retry tap).
+        // Block double-taps while .syncing and the post-success
+        // "Safe to uninstall" terminal state.
+        switch state {
+        case .idle, .failed:
+            break
+        case .syncing, .safeToUninstall:
+            return
         }
         Task {
             let uid = await container.session.currentUserId
