@@ -123,20 +123,29 @@ class EntitlementRepository @Inject constructor(
         if (userPrefs.legacyCheckDoneForUid.first() == uid) {
             return // already checked this uid; don't repeat.
         }
-        val creationTimestamp = auth.currentUser?.metadata?.creationTimestamp
-        if (creationTimestamp == null) {
-            // No metadata (rare — e.g. very-fresh anon user). Mark
-            // checked so we don't loop on every auth tick, and try again
-            // on the next uid change.
-            userPrefs.setLegacyCheckDoneForUid(uid)
-            return
-        }
-        if (creationTimestamp < V0_8_RELEASE_DATE_MS) {
-            Log.i(TAG, "Granting legacy_user entitlement to uid=$uid (account created $creationTimestamp)")
-            userPrefs.setLegacyUserGranted(true)
+        val currentUser = auth.currentUser
+        val email = currentUser?.email?.lowercase()
+        val creationTimestamp = currentUser?.metadata?.creationTimestamp
+
+        // RECOMPUTE the legacy_user flag from scratch for this uid (don't
+        // just OR into a sticky flag). This is what handles the
+        // sign-out → sign-in-as-someone-else case correctly: if Mike's
+        // device is later signed in to a non-VIP, non-grandfathered
+        // account, the flag flips back to false on the next uid emission.
+        val isVip = email != null && email in PREMIUM_VIP_EMAILS
+        val isPreV08 = creationTimestamp != null && creationTimestamp < V0_8_RELEASE_DATE_MS
+        val shouldGrant = isVip || isPreV08
+
+        if (shouldGrant) {
+            Log.i(
+                TAG,
+                "Granting legacy_user entitlement to uid=$uid " +
+                    "(vip=$isVip, preV08=$isPreV08, created=$creationTimestamp)",
+            )
         } else {
-            Log.i(TAG, "Account too new for legacy grandfather: uid=$uid, created=$creationTimestamp")
+            Log.i(TAG, "No legacy grandfather for uid=$uid (email=$email, created=$creationTimestamp)")
         }
+        userPrefs.setLegacyUserGranted(shouldGrant)
         userPrefs.setLegacyCheckDoneForUid(uid)
     }
 
@@ -150,15 +159,40 @@ class EntitlementRepository @Inject constructor(
 
     companion object {
         /**
-         * Cutoff for the grandfather check: any Firebase account created
-         * **before** this epoch-ms timestamp is treated as a legacy user
-         * and gets free-Premium-equivalent access without paying.
+         * Cutoff for the date-based grandfather check: any Firebase
+         * account created **before** this epoch-ms timestamp is treated
+         * as a legacy user and gets free-Premium-equivalent access
+         * without paying.
          *
          * Set this to the actual v0.8 ship moment when finalising the
          * release. Until then, the current value treats every existing
          * tester as legacy.
          */
         const val V0_8_RELEASE_DATE_MS: Long = 1_747_000_000_000L  // ~2026-05-12 00:00 UTC
+
+        /**
+         * Explicit VIP allowlist — these accounts get free Premium
+         * regardless of when their Firebase account was created. Used
+         * for the dev account + close beta testers who were verbally
+         * promised free access.
+         *
+         * **Privacy note**: this list is committed to source control,
+         * which on a public repo (`github.com/derekgallardo01/storehop`)
+         * makes the email addresses publicly indexable. The three
+         * holders below all participated in v0.7.x beta testing and
+         * consented to v0.8 free access. If you want to extend the
+         * list without exposing further addresses, move this constant
+         * to a `local.properties` value injected via BuildConfig in
+         * `app/build.gradle.kts`.
+         *
+         * Comparison is lower-case so case differences in Firebase
+         * email registrations don't cause misses.
+         */
+        val PREMIUM_VIP_EMAILS: Set<String> = setOf(
+            "derekgallardo01@gmail.com", // dev account
+            "mikehaynes@gmail.com",      // Mike — beta tester since v0.3.x
+            "amandafrost79@gmail.com",   // Amanda — Mike's household partner
+        )
 
         private const val TAG = "EntitlementRepository"
     }
