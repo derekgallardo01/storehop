@@ -43,13 +43,29 @@ pay independently.
 
 ### Grandfather clause
 
-Any user whose Firebase account `creationTimestamp` predates the
-v0.8 release date gets a silent `legacy_user` entitlement that
-mirrors `premium_lifetime`. Preserves goodwill for the closed-test
-cohort — Mike + everyone else who beta-tested for free keeps full
-access without paying. Mechanism: on every uid emission, check the
-timestamp; if pre-v0.8, write a `legacy_user_granted` flag to local
-DataStore. Check runs at most once per uid.
+Two paths grant the silent `LegacyUser` entitlement (functionally
+identical to `Premium` for UI gating):
+
+1. **Date-based**: any user whose Firebase account
+   `creationTimestamp` predates `V0_8_RELEASE_DATE_MS` (the
+   constant in `EntitlementRepository.kt`) — covers the closed-test
+   cohort that's been beta-testing for free.
+2. **Email allowlist** (`PREMIUM_VIP_EMAILS`): explicit set of
+   beta-tester emails that bypass the date check entirely so they
+   keep free Premium even after creating fresh Firebase accounts.
+   Currently lists the dev account, Mike (`mikehaynes@gmail.com`),
+   and Amanda (`amandafrost79@gmail.com`).
+
+Mechanism: on every uid emission, the check recomputes the flag
+from scratch — VIP email match OR pre-v0.8 timestamp → grant; else
+clear. This **fixes a sticky-flag bug** where the legacy flag, once
+set, never cleared: if a VIP previously signed in on a device and a
+non-VIP signed in afterward, the non-VIP would inherit Premium.
+Now sign-out + sign-in-as-non-VIP correctly flips entitlement back
+to NotEntitled.
+
+Mike + Amanda + the dev account all hit the VIP-email branch; every
+other existing tester hits the date-based branch.
 
 ### Added (Android)
 
@@ -93,6 +109,21 @@ DataStore. Check runs at most once per uid.
 No changes — entitlement state is local-only and never reaches
 Firestore. The v0.7.1 rules ship unchanged.
 
+### Fixed (mid-cycle patches before final ship)
+
+- **`.1` — VIP allowlist** (commit `42bc23f`). The date-based
+  grandfather isn't enough for testers whose Firebase accounts may
+  have been created after the v0.8 cutoff (notably Amanda, who just
+  joined Mike's household). Added an explicit
+  `PREMIUM_VIP_EMAILS` set + a real bug fix: the legacy flag now
+  recomputes per-uid instead of staying sticky-true forever (which
+  would have leaked Premium to non-VIPs signing in on a VIP's
+  device). versionCode 60 → 61.
+- **`.2` — versionCode 61 → 62** (commit `c38aa42`). Play Console
+  rejected the 61 upload with "version code already used" — looks
+  like a Play-side cache from an earlier draft. Bumped to 62, no
+  code changes.
+
 ### Open items requiring user action
 
 - **Play Console**: Create the `premium_lifetime` in-app product
@@ -101,18 +132,31 @@ Firestore. The v0.7.1 rules ship unchanged.
 - **Verify** the grandfather cutoff `V0_8_RELEASE_DATE_MS` in
   `EntitlementRepository.kt` matches the actual ship moment.
 
+### Tests
+
+Ten new cases in `EntitlementRepositoryTest` pin the entitlement
+contract: VIP email matches grant `LegacyUser`, case-insensitive
+comparison, date-based grandfather, anonymous user stays
+`NotEntitled`, sticky-flag re-evaluation on uid change, purchase
+precedence over legacy, pending-purchase doesn't grant. Test infra
+uses `TestScope.backgroundScope` for the application scope so the
+long-lived collectors in `start()` auto-cancel; DataStore IO runs
+on the test scheduler so `advanceUntilIdle()` drains writes.
+
 ### iOS (deferred)
 
 iOS port stays at marketing version 0.6.10. v0.7.1 work (cloud-prefs +
 Force-sync + household_members push) and v0.8 work (StoreKit2 +
 EntitlementRepository + UI gates) ship together as iOS 0.8.0 in a
-follow-up Mac session.
+follow-up Mac session. iOS CI was manually re-dispatched on the
+current iOS code state (run 25744323290) and remained green.
 
 ### Versions
 
-- Android: `versionCode 54 → 60`, `versionName 0.7.1 → 0.8.0`.
-  Jumped 6 codes to mark the major-feature boundary (54 was the
-  v0.7.1.3 patch).
+- Android: `versionCode 54 → 62`, `versionName 0.7.1 → 0.8.0`.
+  Sequence: 60 (base v0.8.0) → 61 (.1 VIP allowlist) → 62 (.2
+  Play re-upload). Two mid-cycle bumps for the patches above —
+  Play Console doesn't accept re-uploads at the same code.
 
 ## [0.7.1] - 2026-05-11
 

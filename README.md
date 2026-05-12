@@ -18,12 +18,15 @@ Android **v0.8.0** (Play Closed testing) introduces a one-time
 export. The app stays Free to install; everything you'd want from
 v0.7.x — cloud sync, cross-store cascade, joining + using a shared
 household someone else invited you to — is still free. The
-**inviter-pays** model means Mike buys Premium once → invites
-Amanda → Amanda joins free and uses the shared household
-unconditionally. Existing testers (Firebase account predating the
-v0.8 release date) are silently grandfathered into the
-`legacy_user` entitlement. See the v0.8 entry in CHANGELOG for the
-full breakdown.
+**inviter-pays** model means whoever pays once can generate
+invites; invitees join + use the shared household unconditionally.
+Two paths grandfather users into a silent `LegacyUser` entitlement
+(functionally equivalent to Premium): a Firebase account
+`creationTimestamp` predating the v0.8 release date OR a match
+against the explicit `PREMIUM_VIP_EMAILS` allowlist in
+`EntitlementRepository.kt`. The dev account, Mike, and Amanda are
+in that allowlist so they keep free Premium permanently. See the
+v0.8.0 entry in CHANGELOG for the full breakdown.
 
 Android **v0.7.1** shipped a lossless sideload-APK → Play migration
 path: user preferences (theme, language, sort modes,
