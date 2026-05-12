@@ -42,6 +42,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
@@ -49,6 +50,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.storehop.app.R
+import com.storehop.app.billing.Entitlement
+import com.storehop.app.billing.isUnlocked
 import com.storehop.app.data.entity.HouseholdMember
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -59,6 +62,9 @@ fun HouseholdScreen(
 ) {
     val state by viewModel.uiState.collectAsState()
     val event by viewModel.uiEvent.collectAsState()
+    val entitlement by viewModel.entitlement.collectAsState()
+    val premiumPrice by viewModel.premiumPrice.collectAsState()
+    val context = LocalContext.current
     val snackbar = remember { SnackbarHostState() }
 
     var pendingInvite by remember { mutableStateOf<com.storehop.app.data.repository.InviteCode?>(null) }
@@ -108,7 +114,16 @@ fun HouseholdScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             MembersCard(state.members, state.isPersonalHousehold)
-            InviteCard(onGenerateInvite = viewModel::generateInvite)
+            InviteCard(
+                entitlement = entitlement,
+                premiumPrice = premiumPrice,
+                onGenerateInvite = {
+                    val activity = context.findActivity()
+                    if (activity != null) {
+                        viewModel.onGenerateInviteTapped(activity)
+                    }
+                },
+            )
             JoinCard(
                 tokenInput = joinTokenInput,
                 onTokenChange = { joinTokenInput = it; joinError = null },
@@ -189,7 +204,12 @@ private fun MembersCard(members: List<HouseholdMember>, isPersonalHousehold: Boo
 }
 
 @Composable
-private fun InviteCard(onGenerateInvite: () -> Unit) {
+private fun InviteCard(
+    entitlement: Entitlement,
+    premiumPrice: String?,
+    onGenerateInvite: () -> Unit,
+) {
+    val unlocked = entitlement.isUnlocked
     Card(elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(
@@ -201,9 +221,29 @@ private fun InviteCard(onGenerateInvite: () -> Unit) {
                 stringResource(R.string.household_invite_explanation),
                 style = MaterialTheme.typography.bodySmall,
             )
+            // v0.8: gate Generate Invite behind Premium entitlement. Locked
+            // button shows the Play-localized price; tapping launches the
+            // billing flow. Accepting an invite (the JoinCard below) stays
+            // free under the inviter-pays model.
+            if (!unlocked) {
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    stringResource(R.string.premium_locked_invite_explainer),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
             Spacer(Modifier.height(12.dp))
             Button(onClick = onGenerateInvite) {
-                Text(stringResource(R.string.household_generate_invite))
+                Text(
+                    if (unlocked) {
+                        stringResource(R.string.household_generate_invite)
+                    } else if (premiumPrice != null) {
+                        stringResource(R.string.premium_locked_invite_label, premiumPrice)
+                    } else {
+                        stringResource(R.string.premium_locked_invite_label_loading)
+                    },
+                )
             }
         }
     }

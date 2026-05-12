@@ -324,4 +324,23 @@
     <string name="household_error_invite_expired">Este código de convite expirou.</string>
     <string name="household_error_invite_used">Este código de convite já foi utilizado.</string>
     <string name="household_error_invalid_token">Os códigos têm 8 caracteres. Verifique o código e tente novamente.</string>
+
+    <!-- v0.8 Premium IAP (inviter-pays sharing + gated CSV export). -->
+    <string name="premium_card_title">Storehop Premium</string>
+    <string name="premium_card_body_household">Gere códigos de convite para partilhar a sua lista de compras com a família ou colegas.</string>
+    <string name="premium_card_body_export">Exporte os seus artigos e categorias em CSV para guardar ou transferir entre dispositivos.</string>
+    <string name="premium_cta_unlock">Desbloquear por %1$s</string>
+    <string name="premium_cta_unlock_loading">Desbloquear</string>
+    <string name="premium_cta_unlocked_active">Premium desbloqueado ✓</string>
+    <string name="premium_restore_purchases">Restaurar compras</string>
+    <string name="premium_locked_invite_label">Gerar convite — Desbloquear por %1$s</string>
+    <string name="premium_locked_invite_label_loading">Gerar convite — Desbloquear</string>
+    <string name="premium_locked_invite_explainer">Gerar um convite requer Premium. Entrar num agregado existente é sempre gratuito.</string>
+    <string name="premium_locked_export_label">Exportar artigos — Desbloquear por %1$s</string>
+    <string name="premium_locked_export_categories_label">Exportar categorias — Desbloquear por %1$s</string>
+    <string name="premium_purchase_success">Premium desbloqueado. Obrigado!</string>
+    <string name="premium_purchase_pending">Compra aguarda aprovação. Desbloquearemos assim que estiver concluída.</string>
+    <string name="premium_purchase_failed">Falha na compra: %1$s</string>
+    <string name="premium_purchase_already_owned">Já possui Premium. Restaurado.</string>
+    <string name="premium_restore_done">Restauro concluído.</string>
 </resources>

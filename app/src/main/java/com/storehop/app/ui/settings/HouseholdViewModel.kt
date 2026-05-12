@@ -1,7 +1,12 @@
 package com.storehop.app.ui.settings
 
+import android.app.Activity
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.storehop.app.billing.BillingManager
+import com.storehop.app.billing.Entitlement
+import com.storehop.app.billing.EntitlementRepository
+import com.storehop.app.billing.isUnlocked
 import com.storehop.app.data.entity.HouseholdMember
 import com.storehop.app.data.repository.HouseholdRepository
 import com.storehop.app.data.repository.InviteCode
@@ -14,6 +19,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -33,12 +39,30 @@ import javax.inject.Inject
 @HiltViewModel
 class HouseholdViewModel @Inject constructor(
     private val repository: HouseholdRepository,
+    private val entitlementRepo: EntitlementRepository,
+    private val billingManager: BillingManager,
     userSession: UserSessionProvider,
     householdSession: HouseholdSessionProvider,
 ) : ViewModel() {
 
     private val _uiEvent = MutableStateFlow<HouseholdUiEvent?>(null)
     val uiEvent: StateFlow<HouseholdUiEvent?> = _uiEvent.asStateFlow()
+
+    /** v0.8: live entitlement state. Generate-Invite button reads this
+     *  to decide whether to call [generateInvite] or [launchPurchase]. */
+    val entitlement: StateFlow<Entitlement> = entitlementRepo.entitlement
+
+    /** Play-localized formatted price for the upsell button — e.g.
+     *  "$7.99" / "€7,99". Null until BillingClient finishes connecting.
+     *  Used to render "Unlock for $7.99" instead of hardcoding the
+     *  currency on the client. */
+    val premiumPrice: StateFlow<String?> = billingManager.productDetails
+        .map { it?.oneTimePurchaseOfferDetails?.formattedPrice }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS),
+            initialValue = null,
+        )
 
     val uiState: StateFlow<HouseholdUiState> = combine(
         userSession.userId,
@@ -56,6 +80,29 @@ class HouseholdViewModel @Inject constructor(
         started = SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS),
         initialValue = HouseholdUiState(),
     )
+
+    /**
+     * v0.8: launch the Play purchase sheet for the Premium IAP. Wired
+     * to the gated "Generate Invite" button when the user is not yet
+     * entitled. Activity is required by Play to anchor the sheet's
+     * window.
+     */
+    fun launchPurchase(activity: Activity) {
+        billingManager.launchPurchase(activity)
+    }
+
+    /**
+     * v0.8: combined gate — calls [generateInvite] if entitled, falls
+     * back to launching the purchase sheet otherwise. Simplifies the
+     * Composable call site (single onClick, VM handles routing).
+     */
+    fun onGenerateInviteTapped(activity: Activity) {
+        if (entitlement.value.isUnlocked) {
+            generateInvite()
+        } else {
+            launchPurchase(activity)
+        }
+    }
 
     fun generateInvite() {
         viewModelScope.launch {

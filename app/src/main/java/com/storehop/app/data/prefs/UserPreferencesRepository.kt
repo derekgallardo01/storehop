@@ -135,6 +135,46 @@ class UserPreferencesRepository @Inject constructor(
         }
     }
 
+    // ---- v0.8 Premium entitlement state (LOCAL-ONLY, never cloud-synced) ---
+    //
+    // These three keys back the EntitlementRepository's grandfather logic +
+    // fast-startup cache. They are deliberately **NOT** included in the
+    // [UserPreferencesSnapshot] above — per Apple / Google IAP policy,
+    // entitlements are per-platform and per-device. Mike buying Premium on
+    // Android does not grant him Premium on iOS; the same applies to the
+    // legacy_user grandfather flag.
+
+    /** True if this device has been granted the legacy_user entitlement
+     *  (Firebase account creationTimestamp predated the v0.8 release). */
+    val legacyUserGranted: Flow<Boolean> = dataStore.data
+        .map { prefs -> prefs[KEY_LEGACY_USER_GRANTED] ?: false }
+
+    suspend fun setLegacyUserGranted(granted: Boolean) {
+        dataStore.edit { it[KEY_LEGACY_USER_GRANTED] = granted }
+    }
+
+    /** Which uid we've already run the grandfather check for. Prevents
+     *  re-running on every uid emission (sign-in / sign-out / orphan-claim
+     *  cycle). */
+    val legacyCheckDoneForUid: Flow<String> = dataStore.data
+        .map { prefs -> prefs[KEY_LEGACY_CHECK_DONE_FOR_UID] ?: "" }
+
+    suspend fun setLegacyCheckDoneForUid(uid: String) {
+        dataStore.edit { it[KEY_LEGACY_CHECK_DONE_FOR_UID] = uid }
+    }
+
+    /** Last-known entitlement value, persisted so the UI starts in the
+     *  right state on cold launch instead of flickering through
+     *  NOT_ENTITLED while BillingClient connects. Stored as the enum name
+     *  (Entitlement subclass simple name) to keep the storage format
+     *  stable across enum reorders. */
+    val cachedEntitlement: Flow<String> = dataStore.data
+        .map { prefs -> prefs[KEY_CACHED_ENTITLEMENT] ?: "NOT_ENTITLED" }
+
+    suspend fun setCachedEntitlement(value: String) {
+        dataStore.edit { it[KEY_CACHED_ENTITLEMENT] = value }
+    }
+
     private companion object {
         val KEY_THEME_MODE = stringPreferencesKey("theme_mode")
         val KEY_LOCALE_TAG = stringPreferencesKey("locale_tag")
@@ -142,6 +182,11 @@ class UserPreferencesRepository @Inject constructor(
         val KEY_SHOP_AT_STORE_SORT_MODE = stringPreferencesKey("shop_at_store_sort_mode")
         val KEY_ITEMS_LIST_SORT_MODE = stringPreferencesKey("items_list_sort_mode")
         val KEY_UPDATED_AT = longPreferencesKey("user_prefs_updated_at")
+
+        // v0.8 entitlement keys (local-only, never cloud-synced).
+        val KEY_LEGACY_USER_GRANTED = booleanPreferencesKey("legacy_user_granted")
+        val KEY_LEGACY_CHECK_DONE_FOR_UID = stringPreferencesKey("legacy_check_done_for_uid")
+        val KEY_CACHED_ENTITLEMENT = stringPreferencesKey("cached_entitlement")
     }
 }
 

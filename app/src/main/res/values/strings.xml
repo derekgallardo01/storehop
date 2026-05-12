@@ -324,4 +324,25 @@
     <string name="household_error_invite_expired">This invite code has expired.</string>
     <string name="household_error_invite_used">This invite code has already been used.</string>
     <string name="household_error_invalid_token">Codes are 8 characters. Double-check the code and try again.</string>
+
+    <!-- v0.8 Premium IAP. Inviter-pays model: gate Generate Invite +
+         CSV Export. Accepting an invite + everything-else-after-joining
+         stays free. -->
+    <string name="premium_card_title">Storehop Premium</string>
+    <string name="premium_card_body_household">Generate invite codes to share your shopping list with family or roommates.</string>
+    <string name="premium_card_body_export">Export your items and categories as CSV for backup or to move between devices.</string>
+    <string name="premium_cta_unlock">Unlock for %1$s</string>
+    <string name="premium_cta_unlock_loading">Unlock</string>
+    <string name="premium_cta_unlocked_active">Premium unlocked ✓</string>
+    <string name="premium_restore_purchases">Restore purchases</string>
+    <string name="premium_locked_invite_label">Generate invite — Unlock for %1$s</string>
+    <string name="premium_locked_invite_label_loading">Generate invite — Unlock</string>
+    <string name="premium_locked_invite_explainer">Generating an invite requires Premium. Joining an existing household is always free.</string>
+    <string name="premium_locked_export_label">Export items — Unlock for %1$s</string>
+    <string name="premium_locked_export_categories_label">Export categories — Unlock for %1$s</string>
+    <string name="premium_purchase_success">Premium unlocked. Thanks!</string>
+    <string name="premium_purchase_pending">Purchase pending approval. We\'ll unlock as soon as it completes.</string>
+    <string name="premium_purchase_failed">Purchase failed: %1$s</string>
+    <string name="premium_purchase_already_owned">You already own Premium. Restored.</string>
+    <string name="premium_restore_done">Restore complete.</string>
 </resources>

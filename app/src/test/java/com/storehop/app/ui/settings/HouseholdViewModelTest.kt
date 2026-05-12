@@ -35,7 +35,13 @@ class HouseholdViewModelTest {
     private val userSession = FakeSessionProvider(TEST_USER_ID)
     private val householdSession = FakeHouseholdSessionProvider(TEST_USER_ID)
 
-    private fun vm() = HouseholdViewModel(repository, userSession, householdSession)
+    private fun vm() = HouseholdViewModel(
+        repository = repository,
+        entitlementRepo = mockk(relaxed = true),
+        billingManager = mockk(relaxed = true),
+        userSession = userSession,
+        householdSession = householdSession,
+    )
 
     @Test fun `uiState reports isPersonalHousehold = true when household equals uid`() = runTest {
         coEvery { repository.observeMembers() } returns flowOf(emptyList())

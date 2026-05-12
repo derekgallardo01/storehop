@@ -13,12 +13,23 @@ specific household) is added or renamed by the user.
 
 ## Status
 
-Android **v0.7.1** (Play Closed testing) ships a lossless
-sideload-APK → Play migration path on top of v0.7.0: user
-preferences (theme, language, sort modes, hide-checked-off) now
-cloud-sync to `/userPrefs/{uid}` via Firestore, and Settings → Data
-gains a "Force sync now" button so beta testers can drain every
-pending write before uninstalling. Full runbook at
+Android **v0.8.0** (Play Closed testing) introduces a one-time
+**$7.99 Premium IAP** that gates household-invite creation and CSV
+export. The app stays Free to install; everything you'd want from
+v0.7.x — cloud sync, cross-store cascade, joining + using a shared
+household someone else invited you to — is still free. The
+**inviter-pays** model means Mike buys Premium once → invites
+Amanda → Amanda joins free and uses the shared household
+unconditionally. Existing testers (Firebase account predating the
+v0.8 release date) are silently grandfathered into the
+`legacy_user` entitlement. See the v0.8 entry in CHANGELOG for the
+full breakdown.
+
+Android **v0.7.1** shipped a lossless sideload-APK → Play migration
+path: user preferences (theme, language, sort modes,
+hide-checked-off) cloud-sync to `/userPrefs/{uid}` via Firestore, and
+Settings → Data has a "Force sync now" button so beta testers can
+drain every pending write before uninstalling. Full runbook at
 [`docs/v0.7.1-migration.md`](docs/v0.7.1-migration.md).
 
 Android **v0.7.0** shipped multi-user household

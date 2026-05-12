@@ -321,4 +321,23 @@
     <string name="household_error_invite_expired">Questo codice invito è scaduto.</string>
     <string name="household_error_invite_used">Questo codice invito è già stato utilizzato.</string>
     <string name="household_error_invalid_token">I codici sono di 8 caratteri. Controlla il codice e riprova.</string>
+
+    <!-- v0.8 Premium IAP. -->
+    <string name="premium_card_title">Storehop Premium</string>
+    <string name="premium_card_body_household">Genera codici invito per condividere la lista della spesa con famiglia o coinquilini.</string>
+    <string name="premium_card_body_export">Esporta articoli e categorie in CSV per backup o per spostarli tra dispositivi.</string>
+    <string name="premium_cta_unlock">Sblocca per %1$s</string>
+    <string name="premium_cta_unlock_loading">Sblocca</string>
+    <string name="premium_cta_unlocked_active">Premium sbloccato ✓</string>
+    <string name="premium_restore_purchases">Ripristina acquisti</string>
+    <string name="premium_locked_invite_label">Genera invito — Sblocca per %1$s</string>
+    <string name="premium_locked_invite_label_loading">Genera invito — Sblocca</string>
+    <string name="premium_locked_invite_explainer">Generare un invito richiede Premium. Entrare in un nucleo esistente è sempre gratuito.</string>
+    <string name="premium_locked_export_label">Esporta articoli — Sblocca per %1$s</string>
+    <string name="premium_locked_export_categories_label">Esporta categorie — Sblocca per %1$s</string>
+    <string name="premium_purchase_success">Premium sbloccato. Grazie!</string>
+    <string name="premium_purchase_pending">Acquisto in attesa di approvazione. Sbloccheremo non appena completato.</string>
+    <string name="premium_purchase_failed">Acquisto fallito: %1$s</string>
+    <string name="premium_purchase_already_owned">Hai già Premium. Ripristinato.</string>
+    <string name="premium_restore_done">Ripristino completato.</string>
 </resources>

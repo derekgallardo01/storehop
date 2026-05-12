@@ -61,6 +61,8 @@ class SettingsViewModelLocaleTest {
         pullCoordinator = pullCoordinator,
         pullStateRepo = pullStateRepo,
         syncEngine = mockk(relaxed = true),
+        entitlementRepo = mockk(relaxed = true),
+        billingManager = mockk(relaxed = true),
     )
 
     @Test fun `setLocale TIRAMISU+ branch writes to LocaleManager and reads back`() = runTest {

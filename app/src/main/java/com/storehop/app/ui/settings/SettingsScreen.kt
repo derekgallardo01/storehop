@@ -39,6 +39,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.RadioButton
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SnackbarHost
@@ -65,6 +66,8 @@ import coil.compose.AsyncImage
 import androidx.core.net.toUri
 import com.storehop.app.BuildConfig
 import com.storehop.app.R
+import com.storehop.app.billing.Entitlement
+import com.storehop.app.billing.isUnlocked
 import com.storehop.app.data.prefs.ThemeMode
 import com.storehop.app.sync.PullState
 
@@ -157,12 +160,30 @@ fun SettingsScreen(
             )
 
             SectionHeader(text = stringResource(R.string.settings_section_data))
-            DataCard(snackbarHostState = snackbarHostState)
+            DataCard(
+                snackbarHostState = snackbarHostState,
+                entitlement = viewModel.entitlement.collectAsState().value,
+                premiumPrice = viewModel.premiumPrice.collectAsState().value,
+                onLaunchPremiumPurchase = {
+                    context.findActivity()?.let(viewModel::launchPremiumPurchase)
+                },
+            )
             ForceSyncCard(
                 forceSyncState = viewModel.forceSyncState.collectAsState().value,
                 pendingCount = viewModel.pendingPushCount.collectAsState().value,
                 onForceSync = viewModel::forceSyncNow,
                 onAcknowledge = viewModel::acknowledgeForceSync,
+            )
+            // v0.8: upsell card. Shown only when the user isn't entitled.
+            // Above the About section so it sits at the bottom of the
+            // scroll where the user lands after browsing settings.
+            UpgradeToPremiumCard(
+                entitlement = viewModel.entitlement.collectAsState().value,
+                premiumPrice = viewModel.premiumPrice.collectAsState().value,
+                onUpgrade = {
+                    context.findActivity()?.let(viewModel::launchPremiumPurchase)
+                },
+                onRestore = viewModel::restorePurchases,
             )
 
             SectionHeader(text = stringResource(R.string.settings_section_about))
@@ -250,10 +271,14 @@ private fun LanguageCard(
 @Composable
 private fun DataCard(
     snackbarHostState: SnackbarHostState,
+    entitlement: com.storehop.app.billing.Entitlement,
+    premiumPrice: String?,
+    onLaunchPremiumPurchase: () -> Unit,
     viewModel: ImportExportViewModel = hiltViewModel(),
 ) {
     val busy by viewModel.busy.collectAsState()
     val latestImport by viewModel.latestImport.collectAsState()
+    val unlocked = entitlement.isUnlocked
 
     val exportItems = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.CreateDocument("text/csv"),
@@ -307,16 +332,42 @@ private fun DataCard(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Spacer(Modifier.height(4.dp))
+            // v0.8: Export gated behind Premium. Locked buttons show the
+            // Play-localized price and launch the billing flow on tap.
+            // Import stays unconditionally free — onboarding hook for
+            // users moving from another app.
             OutlinedButton(
-                onClick = { exportItems.launch("storehop-items.csv") },
+                onClick = {
+                    if (unlocked) exportItems.launch("storehop-items.csv")
+                    else onLaunchPremiumPurchase()
+                },
                 enabled = !busy,
                 modifier = Modifier.fillMaxWidth(),
-            ) { Text(stringResource(R.string.action_export_items)) }
+            ) {
+                Text(
+                    if (unlocked) stringResource(R.string.action_export_items)
+                    else stringResource(
+                        R.string.premium_locked_export_label,
+                        premiumPrice ?: "",
+                    ),
+                )
+            }
             OutlinedButton(
-                onClick = { exportCategories.launch("storehop-categories.csv") },
+                onClick = {
+                    if (unlocked) exportCategories.launch("storehop-categories.csv")
+                    else onLaunchPremiumPurchase()
+                },
                 enabled = !busy,
                 modifier = Modifier.fillMaxWidth(),
-            ) { Text(stringResource(R.string.action_export_categories)) }
+            ) {
+                Text(
+                    if (unlocked) stringResource(R.string.action_export_categories)
+                    else stringResource(
+                        R.string.premium_locked_export_categories_label,
+                        premiumPrice ?: "",
+                    ),
+                )
+            }
             OutlinedButton(
                 onClick = { importItems.launch(arrayOf("text/*", "application/octet-stream")) },
                 enabled = !busy,
@@ -327,6 +378,62 @@ private fun DataCard(
                 enabled = !busy,
                 modifier = Modifier.fillMaxWidth(),
             ) { Text(stringResource(R.string.action_import_categories)) }
+        }
+    }
+}
+
+/**
+ * v0.8: upsell card. Visible only when [entitlement] is
+ * [Entitlement.NotEntitled]. Premium and LegacyUser hide it because
+ * the gate is already lifted on those users' devices.
+ *
+ * Renders the value props inline, the Play-localized price on the
+ * primary CTA, and a "Restore purchases" link underneath for users
+ * who paid on another device of the same Google account.
+ */
+@Composable
+private fun UpgradeToPremiumCard(
+    entitlement: com.storehop.app.billing.Entitlement,
+    premiumPrice: String?,
+    onUpgrade: () -> Unit,
+    onRestore: () -> Unit,
+) {
+    if (entitlement.isUnlocked) return
+    Card(elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                stringResource(R.string.premium_card_title),
+                style = MaterialTheme.typography.titleMedium,
+            )
+            Spacer(Modifier.height(8.dp))
+            Text(
+                "• " + stringResource(R.string.premium_card_body_household),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.height(4.dp))
+            Text(
+                "• " + stringResource(R.string.premium_card_body_export),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.height(12.dp))
+            Button(
+                onClick = onUpgrade,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text(
+                    if (premiumPrice != null) {
+                        stringResource(R.string.premium_cta_unlock, premiumPrice)
+                    } else {
+                        stringResource(R.string.premium_cta_unlock_loading)
+                    },
+                )
+            }
+            Spacer(Modifier.height(4.dp))
+            TextButton(onClick = onRestore, modifier = Modifier.fillMaxWidth()) {
+                Text(stringResource(R.string.premium_restore_purchases))
+            }
         }
     }
 }
@@ -699,7 +806,7 @@ private fun AccountAvatar(photoUrl: String?, isAnonymous: Boolean) {
  * Theme's themed wrapper), so a direct `as? Activity` cast returns null. Walking
  * `baseContext` until we hit an Activity is the standard pattern.
  */
-private tailrec fun Context.findActivity(): Activity? = when (this) {
+internal tailrec fun Context.findActivity(): Activity? = when (this) {
     is Activity -> this
     is ContextWrapper -> baseContext.findActivity()
     else -> null

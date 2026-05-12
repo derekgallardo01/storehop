@@ -364,5 +364,7 @@ class SettingsViewModelTest {
         pullCoordinator = pullCoordinator,
         pullStateRepo = pullStateRepo,
         syncEngine = mockk(relaxed = true),
+        entitlementRepo = mockk(relaxed = true),
+        billingManager = mockk(relaxed = true),
     )
 }

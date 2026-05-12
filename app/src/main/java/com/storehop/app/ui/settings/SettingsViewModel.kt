@@ -1,5 +1,6 @@
 package com.storehop.app.ui.settings
 
+import android.app.Activity
 import android.app.LocaleManager
 import android.content.Context
 import android.os.Build
@@ -11,6 +12,10 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.auth.FirebaseAuth
 import com.storehop.app.auth.GoogleSignInUseCase
+import com.storehop.app.billing.BillingManager
+import com.storehop.app.billing.Entitlement
+import com.storehop.app.billing.EntitlementRepository
+import com.storehop.app.billing.PurchaseEvent
 import com.storehop.app.data.prefs.ThemeMode
 import com.storehop.app.data.prefs.UserPreferencesRepository
 import com.storehop.app.data.util.HouseholdSessionProvider
@@ -23,12 +28,14 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
@@ -75,7 +82,34 @@ class SettingsViewModel @Inject constructor(
     private val pullCoordinator: PullCoordinator,
     private val pullStateRepo: PullStateRepository,
     private val syncEngine: SyncEngine,
+    private val entitlementRepo: EntitlementRepository,
+    private val billingManager: BillingManager,
 ) : ViewModel() {
+
+    /** v0.8: live entitlement state observed by the upsell card + the
+     *  CSV export buttons. */
+    val entitlement: StateFlow<Entitlement> = entitlementRepo.entitlement
+
+    /** Play-localized formatted price for the Premium IAP. Null until
+     *  BillingClient finishes its first product query (~500 ms after
+     *  app start). */
+    val premiumPrice: StateFlow<String?> = billingManager.productDetails
+        .map { it?.oneTimePurchaseOfferDetails?.formattedPrice }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000L), null)
+
+    /** Bus of purchase outcomes for snackbar. Re-exposed unchanged so
+     *  the screen can subscribe directly. */
+    val purchaseEvent: SharedFlow<PurchaseEvent> = billingManager.purchaseEvent
+
+    /** Launches the Play purchase sheet for the Premium IAP. */
+    fun launchPremiumPurchase(activity: Activity) {
+        billingManager.launchPurchase(activity)
+    }
+
+    /** "Restore purchases" — used by users who paid on another device. */
+    fun restorePurchases() {
+        entitlementRepo.restorePurchases()
+    }
 
     private val _state = MutableStateFlow(snapshot())
     val state: StateFlow<AccountState> = _state.asStateFlow()

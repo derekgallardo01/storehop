@@ -7,6 +7,113 @@ project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 For the high-level roadmap and earlier-than-0.5.0 history, see the
 "Roadmap" section in the [README](README.md).
 
+## [0.8.0] - 2026-05-12
+
+**Premium IAP — inviter-pays household sharing + gated CSV export
+(Android).** v0.7.1.2 added the Play Billing Library to the
+classpath; v0.8.0 actually wires it up. The app stays Free at install,
+but two power-user surfaces now require a one-time $7.99 unlock.
+
+### Pricing + scope
+
+- **Product**: one-time IAP, product ID `premium_lifetime`. Price set
+  in Play Console (configured at $7.99 USD at ship; Play handles
+  local-market conversions automatically).
+- **Free**: master list, multi-store tagging, cross-store cascade,
+  Firestore + Storage cloud sync, Statistics, **CSV import** (kept
+  free as the onboarding hook for users moving from another grocery
+  app), four UI languages, theme + sort prefs (cloud-synced as of
+  v0.7.1), Force-sync-now (v0.7.1), and **joining + using an existing
+  shared household** including marking items purchased and the
+  cross-store cascade.
+- **Premium**: generating new household invite codes + CSV export
+  (items and categories).
+
+### Inviter-pays model
+
+Per Apple / Google IAP policy, entitlements are per-platform and
+device-local — no cloud sync. The "Mike + Amanda" canonical case
+(Mike asked for shared lists in v0.6.0 planning) works under
+**inviter-pays**: Mike buys Premium once → he can generate invite
+codes → Amanda accepts free → Amanda uses the shared household
+free. Only invite *creation* is gated; *joining* + everything-else-
+after-joining is unconditionally free. Mirrors how Family Sharing
+works for paid apps and avoids forcing every household member to
+pay independently.
+
+### Grandfather clause
+
+Any user whose Firebase account `creationTimestamp` predates the
+v0.8 release date gets a silent `legacy_user` entitlement that
+mirrors `premium_lifetime`. Preserves goodwill for the closed-test
+cohort — Mike + everyone else who beta-tested for free keeps full
+access without paying. Mechanism: on every uid emission, check the
+timestamp; if pre-v0.8, write a `legacy_user_granted` flag to local
+DataStore. Check runs at most once per uid.
+
+### Added (Android)
+
+- **BillingManager** (`app/src/main/java/com/storehop/app/billing/BillingManager.kt`)
+  wraps `BillingClient` 7.1.1. Started from `StorehopApplication.onCreate`;
+  manages connection lifecycle, product queries, purchase flow,
+  acknowledgement (required by Google within 3 days or auto-refund),
+  and the "Restore purchases" path.
+- **EntitlementRepository**
+  (`app/src/main/java/com/storehop/app/billing/EntitlementRepository.kt`)
+  is the single source of truth for `Entitlement`
+  (`NotEntitled` | `Premium` | `LegacyUser`). Combines BillingManager's
+  live purchases flow with the grandfather flag. Persists the result
+  to local DataStore as a fast-startup cache so cold launches don't
+  flicker through `NotEntitled` while BillingClient connects (~500 ms).
+- **Settings → Storehop Premium** upsell card (`UpgradeToPremiumCard`
+  in `SettingsScreen.kt`). Visible only when not entitled; lists the
+  two unlocked features, primary CTA "Unlock for $7.99" (price is
+  the Play-localized `formattedPrice` so EU / UK / non-USD markets see
+  the correct symbol + decimal), plus a "Restore purchases" link for
+  users who bought on another device of the same Google account.
+- **Gated buttons** on `HouseholdScreen` (Generate Invite) and
+  `SettingsScreen → Data` (Export Items, Export Categories). Locked
+  buttons render the Play-localized price and tap-to-purchase. Import
+  buttons unchanged.
+
+### Changed (Android)
+
+- `UserPreferencesRepository`: 3 new local-only DataStore keys
+  (`legacy_user_granted`, `legacy_check_done_for_uid`,
+  `cached_entitlement`). **Explicitly excluded** from
+  `UserPreferencesSnapshot` + the cloud-sync push — per platform
+  policy, entitlement state stays device-local.
+- `HouseholdViewModel` + `SettingsViewModel` gain entitlement +
+  `premiumPrice` flows; tests pass relaxed mocks for the two new deps.
+- Strings: 17 new keys × 4 locales (en / pt-PT / es / it) for the
+  upsell card, gated button labels, and purchase-result snackbars.
+
+### Firestore security rules
+
+No changes — entitlement state is local-only and never reaches
+Firestore. The v0.7.1 rules ship unchanged.
+
+### Open items requiring user action
+
+- **Play Console**: Create the `premium_lifetime` in-app product
+  (one-time, $7.99). Already unblocked since v0.7.1.2 bundled Play
+  Billing Library.
+- **Verify** the grandfather cutoff `V0_8_RELEASE_DATE_MS` in
+  `EntitlementRepository.kt` matches the actual ship moment.
+
+### iOS (deferred)
+
+iOS port stays at marketing version 0.6.10. v0.7.1 work (cloud-prefs +
+Force-sync + household_members push) and v0.8 work (StoreKit2 +
+EntitlementRepository + UI gates) ship together as iOS 0.8.0 in a
+follow-up Mac session.
+
+### Versions
+
+- Android: `versionCode 54 → 60`, `versionName 0.7.1 → 0.8.0`.
+  Jumped 6 codes to mark the major-feature boundary (54 was the
+  v0.7.1.3 patch).
+
 ## [0.7.1] - 2026-05-11
 
 **Lossless sideload-APK → Play Store transition (Android).** Closes
