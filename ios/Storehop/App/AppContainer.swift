@@ -194,13 +194,22 @@ final class AppContainer {
                 pullWriteDao: PullWriteDao(writer: writer)
             )
             let clock = SystemClock()
+            let prefs = LiveUserPreferencesRepository(clock: clock)
+            // v0.7.1: cloud-sync user prefs via Firestore /userPrefs/{uid}
+            // so theme/locale/sort-mode choices survive uninstall +
+            // reinstall across signing-cert boundaries.
+            let userPreferencesSync = UserPreferencesSync(
+                firestore: Firestore.firestore(),
+                prefs: prefs
+            )
             let session = FirebaseAuthSessionProvider(
                 authClient: authClient,
                 migrationDao: LocalOnlyMigrationDao(writer: writer),
                 householdMemberDao: HouseholdMemberDao(writer: writer),
                 pullCoordinator: pullCoordinator,
                 pullStateRepo: pullState,
-                clock: clock
+                clock: clock,
+                userPreferencesSync: userPreferencesSync
             )
             return AppContainer(
                 clock: clock,
@@ -213,7 +222,7 @@ final class AppContainer {
                 googleSignInUseCase: googleSignIn,
                 pullCoordinator: pullCoordinator,
                 pullStateRepository: pullState,
-                userPreferences: LiveUserPreferencesRepository(),
+                userPreferences: prefs,
                 firestoreClient: firestore,
                 householdRepositoryFactory: { memberDao, writeDao in
                     FirestoreHouseholdRepository(

@@ -35,6 +35,7 @@ final actor FirebaseAuthSessionProvider: UserSessionProvider, HouseholdSessionPr
     private let householdMemberDao: HouseholdMemberDao
     private let pullCoordinator: any PullCoordinator
     private let pullStateRepo: any PullStateRepository
+    private let userPreferencesSync: UserPreferencesSync?
     private let clock: any Clock
 
     /// Disk-cached uid on cold launch (returning users), or nil. Updates
@@ -62,13 +63,15 @@ final actor FirebaseAuthSessionProvider: UserSessionProvider, HouseholdSessionPr
         householdMemberDao: HouseholdMemberDao,
         pullCoordinator: any PullCoordinator,
         pullStateRepo: any PullStateRepository,
-        clock: any Clock
+        clock: any Clock,
+        userPreferencesSync: UserPreferencesSync? = nil
     ) {
         self.authClient = authClient
         self.migrationDao = migrationDao
         self.householdMemberDao = householdMemberDao
         self.pullCoordinator = pullCoordinator
         self.pullStateRepo = pullStateRepo
+        self.userPreferencesSync = userPreferencesSync
         self.clock = clock
     }
 
@@ -242,6 +245,16 @@ final actor FirebaseAuthSessionProvider: UserSessionProvider, HouseholdSessionPr
         publishedUserId = newUid
         broadcastHid(resolvedHouseholdId)
         broadcastUid(newUid)
+
+        // v0.7.1: kick off the cloud-prefs reconcile in the background.
+        // Push current prefs if cloud is absent/stale; pull cloud if
+        // newer. Load-bearing for the first launch of v0.7.1 — captures
+        // existing local prefs to /userPrefs/{uid} on the first auth
+        // tick even if the user never opens Settings. Fire-and-forget;
+        // we don't block the auth pump on a Firestore round-trip.
+        if let userPreferencesSync {
+            Task { await userPreferencesSync.reconcile(uid: newUid) }
+        }
     }
 
     /// Resolve the user's active household. Phase 2: local-first.

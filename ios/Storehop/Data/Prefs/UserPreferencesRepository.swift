@@ -5,9 +5,15 @@ import Foundation
 /// also written to `AppleLanguages` so `Bundle.main.preferredLocalizations`
 /// honors the override on the next view-tree rebuild.
 ///
+/// v0.7.1: every setter now bumps `updatedAt` so the cloud-sync layer
+/// ([UserPreferencesSync]) can run last-write-wins against the Firestore
+/// `/userPrefs/{uid}` doc. The new `snapshot` accessor + `snapshotStream`
+/// re-emit on any change so the sync layer can debounce-push.
+///
 /// Backed by UserDefaults — small enough that persistence is synchronous
 /// and the read API can stay async-free (which keeps the SwiftUI binding
 /// surface simple).
+
 /// How a list of items should be ordered. Mirrors Android's
 /// `com.storehop.app.data.prefs.SortMode`. Each screen with a sort
 /// toggle holds its own preference (in-store list and Items list are
@@ -20,6 +26,22 @@ enum SortMode: String, Sendable {
         guard let name = name else { return nil }
         return SortMode(rawValue: name)
     }
+}
+
+/// Aggregated user preferences DTO used by [UserPreferencesSync] to ferry
+/// values between local UserDefaults and `/userPrefs/{uid}` in Firestore.
+///
+/// `updatedAt` is the LWW arbiter: cloud writes only land locally if their
+/// `updatedAt` exceeds the local snapshot's, and local writes only push
+/// to cloud if local is newer than (or equal-to-absent from) the remote
+/// doc. Mirrors Android's `UserPreferencesSnapshot`.
+struct UserPreferencesSnapshot: Equatable, Sendable {
+    let themeMode: ThemeMode
+    let localeTag: String
+    let showPurchased: Bool
+    let shopAtStoreSortMode: SortMode
+    let itemsListSortMode: SortMode
+    let updatedAt: Int64
 }
 
 protocol UserPreferencesRepository: Sendable {
@@ -42,11 +64,25 @@ protocol UserPreferencesRepository: Sendable {
     /// preserves the historical flat-alphabetic layout.
     var itemsListSortMode: SortMode { get }
 
+    /// LWW timestamp for the cloud-sync layer. Bumped to `clock.nowMs()`
+    /// on every setter call. 0 if no setter has ever run on this device.
+    var updatedAt: Int64 { get }
+
+    /// Aggregated snapshot of every cloud-syncable preference field
+    /// plus [updatedAt]. Used by [UserPreferencesSync] to push to
+    /// Firestore.
+    var snapshot: UserPreferencesSnapshot { get }
+
     func setThemeMode(_ mode: ThemeMode)
     func setLocaleTag(_ tag: String)
     func setShowPurchased(_ value: Bool)
     func setShopAtStoreSortMode(_ mode: SortMode)
     func setItemsListSortMode(_ mode: SortMode)
+
+    /// Atomically write every field from a cloud-pulled snapshot.
+    /// Preserves the cloud's [UserPreferencesSnapshot.updatedAt] so LWW
+    /// doesn't re-trigger a push on the next observation tick.
+    func applyRemoteSnapshot(_ s: UserPreferencesSnapshot)
 
     /// Stream of theme-mode changes for the SettingsView to redraw the
     /// radio selection without polling. Emits the current value on
@@ -56,16 +92,23 @@ protocol UserPreferencesRepository: Sendable {
     var showPurchasedStream: AsyncStream<Bool> { get }
     var shopAtStoreSortModeStream: AsyncStream<SortMode> { get }
     var itemsListSortModeStream: AsyncStream<SortMode> { get }
+
+    /// Re-emits the aggregated [snapshot] whenever any field changes.
+    /// [UserPreferencesSync] subscribes to this to debounce-push changes
+    /// to Firestore.
+    var snapshotStream: AsyncStream<UserPreferencesSnapshot> { get }
 }
 
 final class LiveUserPreferencesRepository: UserPreferencesRepository, @unchecked Sendable {
     private let defaults: UserDefaults
+    private let clock: any Clock
     private let lock = NSLock()
     private var themeModeContinuations: [UUID: AsyncStream<ThemeMode>.Continuation] = [:]
     private var localeContinuations: [UUID: AsyncStream<String>.Continuation] = [:]
     private var showPurchasedContinuations: [UUID: AsyncStream<Bool>.Continuation] = [:]
     private var shopSortModeContinuations: [UUID: AsyncStream<SortMode>.Continuation] = [:]
     private var itemsSortModeContinuations: [UUID: AsyncStream<SortMode>.Continuation] = [:]
+    private var snapshotContinuations: [UUID: AsyncStream<UserPreferencesSnapshot>.Continuation] = [:]
 
     private static let themeModeKey = "storehop.themeMode"
     private static let localeTagKey = "storehop.localeTag"
@@ -75,9 +118,11 @@ final class LiveUserPreferencesRepository: UserPreferencesRepository, @unchecked
     private static let showPurchasedKey = "shop_show_purchased"
     private static let shopAtStoreSortModeKey = "shop_at_store_sort_mode"
     private static let itemsListSortModeKey = "items_list_sort_mode"
+    private static let updatedAtKey = "user_prefs_updated_at"
 
-    init(defaults: UserDefaults = .standard) {
+    init(defaults: UserDefaults = .standard, clock: any Clock = SystemClock()) {
         self.defaults = defaults
+        self.clock = clock
     }
 
     var themeMode: ThemeMode {
@@ -103,24 +148,49 @@ final class LiveUserPreferencesRepository: UserPreferencesRepository, @unchecked
         SortMode.fromName(defaults.string(forKey: Self.itemsListSortModeKey)) ?? .alphabetic
     }
 
+    var updatedAt: Int64 {
+        // UserDefaults stores Int64 as NSNumber. Cast via the Number
+        // bridge so we don't lose precision on values > Int32.max.
+        (defaults.object(forKey: Self.updatedAtKey) as? NSNumber)?.int64Value ?? 0
+    }
+
+    var snapshot: UserPreferencesSnapshot {
+        UserPreferencesSnapshot(
+            themeMode: themeMode,
+            localeTag: localeTag,
+            showPurchased: showPurchased,
+            shopAtStoreSortMode: shopAtStoreSortMode,
+            itemsListSortMode: itemsListSortMode,
+            updatedAt: updatedAt,
+        )
+    }
+
     func setThemeMode(_ mode: ThemeMode) {
         defaults.set(mode.rawValue, forKey: Self.themeModeKey)
+        bumpUpdatedAt()
         broadcast(themeMode: mode)
+        broadcastSnapshot()
     }
 
     func setShowPurchased(_ value: Bool) {
         defaults.set(value, forKey: Self.showPurchasedKey)
+        bumpUpdatedAt()
         broadcast(showPurchased: value)
+        broadcastSnapshot()
     }
 
     func setShopAtStoreSortMode(_ mode: SortMode) {
         defaults.set(mode.rawValue, forKey: Self.shopAtStoreSortModeKey)
+        bumpUpdatedAt()
         broadcast(shopAtStoreSortMode: mode)
+        broadcastSnapshot()
     }
 
     func setItemsListSortMode(_ mode: SortMode) {
         defaults.set(mode.rawValue, forKey: Self.itemsListSortModeKey)
+        bumpUpdatedAt()
         broadcast(itemsListSortMode: mode)
+        broadcastSnapshot()
     }
 
     func setLocaleTag(_ tag: String) {
@@ -138,7 +208,37 @@ final class LiveUserPreferencesRepository: UserPreferencesRepository, @unchecked
             // user's selection on the next view-tree rebuild.
             defaults.set([tag], forKey: Self.appleLanguagesKey)
         }
+        bumpUpdatedAt()
         broadcast(locale: tag)
+        broadcastSnapshot()
+    }
+
+    func applyRemoteSnapshot(_ s: UserPreferencesSnapshot) {
+        // Write each field. Preserve the cloud's updatedAt (do NOT bump
+        // to now) — load-bearing for LWW so a pulled value doesn't
+        // immediately re-push.
+        defaults.set(s.themeMode.rawValue, forKey: Self.themeModeKey)
+        if s.localeTag.isEmpty {
+            defaults.removeObject(forKey: Self.localeTagKey)
+            defaults.removeObject(forKey: Self.appleLanguagesKey)
+        } else {
+            defaults.set(s.localeTag, forKey: Self.localeTagKey)
+            defaults.set([s.localeTag], forKey: Self.appleLanguagesKey)
+        }
+        defaults.set(s.showPurchased, forKey: Self.showPurchasedKey)
+        defaults.set(s.shopAtStoreSortMode.rawValue, forKey: Self.shopAtStoreSortModeKey)
+        defaults.set(s.itemsListSortMode.rawValue, forKey: Self.itemsListSortModeKey)
+        defaults.set(NSNumber(value: s.updatedAt), forKey: Self.updatedAtKey)
+        broadcast(themeMode: s.themeMode)
+        broadcast(locale: s.localeTag)
+        broadcast(showPurchased: s.showPurchased)
+        broadcast(shopAtStoreSortMode: s.shopAtStoreSortMode)
+        broadcast(itemsListSortMode: s.itemsListSortMode)
+        broadcastSnapshot()
+    }
+
+    private func bumpUpdatedAt() {
+        defaults.set(NSNumber(value: clock.nowMs()), forKey: Self.updatedAtKey)
     }
 
     var themeModeStream: AsyncStream<ThemeMode> {
@@ -221,6 +321,22 @@ final class LiveUserPreferencesRepository: UserPreferencesRepository, @unchecked
         }
     }
 
+    var snapshotStream: AsyncStream<UserPreferencesSnapshot> {
+        AsyncStream { continuation in
+            let id = UUID()
+            self.lock.lock()
+            self.snapshotContinuations[id] = continuation
+            let initial = self.snapshot
+            self.lock.unlock()
+            continuation.yield(initial)
+            continuation.onTermination = { @Sendable _ in
+                self.lock.lock()
+                self.snapshotContinuations[id] = nil
+                self.lock.unlock()
+            }
+        }
+    }
+
     private func broadcast(themeMode: ThemeMode) {
         lock.lock()
         let conts = Array(themeModeContinuations.values)
@@ -254,5 +370,13 @@ final class LiveUserPreferencesRepository: UserPreferencesRepository, @unchecked
         let conts = Array(itemsSortModeContinuations.values)
         lock.unlock()
         for c in conts { c.yield(itemsListSortMode) }
+    }
+
+    private func broadcastSnapshot() {
+        let snap = snapshot
+        lock.lock()
+        let conts = Array(snapshotContinuations.values)
+        lock.unlock()
+        for c in conts { c.yield(snap) }
     }
 }
