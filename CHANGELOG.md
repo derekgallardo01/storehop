@@ -123,6 +123,10 @@ Firestore. The v0.7.1 rules ship unchanged.
   rejected the 61 upload with "version code already used" — looks
   like a Play-side cache from an earlier draft. Bumped to 62, no
   code changes.
+- **`.3` — VIP allowlist: add Mom** (`nachamartinez@gmail.com`).
+  Same VIP-email branch as Mike + Amanda. Mirrored to both
+  `PREMIUM_VIP_EMAILS` (Android) and `premiumVipEmails` (iOS).
+  Android versionCode 62 → 63.
 
 ### Open items requiring user action
 

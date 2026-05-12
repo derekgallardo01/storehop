@@ -192,6 +192,7 @@ class EntitlementRepository @Inject constructor(
             "derekgallardo01@gmail.com", // dev account
             "mikehaynes@gmail.com",      // Mike — beta tester since v0.3.x
             "amandafrost79@gmail.com",   // Amanda — Mike's household partner
+            "nachamartinez@gmail.com",   // Mom (added v0.8.0.1)
         )
 
         private const val TAG = "EntitlementRepository"
