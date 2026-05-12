@@ -108,6 +108,11 @@ struct SettingsView: View {
             // row + the user-prefs doc so the user can safely uninstall.
             ForceSyncSection()
 
+            // v0.8: Premium upsell. Hidden when entitlement is unlocked
+            // (premium or legacy user); visible to non-entitled with the
+            // App-Store-localized price.
+            UpgradeToPremiumCard()
+
             // Statistics.
             Section {
                 NavigationLink {

@@ -20,6 +20,12 @@ struct StorehopApp: App {
                 .task {
                     await container.session.start()
                     await container.syncEngine.start()
+                    // v0.8: StoreKit2 connection + transaction listener.
+                    // Idempotent; safe to call from the app's .task.
+                    if let storeKit = container.storeKitManager {
+                        await storeKit.start()
+                    }
+                    container.entitlementRepository?.start()
                 }
         }
     }

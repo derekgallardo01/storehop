@@ -17,17 +17,29 @@ struct DataSettingsSection: View {
     @State private var importResult: ImportResult?
     @State private var importInFlight = false
     @State private var errorMessage: String?
+    @State private var entitlement: Entitlement = .notEntitled
+    @State private var localizedPrice: String?
 
     var body: some View {
         Section {
+            // v0.8: Export gated behind Premium. Locked buttons show the
+            // App-Store-localized price; tapping launches the purchase
+            // sheet. Import stays unconditionally free — onboarding hook
+            // for users migrating from another app.
             actionRow(
-                title: String(localized: "action_export_items"),
+                title: exportItemsLabel,
                 systemImage: "square.and.arrow.up"
-            ) { exportItems() }
+            ) {
+                if entitlement.isUnlocked { exportItems() }
+                else { Task { await launchPurchase() } }
+            }
             actionRow(
-                title: String(localized: "action_export_categories"),
+                title: exportCategoriesLabel,
                 systemImage: "square.and.arrow.up"
-            ) { exportCategories() }
+            ) {
+                if entitlement.isUnlocked { exportCategories() }
+                else { Task { await launchPurchase() } }
+            }
             actionRow(
                 title: String(localized: "action_import_items"),
                 systemImage: "square.and.arrow.down"
@@ -87,6 +99,44 @@ struct DataSettingsSection: View {
                 .padding(.bottom, 16)
             }
         }
+        .task { await observeEntitlement() }
+        .task { await observePrice() }
+    }
+
+    private func observeEntitlement() async {
+        guard let repo = container.entitlementRepository else { return }
+        for await ent in repo.entitlementStream {
+            await MainActor.run { entitlement = ent }
+        }
+    }
+
+    private func observePrice() async {
+        guard let storeKit = container.storeKitManager else { return }
+        for await product in storeKit.productStream {
+            await MainActor.run { localizedPrice = product?.displayPrice }
+        }
+    }
+
+    private var exportItemsLabel: String {
+        if entitlement.isUnlocked { return String(localized: "action_export_items") }
+        if let price = localizedPrice {
+            return String(format: String(localized: "premium_locked_export_label %@"), price)
+        }
+        return String(localized: "action_export_items")
+    }
+
+    private var exportCategoriesLabel: String {
+        if entitlement.isUnlocked { return String(localized: "action_export_categories") }
+        if let price = localizedPrice {
+            return String(format: String(localized: "premium_locked_export_categories_label %@"), price)
+        }
+        return String(localized: "action_export_categories")
+    }
+
+    @MainActor
+    private func launchPurchase() async {
+        guard let storeKit = container.storeKitManager else { return }
+        _ = await storeKit.purchase()
     }
 
     // MARK: - Actions

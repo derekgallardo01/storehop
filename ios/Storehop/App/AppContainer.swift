@@ -53,6 +53,11 @@ final class AppContainer {
     /// skip the real Firestore wiring and pass nil.
     let userPreferencesSync: UserPreferencesSync?
 
+    /// v0.8 StoreKit2 wrapper + entitlement source-of-truth. Optional
+    /// for preview / test paths that don't need IAP wiring.
+    let storeKitManager: StoreKitManager?
+    let entitlementRepository: EntitlementRepository?
+
     init(
         clock: Clock,
         ids: any IdGenerator,
@@ -71,7 +76,9 @@ final class AppContainer {
             _ writeDao: PullWriteDao
         ) -> any HouseholdRepository,
         imageUploader: any ImageUploader = NoOpImageUploader(),
-        userPreferencesSync: UserPreferencesSync? = nil
+        userPreferencesSync: UserPreferencesSync? = nil,
+        storeKitManager: StoreKitManager? = nil,
+        entitlementRepository: EntitlementRepository? = nil
     ) {
         self.clock = clock
         self.ids = ids
@@ -172,6 +179,8 @@ final class AppContainer {
         self.imageUploader = imageUploader
 
         self.userPreferencesSync = userPreferencesSync
+        self.storeKitManager = storeKitManager
+        self.entitlementRepository = entitlementRepository
         self.syncEngine = SyncEngine(
             firestore: firestoreClient,
             session: session,
@@ -218,6 +227,16 @@ final class AppContainer {
                 clock: clock,
                 userPreferencesSync: userPreferencesSync
             )
+            // v0.8: StoreKit2 wiring + entitlement source-of-truth.
+            // Start the manager up here; it'll scan
+            // Transaction.currentEntitlements on the first
+            // start() call and begin listening for Transaction.updates.
+            let storeKit = StoreKitManager()
+            let entitlement = EntitlementRepository(
+                storeKit: storeKit,
+                session: session,
+                userPrefs: prefs
+            )
             return AppContainer(
                 clock: clock,
                 ids: UuidV4Generator(),
@@ -243,7 +262,9 @@ final class AppContainer {
                     )
                 },
                 imageUploader: FirebaseImageUploader(session: session),
-                userPreferencesSync: userPreferencesSync
+                userPreferencesSync: userPreferencesSync,
+                storeKitManager: storeKit,
+                entitlementRepository: entitlement
             )
         } catch {
             fatalError("Failed to initialize Storehop database: \(error)")

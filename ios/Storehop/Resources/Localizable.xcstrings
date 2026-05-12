@@ -5457,6 +5457,105 @@
         "es": { "stringUnit": { "state": "translated", "value": "%lld elemento(s) no se han sincronizado. Inténtalo de nuevo o desinstala ahora para perder solo estos." } },
         "it": { "stringUnit": { "state": "translated", "value": "%lld elemento(i) non si sono sincronizzati. Riprova o disinstalla ora per perdere solo questi." } }
       }
+    },
+    "premium_card_title": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Storehop Premium" } },
+        "pt-PT": { "stringUnit": { "state": "translated", "value": "Storehop Premium" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Storehop Premium" } },
+        "it": { "stringUnit": { "state": "translated", "value": "Storehop Premium" } }
+      }
+    },
+    "premium_card_body_household": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Generate invite codes to share your shopping list with family or roommates." } },
+        "pt-PT": { "stringUnit": { "state": "translated", "value": "Gere códigos de convite para partilhar a sua lista de compras com a família ou colegas." } },
+        "es": { "stringUnit": { "state": "translated", "value": "Genera códigos de invitación para compartir tu lista de la compra con familia o compañeros." } },
+        "it": { "stringUnit": { "state": "translated", "value": "Genera codici invito per condividere la lista della spesa con famiglia o coinquilini." } }
+      }
+    },
+    "premium_card_body_export": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Export your items and categories as CSV for backup or to move between devices." } },
+        "pt-PT": { "stringUnit": { "state": "translated", "value": "Exporte os seus artigos e categorias em CSV para guardar ou transferir entre dispositivos." } },
+        "es": { "stringUnit": { "state": "translated", "value": "Exporta tus artículos y categorías en CSV para guardar o mover entre dispositivos." } },
+        "it": { "stringUnit": { "state": "translated", "value": "Esporta articoli e categorie in CSV per backup o per spostarli tra dispositivi." } }
+      }
+    },
+    "premium_cta_unlock %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Unlock for %@" } },
+        "pt-PT": { "stringUnit": { "state": "translated", "value": "Desbloquear por %@" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Desbloquear por %@" } },
+        "it": { "stringUnit": { "state": "translated", "value": "Sblocca per %@" } }
+      }
+    },
+    "premium_cta_unlock_loading": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Unlock" } },
+        "pt-PT": { "stringUnit": { "state": "translated", "value": "Desbloquear" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Desbloquear" } },
+        "it": { "stringUnit": { "state": "translated", "value": "Sblocca" } }
+      }
+    },
+    "premium_restore_purchases": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Restore purchases" } },
+        "pt-PT": { "stringUnit": { "state": "translated", "value": "Restaurar compras" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Restaurar compras" } },
+        "it": { "stringUnit": { "state": "translated", "value": "Ripristina acquisti" } }
+      }
+    },
+    "premium_locked_invite_label %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Generate invite — Unlock for %@" } },
+        "pt-PT": { "stringUnit": { "state": "translated", "value": "Gerar convite — Desbloquear por %@" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Generar invitación — Desbloquear por %@" } },
+        "it": { "stringUnit": { "state": "translated", "value": "Genera invito — Sblocca per %@" } }
+      }
+    },
+    "premium_locked_invite_label_loading": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Generate invite — Unlock" } },
+        "pt-PT": { "stringUnit": { "state": "translated", "value": "Gerar convite — Desbloquear" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Generar invitación — Desbloquear" } },
+        "it": { "stringUnit": { "state": "translated", "value": "Genera invito — Sblocca" } }
+      }
+    },
+    "premium_locked_invite_explainer": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Generating an invite requires Premium. Joining an existing household is always free." } },
+        "pt-PT": { "stringUnit": { "state": "translated", "value": "Gerar um convite requer Premium. Entrar num agregado existente é sempre gratuito." } },
+        "es": { "stringUnit": { "state": "translated", "value": "Generar una invitación requiere Premium. Unirse a un hogar existente es siempre gratis." } },
+        "it": { "stringUnit": { "state": "translated", "value": "Generare un invito richiede Premium. Entrare in un nucleo esistente è sempre gratuito." } }
+      }
+    },
+    "premium_locked_export_label %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Export items — Unlock for %@" } },
+        "pt-PT": { "stringUnit": { "state": "translated", "value": "Exportar artigos — Desbloquear por %@" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Exportar artículos — Desbloquear por %@" } },
+        "it": { "stringUnit": { "state": "translated", "value": "Esporta articoli — Sblocca per %@" } }
+      }
+    },
+    "premium_locked_export_categories_label %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Export categories — Unlock for %@" } },
+        "pt-PT": { "stringUnit": { "state": "translated", "value": "Exportar categorias — Desbloquear por %@" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Exportar categorías — Desbloquear por %@" } },
+        "it": { "stringUnit": { "state": "translated", "value": "Esporta categorie — Sblocca per %@" } }
+      }
     }
   },
   "version": "1.0"

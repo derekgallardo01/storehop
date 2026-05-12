@@ -9,6 +9,8 @@ import UIKit
 struct HouseholdView: View {
     @Environment(AppContainer.self) private var container
     @State private var viewModel: HouseholdViewModel?
+    @State private var entitlement: Entitlement = .notEntitled
+    @State private var localizedPrice: String?
 
     var body: some View {
         Group {
@@ -31,6 +33,38 @@ struct HouseholdView: View {
             }
         }
         .onDisappear { viewModel?.teardown() }
+        .task { await observeEntitlement() }
+        .task { await observePrice() }
+    }
+
+    private func observeEntitlement() async {
+        guard let repo = container.entitlementRepository else { return }
+        for await ent in repo.entitlementStream {
+            await MainActor.run { entitlement = ent }
+        }
+    }
+
+    private func observePrice() async {
+        guard let storeKit = container.storeKitManager else { return }
+        for await product in storeKit.productStream {
+            await MainActor.run { localizedPrice = product?.displayPrice }
+        }
+    }
+
+    private var generateInviteButtonLabel: String {
+        if entitlement.isUnlocked {
+            return String(localized: "household_generate_invite")
+        }
+        if let price = localizedPrice {
+            return String(format: String(localized: "premium_locked_invite_label %@"), price)
+        }
+        return String(localized: "premium_locked_invite_label_loading")
+    }
+
+    @MainActor
+    private func launchPurchase() async {
+        guard let storeKit = container.storeKitManager else { return }
+        _ = await storeKit.purchase()
     }
 
     @ViewBuilder
@@ -58,12 +92,24 @@ struct HouseholdView: View {
             }
 
             // Invite section. Generate button opens a sheet with the code.
+            // v0.8: gated behind Premium. The Join card below stays free
+            // — inviter-pays model means accepting + using a shared
+            // household is unconditionally free.
             Section(header: Text(String(localized: "household_generate_invite_header"))) {
                 Text(String(localized: "household_invite_explanation"))
                     .font(.caption)
                     .foregroundStyle(.secondary)
-                Button(String(localized: "household_generate_invite")) {
-                    viewModel.generateInvite()
+                if !entitlement.isUnlocked {
+                    Text(String(localized: "premium_locked_invite_explainer"))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                Button(generateInviteButtonLabel) {
+                    if entitlement.isUnlocked {
+                        viewModel.generateInvite()
+                    } else {
+                        Task { await launchPurchase() }
+                    }
                 }
             }
 

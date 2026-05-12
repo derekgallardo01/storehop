@@ -97,6 +97,31 @@ protocol UserPreferencesRepository: Sendable {
     /// [UserPreferencesSync] subscribes to this to debounce-push changes
     /// to Firestore.
     var snapshotStream: AsyncStream<UserPreferencesSnapshot> { get }
+
+    // ---- v0.8 Premium entitlement state (LOCAL-ONLY, never cloud-synced) -
+    //
+    // Per Apple / Google IAP policy, entitlements are per-platform and
+    // per-device. These three keys back the EntitlementRepository
+    // grandfather logic + fast-startup cache. They are deliberately
+    // **NOT** included in [snapshot] above and therefore never reach
+    // the /userPrefs/{uid} Firestore doc.
+
+    /// True if this device has been granted the legacy_user
+    /// entitlement (Firebase account creationDate predated v0.8 OR
+    /// email is in PREMIUM_VIP_EMAILS).
+    var legacyUserGranted: Bool { get }
+    func setLegacyUserGranted(_ value: Bool)
+
+    /// Which uid we've already run the grandfather check for. Prevents
+    /// re-running on every uid emission.
+    var legacyCheckDoneForUid: String { get }
+    func setLegacyCheckDoneForUid(_ uid: String)
+
+    /// Last-known Entitlement.cacheString. Persisted so cold launch
+    /// starts in the right state instead of flickering through
+    /// .notEntitled while StoreKit's first scan settles.
+    var cachedEntitlement: String { get }
+    func setCachedEntitlement(_ value: String)
 }
 
 final class LiveUserPreferencesRepository: UserPreferencesRepository, @unchecked Sendable {
@@ -119,6 +144,10 @@ final class LiveUserPreferencesRepository: UserPreferencesRepository, @unchecked
     private static let shopAtStoreSortModeKey = "shop_at_store_sort_mode"
     private static let itemsListSortModeKey = "items_list_sort_mode"
     private static let updatedAtKey = "user_prefs_updated_at"
+    // v0.8 entitlement keys (local-only, never cloud-synced).
+    private static let legacyUserGrantedKey = "legacy_user_granted"
+    private static let legacyCheckDoneForUidKey = "legacy_check_done_for_uid"
+    private static let cachedEntitlementKey = "cached_entitlement"
 
     init(defaults: UserDefaults = .standard, clock: any Clock = SystemClock()) {
         self.defaults = defaults
@@ -211,6 +240,32 @@ final class LiveUserPreferencesRepository: UserPreferencesRepository, @unchecked
         bumpUpdatedAt()
         broadcast(locale: tag)
         broadcastSnapshot()
+    }
+
+    // MARK: - v0.8 entitlement state (local-only)
+
+    var legacyUserGranted: Bool {
+        defaults.object(forKey: Self.legacyUserGrantedKey) as? Bool ?? false
+    }
+
+    func setLegacyUserGranted(_ value: Bool) {
+        defaults.set(value, forKey: Self.legacyUserGrantedKey)
+    }
+
+    var legacyCheckDoneForUid: String {
+        defaults.string(forKey: Self.legacyCheckDoneForUidKey) ?? ""
+    }
+
+    func setLegacyCheckDoneForUid(_ uid: String) {
+        defaults.set(uid, forKey: Self.legacyCheckDoneForUidKey)
+    }
+
+    var cachedEntitlement: String {
+        defaults.string(forKey: Self.cachedEntitlementKey) ?? "NOT_ENTITLED"
+    }
+
+    func setCachedEntitlement(_ value: String) {
+        defaults.set(value, forKey: Self.cachedEntitlementKey)
     }
 
     func applyRemoteSnapshot(_ s: UserPreferencesSnapshot) {
