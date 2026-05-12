@@ -90,9 +90,40 @@ the v0.7.1 cloud-prefs + Force-sync work hasn't been mirrored yet —
 that's a separate Mac-side session. iOS stays at marketing version
 0.6.10 until both ship together.
 
+### Fixed (mid-cycle patches before final ship)
+
+- **`.1` — Play Console BILLING declaration.** Added
+  `<uses-permission android:name="com.android.vending.BILLING"/>`
+  so Play Console's in-app products UI unlocks for the upcoming
+  paid → free + Premium IAP transition.
+- **`.2` — Play Billing Library bundled.** Play Console 2024+
+  rejects uploads that declare the permission without bundling
+  the library ("must update to at least version 6.0.1"). Added
+  `com.android.billingclient:billing-ktx:7.1.1` as a runtime dep
+  and dropped the standalone manifest permission (the library's
+  own manifest auto-merges it). BillingClient is on the classpath
+  but not yet wired in code; entitlement check + UI gate lands
+  in v0.8.
+- **`.3` — Membership push wired in SyncEngine.** v0.7.0 created
+  the personal-household membership row locally with
+  `pendingSync = 1` but never had a push job. The single-user case
+  worked anyway because firestore.rules has a
+  `request.auth.uid == householdId` fallback that bypasses needing
+  the cloud membership doc. v0.7.1's Force-sync count includes the
+  stuck row, so the gap surfaced as "1 item(s) couldn't sync" —
+  the queue could never reach zero. Added a sixth push job inside
+  `launchPushJobsFor` watching `householdMemberDao.observePendingPush()`
+  and writing each row to `/memberships/{uid}/households/{hid}` as
+  a Map payload (no DTO class — the shape is small and mirrors the
+  inline write in `HouseholdRepositoryImpl.leaveHousehold`).
+  Confirmed via a real Force-sync attempt on the dev account
+  after the patch landed.
+
 ### Versions
 
-- Android: `versionCode 50 → 51`, `versionName 0.7.0 → 0.7.1`.
+- Android: `versionCode 50 → 54`, `versionName 0.7.0 → 0.7.1`.
+  (Three mid-cycle versionCode bumps for the patches above — Play
+  Console doesn't accept re-uploads at the same code.)
 - iOS: unchanged (still 0.6.10 marketing).
 
 ## [0.7.0] - 2026-05-11
