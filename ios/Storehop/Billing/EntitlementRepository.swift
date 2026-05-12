@@ -144,17 +144,9 @@ final class EntitlementRepository: @unchecked Sendable {
     }
 
     /// Forces a recompute after the grandfather task writes the legacy
-    /// flag. Called from runGrandfatherCheckIfNeeded.
-    private func recomputeWithCurrentPurchase() async {
-        // We don't have the latest hasPremiumPurchase value cached in
-        // this class; pull it off the manager directly.
-        // StoreKitManager surfaces the latest via the .first emission
-        // of its stream — cheap since AsyncStream replays the current
-        // value on subscribe.
-        for await hasPurchase in storeKit.hasPremiumPurchaseStream {
-            recompute(hasPurchase: hasPurchase)
-            return // take first
-        }
+    /// flag. Reads StoreKitManager's current sync snapshot.
+    private func recomputeWithCurrentPurchase() {
+        recompute(hasPurchase: storeKit.hasPremiumPurchase)
     }
 
     private func recompute(hasPurchase: Bool) {
@@ -205,7 +197,7 @@ final class EntitlementRepository: @unchecked Sendable {
 
         // Trigger a recompute so the UI flips immediately rather than
         // waiting for the next StoreKit emission.
-        await recomputeWithCurrentPurchase()
+        recomputeWithCurrentPurchase()
     }
 
     // MARK: - Constants

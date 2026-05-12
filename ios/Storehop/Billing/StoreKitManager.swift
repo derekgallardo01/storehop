@@ -107,6 +107,14 @@ final class StoreKitManager: @unchecked Sendable {
         }
     }
 
+    /// Snapshot of "user owns Premium per StoreKit" — for callers
+    /// that need the current state without subscribing to the stream.
+    var hasPremiumPurchase: Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        return _hasPremiumPurchase
+    }
+
     /// Stream of "user owns Premium per StoreKit" bools.
     /// [EntitlementRepository] subscribes to this and combines with
     /// the grandfather flag to produce the user-visible

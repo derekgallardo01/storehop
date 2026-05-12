@@ -59,15 +59,17 @@ the Play Console listing answers and
 policy hosted at the Play listing's required URL.
 
 iOS port (in [`ios/`](ios/) — SwiftUI + GRDB + Firebase iOS SDK,
-mirrors the Android architecture 1:1): marketing version still
-**v0.6.10**. `main` carries the full Phase 5 mirror of the v0.7.0
-multi-user code (schema v8, HouseholdRepository / View / ViewModel,
-household-scoped DAOs, sync DTO + path updates, parity unit tests).
-The v0.7.1 cloud-prefs + force-sync work hasn't been mirrored to iOS
-yet — deferred to a future Mac-side session. Bumping iOS will skip
-straight from 0.6.10 → 0.7.1 once both ship together, gated on
-`xcodebuild test` + a 2-device manual smoke run. Not yet on
-TestFlight or the App Store.
+mirrors the Android architecture 1:1): now at **v0.8.0** in
+`main` — skips the 0.7.x marketing versions since iOS never reached
+TestFlight at those versions. iOS 0.8.0 bundles the full Android
+catch-up (v0.7.0 multi-user + v0.7.1 cloud-prefs + Force-sync UX +
+the v0.7.1.3 household_members push fix) plus the v0.8 IAP work
+(StoreKit2 wrapper, EntitlementRepository with the same VIP
+allowlist + grandfather logic as Android, UI gates on Generate
+Invite + CSV Export, and the UpgradeToPremiumCard upsell). TestFlight
+ship is gated on a Mac-side `xcodebuild test` pass + an App Store
+Connect `premium_lifetime` IAP product setup + a 2-device manual
+smoke run.
 
 ## Tech stack
 

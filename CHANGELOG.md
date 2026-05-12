@@ -143,13 +143,80 @@ uses `TestScope.backgroundScope` for the application scope so the
 long-lived collectors in `start()` auto-cancel; DataStore IO runs
 on the test scheduler so `advanceUntilIdle()` drains writes.
 
-### iOS (deferred)
+### iOS catch-up + StoreKit2 mirror (bundled into iOS 0.8.0)
 
-iOS port stays at marketing version 0.6.10. v0.7.1 work (cloud-prefs +
-Force-sync + household_members push) and v0.8 work (StoreKit2 +
-EntitlementRepository + UI gates) ship together as iOS 0.8.0 in a
-follow-up Mac session. iOS CI was manually re-dispatched on the
-current iOS code state (run 25744323290) and remained green.
+iOS skips marketing versions 0.7.0 and 0.7.1 — those never reached
+TestFlight — and bundles every Android catch-up + the v0.8 IAP
+work into a single **iOS 0.8.0** release. What's in it:
+
+**v0.7.1 catch-up:**
+- `UserPreferencesRepository` gains `snapshot`, `applyRemoteSnapshot`,
+  `updatedAt`, `snapshotStream` — same shape as the Android
+  DataStore-backed version. Every setter bumps `updatedAt` via an
+  injected `Clock`.
+- New `UserPreferencesSync.swift` reconciles `/userPrefs/{uid}` on
+  every Firebase auth-state emission with the same LWW semantics
+  (push if local newer / absent, apply if cloud newer, no-op if
+  equal). 500 ms debounced observe-and-push loop after reconcile.
+- `FirebaseAuthSessionProvider` accepts an optional
+  `UserPreferencesSync` and fires `reconcile(uid:)` after each
+  publish, so the next launch of iOS 0.8.0 captures existing prefs
+  to cloud even if the user never opens Settings.
+- `SyncEngine` gains `observeAllPendingCount(householdId:)` (sums
+  every entity DAO's pending count + `household_members`) and
+  `flushAllPending(householdId:uid:timeoutNanos:)` (synchronous push
+  + wait for drain or 30s timeout).
+- 7 DAOs gain `countPendingPush(householdId:)` (or `countPendingPush()`
+  for `HouseholdMemberDao` which is uid-scoped).
+- **Closes the v0.7.0 oversight** that Android fixed in v0.7.1.3:
+  `SyncEngine` now has a 7th push job for `household_members` rows
+  at `/memberships/{uid}/households/{hid}`. The personal-household
+  membership row created at first launch finally pushes to cloud
+  instead of sitting at `pendingSync = 1` forever.
+- New `ForceSyncSection` SwiftUI Section in Settings → Data with the
+  same four-state machine (idle / syncing / safeToUninstall /
+  failed) and 9 new localized strings × 4 locales.
+
+**v0.8 StoreKit2 + entitlement:**
+- New `Entitlement` enum (`.notEntitled` / `.premium` / `.legacyUser`)
+  + `isUnlocked` extension. Mirrors Android's sealed class.
+- New `StoreKitManager` wrapping StoreKit2. Uses
+  `Product.products(for:)` for the price lookup,
+  `Transaction.currentEntitlements` for the initial scan,
+  `Transaction.updates` for the live listener, and
+  `Transaction.finish()` to acknowledge (StoreKit2's equivalent of
+  Google's `acknowledgePurchase`). Exposes `product` and
+  `hasPremiumPurchase` AsyncStreams plus `purchase()` and
+  `restorePurchases()`.
+- New `EntitlementRepository` — same VIP allowlist
+  (Derek + Mike + Amanda) and `V0_8_RELEASE_DATE_MS` cutoff as
+  Android, so the two platforms grandfather the same cohort.
+  Sticky-flag fix included: the legacy flag recomputes per-uid so a
+  non-VIP signing in on a VIP's device doesn't inherit Premium.
+- `UserPreferencesRepository` gains 3 local-only entitlement keys
+  (`legacy_user_granted`, `legacy_check_done_for_uid`,
+  `cached_entitlement`), explicitly excluded from
+  `UserPreferencesSnapshot` per Apple / Google IAP policy.
+- UI gates: `HouseholdView` gates Generate Invite; `DataSettingsSection`
+  gates Export buttons (Import stays free); new
+  `UpgradeToPremiumCard` SwiftUI Section in `SettingsView` between
+  ForceSyncSection and Statistics, visible only when not entitled.
+- 11 new v0.8 keys × 4 locales in `Localizable.xcstrings`. iOS uses
+  `%@` format specifier vs Android's `%1$s` for the App-Store-
+  localized price.
+
+**iOS versions:**
+- `MARKETING_VERSION`: 0.6.10 → **0.8.0** (skipping 0.7.x —
+  never reached TestFlight at those versions).
+- `CURRENT_PROJECT_VERSION`: 24 → **40** (major-feature jump).
+
+**Open items for iOS ship:**
+- **App Store Connect**: create `premium_lifetime` in-app product
+  ($7.99 USD, one-time, non-consumable). Same product ID as Android
+  by convention, but Apple + Google entitlements are independent —
+  a user buying on Android does NOT get iOS for free.
+- **TestFlight push** + 2-device manual smoke test for the
+  Mike + Amanda household flow on iOS.
 
 ### Versions
 
@@ -157,6 +224,8 @@ current iOS code state (run 25744323290) and remained green.
   Sequence: 60 (base v0.8.0) → 61 (.1 VIP allowlist) → 62 (.2
   Play re-upload). Two mid-cycle bumps for the patches above —
   Play Console doesn't accept re-uploads at the same code.
+- iOS: `MARKETING_VERSION 0.6.10 → 0.8.0` (skips 0.7.x — never
+  shipped to TestFlight), `CURRENT_PROJECT_VERSION 24 → 40`.
 
 ## [0.7.1] - 2026-05-11
 
