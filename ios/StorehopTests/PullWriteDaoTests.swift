@@ -278,12 +278,19 @@ final class PullWriteDaoTests: XCTestCase {
         let db = try StorehopDatabase.inMemoryForTests()
         let dao = PullWriteDao(writer: db.queue)
 
-        let v1 = TestFixtures.store(id: "s1", name: "Lidl")
+        // Production-side: pulled rows go through the mapper which sets
+        // pendingSync = false. TestFixtures.store defaults pendingSync = true
+        // (as if locally-inserted), so simulate the production contract
+        // explicitly here — otherwise the v0.8.0.4 pull-guard correctly
+        // treats v1 as a local pending row and skips the v2 cloud upsert.
+        var v1 = TestFixtures.store(id: "s1", name: "Lidl")
+        v1.pendingSync = false
         try await dao.replaceAllForUid(householdId: "u1", items: [], categories: [], stores: [v1], xrefs: [], scoOrders: [], purchaseRecords: [])
 
         var v2 = v1
         v2.name = "Lidl Center"
         v2.updatedAt = 2_000
+        v2.pendingSync = false
         try await dao.replaceAllForUid(householdId: "u1", items: [], categories: [], stores: [v2], xrefs: [], scoOrders: [], purchaseRecords: [])
 
         let stored = try await db.queue.read { conn in
