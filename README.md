@@ -24,9 +24,12 @@ Two paths grandfather users into a silent `LegacyUser` entitlement
 (functionally equivalent to Premium): a Firebase account
 `creationTimestamp` predating the v0.8 release date OR a match
 against the explicit `PREMIUM_VIP_EMAILS` allowlist in
-`EntitlementRepository.kt`. The dev account, Mike, and Amanda are
-in that allowlist so they keep free Premium permanently. See the
-v0.8.0 entry in CHANGELOG for the full breakdown.
+`EntitlementRepository.kt`. The dev account, Mike, Amanda, and Mom
+are in that allowlist so they keep free Premium permanently. See
+the v0.8.0 entry in CHANGELOG for the full breakdown, including
+the in-line `.1`–`.4` patches (VIP allowlist, vc bumps, Mom added,
+and the v0.8.0.4 fix for a pull-before-push race where local
+soft-deletes were being resurrected by the next pull).
 
 Android **v0.7.1** shipped a lossless sideload-APK → Play migration
 path: user preferences (theme, language, sort modes,
