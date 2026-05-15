@@ -143,6 +143,31 @@ Firestore. The v0.7.1 rules ship unchanged.
   unrelated cloud xref both correctly handled, non-pending xref
   still overwritten by cloud, pending item preserved.
   Android versionCode 63 → 64.
+- **`.5` — item form no longer shows tombstoned stores as checked.**
+  Same Mike-reported symptom as `.4` (uncheck Aldi → Save → Aldi
+  comes back), but a *different* root cause that survived the .4
+  pull-guard fix. The data layer correctly tombstones the xref —
+  Shop → Aldi confirms the item is gone — but reopening the item
+  form re-renders Aldi as selected, and saving in that state
+  resurrects the alive xref. Root cause:
+  `ItemWithCategoryAndStores` (the Room `@Relation` + `@Junction`
+  used to load the row) generates a JOIN that does NOT apply a
+  `WHERE deletedAt IS NULL` filter on the bridging
+  `item_store_xref` table, so soft-deleted xrefs still surface
+  their target store via the join. The form was reading
+  `row.stores.map { it.id }` straight off that leaky join.
+  Tactical fix: new `ItemRepository.aliveStoreIdsForItem(itemId)`
+  reads via `ItemStoreXrefDao.findForItem` (which *does* filter
+  tombstones), and `ItemFormViewModel.init` sources `storeIds`
+  from that instead of from `row.stores`. New
+  `ItemFormViewModelTest` case pins the contract: a row whose
+  `@Junction` join still includes Aldi but whose alive-xref set
+  is `{lidl}` resolves to `storeIds = {lidl}`. Two other
+  consumers of `row.stores` (CSV export, Items-list +/− toggle)
+  still read from the leaky join; the architectural fix
+  (`@DatabaseView` for `alive_item_store_xref` + schema v8 → v9
+  migration) is deferred to v0.8.1 so this patch can ship to Mike
+  tonight with minimal risk. Android versionCode 64 → 65.
 
 ### Open items requiring user action
 
