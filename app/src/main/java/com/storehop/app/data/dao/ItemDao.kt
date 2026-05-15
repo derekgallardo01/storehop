@@ -161,6 +161,16 @@ interface ItemDao {
     @Query("SELECT COUNT(*) FROM items WHERE householdId = :householdId AND pendingSync = 1")
     fun countPendingPush(householdId: String): Flow<Int>
 
+    /**
+     * v0.8.0.4: snapshot of primary keys for rows with pendingSync = 1
+     * in this household. Read by [PullWriteDao.replaceAllForUid] to
+     * filter cloud rows that would otherwise resurrect local edits
+     * waiting to be pushed. See Mike's write-revert bug for the
+     * canonical case.
+     */
+    @Query("SELECT id FROM items WHERE householdId = :householdId AND pendingSync = 1")
+    suspend fun pendingPushIds(householdId: String): List<String>
+
     @Query("UPDATE items SET pendingSync = 0 WHERE id = :id AND householdId = :householdId")
     suspend fun markPushed(householdId: String, id: String)
 }

@@ -101,6 +101,7 @@ class PullCoordinatorTest {
 
         coVerify(exactly = 1) {
             pullWriteDao.replaceAllForUid(
+                householdId = any(),
                 items = match<List<Item>> { it.size == 1 && !it.first().pendingSync },
                 categories = match<List<Category>> { it.size == 1 && !it.first().pendingSync },
                 stores = match<List<Store>> { it.size == 1 && !it.first().pendingSync },
@@ -123,7 +124,7 @@ class PullCoordinatorTest {
         // The transaction still runs (with empty lists) — that's fine; it's a
         // no-op write. Just verify we got there without throwing.
         coVerify(exactly = 1) {
-            pullWriteDao.replaceAllForUid(any(), any(), any(), any(), any(), any())
+            pullWriteDao.replaceAllForUid(any(), any(), any(), any(), any(), any(), any())
         }
     }
 
@@ -136,7 +137,7 @@ class PullCoordinatorTest {
 
         // Critical: PullWriteDao is NEVER called -- no partial state lands.
         coVerify(exactly = 0) {
-            pullWriteDao.replaceAllForUid(any(), any(), any(), any(), any(), any())
+            pullWriteDao.replaceAllForUid(any(), any(), any(), any(), any(), any(), any())
         }
     }
 
@@ -145,7 +146,7 @@ class PullCoordinatorTest {
         // must only see one transaction at a time. We stub the DAO to delay
         // so we can observe ordering.
         stubPullForUid(uid = "uid")
-        coEvery { pullWriteDao.replaceAllForUid(any(), any(), any(), any(), any(), any()) } coAnswers {
+        coEvery { pullWriteDao.replaceAllForUid(any(), any(), any(), any(), any(), any(), any()) } coAnswers {
             delay(10)
         }
 
@@ -158,7 +159,7 @@ class PullCoordinatorTest {
 
         // Both transactions ran (Mutex doesn't drop calls, just serializes).
         coVerify(exactly = 2) {
-            pullWriteDao.replaceAllForUid(any(), any(), any(), any(), any(), any())
+            pullWriteDao.replaceAllForUid(any(), any(), any(), any(), any(), any(), any())
         }
     }
 

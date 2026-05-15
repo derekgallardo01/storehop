@@ -153,6 +153,16 @@ interface ItemStoreXrefDao {
     @androidx.room.Query("SELECT COUNT(*) FROM item_store_xref WHERE householdId = :householdId AND pendingSync = 1")
     fun countPendingPush(householdId: String): kotlinx.coroutines.flow.Flow<Int>
 
+    /**
+     * v0.8.0.4: composite-PK snapshot of pendingSync = 1 xrefs in the
+     * household. Read by [PullWriteDao] to filter cloud xrefs that
+     * would otherwise resurrect local edits.
+     */
+    @androidx.room.Query(
+        "SELECT itemId, storeId FROM item_store_xref WHERE householdId = :householdId AND pendingSync = 1"
+    )
+    suspend fun pendingPushKeys(householdId: String): List<XrefKey>
+
     @androidx.room.Query(
         """
         UPDATE item_store_xref SET pendingSync = 0
@@ -280,3 +290,11 @@ interface ItemStoreXrefDao {
     )
     fun observeNeededItemIds(householdId: String): Flow<List<String>>
 }
+
+/**
+ * v0.8.0.4: composite primary-key tuple for [ItemStoreXrefDao.pendingPushKeys].
+ * Used by [PullWriteDao] to filter cloud xrefs against a Set of local
+ * pending keys before upsert — preserves the user's most recent intent
+ * when a pull races a push.
+ */
+data class XrefKey(val itemId: String, val storeId: String)

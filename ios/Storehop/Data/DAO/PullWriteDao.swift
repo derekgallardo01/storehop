@@ -18,7 +18,17 @@ struct PullWriteDao: Sendable {
     /// Order inside the transaction doesn't matter for FK consistency
     /// (FKs are checked at commit), but parents-before-children keeps
     /// the intent visible.
+    ///
+    /// v0.8.0.4: rows with a local `pendingSync = 1` for the active
+    /// household are **excluded** from the upsert. Local edits waiting
+    /// to be pushed are the user's most-recent intent and must survive
+    /// a pull-before-push race — otherwise the cloud's still-stale
+    /// copy resurrects a delete the user just made. See the matching
+    /// Android fix + Mike's bug report. Once `markPushed()` clears
+    /// `pendingSync`, the next pull has no guard for that row and
+    /// cloud is authoritative again.
     func replaceAllForUid(
+        householdId: String,
         items: [Item],
         categories: [Category],
         stores: [Store],
@@ -27,27 +37,69 @@ struct PullWriteDao: Sendable {
         purchaseRecords: [PurchaseRecord]
     ) async throws {
         try await writer.write { db in
-            for c in categories {
+            // Snapshot the local pending-sync primary keys per entity.
+            // Any cloud row whose PK matches is dropped.
+            let pendingItemIds = Set(try String.fetchAll(
+                db,
+                sql: "SELECT id FROM items WHERE householdId = ? AND pendingSync = 1",
+                arguments: [householdId]
+            ))
+            let pendingCategoryIds = Set(try String.fetchAll(
+                db,
+                sql: "SELECT id FROM categories WHERE householdId = ? AND pendingSync = 1",
+                arguments: [householdId]
+            ))
+            let pendingStoreIds = Set(try String.fetchAll(
+                db,
+                sql: "SELECT id FROM stores WHERE householdId = ? AND pendingSync = 1",
+                arguments: [householdId]
+            ))
+            let pendingPurchaseIds = Set(try String.fetchAll(
+                db,
+                sql: "SELECT id FROM purchase_records WHERE householdId = ? AND pendingSync = 1",
+                arguments: [householdId]
+            ))
+            // Composite PKs use a tuple-style key.
+            struct XrefKey: Hashable { let itemId: String; let storeId: String }
+            struct ScoKey: Hashable { let storeId: String; let categoryId: String }
+            let pendingXrefRows = try Row.fetchAll(
+                db,
+                sql: "SELECT itemId, storeId FROM item_store_xref WHERE householdId = ? AND pendingSync = 1",
+                arguments: [householdId]
+            )
+            let pendingXrefKeys: Set<XrefKey> = Set(pendingXrefRows.map {
+                XrefKey(itemId: $0["itemId"], storeId: $0["storeId"])
+            })
+            let pendingScoRows = try Row.fetchAll(
+                db,
+                sql: "SELECT storeId, categoryId FROM store_category_order WHERE householdId = ? AND pendingSync = 1",
+                arguments: [householdId]
+            )
+            let pendingScoKeys: Set<ScoKey> = Set(pendingScoRows.map {
+                ScoKey(storeId: $0["storeId"], categoryId: $0["categoryId"])
+            })
+
+            for c in categories where !pendingCategoryIds.contains(c.id) {
                 var copy = c
                 try copy.upsert(db)
             }
-            for s in stores {
+            for s in stores where !pendingStoreIds.contains(s.id) {
                 var copy = s
                 try copy.upsert(db)
             }
-            for i in items {
+            for i in items where !pendingItemIds.contains(i.id) {
                 var copy = i
                 try copy.upsert(db)
             }
-            for x in xrefs {
+            for x in xrefs where !pendingXrefKeys.contains(XrefKey(itemId: x.itemId, storeId: x.storeId)) {
                 var copy = x
                 try copy.upsert(db)
             }
-            for sco in scoOrders {
+            for sco in scoOrders where !pendingScoKeys.contains(ScoKey(storeId: sco.storeId, categoryId: sco.categoryId)) {
                 var copy = sco
                 try copy.upsert(db)
             }
-            for record in purchaseRecords {
+            for record in purchaseRecords where !pendingPurchaseIds.contains(record.id) {
                 var copy = record
                 try copy.upsert(db)
             }

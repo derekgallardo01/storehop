@@ -127,6 +127,22 @@ Firestore. The v0.7.1 rules ship unchanged.
   Same VIP-email branch as Mike + Amanda. Mirrored to both
   `PREMIUM_VIP_EMAILS` (Android) and `premiumVipEmails` (iOS).
   Android versionCode 62 → 63.
+- **`.4` — pull no longer resurrects local pending-sync rows.**
+  Mike reported a "uncheck Aldi → Save → Aldi comes back" bug. Root
+  cause: `PullWriteDao.replaceAllForUid` was upserting every cloud
+  row blindly, including ones whose primary key matched a local
+  row with `pendingSync = 1`. When a pull raced a push, the cloud's
+  still-alive row (the push hadn't fired yet) resurrected Mike's
+  soft-delete, and the mapper hardcoded `pendingSync = false` so the
+  push side never even tried again. Fix: each entity DAO gains a
+  `pendingPushIds(householdId)` / `pendingPushKeys(householdId)`
+  snapshot read; PullWriteDao filters cloud lists against those
+  sets before each `upsertFromCloud`. Local pending edits survive a
+  pull until they push successfully. Four new `PullWriteDaoTest`
+  cases pin the contract: pending xref preserved, pending xref +
+  unrelated cloud xref both correctly handled, non-pending xref
+  still overwritten by cloud, pending item preserved.
+  Android versionCode 63 → 64.
 
 ### Open items requiring user action
 

@@ -101,6 +101,10 @@ interface CategoryDao {
     @Query("SELECT COUNT(*) FROM categories WHERE householdId = :householdId AND pendingSync = 1")
     fun countPendingPush(householdId: String): Flow<Int>
 
+    /** v0.8.0.4: pendingSync-1 primary-key snapshot for the pull-guard. */
+    @Query("SELECT id FROM categories WHERE householdId = :householdId AND pendingSync = 1")
+    suspend fun pendingPushIds(householdId: String): List<String>
+
     @Query("UPDATE categories SET pendingSync = 0 WHERE id = :id AND householdId = :householdId")
     suspend fun markPushed(householdId: String, id: String)
 

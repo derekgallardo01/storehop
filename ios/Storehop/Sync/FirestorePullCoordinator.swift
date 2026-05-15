@@ -75,12 +75,12 @@ final actor FirestorePullCoordinator: PullCoordinator {
                 items, categories, stores, xrefs, scoOrders, purchases
             )
 
-            // Cloud always wins on pull: pulled rows write
-            // `pendingSync = false` so they don't immediately re-push.
-            // A user's prior local edits to the same row id are
-            // overwritten — a documented limitation; merge-anon-to-cloud
-            // is a v0.5+ question.
+            // v0.8.0.4: cloud wins on pull EXCEPT for rows with a local
+            // pending edit (`pendingSync = 1`). Those survive until
+            // push completes — see Mike's write-revert bug for the
+            // canonical case.
             try await pullWriteDao.replaceAllForUid(
+                householdId: householdId,
                 items: i.map { $0.toEntity() },
                 categories: c.map { $0.toEntity() },
                 stores: s.map { $0.toEntity() },

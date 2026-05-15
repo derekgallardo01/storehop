@@ -139,6 +139,7 @@ class PullCoordinator @Inject constructor(
                 )
 
                 pullWriteDao.replaceAllForUid(
+                    householdId = householdId,
                     items = items,
                     categories = categories,
                     stores = stores,

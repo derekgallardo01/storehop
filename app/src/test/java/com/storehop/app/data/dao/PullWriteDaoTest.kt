@@ -60,6 +60,7 @@ class PullWriteDaoTest {
         )
 
         dao.replaceAllForUid(
+            householdId = TEST_USER_ID,
             items = listOf(item),
             categories = listOf(cat),
             stores = listOf(store),
@@ -100,6 +101,7 @@ class PullWriteDaoTest {
 
         val result = runCatching {
             dao.replaceAllForUid(
+                householdId = TEST_USER_ID,
                 items = emptyList(),
                 categories = emptyList(),
                 stores = listOf(store("store_lidl")), // would land if not rolled back
@@ -123,6 +125,7 @@ class PullWriteDaoTest {
         val before = db.storeDao().observeAll(TEST_USER_ID, includeArchived = false).first().map { it.id }
 
         dao.replaceAllForUid(
+            householdId = TEST_USER_ID,
             items = emptyList(), categories = emptyList(), stores = emptyList(),
             xrefs = emptyList(), scoOrders = emptyList(), purchaseRecords = emptyList(),
         )
@@ -136,11 +139,13 @@ class PullWriteDaoTest {
         val store = store("store_lidl")
 
         dao.replaceAllForUid(
+            householdId = TEST_USER_ID,
             items = emptyList(), categories = listOf(cat), stores = listOf(store),
             xrefs = emptyList(), scoOrders = emptyList(), purchaseRecords = emptyList(),
         )
         // Second call with the same payload — should not duplicate, should not crash.
         dao.replaceAllForUid(
+            householdId = TEST_USER_ID,
             items = emptyList(), categories = listOf(cat), stores = listOf(store),
             xrefs = emptyList(), scoOrders = emptyList(), purchaseRecords = emptyList(),
         )
@@ -149,6 +154,154 @@ class PullWriteDaoTest {
             .containsExactly("cat_dairy")
         assertThat(db.storeDao().observeAll(TEST_USER_ID, includeArchived = false).first().map { it.id })
             .containsExactly("store_lidl")
+    }
+
+    // ----------------------------------------------------------------
+    // v0.8.0.4: pull-guard for pendingSync = 1 rows.
+    //
+    // Mike reported a write-revert bug: unchecking a store on the
+    // Items edit screen reverted because a pull landed before the push
+    // shipped his soft-delete. PullWriteDao now filters cloud rows
+    // whose primary key matches a local pendingSync = 1 row, so the
+    // user's most-recent intent survives a pull-before-push race.
+    // ----------------------------------------------------------------
+
+    @Test fun `pending soft-deleted xref is preserved when cloud sends alive copy`() = runTest {
+        // Pre-existing parents so FK constraints pass.
+        db.storeDao().upsert(store("store_aldi"))
+        db.itemDao().upsertFromCloud(listOf(item("item_tp", categoryId = null)))
+        // Mike's local action: insert the xref alive, then "uncheck" it
+        // → soft-delete via setStoresForItem → pendingSync = 1.
+        db.itemStoreXrefDao().setStoresForItem(
+            itemId = "item_tp",
+            storeIds = setOf("store_aldi"),
+            householdId = TEST_USER_ID,
+            userId = TEST_USER_ID,
+            now = 100L,
+        )
+        db.itemStoreXrefDao().setStoresForItem(
+            itemId = "item_tp",
+            storeIds = emptySet(), // unchecks Aldi → soft-delete
+            householdId = TEST_USER_ID,
+            userId = TEST_USER_ID,
+            now = 200L,
+        )
+        // findForItem hides tombstones; read raw to see the soft-deleted row.
+        val pre = readRawXref("item_tp", "store_aldi")!!
+        assertThat(pre.deletedAt).isEqualTo(200L)
+        assertThat(pre.pendingSync).isTrue()
+
+        // Cloud pull replays the xref as still-alive (push hadn't fired
+        // yet) — this is the race that caused the bug.
+        val cloudXref = ItemStoreXref(
+            itemId = "item_tp", storeId = "store_aldi", userId = TEST_USER_ID,
+            createdAt = 100L, updatedAt = 100L, deletedAt = null,
+            householdId = TEST_USER_ID,
+        )
+        dao.replaceAllForUid(
+            householdId = TEST_USER_ID,
+            items = emptyList(), categories = emptyList(), stores = emptyList(),
+            xrefs = listOf(cloudXref),
+            scoOrders = emptyList(), purchaseRecords = emptyList(),
+        )
+
+        // Local row UNCHANGED — soft-delete preserved, pendingSync still set.
+        val post = readRawXref("item_tp", "store_aldi")!!
+        assertThat(post.deletedAt).isEqualTo(200L)
+        assertThat(post.pendingSync).isTrue()
+    }
+
+    @Test fun `pending xref is preserved while unrelated cloud xref upserts`() = runTest {
+        // Two stores so we can have both a pending xref and an unrelated cloud xref.
+        db.storeDao().upsert(store("store_aldi"))
+        db.storeDao().upsert(store("store_lidl"))
+        db.itemDao().upsertFromCloud(listOf(item("item_tp", categoryId = null)))
+        // Pending soft-delete on Aldi.
+        db.itemStoreXrefDao().setStoresForItem(
+            "item_tp", setOf("store_aldi"), TEST_USER_ID, TEST_USER_ID, 100L)
+        db.itemStoreXrefDao().setStoresForItem(
+            "item_tp", emptySet(), TEST_USER_ID, TEST_USER_ID, 200L)
+
+        // Pull brings two cloud xrefs: one matches the pending PK (should
+        // skip), one is a fresh Lidl xref (should land).
+        dao.replaceAllForUid(
+            householdId = TEST_USER_ID,
+            items = emptyList(), categories = emptyList(), stores = emptyList(),
+            xrefs = listOf(
+                ItemStoreXref(
+                    itemId = "item_tp", storeId = "store_aldi", userId = TEST_USER_ID,
+                    createdAt = 100L, updatedAt = 100L, deletedAt = null,
+                    householdId = TEST_USER_ID,
+                ),
+                ItemStoreXref(
+                    itemId = "item_tp", storeId = "store_lidl", userId = TEST_USER_ID,
+                    createdAt = 100L, updatedAt = 100L, deletedAt = null,
+                    householdId = TEST_USER_ID,
+                ),
+            ),
+            scoOrders = emptyList(), purchaseRecords = emptyList(),
+        )
+
+        // Aldi: local pending soft-delete preserved (tombstone — read raw).
+        val aldi = readRawXref("item_tp", "store_aldi")!!
+        assertThat(aldi.deletedAt).isEqualTo(200L)
+        // Lidl: cloud row landed (no pending edit on this PK).
+        val lidl = readRawXref("item_tp", "store_lidl")!!
+        assertThat(lidl.deletedAt).isNull()
+    }
+
+    @Test fun `non-pending xref is overwritten by cloud as before`() = runTest {
+        db.storeDao().upsert(store("store_aldi"))
+        db.itemDao().upsertFromCloud(listOf(item("item_tp", categoryId = null)))
+        // Insert the xref then markPushed so pendingSync = 0 (simulating
+        // a steady-state row, no local edit waiting to ship).
+        db.itemStoreXrefDao().setStoresForItem(
+            "item_tp", setOf("store_aldi"), TEST_USER_ID, TEST_USER_ID, 100L)
+        db.itemStoreXrefDao().markPushed(TEST_USER_ID, "item_tp", "store_aldi")
+        assertThat(readRawXref("item_tp", "store_aldi")!!.pendingSync).isFalse()
+
+        // Cloud row says the xref is soft-deleted (Amanda deleted it on
+        // her device). Pull should apply this update — no local pending
+        // edit to preserve.
+        dao.replaceAllForUid(
+            householdId = TEST_USER_ID,
+            items = emptyList(), categories = emptyList(), stores = emptyList(),
+            xrefs = listOf(
+                ItemStoreXref(
+                    itemId = "item_tp", storeId = "store_aldi", userId = TEST_USER_ID,
+                    createdAt = 100L, updatedAt = 300L, deletedAt = 300L,
+                    householdId = TEST_USER_ID,
+                ),
+            ),
+            scoOrders = emptyList(), purchaseRecords = emptyList(),
+        )
+
+        val post = readRawXref("item_tp", "store_aldi")!!
+        assertThat(post.deletedAt).isEqualTo(300L) // cloud's soft-delete landed
+    }
+
+    @Test fun `pending item is preserved when cloud sends conflicting copy`() = runTest {
+        // Item with a pending local edit (renamed locally).
+        val itemLocal = item("item_tp", categoryId = null).copy(
+            name = "Toilet Paper (Mike-edited)",
+            updatedAt = 200L,
+            pendingSync = true,
+        )
+        db.itemDao().upsert(itemLocal)
+
+        // Cloud sends the older name back. Pull-guard should skip.
+        val itemCloud = item("item_tp", categoryId = null).copy(name = "Toilet Paper")
+        dao.replaceAllForUid(
+            householdId = TEST_USER_ID,
+            items = listOf(itemCloud),
+            categories = emptyList(), stores = emptyList(),
+            xrefs = emptyList(), scoOrders = emptyList(), purchaseRecords = emptyList(),
+        )
+
+        val post = db.itemDao().observeAll(TEST_USER_ID).first().single().item
+        // Local pending edit preserved.
+        assertThat(post.name).isEqualTo("Toilet Paper (Mike-edited)")
+        assertThat(post.pendingSync).isTrue()
     }
 
     private fun store(id: String) = Store(
@@ -171,4 +324,28 @@ class PullWriteDaoTest {
         userId = TEST_USER_ID, createdAt = 1L, updatedAt = 1L, deletedAt = null,
         householdId = TEST_USER_ID,
     )
+
+    /**
+     * Raw read of an xref row including soft-deletes — bypasses the
+     * deletedAt-filtered queries on `ItemStoreXrefDao.findForItem`. The
+     * pull-guard tests need to assert against tombstoned rows, which
+     * the standard DAO methods deliberately hide.
+     */
+    private data class RawXref(val deletedAt: Long?, val pendingSync: Boolean)
+
+    private fun readRawXref(itemId: String, storeId: String): RawXref? {
+        db.openHelper.readableDatabase.query(
+            "SELECT deletedAt, pendingSync FROM item_store_xref WHERE itemId = ? AND storeId = ?",
+            arrayOf(itemId, storeId),
+        ).use { c ->
+            return if (c.moveToFirst()) {
+                RawXref(
+                    deletedAt = if (c.isNull(0)) null else c.getLong(0),
+                    pendingSync = c.getInt(1) == 1,
+                )
+            } else {
+                null
+            }
+        }
+    }
 }

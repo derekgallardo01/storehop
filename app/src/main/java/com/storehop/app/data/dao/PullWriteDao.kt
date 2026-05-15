@@ -30,7 +30,31 @@ import javax.inject.Singleton
 class PullWriteDao @Inject constructor(
     private val db: StorehopDatabase,
 ) {
+    /**
+     * Replace local rows with the cloud snapshot, **except** rows where a
+     * local edit is pending push (`pendingSync = 1`). Those rows are the
+     * user's most-recent intent and must survive the pull — otherwise a
+     * pull-before-push race resurrects deletes the user just made.
+     *
+     * v0.8.0.4: Mike reported a "uncheck Aldi → save → Aldi comes back"
+     * bug rooted in this exact race. The previous implementation called
+     * `upsertFromCloud` unconditionally, which Room's `@Upsert` resolved
+     * by REPLACE-ing the local row (resurrecting `deletedAt`, clearing
+     * `pendingSync` via the mapper). Now we snapshot the local
+     * pending-PK set per entity and filter the cloud list before
+     * upsert.
+     *
+     * Why the filter is correct under LWW:
+     *  - Push is what makes a local edit authoritative cloud-side.
+     *    Until then, this device's local DB is the source of truth for
+     *    that PK.
+     *  - Once push completes, `markPushed()` flips `pendingSync = 0`,
+     *    the next pull has no guard for that PK, and cloud is
+     *    authoritative again. LWW by `updatedAt` still arbitrates
+     *    multi-device conflicts at the cloud level.
+     */
     suspend fun replaceAllForUid(
+        householdId: String,
         items: List<Item>,
         categories: List<Category>,
         stores: List<Store>,
@@ -38,15 +62,37 @@ class PullWriteDao @Inject constructor(
         scoOrders: List<StoreCategoryOrder>,
         purchaseRecords: List<PurchaseRecord>,
     ) = db.withTransaction {
+        // Snapshot pending-sync primary keys per entity. Any cloud row
+        // whose PK is in the corresponding set is dropped from the
+        // upsert list.
+        val pendingItemIds = db.itemDao().pendingPushIds(householdId).toHashSet()
+        val pendingCategoryIds = db.categoryDao().pendingPushIds(householdId).toHashSet()
+        val pendingStoreIds = db.storeDao().pendingPushIds(householdId).toHashSet()
+        val pendingXrefKeys = db.itemStoreXrefDao().pendingPushKeys(householdId).toHashSet()
+        val pendingScoKeys = db.storeCategoryOrderDao().pendingPushKeys(householdId).toHashSet()
+        val pendingPurchaseIds = db.purchaseRecordDao().pendingPushIds(householdId).toHashSet()
+
         // Order doesn't matter for correctness inside a transaction (FKs are
         // checked at commit time), but it keeps the intent visible: parents
         // before children.
-        db.categoryDao().upsertFromCloud(categories)
-        db.storeDao().upsertFromCloud(stores)
-        db.itemDao().upsertFromCloud(items)
-        db.itemStoreXrefDao().upsertFromCloud(xrefs)
-        db.storeCategoryOrderDao().upsertFromCloud(scoOrders)
-        db.purchaseRecordDao().upsertFromCloud(purchaseRecords)
+        db.categoryDao().upsertFromCloud(
+            categories.filterNot { it.id in pendingCategoryIds }
+        )
+        db.storeDao().upsertFromCloud(
+            stores.filterNot { it.id in pendingStoreIds }
+        )
+        db.itemDao().upsertFromCloud(
+            items.filterNot { it.id in pendingItemIds }
+        )
+        db.itemStoreXrefDao().upsertFromCloud(
+            xrefs.filterNot { XrefKey(it.itemId, it.storeId) in pendingXrefKeys }
+        )
+        db.storeCategoryOrderDao().upsertFromCloud(
+            scoOrders.filterNot { ScoKey(it.storeId, it.categoryId) in pendingScoKeys }
+        )
+        db.purchaseRecordDao().upsertFromCloud(
+            purchaseRecords.filterNot { it.id in pendingPurchaseIds }
+        )
     }
 
     /**

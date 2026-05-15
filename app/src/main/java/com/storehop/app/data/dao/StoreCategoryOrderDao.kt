@@ -190,6 +190,11 @@ interface StoreCategoryOrderDao {
     @Query("SELECT COUNT(*) FROM store_category_order WHERE householdId = :householdId AND pendingSync = 1")
     fun countPendingPush(householdId: String): Flow<Int>
 
+    /** v0.8.0.4: composite-PK snapshot of pendingSync = 1 SCO rows in
+     *  the household. Used by [PullWriteDao] to filter cloud rows. */
+    @Query("SELECT storeId, categoryId FROM store_category_order WHERE householdId = :householdId AND pendingSync = 1")
+    suspend fun pendingPushKeys(householdId: String): List<ScoKey>
+
     @Query(
         """
         UPDATE store_category_order SET pendingSync = 0
@@ -198,3 +203,10 @@ interface StoreCategoryOrderDao {
     )
     suspend fun markPushed(householdId: String, storeId: String, categoryId: String)
 }
+
+/**
+ * v0.8.0.4: composite primary-key tuple for
+ * [StoreCategoryOrderDao.pendingPushKeys]. Used by [PullWriteDao] to
+ * skip cloud SCO rows that have a local pending edit.
+ */
+data class ScoKey(val storeId: String, val categoryId: String)
