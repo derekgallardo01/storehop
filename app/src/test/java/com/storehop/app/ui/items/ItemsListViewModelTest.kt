@@ -8,6 +8,7 @@ import com.storehop.app.data.entity.Item
 import com.storehop.app.data.prefs.SortMode
 import com.storehop.app.data.prefs.UserPreferencesRepository
 import com.storehop.app.data.repository.ItemRepository
+import com.storehop.app.data.repository.StoreRepository
 import com.storehop.app.testing.MainDispatcherRule
 import com.storehop.app.ui.util.UndoEvent
 import com.storehop.app.ui.util.UndoEventBus
@@ -17,6 +18,7 @@ import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.Rule
@@ -48,6 +50,9 @@ class ItemsListViewModelTest {
             sortModeFlow.value = firstArg()
         }
     }
+    private val storeRepo: StoreRepository = mockk {
+        every { observeAll(any()) } returns flowOf(emptyList())
+    }
 
     init {
         every { itemRepo.observeNeededItemIds() } returns neededIdsFlow
@@ -60,7 +65,7 @@ class ItemsListViewModelTest {
             row("eggs", "Eggs", brand = null),
         )
 
-        val vm = ItemsListViewModel(itemRepo, prefsRepo, undoBus)
+        val vm = ItemsListViewModel(itemRepo, prefsRepo, storeRepo, undoBus)
         vm.uiState.test {
             awaitItem() // initial empty
             advanceUntilIdle()
@@ -90,7 +95,7 @@ class ItemsListViewModelTest {
             row("eggs", "Eggs", category = null),
         )
 
-        val vm = ItemsListViewModel(itemRepo, prefsRepo, undoBus)
+        val vm = ItemsListViewModel(itemRepo, prefsRepo, storeRepo, undoBus)
         vm.setQuery("FRO")  // matches "Frozen" category, ignore-case
         vm.uiState.test {
             awaitItem()
@@ -111,7 +116,7 @@ class ItemsListViewModelTest {
             row("oat", "Oat Drink", brand = null),
         )
 
-        val vm = ItemsListViewModel(itemRepo, prefsRepo, undoBus)
+        val vm = ItemsListViewModel(itemRepo, prefsRepo, storeRepo, undoBus)
         vm.setQuery("MIM")
         vm.uiState.test {
             awaitItem()
@@ -135,7 +140,7 @@ class ItemsListViewModelTest {
             row("eggs", "Eggs"),
         )
 
-        val vm = ItemsListViewModel(itemRepo, prefsRepo, undoBus)
+        val vm = ItemsListViewModel(itemRepo, prefsRepo, storeRepo, undoBus)
         vm.setQuery("    ")
         vm.uiState.test {
             awaitItem()
@@ -163,7 +168,7 @@ class ItemsListViewModelTest {
             row("eggs", "Eggs", category = dairy),
         )
 
-        val vm = ItemsListViewModel(itemRepo, prefsRepo, undoBus)
+        val vm = ItemsListViewModel(itemRepo, prefsRepo, storeRepo, undoBus)
         vm.setSortMode(SortMode.CATEGORY)
         vm.uiState.test {
             awaitItem()
@@ -193,7 +198,7 @@ class ItemsListViewModelTest {
             row("misc", "Mystery item", category = null),
         )
 
-        val vm = ItemsListViewModel(itemRepo, prefsRepo, undoBus)
+        val vm = ItemsListViewModel(itemRepo, prefsRepo, storeRepo, undoBus)
         vm.setSortMode(SortMode.CATEGORY)
         vm.uiState.test {
             awaitItem()
@@ -212,7 +217,7 @@ class ItemsListViewModelTest {
 
     @Test fun `undoEvents forwards events emitted on the bus`() = runTest {
         every { itemRepo.observeAll() } returns itemsFlow
-        val vm = ItemsListViewModel(itemRepo, prefsRepo, undoBus)
+        val vm = ItemsListViewModel(itemRepo, prefsRepo, storeRepo, undoBus)
 
         vm.undoEvents.test {
             undoBus.emit(UndoEvent.ItemDeleted(itemId = "milk", itemName = "Milk"))
@@ -226,7 +231,7 @@ class ItemsListViewModelTest {
     @Test fun `undoItemDelete forwards to the repository`() = runTest {
         every { itemRepo.observeAll() } returns itemsFlow
 
-        val vm = ItemsListViewModel(itemRepo, prefsRepo, undoBus)
+        val vm = ItemsListViewModel(itemRepo, prefsRepo, storeRepo, undoBus)
         vm.undoItemDelete("milk")
         advanceUntilIdle()
 
@@ -240,7 +245,7 @@ class ItemsListViewModelTest {
         itemsFlow.value = listOf(row("milk", "Milk"), row("eggs", "Eggs"))
         neededIdsFlow.value = setOf("milk")
 
-        val vm = ItemsListViewModel(itemRepo, prefsRepo, undoBus)
+        val vm = ItemsListViewModel(itemRepo, prefsRepo, storeRepo, undoBus)
         vm.uiState.test {
             awaitItem()
             advanceUntilIdle()
@@ -252,7 +257,7 @@ class ItemsListViewModelTest {
 
     @Test fun `toggleNeededAtAllStores routes to markNeeded when not currently needed`() = runTest {
         every { itemRepo.observeAll() } returns itemsFlow
-        val vm = ItemsListViewModel(itemRepo, prefsRepo, undoBus)
+        val vm = ItemsListViewModel(itemRepo, prefsRepo, storeRepo, undoBus)
         vm.toggleNeededAtAllStores(itemId = "milk", currentlyNeeded = false)
         advanceUntilIdle()
 
@@ -262,12 +267,122 @@ class ItemsListViewModelTest {
 
     @Test fun `toggleNeededAtAllStores routes to markPurchased when currently needed`() = runTest {
         every { itemRepo.observeAll() } returns itemsFlow
-        val vm = ItemsListViewModel(itemRepo, prefsRepo, undoBus)
+        val vm = ItemsListViewModel(itemRepo, prefsRepo, storeRepo, undoBus)
         vm.toggleNeededAtAllStores(itemId = "milk", currentlyNeeded = true)
         advanceUntilIdle()
 
         coVerify(exactly = 1) { itemRepo.markPurchasedAcrossAllStores("milk") }
         coVerify(exactly = 0) { itemRepo.markNeededAcrossAllStores(any()) }
+    }
+
+    // ---- v0.8.1 bulk-tag selection mode ----------------------------------
+
+    @Test fun `selection mode starts off and first toggleSelection enters it`() = runTest {
+        every { itemRepo.observeAll() } returns itemsFlow
+        itemsFlow.value = listOf(row("milk", "Milk"), row("eggs", "Eggs"))
+        val vm = ItemsListViewModel(itemRepo, prefsRepo, storeRepo, undoBus)
+
+        vm.uiState.test {
+            awaitItem()
+            advanceUntilIdle()
+            assertThat(expectMostRecentItem().isInSelectionMode).isFalse()
+
+            vm.toggleSelection("milk")
+            advanceUntilIdle()
+            val s = expectMostRecentItem()
+            assertThat(s.isInSelectionMode).isTrue()
+            assertThat(s.selectedItemIds).containsExactly("milk")
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test fun `toggleSelection on a selected id removes it and clearing all exits selection mode`() = runTest {
+        every { itemRepo.observeAll() } returns itemsFlow
+        val vm = ItemsListViewModel(itemRepo, prefsRepo, storeRepo, undoBus)
+
+        // uiState is WhileSubscribed; wrap the whole sequence in .test to
+        // keep the combine alive so reads after each toggle reflect the
+        // actual VM state instead of the initial empty value.
+        vm.uiState.test {
+            awaitItem()
+            vm.toggleSelection("milk")
+            vm.toggleSelection("eggs")
+            advanceUntilIdle()
+            assertThat(expectMostRecentItem().selectedItemIds).containsExactly("milk", "eggs")
+
+            vm.toggleSelection("milk")  // removes milk
+            advanceUntilIdle()
+            var s = expectMostRecentItem()
+            assertThat(s.selectedItemIds).containsExactly("eggs")
+            assertThat(s.isInSelectionMode).isTrue()
+
+            vm.toggleSelection("eggs")  // last one out
+            advanceUntilIdle()
+            s = expectMostRecentItem()
+            assertThat(s.selectedItemIds).isEmpty()
+            assertThat(s.isInSelectionMode).isFalse()
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test fun `clearSelection empties the set in one shot`() = runTest {
+        every { itemRepo.observeAll() } returns itemsFlow
+        val vm = ItemsListViewModel(itemRepo, prefsRepo, storeRepo, undoBus)
+
+        vm.toggleSelection("milk")
+        vm.toggleSelection("eggs")
+        vm.toggleSelection("bread")
+        advanceUntilIdle()
+
+        vm.clearSelection()
+        advanceUntilIdle()
+        assertThat(vm.uiState.value.selectedItemIds).isEmpty()
+    }
+
+    @Test fun `applyBulkStores forwards the selection to the repo and exits selection mode on success`() = runTest {
+        every { itemRepo.observeAll() } returns itemsFlow
+        val vm = ItemsListViewModel(itemRepo, prefsRepo, storeRepo, undoBus)
+
+        vm.toggleSelection("milk")
+        vm.toggleSelection("eggs")
+        vm.applyBulkStores(storeIdsToAdd = setOf("s_lidl", "s_aldi"))
+        advanceUntilIdle()
+
+        coVerify(exactly = 1) {
+            itemRepo.bulkTagStoresForItems(
+                itemIds = setOf("milk", "eggs"),
+                storeIdsToAdd = setOf("s_lidl", "s_aldi"),
+            )
+        }
+        // Selection cleared on success so the user lands back on the
+        // normal Items list, not stuck in selection mode.
+        assertThat(vm.uiState.value.selectedItemIds).isEmpty()
+        assertThat(vm.uiState.value.isInSelectionMode).isFalse()
+    }
+
+    @Test fun `applyBulkStores is a no-op when selection is empty`() = runTest {
+        every { itemRepo.observeAll() } returns itemsFlow
+        val vm = ItemsListViewModel(itemRepo, prefsRepo, storeRepo, undoBus)
+
+        vm.applyBulkStores(setOf("s_lidl"))
+        advanceUntilIdle()
+        coVerify(exactly = 0) { itemRepo.bulkTagStoresForItems(any(), any()) }
+    }
+
+    @Test fun `applyBulkStores is a no-op when storeIdsToAdd is empty`() = runTest {
+        every { itemRepo.observeAll() } returns itemsFlow
+        val vm = ItemsListViewModel(itemRepo, prefsRepo, storeRepo, undoBus)
+
+        vm.uiState.test {
+            awaitItem()
+            vm.toggleSelection("milk")
+            vm.applyBulkStores(emptySet())
+            advanceUntilIdle()
+            coVerify(exactly = 0) { itemRepo.bulkTagStoresForItems(any(), any()) }
+            // Selection preserved on no-op so the user can pick stores again.
+            assertThat(expectMostRecentItem().selectedItemIds).containsExactly("milk")
+            cancelAndIgnoreRemainingEvents()
+        }
     }
 
     private fun row(

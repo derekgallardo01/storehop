@@ -824,6 +824,86 @@ class ItemRepositoryImplTest {
         householdId = TEST_USER_ID,
     )
 
+    // ---- v0.8.1 bulkTagStoresForItems ------------------------------------
+
+    @Test fun `bulkTagStoresForItems unions storeIds into every selected item`() = runTest {
+        val item1 = repo.addItem(
+            name = "Toilet Paper", categoryId = null,
+            storeIds = setOf("store_lidl"),
+            quantity = null, notes = null,
+        )
+        val item2 = repo.addItem(
+            name = "Milk", categoryId = null,
+            storeIds = emptySet(),
+            quantity = null, notes = null,
+        )
+
+        repo.bulkTagStoresForItems(
+            itemIds = setOf(item1, item2),
+            storeIdsToAdd = setOf("store_lidl", "store_continente"),
+        )
+
+        val item1Stores = db.itemStoreXrefDao().findForItem(item1).map { it.storeId }.toSet()
+        val item2Stores = db.itemStoreXrefDao().findForItem(item2).map { it.storeId }.toSet()
+        // Item1 already had lidl; union adds continente without dropping it.
+        assertThat(item1Stores).containsExactly("store_lidl", "store_continente")
+        // Item2 had none; gets both.
+        assertThat(item2Stores).containsExactly("store_lidl", "store_continente")
+    }
+
+    @Test fun `bulkTagStoresForItems is idempotent and does not duplicate alive xrefs`() = runTest {
+        val itemId = repo.addItem(
+            name = "TP", categoryId = null,
+            storeIds = setOf("store_lidl"),
+            quantity = null, notes = null,
+        )
+
+        // Apply twice with the same args.
+        repo.bulkTagStoresForItems(setOf(itemId), setOf("store_lidl"))
+        repo.bulkTagStoresForItems(setOf(itemId), setOf("store_lidl"))
+
+        // Still exactly one alive xref to lidl; upsert keyed on the (item,
+        // store) PK can't duplicate.
+        val xrefs = db.itemStoreXrefDao().findForItem(itemId)
+        assertThat(xrefs).hasSize(1)
+        assertThat(xrefs.single().storeId).isEqualTo("store_lidl")
+    }
+
+    @Test fun `bulkTagStoresForItems resurrects a tombstoned xref instead of leaving it dead`() = runTest {
+        val itemId = repo.addItem(
+            name = "TP", categoryId = null,
+            storeIds = setOf("store_lidl"),
+            quantity = null, notes = null,
+        )
+        db.itemStoreXrefDao().softDelete(
+            householdId = TEST_USER_ID,
+            itemId = itemId,
+            storeId = "store_lidl",
+            now = 99_000L,
+        )
+
+        repo.bulkTagStoresForItems(setOf(itemId), setOf("store_lidl"))
+
+        val alive = db.itemStoreXrefDao().findForItem(itemId)
+        assertThat(alive).hasSize(1)
+        assertThat(alive.single().storeId).isEqualTo("store_lidl")
+        assertThat(alive.single().deletedAt).isNull()
+    }
+
+    @Test fun `bulkTagStoresForItems with empty inputs is a no-op`() = runTest {
+        val itemId = repo.addItem(
+            name = "TP", categoryId = null,
+            storeIds = setOf("store_lidl"),
+            quantity = null, notes = null,
+        )
+
+        repo.bulkTagStoresForItems(emptySet(), setOf("store_lidl"))
+        repo.bulkTagStoresForItems(setOf(itemId), emptySet())
+
+        val xrefs = db.itemStoreXrefDao().findForItem(itemId)
+        assertThat(xrefs.map { it.storeId }).containsExactly("store_lidl")
+    }
+
     /**
      * v0.8.1 regression pin: Mike's "Aldi keeps showing checked even after I
      * uncheck + save" bug. The [ItemWithCategoryAndStores.@Junction] now

@@ -3,9 +3,11 @@ package com.storehop.app.ui.items
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.storehop.app.data.db.relations.ItemWithCategoryAndStores
+import com.storehop.app.data.entity.Store
 import com.storehop.app.data.prefs.SortMode
 import com.storehop.app.data.prefs.UserPreferencesRepository
 import com.storehop.app.data.repository.ItemRepository
+import com.storehop.app.data.repository.StoreRepository
 import com.storehop.app.ui.util.UndoEvent
 import com.storehop.app.ui.util.UndoEventBus
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -40,7 +42,17 @@ data class ItemsListUiState(
      * otherwise. Empty when the user is signed out or has no items needed.
      */
     val neededItemIds: Set<String> = emptySet(),
-)
+    /**
+     * v0.8.1: item IDs the user has multi-selected (long-press → tap to
+     * extend). Non-empty set means the screen is in *selection mode*:
+     * the TopAppBar swaps to a contextual variant with a "[N] selected"
+     * title + a "Tag to stores…" action, row taps toggle membership
+     * instead of opening the editor, and the +/- toggle is hidden.
+     */
+    val selectedItemIds: Set<String> = emptySet(),
+) {
+    val isInSelectionMode: Boolean get() = selectedItemIds.isNotEmpty()
+}
 
 /**
  * Drives the Items master screen. Observes every live item plus a user-typed
@@ -60,11 +72,29 @@ data class ItemsListUiState(
 class ItemsListViewModel @Inject constructor(
     private val itemRepository: ItemRepository,
     private val preferencesRepository: UserPreferencesRepository,
+    storeRepository: StoreRepository,
     undoBus: UndoEventBus,
 ) : ViewModel() {
 
     private val _query = MutableStateFlow("")
     val query: StateFlow<String> = _query.asStateFlow()
+
+    /**
+     * v0.8.1: live store list for the bulk-tag picker dialog. Mirrors the
+     * pattern in `ItemFormViewModel.stores` (archived excluded). The
+     * picker dialog reads from this StateFlow when the screen is in
+     * selection mode and the user opens "Tag to stores…".
+     */
+    val stores: StateFlow<List<Store>> = storeRepository
+        .observeAll(includeArchived = false)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000L), emptyList())
+
+    /**
+     * v0.8.1 bulk-tag selection state. See [ItemsListUiState.selectedItemIds]
+     * for the UI semantics. Kept as a separate MutableStateFlow so the public
+     * uiState combine can fold it in without exposing the mutable.
+     */
+    private val _selectedItemIds = MutableStateFlow<Set<String>>(emptySet())
 
     val uiState: StateFlow<ItemsListUiState> =
         combine(
@@ -72,7 +102,8 @@ class ItemsListViewModel @Inject constructor(
             _query,
             preferencesRepository.itemsListSortMode,
             itemRepository.observeNeededItemIds(),
-        ) { all, q, sortMode, neededIds ->
+            _selectedItemIds,
+        ) { all, q, sortMode, neededIds, selected ->
             val needle = q.trim()
             val filtered = if (needle.isEmpty()) all
             else all.filter { row ->
@@ -98,6 +129,7 @@ class ItemsListViewModel @Inject constructor(
                 } else emptyList(),
                 sortMode = sortMode,
                 neededItemIds = neededIds,
+                selectedItemIds = selected,
             )
         }.stateIn(
             scope = viewModelScope,
@@ -140,6 +172,44 @@ class ItemsListViewModel @Inject constructor(
 
     fun undoItemDelete(itemId: String) {
         viewModelScope.launch { itemRepository.undoSoftDelete(itemId) }
+    }
+
+    // ---- v0.8.1 bulk-tag selection mode ----------------------------------
+
+    /**
+     * Toggle [itemId] in the selection set. First selected item enters
+     * selection mode; removing the last one exits it (the screen reads
+     * `isInSelectionMode` off the resulting state). Used by both the
+     * long-press entry path and subsequent tap-to-extend interactions
+     * while in selection mode.
+     */
+    fun toggleSelection(itemId: String) {
+        val now = _selectedItemIds.value
+        _selectedItemIds.value = if (itemId in now) now - itemId else now + itemId
+    }
+
+    /**
+     * Drop every selected id, exiting selection mode. Wired to the
+     * contextual TopAppBar's close action and to system back when the
+     * screen is in selection mode.
+     */
+    fun clearSelection() {
+        _selectedItemIds.value = emptySet()
+    }
+
+    /**
+     * Apply the bulk store-tag picker's choice to every selected item:
+     * add-only semantics (union with each item's existing store set; no
+     * stores are removed). Exits selection mode on success. No-op if
+     * either set is empty.
+     */
+    fun applyBulkStores(storeIdsToAdd: Set<String>) {
+        val ids = _selectedItemIds.value
+        if (ids.isEmpty() || storeIdsToAdd.isEmpty()) return
+        viewModelScope.launch {
+            itemRepository.bulkTagStoresForItems(ids, storeIdsToAdd)
+            _selectedItemIds.value = emptySet()
+        }
     }
 }
 

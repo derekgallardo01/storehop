@@ -340,4 +340,15 @@
     <string name="premium_purchase_failed">Compra fallida: %1$s</string>
     <string name="premium_purchase_already_owned">Ya tienes Premium. Restaurado.</string>
     <string name="premium_restore_done">Restauración completada.</string>
+
+    <!-- v0.8.1 etiquetado masivo de tiendas. -->
+    <string name="items_selection_count">%1$d seleccionados</string>
+    <string name="items_selection_exit_cd">Salir de la selección</string>
+    <string name="items_action_tag_to_stores">Etiquetar en tiendas…</string>
+    <string name="items_bulk_tag_title">Etiquetar artículos seleccionados</string>
+    <plurals name="items_bulk_tag_body">
+        <item quantity="one">Añadir las tiendas elegidas a %1$d artículo seleccionado.</item>
+        <item quantity="other">Añadir las tiendas elegidas a %1$d artículos seleccionados.</item>
+    </plurals>
+    <string name="items_bulk_tag_apply">Añadir tiendas</string>
 </resources>

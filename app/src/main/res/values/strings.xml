@@ -345,4 +345,15 @@
     <string name="premium_purchase_failed">Purchase failed: %1$s</string>
     <string name="premium_purchase_already_owned">You already own Premium. Restored.</string>
     <string name="premium_restore_done">Restore complete.</string>
+
+    <!-- v0.8.1 bulk store-tag (Items list selection mode). -->
+    <string name="items_selection_count">%1$d selected</string>
+    <string name="items_selection_exit_cd">Exit selection</string>
+    <string name="items_action_tag_to_stores">Tag to stores…</string>
+    <string name="items_bulk_tag_title">Tag selected items</string>
+    <plurals name="items_bulk_tag_body">
+        <item quantity="one">Add the picked stores to %1$d selected item.</item>
+        <item quantity="other">Add the picked stores to %1$d selected items.</item>
+    </plurals>
+    <string name="items_bulk_tag_apply">Add stores</string>
 </resources>

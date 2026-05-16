@@ -187,20 +187,11 @@ fun ItemFormScreen(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Spacer(Modifier.height(8.dp))
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .horizontalScroll(rememberScrollState()),
-                ) {
-                    stores.forEach { store ->
-                        FilterChip(
-                            selected = store.id in state.storeIds,
-                            onClick = { viewModel.toggleStore(store.id) },
-                            label = { Text(store.name) },
-                        )
-                    }
-                }
+                com.storehop.app.ui.items.components.StoreChipsRow(
+                    stores = stores,
+                    selectedStoreIds = state.storeIds,
+                    onToggle = viewModel::toggleStore,
+                )
             }
 
             HorizontalDivider()

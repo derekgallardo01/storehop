@@ -302,6 +302,24 @@ class ItemRepositoryImpl @Inject constructor(
         xrefDao.markPurchasedAcrossAllStores(current.householdId, itemId, clock.millis())
     }
 
+    override suspend fun bulkTagStoresForItems(
+        itemIds: Set<String>,
+        storeIdsToAdd: Set<String>,
+    ) {
+        if (itemIds.isEmpty() || storeIdsToAdd.isEmpty()) return
+        db.withTransaction {
+            for (itemId in itemIds) {
+                for (storeId in storeIdsToAdd) {
+                    // Delegate to the existing single-pair path. It already
+                    // handles the resurrect-tombstone / no-op-alive / fresh-
+                    // insert split correctly. Nested transactions collapse
+                    // into this outer one at the SQLite level.
+                    tagItemToStore(itemId, storeId)
+                }
+            }
+        }
+    }
+
     private fun requireSignedIn(): String =
         session.currentUserId() ?: throw IllegalStateException("Not signed in")
 

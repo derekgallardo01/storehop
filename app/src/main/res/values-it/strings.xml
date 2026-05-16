@@ -340,4 +340,15 @@
     <string name="premium_purchase_failed">Acquisto fallito: %1$s</string>
     <string name="premium_purchase_already_owned">Hai già Premium. Ripristinato.</string>
     <string name="premium_restore_done">Ripristino completato.</string>
+
+    <!-- v0.8.1 tag negozi in blocco. -->
+    <string name="items_selection_count">%1$d selezionati</string>
+    <string name="items_selection_exit_cd">Esci dalla selezione</string>
+    <string name="items_action_tag_to_stores">Tagga nei negozi…</string>
+    <string name="items_bulk_tag_title">Tagga elementi selezionati</string>
+    <plurals name="items_bulk_tag_body">
+        <item quantity="one">Aggiungi i negozi scelti a %1$d elemento selezionato.</item>
+        <item quantity="other">Aggiungi i negozi scelti a %1$d elementi selezionati.</item>
+    </plurals>
+    <string name="items_bulk_tag_apply">Aggiungi negozi</string>
 </resources>

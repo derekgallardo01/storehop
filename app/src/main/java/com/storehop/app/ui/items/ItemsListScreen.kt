@@ -1,7 +1,9 @@
 package com.storehop.app.ui.items
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -21,8 +23,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Sort
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Category
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Store
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
@@ -64,6 +68,7 @@ import androidx.compose.ui.platform.LocalContext
 import com.storehop.app.R
 import com.storehop.app.data.db.relations.ItemWithCategoryAndStores
 import com.storehop.app.data.prefs.SortMode
+import com.storehop.app.ui.items.components.BulkStorePickerDialog
 import com.storehop.app.ui.util.EmptyState
 import com.storehop.app.ui.util.UndoBar
 import com.storehop.app.ui.util.UndoBarState
@@ -106,65 +111,110 @@ fun ItemsListScreen(
     }
 
     var overflowOpen by remember { mutableStateOf(false) }
+    var showBulkPicker by remember { mutableStateOf(false) }
+    val stores by viewModel.stores.collectAsState()
+
+    // v0.8.1: in selection mode, system back exits selection (matches
+    // the contextual TopAppBar's X). Without this, back would pop the
+    // screen entirely, which is jarring.
+    androidx.activity.compose.BackHandler(enabled = state.isInSelectionMode) {
+        viewModel.clearSelection()
+    }
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.title_items)) },
-                actions = {
-                    // Sort toggle: flat alphabetic vs category-grouped.
-                    // Persisted via UserPreferencesRepository.itemsListSortMode.
-                    IconButton(onClick = {
-                        val next = if (state.sortMode == SortMode.ALPHABETIC)
-                            SortMode.CATEGORY else SortMode.ALPHABETIC
-                        viewModel.setSortMode(next)
-                    }) {
-                        Icon(
-                            imageVector = if (state.sortMode == SortMode.ALPHABETIC)
-                                Icons.Filled.Category
-                            else Icons.AutoMirrored.Filled.Sort,
-                            contentDescription = stringResource(
-                                if (state.sortMode == SortMode.ALPHABETIC)
-                                    R.string.sort_category_cd
-                                else R.string.sort_alphabetic_cd,
+            if (state.isInSelectionMode) {
+                // Contextual TopAppBar: "[N] selected" with X (exit) +
+                // "Tag to stores…" actions. Replaces the normal bar
+                // entirely while selection mode is active.
+                TopAppBar(
+                    title = {
+                        Text(
+                            stringResource(
+                                R.string.items_selection_count,
+                                state.selectedItemIds.size,
                             ),
                         )
-                    }
-                    IconButton(onClick = onOpenSettings) {
-                        Icon(
-                            Icons.Filled.Settings,
-                            contentDescription = stringResource(R.string.action_settings),
-                        )
-                    }
-                    Box {
-                        IconButton(onClick = { overflowOpen = true }) {
+                    },
+                    navigationIcon = {
+                        IconButton(onClick = viewModel::clearSelection) {
                             Icon(
-                                Icons.Filled.MoreVert,
-                                contentDescription = stringResource(R.string.action_more_options),
+                                Icons.Filled.Close,
+                                contentDescription = stringResource(R.string.items_selection_exit_cd),
                             )
                         }
-                        DropdownMenu(
-                            expanded = overflowOpen,
-                            onDismissRequest = { overflowOpen = false },
-                        ) {
-                            DropdownMenuItem(
-                                text = { Text(stringResource(R.string.action_manage_categories)) },
-                                onClick = {
-                                    overflowOpen = false
-                                    onOpenCategories()
-                                },
+                    },
+                    actions = {
+                        IconButton(onClick = { showBulkPicker = true }) {
+                            Icon(
+                                Icons.Filled.Store,
+                                contentDescription = stringResource(R.string.items_action_tag_to_stores),
                             )
                         }
-                    }
-                },
-            )
+                    },
+                )
+            } else {
+                TopAppBar(
+                    title = { Text(stringResource(R.string.title_items)) },
+                    actions = {
+                        // Sort toggle: flat alphabetic vs category-grouped.
+                        // Persisted via UserPreferencesRepository.itemsListSortMode.
+                        IconButton(onClick = {
+                            val next = if (state.sortMode == SortMode.ALPHABETIC)
+                                SortMode.CATEGORY else SortMode.ALPHABETIC
+                            viewModel.setSortMode(next)
+                        }) {
+                            Icon(
+                                imageVector = if (state.sortMode == SortMode.ALPHABETIC)
+                                    Icons.Filled.Category
+                                else Icons.AutoMirrored.Filled.Sort,
+                                contentDescription = stringResource(
+                                    if (state.sortMode == SortMode.ALPHABETIC)
+                                        R.string.sort_category_cd
+                                    else R.string.sort_alphabetic_cd,
+                                ),
+                            )
+                        }
+                        IconButton(onClick = onOpenSettings) {
+                            Icon(
+                                Icons.Filled.Settings,
+                                contentDescription = stringResource(R.string.action_settings),
+                            )
+                        }
+                        Box {
+                            IconButton(onClick = { overflowOpen = true }) {
+                                Icon(
+                                    Icons.Filled.MoreVert,
+                                    contentDescription = stringResource(R.string.action_more_options),
+                                )
+                            }
+                            DropdownMenu(
+                                expanded = overflowOpen,
+                                onDismissRequest = { overflowOpen = false },
+                            ) {
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.action_manage_categories)) },
+                                    onClick = {
+                                        overflowOpen = false
+                                        onOpenCategories()
+                                    },
+                                )
+                            }
+                        }
+                    },
+                )
+            }
         },
         floatingActionButton = {
-            FloatingActionButton(onClick = onAddItem) {
-                Icon(
-                    Icons.Filled.Add,
-                    contentDescription = stringResource(R.string.action_add_item),
-                )
+            // Hide FAB in selection mode -- a "+" action while
+            // multi-selecting items would be ambiguous.
+            if (!state.isInSelectionMode) {
+                FloatingActionButton(onClick = onAddItem) {
+                    Icon(
+                        Icons.Filled.Add,
+                        contentDescription = stringResource(R.string.action_add_item),
+                    )
+                }
             }
         },
         bottomBar = {
@@ -237,16 +287,25 @@ fun ItemsListScreen(
                             SortMode.ALPHABETIC -> {
                                 items(state.rows, key = { it.item.id }) { row ->
                                     ItemRow(
-                                    row = row,
-                                    isNeeded = state.neededItemIds.contains(row.item.id),
-                                    onClick = { onEditItem(row.item.id) },
-                                    onToggleNeeded = {
-                                        viewModel.toggleNeededAtAllStores(
-                                            row.item.id,
-                                            state.neededItemIds.contains(row.item.id),
-                                        )
-                                    },
-                                )
+                                        row = row,
+                                        isNeeded = state.neededItemIds.contains(row.item.id),
+                                        isSelected = row.item.id in state.selectedItemIds,
+                                        isInSelectionMode = state.isInSelectionMode,
+                                        onClick = {
+                                            if (state.isInSelectionMode) {
+                                                viewModel.toggleSelection(row.item.id)
+                                            } else {
+                                                onEditItem(row.item.id)
+                                            }
+                                        },
+                                        onLongClick = { viewModel.toggleSelection(row.item.id) },
+                                        onToggleNeeded = {
+                                            viewModel.toggleNeededAtAllStores(
+                                                row.item.id,
+                                                state.neededItemIds.contains(row.item.id),
+                                            )
+                                        },
+                                    )
                                 }
                             }
                             SortMode.CATEGORY -> {
@@ -256,16 +315,25 @@ fun ItemsListScreen(
                                     }
                                     items(section.rows, key = { it.item.id }) { row ->
                                         ItemRow(
-                                    row = row,
-                                    isNeeded = state.neededItemIds.contains(row.item.id),
-                                    onClick = { onEditItem(row.item.id) },
-                                    onToggleNeeded = {
-                                        viewModel.toggleNeededAtAllStores(
-                                            row.item.id,
-                                            state.neededItemIds.contains(row.item.id),
+                                            row = row,
+                                            isNeeded = state.neededItemIds.contains(row.item.id),
+                                            isSelected = row.item.id in state.selectedItemIds,
+                                            isInSelectionMode = state.isInSelectionMode,
+                                            onClick = {
+                                                if (state.isInSelectionMode) {
+                                                    viewModel.toggleSelection(row.item.id)
+                                                } else {
+                                                    onEditItem(row.item.id)
+                                                }
+                                            },
+                                            onLongClick = { viewModel.toggleSelection(row.item.id) },
+                                            onToggleNeeded = {
+                                                viewModel.toggleNeededAtAllStores(
+                                                    row.item.id,
+                                                    state.neededItemIds.contains(row.item.id),
+                                                )
+                                            },
                                         )
-                                    },
-                                )
                                     }
                                 }
                             }
@@ -274,6 +342,20 @@ fun ItemsListScreen(
                 }
             }
         }
+    }
+
+    // v0.8.1 bulk store-tag picker. Rendered as a top-level overlay so it
+    // stays composed independently of the Scaffold body's state.
+    if (showBulkPicker) {
+        BulkStorePickerDialog(
+            stores = stores,
+            selectedItemCount = state.selectedItemIds.size,
+            onApply = { picked ->
+                viewModel.applyBulkStores(picked)  // VM clears selection on success
+                showBulkPicker = false
+            },
+            onDismiss = { showBulkPicker = false },
+        )
     }
 }
 
@@ -307,47 +389,85 @@ private fun resolveSectionLabel(section: ItemsCategorySection, ctx: Context): St
     return if (resId != 0) ctx.getString(resId) else section.categoryName
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun ItemRow(
     row: ItemWithCategoryAndStores,
     isNeeded: Boolean,
+    isSelected: Boolean,
+    isInSelectionMode: Boolean,
     onClick: () -> Unit,
+    onLongClick: () -> Unit,
     onToggleNeeded: () -> Unit,
 ) {
+    val rowBg = if (isSelected) {
+        MaterialTheme.colorScheme.secondaryContainer
+    } else {
+        androidx.compose.ui.graphics.Color.Transparent
+    }
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
+            .background(rowBg)
+            .combinedClickable(onClick = onClick, onLongClick = onLongClick)
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        val url = row.item.imageUrl
-        if (!url.isNullOrBlank()) {
-            AsyncImage(
-                model = url,
-                contentDescription = null,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier
-                    .size(40.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.primaryContainer),
-            )
-        } else {
+        // v0.8.1: leading checkbox-style indicator shown only in selection
+        // mode. Replaces the avatar's leading slot so the row doesn't grow
+        // wider, and provides a clear "this row is/isn't selected" cue
+        // (the background tint alone is too subtle on some themes).
+        if (isInSelectionMode) {
             Box(
                 modifier = Modifier
                     .size(40.dp)
                     .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.primaryContainer),
+                    .background(
+                        if (isSelected) MaterialTheme.colorScheme.primary
+                        else MaterialTheme.colorScheme.surfaceVariant,
+                    ),
                 contentAlignment = Alignment.Center,
             ) {
-                Text(
-                    text = row.item.name.firstOrNull()?.uppercaseChar()?.toString() ?: "?",
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer,
-                )
+                if (isSelected) {
+                    Icon(
+                        Icons.Filled.Check,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onPrimary,
+                    )
+                }
             }
+            Spacer(Modifier.width(12.dp))
+        } else {
+            // Avatar slot only when NOT in selection mode (the checkbox
+            // above replaces it, keeping the row width identical).
+            val url = row.item.imageUrl
+            if (!url.isNullOrBlank()) {
+                AsyncImage(
+                    model = url,
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.primaryContainer),
+                )
+            } else {
+                Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.primaryContainer),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        text = row.item.name.firstOrNull()?.uppercaseChar()?.toString() ?: "?",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer,
+                    )
+                }
+            }
+            Spacer(Modifier.width(12.dp))
         }
-        Spacer(Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = row.item.name,
@@ -387,11 +507,14 @@ private fun ItemRow(
         // v0.6.1: +/- toggle. Disabled when the item has no tagged stores
         // (nothing to add it to). The button is wider than the row's tap
         // target so its own tap doesn't bubble into the row's onClick.
+        // v0.8.1: hidden in selection mode -- the row's tap belongs to
+        // toggleSelection then, and a +/- here would be ambiguous.
         val hasStores = row.stores.isNotEmpty()
-        IconButton(
-            onClick = onToggleNeeded,
-            enabled = hasStores,
-        ) {
+        if (!isInSelectionMode) {
+            IconButton(
+                onClick = onToggleNeeded,
+                enabled = hasStores,
+            ) {
             Icon(
                 imageVector = if (isNeeded) Icons.Filled.Remove else Icons.Filled.Add,
                 contentDescription = stringResource(
@@ -401,6 +524,7 @@ private fun ItemRow(
                 tint = if (hasStores) MaterialTheme.colorScheme.primary
                 else MaterialTheme.colorScheme.onSurfaceVariant,
             )
+            }
         }
     }
 }

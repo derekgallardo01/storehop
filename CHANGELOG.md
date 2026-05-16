@@ -7,6 +7,83 @@ project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 For the high-level roadmap and earlier-than-0.5.0 history, see the
 "Roadmap" section in the [README](README.md).
 
+## [0.8.1] - 2026-05-16
+
+**Bulk store-tag from the Items list + tombstone-correct `@Junction`
+across all consumers (Android).** Two changes that travel together:
+an architectural fix at the data layer and a new feature that
+benefits from it.
+
+### Added: bulk store-tag on the Items list
+
+Mike asked for a way to add stores in bulk after CSV imports rather
+than re-opening each item. New flow:
+
+- **Long-press an item** to enter selection mode. The TopAppBar
+  swaps to a contextual variant with "[N] selected" + an X (exit)
+  + a "Tag to stores…" action; the FAB hides; row taps now toggle
+  selection instead of opening the editor. Tap-to-extend picks
+  additional rows. System back also exits selection.
+- **Tag to stores…** opens a picker dialog with the same chips UX
+  as the single-item form. Pick one or more stores → Apply unions
+  them with each selected item's existing store set (add-only
+  semantics: nothing gets removed). Cancel and X dismiss without
+  changes.
+- Per-item editing (long-tap-free tap) still goes to the existing
+  form, so the v0.6.x single-item flow is untouched for users who
+  prefer it. Mike confirmed: "having both options would be nice."
+
+Backed by a new `ItemRepository.bulkTagStoresForItems(itemIds,
+storeIdsToAdd)` that wraps the per-pair `tagItemToStore` calls in
+one transaction, so partial failures can't leave half the items
+tagged. Idempotent (re-applying does nothing), resurrects
+tombstoned xrefs by primary-key upsert (matches single-tag
+behavior), no-op on empty inputs. Six new tests pin the contract:
+4 repo-layer (union / idempotent / resurrect / no-op) + 6
+ViewModel-layer (selection state lifecycle + apply + clears on
+success + preserves on no-op). The Composables `StoreChipsRow`
+(extracted from the form so both surfaces share styling) and
+`BulkStorePickerDialog` are new under
+`ui/items/components/`. 8 new localized strings (1 plural × 4
+locales) for the selection count, X content-desc, action label,
+dialog title/body/button.
+
+### Fixed: tombstoned xrefs no longer leak via the Room `@Junction`
+
+v0.8.0.5 patched one of three consumers of the leaky
+`ItemWithCategoryAndStores.@Junction` (the item form's selected-
+stores chips). The other two — CSV export's per-store column and
+the Items list `hasStores` +/- toggle — were still reading
+tombstoned xrefs through the same un-filtered join. The
+architectural fix lands here: a new Room `@DatabaseView` named
+`alive_item_store_xref` defined as
+`SELECT itemId, storeId FROM item_store_xref WHERE deletedAt IS NULL`
+becomes the `@Junction` target instead of the raw table. One fix
+at the data layer covers every consumer (existing three plus the
+new bulk-tag flow), so this class of bug can't return for a
+fourth consumer.
+
+Schema migration v8 → v9 creates the view with idempotent
+`CREATE VIEW IF NOT EXISTS` DDL. New `MigrationTest` case pins
+both that the view exists in `sqlite_master` and that it filters
+soft-deleted rows. `ItemRepositoryImplTest` gains an integration
+case driving the full `ItemWithCategoryAndStores` load path
+through the view.
+
+Cleanup of the v0.8.0.5 tactical hack:
+- `ItemRepository.aliveStoreIdsForItem` interface method removed
+- `ItemRepositoryImpl.aliveStoreIdsForItem` implementation removed
+- `ItemFormViewModel.init` reverts to `row.stores.map { it.id }`
+  (now correct because the `@Junction` reads the view)
+- Dedicated VM-layer pinning test removed (the contract moved to
+  the DAO/migration layer where it actually belongs)
+- `coEvery { aliveStoreIdsForItem(...) }` stubs the hack required
+  in two unrelated Edit-mode tests are gone
+
+### Versions
+
+- Android: `versionCode 65 → 66`, `versionName 0.8.0 → 0.8.1`.
+
 ## [0.8.0] - 2026-05-12
 
 **Premium IAP — inviter-pays household sharing + gated CSV export

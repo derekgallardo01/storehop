@@ -119,4 +119,24 @@ interface ItemRepository {
      * specific store -- they're on the master Items list).
      */
     suspend fun markPurchasedAcrossAllStores(itemId: String)
+
+    /**
+     * Idempotently tag a batch of items to a batch of stores in one
+     * transaction. Add-only semantics: each (itemId, storeId) pair is
+     * either already tagged (no-op + flips isNeeded back to true if it
+     * was false) or gets a fresh alive xref (resurrecting a tombstone
+     * by primary-key upsert when one is present). Stores not in
+     * [storeIdsToAdd] are not touched — this is the bulk equivalent of
+     * toggling more chips "on," not a replace-all.
+     *
+     * Powers the v0.8.1 bulk-tag UI from the Items list: long-press to
+     * enter selection mode, pick N items, choose stores to apply. The
+     * transaction wraps the whole batch so a partial failure can't
+     * leave half the items tagged.
+     *
+     * No-op if either set is empty. Items not owned by the live
+     * household are silently skipped (inherited from
+     * [tagItemToStore]'s guard).
+     */
+    suspend fun bulkTagStoresForItems(itemIds: Set<String>, storeIdsToAdd: Set<String>)
 }
