@@ -160,6 +160,40 @@ class MigrationTest {
         }
     }
 
+    @Test fun `v8 to v9 creates alive_item_store_xref view that filters tombstones`() {
+        // v0.8.1: the @Junction on ItemWithCategoryAndStores now reads via
+        // this view so soft-deleted xrefs don't leak ghost stores into
+        // `row.stores`. Pin both that the view exists with the expected
+        // shape, and that it filters tombstoned rows out.
+        withV1Db { db ->
+            db.execSQL("INSERT INTO categories(id,name,nameKey,icon,isArchived,isSeeded,userId,createdAt,updatedAt,deletedAt) " +
+                "VALUES('c1','Cat',NULL,NULL,0,0,'u',1,1,NULL)")
+            db.execSQL("INSERT INTO stores(id,name,colorArgb,isArchived,isSeeded,userId,createdAt,updatedAt,deletedAt) " +
+                "VALUES('s_alive','Lidl',NULL,0,0,'u',1,1,NULL)")
+            db.execSQL("INSERT INTO stores(id,name,colorArgb,isArchived,isSeeded,userId,createdAt,updatedAt,deletedAt) " +
+                "VALUES('s_tomb','Aldi',NULL,0,0,'u',1,1,NULL)")
+            db.execSQL("INSERT INTO items(id,name,categoryId,notes,quantity,isNeeded,lastPurchasedAt,userId,createdAt,updatedAt,deletedAt) " +
+                "VALUES('i1','TP','c1',NULL,NULL,1,NULL,'u',1,1,NULL)")
+            // Alive xref to s_alive; tombstoned xref to s_tomb. Post-
+            // migration the view must include only the alive one.
+            db.execSQL("INSERT INTO item_store_xref(itemId,storeId,userId,createdAt,updatedAt,deletedAt) " +
+                "VALUES('i1','s_alive','u',1,1,NULL)")
+            db.execSQL("INSERT INTO item_store_xref(itemId,storeId,userId,createdAt,updatedAt,deletedAt) " +
+                "VALUES('i1','s_tomb','u',1,1,999)")
+        }.migrateTo(9).use { db ->
+            // View exists in sqlite_master with type='view'.
+            db.queryRow("SELECT type FROM sqlite_master WHERE name='alive_item_store_xref'") { c ->
+                assertThat(c.getString(0)).isEqualTo("view")
+            }
+            // View filters tombstones: only the alive xref appears.
+            val rows = mutableListOf<Pair<String, String>>()
+            db.query("SELECT itemId, storeId FROM alive_item_store_xref ORDER BY storeId").use { c ->
+                while (c.moveToNext()) rows += c.getString(0) to c.getString(1)
+            }
+            assertThat(rows).containsExactly("i1" to "s_alive")
+        }
+    }
+
     @Test fun `v6 to v7 dense-ranks categories by name within each user`() {
         // Two users so we can confirm the ordering is per-user.
         withV1Db { db ->
@@ -333,7 +367,7 @@ class MigrationTest {
         fun migrateTo(targetVersion: Int): DbHandle {
             val migrations = listOf(
                 MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5,
-                MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8,
+                MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9,
             )
             val needed = migrations.filter { it.endVersion <= targetVersion }
             needed.forEach { it.migrate(db) }

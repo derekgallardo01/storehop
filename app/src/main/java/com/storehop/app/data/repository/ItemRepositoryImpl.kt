@@ -302,13 +302,6 @@ class ItemRepositoryImpl @Inject constructor(
         xrefDao.markPurchasedAcrossAllStores(current.householdId, itemId, clock.millis())
     }
 
-    override suspend fun aliveStoreIdsForItem(itemId: String): Set<String> {
-        // xrefDao.findForItem already filters `deletedAt IS NULL`, so this
-        // path is tombstone-aware unlike `row.stores` from the @Junction
-        // join. See the ItemRepository.aliveStoreIdsForItem doc.
-        return xrefDao.findForItem(itemId).map { it.storeId }.toSet()
-    }
-
     private fun requireSignedIn(): String =
         session.currentUserId() ?: throw IllegalStateException("Not signed in")
 

@@ -111,16 +111,16 @@ class ItemFormViewModel @Inject constructor(
             viewModelScope.launch {
                 val row = itemRepository.observeById(itemId).first()
                 if (row != null) {
-                    // v0.8.0.5: read tagged stores via `aliveStoreIdsForItem`
-                    // (filters tombstoned xrefs) instead of `row.stores`,
-                    // which uses Room's @Junction join and surfaces ghost
-                    // stores from soft-deleted bridge rows. Fixes Mike's
-                    // "Aldi keeps showing checked after I uncheck + save".
+                    // v0.8.1: `row.stores` is now tombstone-filtered because
+                    // the @Junction in ItemWithCategoryAndStores reads via
+                    // the `alive_item_store_xref` view. The v0.8.0.5 tactical
+                    // hack (aliveStoreIdsForItem) is gone -- the data layer
+                    // does the filtering for every consumer.
                     _state.value = _state.value.copy(
                         name = row.item.name,
                         brand = row.item.brand.orEmpty(),
                         categoryId = row.item.categoryId,
-                        storeIds = itemRepository.aliveStoreIdsForItem(itemId),
+                        storeIds = row.stores.map { it.id }.toSet(),
                         isStaple = row.item.isStaple,
                         isPriority = row.item.isPriority,
                         imageUrl = row.item.imageUrl,

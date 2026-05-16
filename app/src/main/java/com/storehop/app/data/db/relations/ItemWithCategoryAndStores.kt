@@ -3,27 +3,29 @@ package com.storehop.app.data.db.relations
 import androidx.room.Embedded
 import androidx.room.Junction
 import androidx.room.Relation
+import com.storehop.app.data.db.views.AliveItemStoreXref
 import com.storehop.app.data.entity.Category
 import com.storehop.app.data.entity.Item
-import com.storehop.app.data.entity.ItemStoreXref
 import com.storehop.app.data.entity.Store
 
 /**
  * Item plus its (live) Category and (live) tagged Stores.
  *
- * IMPORTANT: Room's `@Relation` (and `@Junction`) generate JOINs that do NOT
- * apply WHERE filters on the related entities, so they will happily surface
- * tombstoned Categories/Stores or follow tombstoned junction rows. The data
- * layer keeps this consistent by cascading soft-deletes:
+ * Room's `@Relation` (and `@Junction`) generate JOINs that do NOT apply
+ * `WHERE` filters on the related entities or the bridging table. The data
+ * layer keeps Category/Store live by cascading soft-deletes:
  *  - `StoreRepositoryImpl.softDelete`    → tombstones xrefs pointing at the store
  *  - `CategoryRepositoryImpl.softDelete` → sets items.categoryId = NULL for items
  *                                          pointing at the deleted category
  *  - `ItemRepositoryImpl.softDelete`     → tombstones the item's xrefs
  *
- * As long as every tombstone is performed through the repository layer (which
- * is the only sanctioned writer of soft-deletes), this class returns only live
- * relations. A future caller writing tombstones directly via DAO would bypass
- * the cascades and surface ghost data here.
+ * v0.8.1: the `@Junction` reads through the [AliveItemStoreXref] view
+ * (`SELECT itemId, storeId FROM item_store_xref WHERE deletedAt IS NULL`)
+ * instead of the raw `item_store_xref` table, so tombstoned bridge rows
+ * no longer leak ghost stores into `stores`. This replaces the v0.8.0.5
+ * tactical hack on the form (which had to special-read via
+ * `ItemRepository.aliveStoreIdsForItem`) and fixes the leak at every
+ * consumer in one place (form chips, CSV export, Items list +/− toggle).
  */
 data class ItemWithCategoryAndStores(
     @Embedded val item: Item,
@@ -33,7 +35,7 @@ data class ItemWithCategoryAndStores(
         parentColumn = "id",
         entityColumn = "id",
         associateBy = Junction(
-            value = ItemStoreXref::class,
+            value = AliveItemStoreXref::class,
             parentColumn = "itemId",
             entityColumn = "storeId",
         ),

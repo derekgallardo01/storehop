@@ -169,6 +169,32 @@ val MIGRATION_5_6 = object : Migration(5, 6) {
  * bootstrap in [com.storehop.app.auth.FirebaseAuthSessionProvider]
  * (Phase 2) seeds the active user's personal-household row.
  */
+/**
+ * v8 -> v9: register the `alive_item_store_xref` view.
+ *
+ * v0.8.1: a `WHERE deletedAt IS NULL` projection over `item_store_xref`
+ * used as the `@Junction` target in
+ * [com.storehop.app.data.db.relations.ItemWithCategoryAndStores]. Room's
+ * `@Junction` doesn't filter the bridging table itself, so tombstoned
+ * xrefs were leaking ghost stores into every consumer of `row.stores`
+ * (form chips, CSV export, Items list `hasStores` toggle).
+ *
+ * Pointing the junction at this view fixes all three consumers at the
+ * data layer instead of requiring each call site to filter. Replaces
+ * the v0.8.0.5 tactical hack (`ItemRepository.aliveStoreIdsForItem`).
+ *
+ * No data is read or written; only DDL. Safe to re-run via
+ * `CREATE VIEW IF NOT EXISTS`.
+ */
+val MIGRATION_8_9 = object : Migration(8, 9) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "CREATE VIEW IF NOT EXISTS `alive_item_store_xref` AS " +
+                "SELECT itemId, storeId FROM item_store_xref WHERE deletedAt IS NULL",
+        )
+    }
+}
+
 val MIGRATION_7_8 = object : Migration(7, 8) {
     override fun migrate(db: SupportSQLiteDatabase) {
         // Add householdId to every per-user entity. Empty-string default

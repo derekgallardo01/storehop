@@ -119,24 +119,4 @@ interface ItemRepository {
      * specific store -- they're on the master Items list).
      */
     suspend fun markPurchasedAcrossAllStores(itemId: String)
-
-    /**
-     * Set of storeIds where the item currently has an **alive** xref row.
-     *
-     * v0.8.0.5: the form's "tagged stores" chips load from this instead of
-     * `ItemWithCategoryAndStores.stores.map { it.id }`. Room's
-     * `@Relation` + `@Junction` does NOT apply a WHERE filter to the
-     * bridging xref table, so a soft-deleted (tombstoned) xref still
-     * surfaces its target store via that join — leaking ghost stores
-     * into the form's selected-set. See the class docstring on
-     * `ItemWithCategoryAndStores` for the predicted gap. Mike reported
-     * this as "Aldi keeps showing checked even after I uncheck + save":
-     * the data layer correctly tombstones the xref (Shop view confirms),
-     * but the form reads from the un-filtered join and re-renders Aldi
-     * as selected.
-     *
-     * Returns the empty set when the item has no alive xrefs (or the
-     * item itself doesn't exist).
-     */
-    suspend fun aliveStoreIdsForItem(itemId: String): Set<String>
 }

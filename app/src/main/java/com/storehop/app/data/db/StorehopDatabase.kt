@@ -11,6 +11,7 @@ import com.storehop.app.data.dao.PurchaseRecordDao
 import com.storehop.app.data.dao.ShoppingDao
 import com.storehop.app.data.dao.StoreCategoryOrderDao
 import com.storehop.app.data.dao.StoreDao
+import com.storehop.app.data.db.views.AliveItemStoreXref
 import com.storehop.app.data.entity.Category
 import com.storehop.app.data.entity.HouseholdMember
 import com.storehop.app.data.entity.Item
@@ -29,7 +30,8 @@ import com.storehop.app.data.entity.StoreCategoryOrder
         PurchaseRecord::class,
         HouseholdMember::class,
     ],
-    version = 8,
+    views = [AliveItemStoreXref::class],
+    version = 9,
     exportSchema = true,
 )
 abstract class StorehopDatabase : RoomDatabase() {

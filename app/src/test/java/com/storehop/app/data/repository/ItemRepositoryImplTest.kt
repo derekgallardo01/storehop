@@ -824,6 +824,36 @@ class ItemRepositoryImplTest {
         householdId = TEST_USER_ID,
     )
 
+    /**
+     * v0.8.1 regression pin: Mike's "Aldi keeps showing checked even after I
+     * uncheck + save" bug. The [ItemWithCategoryAndStores.@Junction] now
+     * reads via the `alive_item_store_xref` view, so a soft-deleted xref no
+     * longer surfaces its target store through `row.stores`. Pre-v0.8.1
+     * (Junction against raw `item_store_xref`), this assertion would have
+     * returned {store_lidl, store_continente}.
+     */
+    @Test fun `observeById stores excludes tombstoned xrefs via alive_item_store_xref view`() = runTest {
+        val itemId = repo.addItem(
+            name = "Toilet Paper", categoryId = null,
+            storeIds = setOf("store_lidl", "store_continente"),
+            quantity = null, notes = null,
+        )
+
+        // Tombstone the continente xref directly via the DAO (simulating
+        // the path the form's "uncheck + save" takes). The item itself
+        // remains alive.
+        db.itemStoreXrefDao().softDelete(
+            householdId = TEST_USER_ID,
+            itemId = itemId,
+            storeId = "store_continente",
+            now = 99_000L,
+        )
+
+        val row = checkNotNull(repo.observeById(itemId).first())
+        val storeIds = row.stores.map { it.id }.toSet()
+        assertThat(storeIds).containsExactly("store_lidl")
+    }
+
     /** Deterministic IDs for assertion stability. */
     private class SequentialIdGenerator : IdGenerator {
         private var n = 0

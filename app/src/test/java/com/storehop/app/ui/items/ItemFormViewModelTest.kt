@@ -140,9 +140,6 @@ class ItemFormViewModelTest {
                 ),
             ),
         )
-        // v0.8.0.5: storeIds now sources from aliveStoreIdsForItem, not row.stores.
-        coEvery { itemRepo.aliveStoreIdsForItem("id") } returns setOf("s1")
-
         val vm = newEditVm("id", existing)
         advanceUntilIdle()
 
@@ -155,46 +152,6 @@ class ItemFormViewModelTest {
         assertThat(s.isPriority).isTrue()
         assertThat(s.imageUrl).isEqualTo("https://img/old.jpg")
         assertThat(s.isLoading).isFalse()
-    }
-
-    /**
-     * v0.8.0.5 regression pin: Mike's bug. Repository's [ItemWithCategoryAndStores]
-     * still surfaces a store from the @Junction join even after the xref was
-     * tombstoned -- but `aliveStoreIdsForItem` filters tombstones. The form
-     * must read from the alive source so unchecking + saving sticks instead
-     * of resurrecting the just-removed chip on next open.
-     */
-    @Test fun `Edit mode ignores tombstoned stores from the @Junction join`() = runTest {
-        val existing = ItemWithCategoryAndStores(
-            item = Item(
-                id = "tp", name = "Toilet Paper", categoryId = null, notes = null,
-                quantity = null, isNeeded = true, lastPurchasedAt = null,
-                userId = "u", createdAt = 1L, updatedAt = 1L, deletedAt = null,
-            ),
-            category = null,
-            // @Junction still returns Aldi here because it doesn't filter
-            // tombstoned xrefs -- this is the leak the form has to ignore.
-            stores = listOf(
-                Store(
-                    id = "aldi", name = "Aldi", colorArgb = null,
-                    isArchived = false, isSeeded = true, userId = "u",
-                    createdAt = 1L, updatedAt = 1L, deletedAt = null,
-                ),
-                Store(
-                    id = "lidl", name = "Lidl", colorArgb = null,
-                    isArchived = false, isSeeded = true, userId = "u",
-                    createdAt = 1L, updatedAt = 1L, deletedAt = null,
-                ),
-            ),
-        )
-        // Alive xrefs only -- Aldi was just soft-deleted, only Lidl survives.
-        coEvery { itemRepo.aliveStoreIdsForItem("tp") } returns setOf("lidl")
-
-        val vm = newEditVm("tp", existing)
-        advanceUntilIdle()
-
-        // Aldi must NOT appear pre-checked; only the alive Lidl xref does.
-        assertThat(vm.state.value.storeIds).containsExactly("lidl")
     }
 
     @Test fun `Edit mode with deleted upstream row surfaces a load error`() = runTest {
@@ -467,8 +424,6 @@ class ItemFormViewModelTest {
                 ),
             ),
         )
-        coEvery { itemRepo.aliveStoreIdsForItem("milk-id") } returns setOf("s_lidl")
-
         val vm = newEditVm("milk-id", existing)
         advanceUntilIdle()
         // Sanity: form loaded with the existing data.
