@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Matches the sage tile baked into ic_launcher_foreground so any pixel
+         the system mask exposes outside the foreground bleeds the same color. -->
+    <color name="ic_launcher_background">#5A7A5C</color>
+</resources>

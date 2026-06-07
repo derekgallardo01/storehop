@@ -1,0 +1,90 @@
+# Gradle
+.gradle/
+build/
+**/build/
+!**/src/**/build/
+
+# IDE
+.idea/
+*.iml
+.vscode/
+local.properties
+
+# Local editor / tooling state
+.claude/
+
+# Android
+captures/
+.externalNativeBuild/
+.cxx/
+*.apk
+*.aab
+*.ap_
+*.dex
+*.class
+
+# Kotlin
+*.hprof
+.kotlin/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Schema export — keep tracked so migrations are reviewable
+!app/schemas/
+
+# Firebase config (added in later milestone, must never auto-commit)
+app/google-services.json
+
+# Release signing — NEVER commit either of these. Lose the keystore
+# and you lose the ability to publish updates under the same app
+# identity on Google Play, so back it up somewhere safe (1Password,
+# encrypted USB, etc.) outside this repo.
+keystore.properties
+*.jks
+*.keystore
+
+# iOS / Xcode
+# Ignore the contents of the generated .xcodeproj (xcodegen creates it
+# from project.yml) BUT preserve a path through to SwiftPM's
+# Package.resolved lockfile, which Xcode Cloud needs committed when
+# automatic dependency resolution is disabled (the default for new CI
+# workflows). Without the lockfile, CI fails with "a resolved file is
+# required when automatic dependency resolution is disabled."
+#
+# `git` requires un-ignored files' parent directories to also be
+# un-ignored, so we list every intermediate level.
+ios/Storehop.xcodeproj/*
+!ios/Storehop.xcodeproj/project.xcworkspace
+ios/Storehop.xcodeproj/project.xcworkspace/*
+!ios/Storehop.xcodeproj/project.xcworkspace/xcshareddata
+ios/Storehop.xcodeproj/project.xcworkspace/xcshareddata/*
+!ios/Storehop.xcodeproj/project.xcworkspace/xcshareddata/swiftpm
+ios/Storehop.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/*
+!ios/Storehop.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved
+ios/Storehop.xcworkspace/
+ios/build/
+ios/DerivedData/
+ios/*.ipa
+ios/*.xcarchive
+ios/Pods/
+ios/Podfile.lock
+# xcodegen materializes `Storehop/Info.plist` from `project.yml`'s
+# `info:` section. Xcode Cloud's ci_post_clone.sh regenerates it on
+# every build; same on developer machines. Keeping it out of git
+# avoids per-machine diff churn.
+ios/Storehop/Info.plist
+.swiftpm/
+xcuserdata/
+*.xcuserstate
+*.xcworkspace/xcuserdata/
+
+# Firebase iOS config — same rule as Android: never auto-commit
+ios/Storehop/Resources/GoogleService-Info.plist
+
+# macOS clutter
+.DS_Store

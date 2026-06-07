@@ -1,0 +1,16 @@
+[
+  { "id": "store_aldi",            "name": "Aldi" },
+  { "id": "store_auchan",          "name": "Auchan" },
+  { "id": "store_continente",      "name": "Continente" },
+  { "id": "store_flavers",         "name": "Flavers" },
+  { "id": "store_glovo",           "name": "Glovo" },
+  { "id": "store_leroy_merlin",    "name": "Leroy Merlin" },
+  { "id": "store_liberty_store",   "name": "Liberty Store" },
+  { "id": "store_lidl",            "name": "Lidl" },
+  { "id": "store_mega_store",      "name": "Mega Store" },
+  { "id": "store_normal",          "name": "Normal" },
+  { "id": "store_oriental_market", "name": "Oriental Market" },
+  { "id": "store_pharmacia",       "name": "Pharmacia" },
+  { "id": "store_pingo_doce",      "name": "Pingo Doce" },
+  { "id": "store_wells",           "name": "Well's" }
+]

@@ -1,0 +1,362 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <string name="app_name">StoreHop</string>
+    <string name="placeholder_screen_title">StoreHop</string>
+
+    <!-- Etiquetas das categorias pré-instaladas. -->
+    <string name="cat_produce">Frutas e Legumes</string>
+    <string name="cat_bakery">Padaria</string>
+    <string name="cat_dairy_eggs">Lacticínios e Ovos</string>
+    <string name="cat_meat_fish">Carne e Peixe</string>
+    <string name="cat_frozen">Congelados</string>
+    <string name="cat_pantry">Mercearia</string>
+    <string name="cat_snacks">Aperitivos</string>
+    <string name="cat_beverages">Bebidas</string>
+    <string name="cat_alcohol">Bebidas Alcoólicas</string>
+    <string name="cat_household">Casa e Limpeza</string>
+    <string name="cat_personal_care">Higiene Pessoal</string>
+    <string name="cat_pharmacy">Farmácia</string>
+    <string name="cat_baby">Bebé</string>
+    <string name="cat_pet">Animais</string>
+    <string name="cat_hardware">Bricolage</string>
+    <string name="cat_garden">Jardim</string>
+    <string name="cat_home_decor">Casa e Decoração</string>
+    <!-- "Eletrónica" is the modern (post-1990 orthographic agreement) European
+         Portuguese spelling. Lint's dictionary suggests the older "Electrónica"
+         or the Brazilian "Eletrônica"; both are wrong for pt-PT. -->
+    <string name="cat_electronics" tools:ignore="Typos">Eletrónica</string>
+    <string name="cat_stationery">Papelaria</string>
+    <string name="cat_clothing">Vestuário</string>
+    <string name="cat_other">Outros</string>
+
+    <!-- Títulos das barras superiores. -->
+    <string name="title_shop">Onde vai fazer compras?</string>
+    <string name="title_items">Artigos</string>
+    <string name="title_settings">Definições</string>
+    <string name="title_add_item">Adicionar artigo</string>
+    <string name="title_edit_item">Editar artigo</string>
+
+    <!-- Etiquetas da navegação inferior. -->
+    <string name="nav_shop">Compras</string>
+    <string name="nav_items">Artigos</string>
+
+    <!-- Acções comuns. -->
+    <string name="action_back">Voltar</string>
+    <string name="action_save">Guardar</string>
+    <string name="action_saving">A guardar…</string>
+    <string name="action_cancel">Cancelar</string>
+    <string name="action_close">Fechar</string>
+    <string name="action_delete">Eliminar</string>
+    <string name="action_add_store">Adicionar loja</string>
+    <string name="action_add_item">Adicionar artigo</string>
+    <string name="action_settings">Definições</string>
+
+    <!-- Secção de conta. -->
+    <string name="account_title">Conta</string>
+    <string name="account_anonymous_label">Conta anónima</string>
+    <string name="account_anonymous_description">Apenas neste dispositivo. Inicie sessão para fazer cópia de segurança e sincronizar a sua lista entre dispositivos.</string>
+    <string name="account_signed_in_default">Sessão iniciada</string>
+    <string name="action_sign_in_with_google">Iniciar sessão com Google</string>
+    <string name="account_sign_in_helper">Os artigos, lojas e fotografias existentes ficam associados à sua conta Google quando inicia sessão — sem perda de dados.</string>
+    <string name="action_sign_out">Terminar sessão</string>
+    <string name="account_sign_out_helper">Terminar sessão remove a vista sincronizada deste dispositivo e regressa a uma conta anónima local. Os dados na nuvem permanecem seguros na sua conta Google e voltam a aparecer quando iniciar sessão novamente.</string>
+
+    <!-- Definições. -->
+    <string name="settings_section_account">Conta</string>
+    <string name="settings_section_display">Apresentação</string>
+    <string name="settings_section_data">Dados</string>
+    <string name="settings_section_about">Sobre</string>
+    <string name="settings_about_version_format">Storehop %1$s (compilação %2$d)</string>
+    <string name="settings_about_privacy">Política de privacidade</string>
+    <string name="settings_about_open_source">Código-fonte no GitHub</string>
+    <string name="settings_theme_title">Tema</string>
+    <string name="settings_theme_system">Seguir o sistema</string>
+    <string name="settings_theme_light">Claro</string>
+    <string name="settings_theme_dark">Escuro</string>
+    <string name="settings_language_title">Idioma</string>
+    <string name="settings_language_system">Predefinição do sistema</string>
+    <string name="settings_language_english">English</string>
+    <string name="settings_language_pt_pt">Português (Portugal)</string>
+    <string name="settings_language_es">Español</string>
+    <string name="settings_language_it">Italiano</string>
+
+    <!-- Lista e formulário de artigos. -->
+    <string name="search_items_placeholder">Procurar tudo</string>
+    <string name="action_clear_search">Limpar pesquisa</string>
+    <string name="sort_alphabetic_cd">Mudar para ordem alfabética</string>
+    <string name="sort_category_cd">Mudar para ordem por categoria</string>
+    <string name="items_uncategorised_label">(sem categoria)</string>
+    <string name="items_empty_no_query_title">Ainda sem artigos</string>
+    <string name="items_empty_no_query_body">Toque em + para adicionar um artigo</string>
+    <string name="items_empty_search_title">Sem resultados</string>
+    <string name="items_empty_search_body">Nada corresponde a \"%1$s\"</string>
+    <string name="form_field_name">Nome</string>
+    <string name="form_field_brand_optional">Marca (opcional)</string>
+    <string name="form_field_category">Categoria</string>
+    <string name="form_field_category_none">(nenhuma)</string>
+    <string name="form_field_category_pick">Escolha uma categoria</string>
+    <string name="form_field_stores">Lojas</string>
+    <string name="form_toggle_staple">Sempre na lista</string>
+    <string name="form_toggle_staple_subtitle">Permanece visível mesmo depois de marcado como comprado</string>
+    <string name="form_toggle_priority">Crítico — não me deixar esquecer</string>
+    <string name="form_toggle_priority_subtitle">Destaca este artigo na lista de todas as lojas quando é necessário</string>
+    <string name="form_error_name_required">O nome é obrigatório</string>
+    <string name="delete_item_title">Eliminar artigo?</string>
+    <string name="delete_item_message">Isto remove \"%1$s\" da lista de todas as lojas.</string>
+    <string name="discard_changes_title">Descartar alterações?</string>
+    <string name="discard_changes_message">As tuas alterações a este artigo serão perdidas.</string>
+    <string name="action_discard">Descartar</string>
+    <string name="action_keep_editing">Continuar a editar</string>
+    <string name="badge_always_on_list">Sempre na lista</string>
+    <string name="badge_critical">Crítico</string>
+
+    <!-- Selector de fotografia. -->
+    <string name="photo_section_label">Fotografia</string>
+    <string name="photo_section_title">Fotografia do artigo</string>
+    <string name="photo_take">Tirar fotografia</string>
+    <string name="photo_choose_from_gallery">Escolher da galeria</string>
+    <string name="photo_remove">Remover fotografia</string>
+    <string name="photo_add">Adicionar fotografia</string>
+    <string name="photo_item">Fotografia do artigo</string>
+
+    <!-- Compras na loja. -->
+    <string name="action_more">Mais</string>
+    <string name="action_share_list">Partilhar lista</string>
+    <string name="action_show_purchased">Mostrar artigos marcados</string>
+    <string name="action_hide_purchased">Ocultar artigos marcados</string>
+    <string name="search_store_placeholder">Procurar na lista desta loja</string>
+    <string name="aisle_format">%1$s (corredor %2$d)</string>
+    <string name="shop_empty_no_query_title">Ainda sem artigos aqui</string>
+    <string name="shop_empty_no_query_body">Adicione artigos no separador Artigos e associe-os a esta loja</string>
+    <string name="shop_empty_search_title">Sem resultados</string>
+    <string name="shop_empty_search_body">Nada aqui corresponde a \"%1$s\"</string>
+    <string name="storepicker_empty_title">Adicione a sua primeira loja</string>
+    <string name="storepicker_empty_body">As lojas onde compra mais frequentemente aparecem aqui. Toque em + para adicionar uma.</string>
+    <string name="quick_add_placeholder">Adicionar um artigo…</string>
+
+    <!-- Atualização da app. -->
+    <string name="update_ready_message">Atualização pronta</string>
+    <string name="update_ready_action">Reiniciar agora</string>
+
+    <!-- Snackbar de anular. -->
+    <string name="action_undo">Anular</string>
+    <string name="undo_item_purchased">\"%1$s\" marcado como comprado.</string>
+    <string name="undo_store_deleted">\"%1$s\" eliminado.</string>
+    <string name="undo_item_deleted">\"%1$s\" eliminado.</string>
+
+    <!-- Selector de lojas. -->
+    <plurals name="critical_banner_count">
+        <item quantity="one">%d artigo crítico em falta</item>
+        <item quantity="other">%d artigos críticos em falta</item>
+    </plurals>
+    <string name="critical_banner_all_at">Todos em %s</string>
+    <string name="critical_banner_most_at">Maioria em %1$s (%2$d)</string>
+    <string name="critical_banner_store_section">%1$s (%2$d)</string>
+    <string name="critical_banner_expand_cd">Mostrar artigos críticos por loja</string>
+    <string name="critical_banner_collapse_cd">Ocultar artigos críticos por loja</string>
+    <string name="store_nothing_needed">Nada em falta</string>
+    <string name="store_all_set">✓ Tudo pronto</string>
+    <string name="add_store_dialog_title">Adicionar uma loja</string>
+    <string name="add_store_field_label">Nome da loja</string>
+    <string name="add_store_field_placeholder">ex: Talho local</string>
+    <string name="action_adding">A adicionar…</string>
+    <string name="action_add">Adicionar</string>
+    <string name="rename_store_dialog_title">Mudar nome da loja</string>
+    <string name="action_rename">Mudar nome</string>
+    <string name="delete_store_dialog_title">Eliminar \"%1$s\"?</string>
+    <string name="delete_store_dialog_message">Os artigos associados a esta loja perdem essa associação mas permanecem na sua lista. Esta acção não pode ser anulada dentro da aplicação.</string>
+    <string name="error_store_name_empty">O nome da loja não pode estar vazio</string>
+    <string name="error_store_name_duplicate">Já existe uma loja com o nome \"%1$s\"</string>
+    <string name="error_could_not_add_store">Não foi possível adicionar a loja</string>
+    <string name="error_could_not_rename_store">Não foi possível mudar o nome da loja</string>
+    <string name="store_more_options">Opções da loja</string>
+    <string name="action_drag_to_reorder">Arrastar para reordenar</string>
+
+    <!-- Conteúdo da partilha de lista. -->
+    <string name="share_list_header">StoreHop — compras em %1$s</string>
+    <string name="share_list_subject">Compras em %1$s</string>
+    <string name="share_list_chooser_title">Partilhar lista de compras</string>
+    <string name="share_list_default_store">esta loja</string>
+
+    <!-- Plurais. -->
+    <plurals name="store_items_needed">
+        <item quantity="one">%d artigo</item>
+        <item quantity="other">%d artigos</item>
+    </plurals>
+    <plurals name="critical_at_this_store">
+        <item quantity="one">%d artigo crítico</item>
+        <item quantity="other">%d artigos críticos</item>
+    </plurals>
+    <plurals name="store_critical_chip">
+        <item quantity="one">⚠ %d</item>
+        <item quantity="other">⚠ %d</item>
+    </plurals>
+
+    <!-- v0.4 pull-side sync banner. -->
+    <string name="cloud_sync_incomplete">Sincronização da nuvem incompleta</string>
+    <string name="cloud_sync_retry_explanation">Os seus dados estão seguros localmente. Toque em Repetir para sincronizar a partir da nuvem.</string>
+    <string name="action_retry">Repetir</string>
+
+    <!-- v0.5 ecrã de gestão de categorias. -->
+    <string name="title_manage_categories">Gerir categorias</string>
+    <string name="action_manage_categories">Gerir categorias</string>
+    <string name="add_category_dialog_title">Nova categoria</string>
+    <string name="add_category_field_label">Nome da categoria</string>
+    <string name="action_new_category">Nova categoria…</string>
+    <string name="action_add_to_list">Adicionar à lista de compras</string>
+    <string name="action_remove_from_list">Remover da lista de compras</string>
+    <string name="rename_category_dialog_title">Renomear categoria</string>
+    <string name="delete_category_dialog_title">Apagar \"%1$s\"?</string>
+    <string name="delete_category_dialog_message">Os artigos desta categoria ficarão sem categoria. Pode anular esta ação na barra inferior.</string>
+    <string name="error_category_name_empty">O nome da categoria não pode estar vazio</string>
+    <string name="error_category_name_duplicate">Já existe uma categoria chamada \"%1$s\"</string>
+    <string name="error_could_not_add_category">Não foi possível adicionar a categoria</string>
+    <string name="error_could_not_rename_category">Não foi possível renomear a categoria</string>
+    <string name="undo_category_deleted">\"%1$s\" apagada.</string>
+    <!-- v0.6.4 -->
+    <string name="action_reorder">Reordenar</string>
+    <string name="action_select_all">Selecionar tudo</string>
+    <string name="add_category_multi_help">Uma categoria por linha. Duplicados são ignorados.</string>
+    <string name="add_category_summary">Adicionadas %1$d · ignoradas %2$d (já existem)</string>
+    <plurals name="manage_categories_selected_count">
+        <item quantity="one">%d selecionada</item>
+        <item quantity="other">%d selecionadas</item>
+    </plurals>
+    <plurals name="delete_categories_dialog_title">
+        <item quantity="one">Apagar %d categoria?</item>
+        <item quantity="other">Apagar %d categorias?</item>
+    </plurals>
+    <plurals name="undo_categories_deleted_count">
+        <item quantity="one">%d categoria apagada.</item>
+        <item quantity="other">%d categorias apagadas.</item>
+    </plurals>
+    <string name="categories_empty_state">Sem categorias. Toque em + para adicionar.</string>
+    <string name="category_more_options">Mais opções</string>
+    <string name="action_more_options">Mais opções</string>
+
+    <!-- v0.5 reordenação de corredores por loja. -->
+    <string name="title_edit_aisles">Corredores: %1$s</string>
+    <string name="action_edit_aisles">Editar corredores</string>
+    <string name="aisle_order_empty_state">Sem corredores para reordenar. Adicione um artigo a esta loja para definir a ordem.</string>
+    <string name="aisle_order_helper">Mantenha premida a pega para arrastar. Solta ao largar.</string>
+
+    <!-- v0.5.2 Definições → Dados: importar / exportar CSV. -->
+    <string name="settings_data_section_title">Dados</string>
+    <string name="settings_data_section_subtitle">Mover artigos e categorias entre dispositivos ou aplicações.</string>
+    <string name="action_export_items">Exportar artigos</string>
+    <string name="action_export_categories">Exportar categorias</string>
+    <string name="action_import_items">Importar artigos</string>
+    <string name="action_import_categories">Importar categorias</string>
+    <string name="import_result_summary">Importados %1$d artigos, %2$d categorias, %3$d lojas. %4$d duplicados ignorados.</string>
+    <string name="import_undo_label">Anular</string>
+
+    <!-- v0.7.1 Sincronizar agora (transição APK → Play Store). -->
+    <string name="settings_force_sync_title">Sincronizar antes de desinstalar</string>
+    <string name="settings_force_sync_explainer">Se vai mudar para uma nova instalação (desinstalar + reinstalar), toque aqui primeiro para que todas as alterações locais cheguem à nuvem. Os dados na nuvem são restaurados automaticamente ao iniciar sessão na nova instalação.</string>
+    <string name="settings_force_sync_button_idle">Sincronizar agora</string>
+    <string name="settings_force_sync_button_pending">Sincronizar agora (%1$d pendentes)</string>
+    <string name="settings_force_sync_button_done">OK</string>
+    <string name="settings_force_sync_button_retry">Tentar novamente</string>
+    <string name="settings_force_sync_in_progress">A sincronizar %1$d item(ns)…</string>
+    <string name="settings_force_sync_safe">Pode desinstalar com segurança. Os seus dados estão guardados.</string>
+    <string name="settings_force_sync_failed">%1$d item(ns) não foram sincronizados. Tente novamente ou desinstale agora para perder apenas estes.</string>
+
+    <!-- Ecrã de Estatísticas, acessível pelas Definições. -->
+    <string name="statistics_title">Estatísticas</string>
+    <string name="statistics_settings_link_subtitle">Veja os seus padrões de compras num relance</string>
+    <string name="statistics_empty_title">Ainda sem dados</string>
+    <string name="statistics_empty_body">Adicione alguns artigos e marque-os à medida que compra. As suas estatísticas aparecem aqui.</string>
+    <string name="statistics_section_activity">Atividade</string>
+    <string name="statistics_total_purchases">Desde sempre</string>
+    <string name="statistics_last_30_days">Últimos 30 dias</string>
+    <string name="statistics_last_7_days">Últimos 7 dias</string>
+    <string name="statistics_trend_label">Atividade diária (últimas 12 semanas)</string>
+    <string name="statistics_most_active_day_format">Dia mais ativo: %1$s</string>
+    <string name="statistics_section_items">Artigos</string>
+    <string name="statistics_library_total">Total</string>
+    <string name="statistics_library_staples">Sempre na lista</string>
+    <string name="statistics_library_priority">Críticos</string>
+    <string name="statistics_top_items">Mais comprados</string>
+    <string name="statistics_stale_items">Há tempo que não compra</string>
+    <string name="statistics_stale_items_subtitle">Artigos sem compras nos últimos 60 dias. Considere arquivar os que já não precisa.</string>
+    <string name="statistics_stale_days_format">há %1$d dias</string>
+    <string name="statistics_section_stores">Lojas</string>
+    <string name="statistics_total_stores">Lojas ativas</string>
+    <string name="statistics_most_shopped_format">Mais frequentada: %1$s (%2$d compras)</string>
+    <string name="statistics_section_categories">Categorias</string>
+    <string name="statistics_total_categories">Total</string>
+    <string name="statistics_uncategorised">Sem categoria</string>
+
+    <!-- Dias da semana para a linha "Dia mais ativo". Índices alinhados com
+         strftime('%w', …) do SQLite: 0 = domingo, 6 = sábado. -->
+    <string-array name="statistics_days_of_week">
+        <item>Domingo</item>
+        <item>Segunda-feira</item>
+        <item>Terça-feira</item>
+        <item>Quarta-feira</item>
+        <item>Quinta-feira</item>
+        <item>Sexta-feira</item>
+        <item>Sábado</item>
+    </string-array>
+
+    <!-- v0.7.0: Settings → Household screen and entry-point card. -->
+    <string name="household_title">Agregado familiar</string>
+    <string name="household_settings_subtitle">Partilhar a sua lista com outra pessoa</string>
+    <string name="household_members_header">Membros</string>
+    <string name="household_members_just_you">Apenas você</string>
+    <string name="household_members_owner_badge">Proprietário</string>
+    <string name="household_generate_invite_header">Convidar alguém</string>
+    <string name="household_invite_explanation">Partilhe este código com a pessoa que pretende adicionar. Expira em 24 horas e só pode ser utilizado uma vez.</string>
+    <string name="household_generate_invite">Gerar código de convite</string>
+    <string name="household_invite_dialog_title">Código de convite</string>
+    <string name="household_invite_dialog_message">Partilhe este código com a pessoa que pretende adicionar. Expira em 24 horas.</string>
+    <string name="household_invite_copy">Copiar</string>
+    <string name="household_invite_dismiss">Concluído</string>
+    <string name="household_join_with_code">Entrar com código</string>
+    <string name="household_invite_code_label">Introduza o código de 8 caracteres</string>
+    <string name="household_join_button">Entrar</string>
+    <string name="household_leave">Sair do agregado</string>
+    <string name="household_leave_confirm_title">Sair do agregado?</string>
+    <string name="household_leave_confirm_message">Vai começar com uma lista vazia. Isto não afeta os dados do agregado para os outros membros.</string>
+    <string name="household_leave_confirm_button">Sair</string>
+    <string name="household_leave_cancel_button">Cancelar</string>
+    <string name="household_error_invite_not_found">Código de convite não encontrado.</string>
+    <string name="household_error_invite_expired">Este código de convite expirou.</string>
+    <string name="household_error_invite_used">Este código de convite já foi utilizado.</string>
+    <string name="household_error_invalid_token">Os códigos têm 8 caracteres. Verifique o código e tente novamente.</string>
+
+    <!-- v0.8 Premium IAP (inviter-pays sharing + gated CSV export). -->
+    <string name="premium_card_title">Storehop Premium</string>
+    <string name="premium_card_body_household">Gere códigos de convite para partilhar a sua lista de compras com a família ou colegas.</string>
+    <string name="premium_card_body_export">Exporte os seus artigos e categorias em CSV para guardar ou transferir entre dispositivos.</string>
+    <string name="premium_cta_unlock">Desbloquear por %1$s</string>
+    <string name="premium_cta_unlock_loading">Desbloquear</string>
+    <string name="premium_cta_unlocked_active">Premium desbloqueado ✓</string>
+    <string name="premium_restore_purchases">Restaurar compras</string>
+    <string name="premium_locked_invite_label">Gerar convite — Desbloquear por %1$s</string>
+    <string name="premium_locked_invite_label_loading">Gerar convite — Desbloquear</string>
+    <string name="premium_locked_invite_explainer">Gerar um convite requer Premium. Entrar num agregado existente é sempre gratuito.</string>
+    <string name="premium_locked_export_label">Exportar artigos — Desbloquear por %1$s</string>
+    <string name="premium_locked_export_categories_label">Exportar categorias — Desbloquear por %1$s</string>
+    <string name="premium_purchase_success">Premium desbloqueado. Obrigado!</string>
+    <string name="premium_purchase_pending">Compra aguarda aprovação. Desbloquearemos assim que estiver concluída.</string>
+    <string name="premium_purchase_failed">Falha na compra: %1$s</string>
+    <string name="premium_purchase_already_owned">Já possui Premium. Restaurado.</string>
+    <string name="premium_restore_done">Restauro concluído.</string>
+
+    <!-- v0.8.1 etiquetagem em massa de lojas. -->
+    <string name="items_selection_count">%1$d selecionados</string>
+    <string name="items_selection_exit_cd">Sair da seleção</string>
+    <string name="items_action_tag_to_stores">Etiquetar nas lojas…</string>
+    <string name="items_bulk_tag_title">Etiquetar itens selecionados</string>
+    <plurals name="items_bulk_tag_body">
+        <item quantity="one">Adicionar as lojas escolhidas a %1$d item selecionado.</item>
+        <item quantity="other">Adicionar as lojas escolhidas a %1$d itens selecionados.</item>
+    </plurals>
+    <string name="items_bulk_tag_apply">Adicionar lojas</string>
+
+    <!-- v0.9 lojas de compra única. -->
+    <string name="store_form_one_off_toggle">Marcar como loja de compra única</string>
+    <string name="store_form_one_off_subtitle">Os itens daqui não aparecem na lista principal de Itens. Para compras pontuais ou especiais.</string>
+    <string name="store_chip_one_off_suffix"> (Única)</string>
+</resources>

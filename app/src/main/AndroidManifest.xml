@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!--
+      v0.7.1.2: BILLING permission auto-merges from the Play Billing
+      Library 7.x dependency; we don't need to declare it here.
+      Modern Play Console (post-2024) refuses uploads that declare
+      the permission without bundling the library (AIDL-only setup
+      is rejected with "must update to at least version 6.0.1").
+    -->
+
+    <application
+        android:name=".StorehopApplication"
+        android:allowBackup="true"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:fullBackupContent="@xml/backup_rules"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:localeConfig="@xml/locales_config"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.Storehop">
+
+        <!--
+          AppCompatDelegate.setApplicationLocales needs this opt-in when the
+          host Activity isn't an AppCompatActivity (we use ComponentActivity
+          for Compose-only). With autoStoreLocales=true, AppCompat delegates
+          to LocaleManager on API 33+ and uses its own backport on older
+          devices; without it the call silently no-ops on ComponentActivity.
+        -->
+        <meta-data
+            android:name="autoStoreLocales"
+            android:value="true" />
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:theme="@style/Theme.Storehop">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
+    </application>
+
+</manifest>

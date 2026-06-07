@@ -1,0 +1,364 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">StoreHop</string>
+    <string name="placeholder_screen_title">StoreHop</string>
+
+    <!-- Seeded category labels — keys match Category.nameKey for seeded rows. -->
+    <string name="cat_produce">Produce</string>
+    <string name="cat_bakery">Bakery</string>
+    <string name="cat_dairy_eggs">Dairy &amp; Eggs</string>
+    <string name="cat_meat_fish">Meat &amp; Fish</string>
+    <string name="cat_frozen">Frozen</string>
+    <string name="cat_pantry">Pantry</string>
+    <string name="cat_snacks">Snacks</string>
+    <string name="cat_beverages">Beverages</string>
+    <string name="cat_alcohol">Alcohol</string>
+    <string name="cat_household">Household &amp; Cleaning</string>
+    <string name="cat_personal_care">Personal Care</string>
+    <string name="cat_pharmacy">Pharmacy</string>
+    <string name="cat_baby">Baby</string>
+    <string name="cat_pet">Pet</string>
+    <string name="cat_hardware">Hardware &amp; DIY</string>
+    <string name="cat_garden">Garden</string>
+    <string name="cat_home_decor">Home &amp; Decor</string>
+    <string name="cat_electronics">Electronics</string>
+    <string name="cat_stationery">Stationery</string>
+    <string name="cat_clothing">Clothing</string>
+    <string name="cat_other">Other</string>
+
+    <!-- Top-bar titles. -->
+    <string name="title_shop">Where are you shopping?</string>
+    <string name="title_items">Items</string>
+    <string name="title_settings">Settings</string>
+    <string name="title_add_item">Add item</string>
+    <string name="title_edit_item">Edit item</string>
+
+    <!-- Bottom nav labels. Kept short so they fit two-tab layout. -->
+    <string name="nav_shop">Shop</string>
+    <string name="nav_items">Items</string>
+
+    <!-- Common actions. -->
+    <string name="action_back">Back</string>
+    <string name="action_save">Save</string>
+    <string name="action_saving">Saving…</string>
+    <string name="action_cancel">Cancel</string>
+    <string name="action_close">Close</string>
+    <string name="action_delete">Delete</string>
+    <string name="action_add_store">Add store</string>
+    <string name="action_add_item">Add item</string>
+    <string name="action_settings">Settings</string>
+
+    <!-- Account section. -->
+    <string name="account_title">Account</string>
+    <string name="account_anonymous_label">Anonymous account</string>
+    <string name="account_anonymous_description">Local-only on this device. Sign in to back up + sync your list across devices.</string>
+    <string name="account_signed_in_default">Signed in</string>
+    <string name="action_sign_in_with_google">Sign in with Google</string>
+    <string name="account_sign_in_helper">Your existing items, stores, and photos transfer to your Google account when you sign in — no data loss.</string>
+    <string name="action_sign_out">Sign out</string>
+    <string name="account_sign_out_helper">Signing out clears the cloud-synced view on this device and drops you back to a local-only anonymous account. Your cloud data stays safe under your Google account and reappears when you sign in again.</string>
+
+    <!-- Settings screen. -->
+    <string name="settings_section_account">Account</string>
+    <string name="settings_section_display">Display</string>
+    <string name="settings_section_data">Data</string>
+    <string name="settings_section_about">About</string>
+    <string name="settings_about_version_format">Storehop %1$s (build %2$d)</string>
+    <string name="settings_about_privacy">Privacy policy</string>
+    <string name="settings_about_open_source">Source code on GitHub</string>
+    <string name="settings_theme_title">Theme</string>
+    <string name="settings_theme_system">Follow system</string>
+    <string name="settings_theme_light">Light</string>
+    <string name="settings_theme_dark">Dark</string>
+    <string name="settings_language_title">Language</string>
+    <string name="settings_language_system">System default</string>
+    <string name="settings_language_english">English</string>
+    <string name="settings_language_pt_pt">Português (Portugal)</string>
+    <string name="settings_language_es">Español</string>
+    <string name="settings_language_it">Italiano</string>
+
+    <!-- Items list + form. -->
+    <string name="search_items_placeholder">Search anything</string>
+    <string name="action_clear_search">Clear search</string>
+    <string name="sort_alphabetic_cd">Switch to alphabetic sort</string>
+    <string name="sort_category_cd">Switch to category sort</string>
+    <string name="items_uncategorised_label">(uncategorised)</string>
+    <string name="items_empty_no_query_title">No items yet</string>
+    <string name="items_empty_no_query_body">Tap + to add an item</string>
+    <string name="items_empty_search_title">No matches</string>
+    <string name="items_empty_search_body">Nothing matches \"%1$s\"</string>
+    <string name="form_field_name">Name</string>
+    <string name="form_field_brand_optional">Brand (optional)</string>
+    <string name="form_field_category">Category</string>
+    <string name="form_field_category_none">(none)</string>
+    <string name="form_field_category_pick">Pick a category</string>
+    <string name="form_field_stores">Stores</string>
+    <string name="form_toggle_staple">Always on the list</string>
+    <string name="form_toggle_staple_subtitle">Stays visible even after you mark it purchased</string>
+    <string name="form_toggle_priority">Critical — don\'t let me forget this</string>
+    <string name="form_toggle_priority_subtitle">Highlights this item across every store\'s list when needed</string>
+    <string name="form_error_name_required">Name is required</string>
+    <string name="delete_item_title">Delete item?</string>
+    <string name="delete_item_message">This removes \"%1$s\" from every store\'s list.</string>
+    <string name="discard_changes_title">Discard changes?</string>
+    <string name="discard_changes_message">Your edits to this item will be lost.</string>
+    <string name="action_discard">Discard</string>
+    <string name="action_keep_editing">Keep editing</string>
+    <string name="badge_always_on_list">Always on the list</string>
+    <string name="badge_critical">Critical</string>
+
+    <!-- Photo picker. -->
+    <string name="photo_section_label">Photo</string>
+    <string name="photo_section_title">Item photo</string>
+    <string name="photo_take">Take photo</string>
+    <string name="photo_choose_from_gallery">Choose from gallery</string>
+    <string name="photo_remove">Remove photo</string>
+    <string name="photo_add">Add photo</string>
+    <string name="photo_item">Item photo</string>
+
+    <!-- Shop-at-Store. -->
+    <string name="action_more">More</string>
+    <string name="action_share_list">Share list</string>
+    <string name="action_show_purchased">Show checked-off items</string>
+    <string name="action_hide_purchased">Hide checked-off items</string>
+    <string name="search_store_placeholder">Search this store\'s list</string>
+    <string name="aisle_format">%1$s (aisle %2$d)</string>
+    <string name="shop_empty_no_query_title">Nothing tagged here yet</string>
+    <string name="shop_empty_no_query_body">Add items in the Items tab and tag them to this store</string>
+    <string name="shop_empty_search_title">No matches</string>
+    <string name="shop_empty_search_body">Nothing here matches \"%1$s\"</string>
+    <string name="storepicker_empty_title">Add your first store</string>
+    <string name="storepicker_empty_body">Stores you shop at most often live here. Tap + to add one.</string>
+    <string name="quick_add_placeholder">Add an item…</string>
+
+    <!-- In-app updates. -->
+    <string name="update_ready_message">Update ready</string>
+    <string name="update_ready_action">Restart now</string>
+
+    <!-- Snackbar undo. -->
+    <string name="action_undo">Undo</string>
+    <string name="undo_item_purchased">Marked \"%1$s\" purchased.</string>
+    <string name="undo_store_deleted">Deleted \"%1$s\".</string>
+    <string name="undo_item_deleted">Deleted \"%1$s\".</string>
+
+    <!-- Store Picker. -->
+    <plurals name="critical_banner_count">
+        <item quantity="one">%d critical item needed</item>
+        <item quantity="other">%d critical items needed</item>
+    </plurals>
+    <string name="critical_banner_all_at">All at %s</string>
+    <string name="critical_banner_most_at">Most at %1$s (%2$d)</string>
+    <string name="critical_banner_store_section">%1$s (%2$d)</string>
+    <string name="critical_banner_expand_cd">Show critical items by store</string>
+    <string name="critical_banner_collapse_cd">Hide critical items by store</string>
+    <string name="store_nothing_needed">Nothing needed</string>
+    <string name="store_all_set">✓ All set</string>
+    <string name="add_store_dialog_title">Add a store</string>
+    <string name="add_store_field_label">Store name</string>
+    <string name="add_store_field_placeholder">e.g. Local Butcher</string>
+    <string name="action_adding">Adding…</string>
+    <string name="action_add">Add</string>
+    <string name="rename_store_dialog_title">Rename store</string>
+    <string name="action_rename">Rename</string>
+    <string name="delete_store_dialog_title">Delete \"%1$s\"?</string>
+    <string name="delete_store_dialog_message">Items tagged to this store will lose the tag but stay in your list. This can\'t be undone from inside the app.</string>
+    <string name="error_store_name_empty">Store name cannot be empty</string>
+    <string name="error_store_name_duplicate">A store named \"%1$s\" already exists</string>
+    <string name="error_could_not_add_store">Could not add store</string>
+    <string name="error_could_not_rename_store">Could not rename store</string>
+    <string name="store_more_options">Store options</string>
+    <string name="action_drag_to_reorder">Drag to reorder</string>
+
+    <!-- Share-list payload (formatted via context.getString). -->
+    <string name="share_list_header">StoreHop — shopping at %1$s</string>
+    <string name="share_list_subject">Shopping at %1$s</string>
+    <string name="share_list_chooser_title">Share shopping list</string>
+    <string name="share_list_default_store">this store</string>
+
+    <!-- Plurals: count-based strings. -->
+    <plurals name="store_items_needed">
+        <item quantity="one">%d item</item>
+        <item quantity="other">%d items</item>
+    </plurals>
+    <plurals name="critical_at_this_store">
+        <item quantity="one">%d critical item</item>
+        <item quantity="other">%d critical items</item>
+    </plurals>
+    <plurals name="store_critical_chip">
+        <item quantity="one">⚠ %d</item>
+        <item quantity="other">⚠ %d</item>
+    </plurals>
+
+    <!-- v0.4 pull-side sync banner. Shown on the Settings screen when the
+         most recent pull failed (network, permission, etc.). -->
+    <string name="cloud_sync_incomplete">Cloud sync incomplete</string>
+    <string name="cloud_sync_retry_explanation">Your data is safe locally. Tap Retry to sync from the cloud.</string>
+    <string name="action_retry">Retry</string>
+
+    <!-- v0.5 category management screen, reachable from Items tab overflow. -->
+    <string name="title_manage_categories">Manage categories</string>
+    <string name="action_manage_categories">Manage categories</string>
+    <string name="add_category_dialog_title">New category</string>
+    <string name="add_category_field_label">Category name</string>
+    <string name="action_new_category">New category…</string>
+    <string name="action_add_to_list">Add to shopping list</string>
+    <string name="action_remove_from_list">Remove from shopping list</string>
+    <string name="rename_category_dialog_title">Rename category</string>
+    <string name="delete_category_dialog_title">Delete \"%1$s\"?</string>
+    <string name="delete_category_dialog_message">Items in this category will become uncategorized. You can undo this from the snackbar.</string>
+    <string name="error_category_name_empty">Category name cannot be empty</string>
+    <string name="error_category_name_duplicate">A category named \"%1$s\" already exists</string>
+    <string name="error_could_not_add_category">Could not add category</string>
+    <string name="error_could_not_rename_category">Could not rename category</string>
+    <string name="undo_category_deleted">Deleted \"%1$s\".</string>
+    <string name="categories_empty_state">No categories yet. Tap + to add one.</string>
+    <string name="category_more_options">More options</string>
+    <string name="action_more_options">More options</string>
+    <!-- v0.6.4: Manage Categories drag-reorder + bulk select + multi-add. -->
+    <string name="action_reorder">Reorder</string>
+    <string name="action_select_all">Select all</string>
+    <string name="add_category_multi_help">One category per line. Duplicates are skipped.</string>
+    <string name="add_category_summary">Added %1$d · skipped %2$d (already exist)</string>
+    <plurals name="manage_categories_selected_count">
+        <item quantity="one">%d selected</item>
+        <item quantity="other">%d selected</item>
+    </plurals>
+    <plurals name="delete_categories_dialog_title">
+        <item quantity="one">Delete %d category?</item>
+        <item quantity="other">Delete %d categories?</item>
+    </plurals>
+    <plurals name="undo_categories_deleted_count">
+        <item quantity="one">Deleted %d category.</item>
+        <item quantity="other">Deleted %d categories.</item>
+    </plurals>
+
+    <!-- v0.5 per-store aisle reorder. Reachable from Store Picker overflow. -->
+    <string name="title_edit_aisles">Edit aisles for %1$s</string>
+    <string name="action_edit_aisles">Edit aisles</string>
+    <string name="aisle_order_empty_state">No aisles to reorder yet. Add an item to this store to set its aisle order.</string>
+    <string name="aisle_order_helper">Long-press the drag handle to reorder. Released when you let go.</string>
+
+    <!-- v0.5.2 Settings → Data section: CSV import / export. -->
+    <string name="settings_data_section_title">Data</string>
+    <string name="settings_data_section_subtitle">Move your items and categories between devices or apps.</string>
+    <string name="action_export_items">Export items</string>
+    <string name="action_export_categories">Export categories</string>
+    <string name="action_import_items">Import items</string>
+    <string name="action_import_categories">Import categories</string>
+    <string name="import_result_summary">Imported %1$d items, %2$d categories, %3$d stores. Skipped %4$d duplicates.</string>
+    <string name="import_undo_label">Undo</string>
+
+    <!-- v0.7.1 Force sync now: load-bearing for users switching from a
+         sideloaded APK to the Play Store install (signing certs differ →
+         must uninstall first → local-only state must reach cloud first). -->
+    <string name="settings_force_sync_title">Sync before uninstalling</string>
+    <string name="settings_force_sync_explainer">If you\'re switching to a new install (uninstall + reinstall), tap this first so every local change reaches the cloud. Cloud-stored data restores automatically when you sign in on the new install.</string>
+    <string name="settings_force_sync_button_idle">Force sync now</string>
+    <string name="settings_force_sync_button_pending">Force sync now (%1$d pending)</string>
+    <string name="settings_force_sync_button_done">OK</string>
+    <string name="settings_force_sync_button_retry">Retry</string>
+    <string name="settings_force_sync_in_progress">Syncing %1$d item(s)…</string>
+    <string name="settings_force_sync_safe">Safe to uninstall. Your data is backed up.</string>
+    <string name="settings_force_sync_failed">%1$d item(s) couldn\'t sync. Try again, or uninstall now to lose only these.</string>
+
+    <!-- Statistics screen, reachable from Settings. -->
+    <string name="statistics_title">Statistics</string>
+    <string name="statistics_settings_link_subtitle">See your shopping patterns at a glance</string>
+    <string name="statistics_empty_title">No data yet</string>
+    <string name="statistics_empty_body">Add a few items and check them off as you shop. Your statistics will show up here.</string>
+    <string name="statistics_section_activity">Activity</string>
+    <string name="statistics_total_purchases">All-time</string>
+    <string name="statistics_last_30_days">Last 30 days</string>
+    <string name="statistics_last_7_days">Last 7 days</string>
+    <string name="statistics_trend_label">Daily activity (last 12 weeks)</string>
+    <string name="statistics_most_active_day_format">Most active day: %1$s</string>
+    <string name="statistics_section_items">Items</string>
+    <string name="statistics_library_total">Total</string>
+    <string name="statistics_library_staples">Staples</string>
+    <string name="statistics_library_priority">Critical</string>
+    <string name="statistics_top_items">Most purchased</string>
+    <string name="statistics_stale_items">Haven\'t bought in a while</string>
+    <string name="statistics_stale_items_subtitle">Items not purchased in the last 60 days. Consider archiving the ones you don\'t need anymore.</string>
+    <string name="statistics_stale_days_format">%1$d days ago</string>
+    <string name="statistics_section_stores">Stores</string>
+    <string name="statistics_total_stores">Active stores</string>
+    <string name="statistics_most_shopped_format">Most shopped: %1$s (%2$d purchases)</string>
+    <string name="statistics_section_categories">Categories</string>
+    <string name="statistics_total_categories">Total</string>
+    <string name="statistics_uncategorised">Uncategorised</string>
+
+    <!-- Day-of-week labels for the "most active day" line. Indices match
+         SQLite's strftime('%w', …): 0 = Sunday, 6 = Saturday. -->
+    <string-array name="statistics_days_of_week">
+        <item>Sunday</item>
+        <item>Monday</item>
+        <item>Tuesday</item>
+        <item>Wednesday</item>
+        <item>Thursday</item>
+        <item>Friday</item>
+        <item>Saturday</item>
+    </string-array>
+
+    <!-- v0.7.0: Settings → Household screen and the entry-point card. -->
+    <string name="household_title">Household</string>
+    <string name="household_settings_subtitle">Share your list with someone</string>
+    <string name="household_members_header">Members</string>
+    <string name="household_members_just_you">Just you</string>
+    <string name="household_members_owner_badge">Owner</string>
+    <string name="household_generate_invite_header">Invite someone</string>
+    <string name="household_invite_explanation">Share this code with someone you want to add. It expires in 24 hours and can only be used once.</string>
+    <string name="household_generate_invite">Generate invite code</string>
+    <string name="household_invite_dialog_title">Invite code</string>
+    <string name="household_invite_dialog_message">Share this code with the person you want to add. It expires in 24 hours.</string>
+    <string name="household_invite_copy">Copy</string>
+    <string name="household_invite_dismiss">Done</string>
+    <string name="household_join_with_code">Join with code</string>
+    <string name="household_invite_code_label">Enter the 8-character code</string>
+    <string name="household_join_button">Join</string>
+    <string name="household_leave">Leave household</string>
+    <string name="household_leave_confirm_title">Leave household?</string>
+    <string name="household_leave_confirm_message">You\'ll start fresh with an empty list. This won\'t affect the household\'s data for other members.</string>
+    <string name="household_leave_confirm_button">Leave</string>
+    <string name="household_leave_cancel_button">Cancel</string>
+    <string name="household_error_invite_not_found">Invite code not found.</string>
+    <string name="household_error_invite_expired">This invite code has expired.</string>
+    <string name="household_error_invite_used">This invite code has already been used.</string>
+    <string name="household_error_invalid_token">Codes are 8 characters. Double-check the code and try again.</string>
+
+    <!-- v0.8 Premium IAP. Inviter-pays model: gate Generate Invite +
+         CSV Export. Accepting an invite + everything-else-after-joining
+         stays free. -->
+    <string name="premium_card_title">Storehop Premium</string>
+    <string name="premium_card_body_household">Generate invite codes to share your shopping list with family or roommates.</string>
+    <string name="premium_card_body_export">Export your items and categories as CSV for backup or to move between devices.</string>
+    <string name="premium_cta_unlock">Unlock for %1$s</string>
+    <string name="premium_cta_unlock_loading">Unlock</string>
+    <string name="premium_cta_unlocked_active">Premium unlocked ✓</string>
+    <string name="premium_restore_purchases">Restore purchases</string>
+    <string name="premium_locked_invite_label">Generate invite — Unlock for %1$s</string>
+    <string name="premium_locked_invite_label_loading">Generate invite — Unlock</string>
+    <string name="premium_locked_invite_explainer">Generating an invite requires Premium. Joining an existing household is always free.</string>
+    <string name="premium_locked_export_label">Export items — Unlock for %1$s</string>
+    <string name="premium_locked_export_categories_label">Export categories — Unlock for %1$s</string>
+    <string name="premium_purchase_success">Premium unlocked. Thanks!</string>
+    <string name="premium_purchase_pending">Purchase pending approval. We\'ll unlock as soon as it completes.</string>
+    <string name="premium_purchase_failed">Purchase failed: %1$s</string>
+    <string name="premium_purchase_already_owned">You already own Premium. Restored.</string>
+    <string name="premium_restore_done">Restore complete.</string>
+
+    <!-- v0.8.1 bulk store-tag (Items list selection mode). -->
+    <string name="items_selection_count">%1$d selected</string>
+    <string name="items_selection_exit_cd">Exit selection</string>
+    <string name="items_action_tag_to_stores">Tag to stores…</string>
+    <string name="items_bulk_tag_title">Tag selected items</string>
+    <plurals name="items_bulk_tag_body">
+        <item quantity="one">Add the picked stores to %1$d selected item.</item>
+        <item quantity="other">Add the picked stores to %1$d selected items.</item>
+    </plurals>
+    <string name="items_bulk_tag_apply">Add stores</string>
+
+    <!-- v0.9 one-off stores. -->
+    <string name="store_form_one_off_toggle">Mark as one-off store</string>
+    <string name="store_form_one_off_subtitle">Items here stay out of the master Items list. For specialty / one-time purchases.</string>
+    <string name="store_chip_one_off_suffix"> (One-off)</string>
+</resources>

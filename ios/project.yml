@@ -1,0 +1,170 @@
+name: Storehop
+options:
+  bundleIdPrefix: com.storehop
+  deploymentTarget:
+    iOS: "17.0"
+  developmentLanguage: en
+  createIntermediateGroups: true
+  generateEmptyDirectories: true
+  groupSortPosition: top
+
+settings:
+  base:
+    SWIFT_VERSION: "5.10"
+    MARKETING_VERSION: "0.9.0"
+    CURRENT_PROJECT_VERSION: "55"
+    DEVELOPMENT_TEAM: "9U3ZSABZG7"
+    # Drives the CFBundleURLSchemes entry in Info.plist for Google
+    # Sign-In's OAuth redirect. Value MUST match REVERSED_CLIENT_ID
+    # in GoogleService-Info.plist exactly — otherwise the sign-in
+    # screen completes but the callback never reaches the app.
+    GOOGLE_REVERSED_CLIENT_ID: "com.googleusercontent.apps.905738638600-kbho8cudrrj7518rct492ipqmka3ejq9"
+    ENABLE_USER_SCRIPT_SANDBOXING: YES
+    SWIFT_STRICT_CONCURRENCY: complete
+    SWIFT_TREAT_WARNINGS_AS_ERRORS: NO
+    GCC_TREAT_WARNINGS_AS_ERRORS: NO
+    IPHONEOS_DEPLOYMENT_TARGET: "17.0"
+
+# SwiftPM dependencies. Resolved on first `xcodegen generate` then opened in Xcode.
+# Versions track the latest stable as of 2026-05; bump as needed.
+packages:
+  GRDB:
+    url: https://github.com/groue/GRDB.swift
+    from: "6.29.0"
+  Firebase:
+    url: https://github.com/firebase/firebase-ios-sdk
+    from: "11.0.0"
+  GoogleSignIn:
+    url: https://github.com/google/GoogleSignIn-iOS
+    from: "7.1.0"
+
+targets:
+  Storehop:
+    type: application
+    platform: iOS
+    sources:
+      - path: Storehop
+        # Exclude Info.plist (handled via `info:` below) AND the seed JSONs
+        # (handled via `resources:` below). Without these excludes,
+        # xcodegen would add the JSONs to the Sources phase as if they
+        # were Swift files and the build would silently skip them — which
+        # is the same end-result as not including them at all.
+        excludes:
+          - "Resources/seed/**/*.json"
+          - "Info.plist"
+    resources:
+      - path: Storehop/Resources/Assets.xcassets
+      - path: Storehop/Resources/Localizable.xcstrings
+      # Apple's privacy manifest. Required since 2024 to ship on the
+      # App Store. Declares no tracking, the 4 required-reason API
+      # uses (UserDefaults, FileTimestamp, SystemBootTime, DiskSpace),
+      # and the 4 collected data types (email, name, user ID, photos)
+      # — all linked to user, none used for tracking, all for app
+      # functionality only.
+      - path: Storehop/Resources/PrivacyInfo.xcprivacy
+      # Each seed JSON is listed individually (rather than the parent
+      # folder via `type: folder`) because xcodegen's folder-reference
+      # output doesn't always copy into the simulator bundle on the
+      # macos-15 CI runner — locally fine, in CI the seed/ directory
+      # ends up empty. Flat-listing the files lands them at the bundle
+      # root reliably. The seeder + smoke test handle both
+      # `seed/<name>.json` and `<name>.json` lookups via a
+      # subdirectory-then-root fallback.
+      - path: Storehop/Resources/seed/stores.json
+      - path: Storehop/Resources/seed/categories.json
+      - path: Storehop/Resources/seed/store_categories.json
+    info:
+      path: Storehop/Info.plist
+      properties:
+        CFBundleDisplayName: Storehop
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        UILaunchScreen: {}
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+        UIRequiredDeviceCapabilities:
+          - armv7
+        ITSAppUsesNonExemptEncryption: false
+        NSPhotoLibraryUsageDescription: "Storehop uses your photo library so you can attach a picture to a shopping item, making it easier to spot the right brand on the shelf."
+        NSCameraUsageDescription: "Storehop uses your camera so you can snap a picture of a shopping item, making it easier to spot the right brand on the shelf."
+        CFBundleURLTypes:
+          - CFBundleURLSchemes:
+              - "$(GOOGLE_REVERSED_CLIENT_ID)"
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.storehop.app
+        TARGETED_DEVICE_FAMILY: "1"
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        CODE_SIGN_STYLE: Automatic
+        GENERATE_INFOPLIST_FILE: NO
+        # Sign in with Apple (build 52). Apple App Review Guideline 4.8
+        # requires SIWA whenever a third-party social login is offered.
+        # The entitlement enables `com.apple.developer.applesignin` on
+        # the auto-managed provisioning profile.
+        CODE_SIGN_ENTITLEMENTS: Storehop/Storehop.entitlements
+    dependencies:
+      - package: GRDB
+        product: GRDB
+      - package: Firebase
+        product: FirebaseAuth
+      - package: Firebase
+        product: FirebaseFirestore
+      - package: Firebase
+        product: FirebaseStorage
+      - package: GoogleSignIn
+        product: GoogleSignIn
+      - package: GoogleSignIn
+        product: GoogleSignInSwift
+
+  StorehopTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: StorehopTests
+    resources:
+      # Mirror the main app's seed-JSON resources onto the test target so
+      # `Bundle(for: BundleAnchor.self)` (which resolves to the main app
+      # bundle) AND any test-bundle fallback both find them. See the same
+      # comment on the Storehop target above for why we flat-list rather
+      # than relying on `type: folder`.
+      - path: Storehop/Resources/seed/stores.json
+      - path: Storehop/Resources/seed/categories.json
+      - path: Storehop/Resources/seed/store_categories.json
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.storehop.app.tests
+        BUNDLE_LOADER: "$(TEST_HOST)"
+        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/Storehop.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Storehop"
+    dependencies:
+      - target: Storehop
+      - package: GRDB
+        product: GRDB
+
+  StorehopUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - path: StorehopUITests
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.storehop.app.uitests
+        TEST_TARGET_NAME: Storehop
+    dependencies:
+      - target: Storehop
+
+schemes:
+  Storehop:
+    build:
+      targets:
+        Storehop: all
+        StorehopTests: [test]
+        StorehopUITests: [test]
+    test:
+      targets:
+        - StorehopTests
+        - StorehopUITests
+      gatherCoverageData: true
+    run:
+      config: Debug
+    archive:
+      config: Release

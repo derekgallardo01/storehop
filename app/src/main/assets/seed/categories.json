@@ -1,0 +1,23 @@
+[
+  { "id": "cat_produce",       "name": "Produce",             "nameKey": "cat_produce",       "icon": "Eco" },
+  { "id": "cat_bakery",        "name": "Bakery",              "nameKey": "cat_bakery",        "icon": "BakeryDining" },
+  { "id": "cat_dairy_eggs",    "name": "Dairy & Eggs",        "nameKey": "cat_dairy_eggs",    "icon": "EggAlt" },
+  { "id": "cat_meat_fish",     "name": "Meat & Fish",         "nameKey": "cat_meat_fish",     "icon": "SetMeal" },
+  { "id": "cat_frozen",        "name": "Frozen",              "nameKey": "cat_frozen",        "icon": "AcUnit" },
+  { "id": "cat_pantry",        "name": "Pantry",              "nameKey": "cat_pantry",        "icon": "Kitchen" },
+  { "id": "cat_snacks",        "name": "Snacks",              "nameKey": "cat_snacks",        "icon": "Cookie" },
+  { "id": "cat_beverages",     "name": "Beverages",           "nameKey": "cat_beverages",     "icon": "LocalCafe" },
+  { "id": "cat_alcohol",       "name": "Alcohol",             "nameKey": "cat_alcohol",       "icon": "WineBar" },
+  { "id": "cat_household",     "name": "Household & Cleaning","nameKey": "cat_household",     "icon": "CleaningServices" },
+  { "id": "cat_personal_care", "name": "Personal Care",       "nameKey": "cat_personal_care", "icon": "Soap" },
+  { "id": "cat_pharmacy",      "name": "Pharmacy",            "nameKey": "cat_pharmacy",      "icon": "Medication" },
+  { "id": "cat_baby",          "name": "Baby",                "nameKey": "cat_baby",          "icon": "ChildCare" },
+  { "id": "cat_pet",           "name": "Pet",                 "nameKey": "cat_pet",           "icon": "Pets" },
+  { "id": "cat_hardware",      "name": "Hardware & DIY",      "nameKey": "cat_hardware",      "icon": "Build" },
+  { "id": "cat_garden",        "name": "Garden",              "nameKey": "cat_garden",        "icon": "Grass" },
+  { "id": "cat_home_decor",    "name": "Home & Decor",        "nameKey": "cat_home_decor",    "icon": "Chair" },
+  { "id": "cat_electronics",   "name": "Electronics",         "nameKey": "cat_electronics",   "icon": "Devices" },
+  { "id": "cat_stationery",    "name": "Stationery",          "nameKey": "cat_stationery",    "icon": "EditNote" },
+  { "id": "cat_clothing",      "name": "Clothing",            "nameKey": "cat_clothing",      "icon": "Checkroom" },
+  { "id": "cat_other",         "name": "Other",               "nameKey": "cat_other",         "icon": "MoreHoriz" }
+]

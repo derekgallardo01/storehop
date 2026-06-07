@@ -1,0 +1,331 @@
+package com.storehop.app
+
+import android.os.Bundle
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.IntentSenderRequest
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.List
+import androidx.compose.material.icons.filled.Storefront
+import androidx.compose.material3.Icon
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Snackbar
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.stateIn
+import androidx.navigation.NavGraph.Companion.findStartDestination
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
+import androidx.navigation.compose.rememberNavController
+import com.google.android.play.core.appupdate.AppUpdateManagerFactory
+import com.google.firebase.auth.FirebaseAuth
+import com.storehop.app.data.prefs.ThemeMode
+import com.storehop.app.data.prefs.UserPreferencesRepository
+import com.storehop.app.data.util.UserSessionProvider
+import com.storehop.app.ui.categories.ManageCategoriesScreen
+import com.storehop.app.ui.items.ItemFormScreen
+import com.storehop.app.ui.items.ItemsListScreen
+import com.storehop.app.ui.nav.Routes
+import com.storehop.app.ui.settings.SettingsScreen
+import com.storehop.app.ui.statistics.StatisticsScreen
+import com.storehop.app.ui.shop.EditAisleOrderScreen
+import com.storehop.app.ui.shop.ShopAtStoreScreen
+import com.storehop.app.ui.shop.StorePickerScreen
+import androidx.navigation.NavType
+import androidx.navigation.navArgument
+import com.storehop.app.ui.theme.StorehopTheme
+import com.storehop.app.update.AppUpdateController
+import dagger.hilt.android.AndroidEntryPoint
+import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
+
+@AndroidEntryPoint
+class MainActivity : ComponentActivity() {
+
+    private val appUpdateController by lazy {
+        AppUpdateController(AppUpdateManagerFactory.create(this))
+    }
+
+    /**
+     * Launcher for Play's flexible-update bottom sheet. Result is ignored:
+     * if the user cancels we fall through, if they accept the download
+     * starts in the background and the install-state listener picks it up.
+     */
+    private val updateFlowLauncher =
+        registerForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) { /* no-op */ }
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        enableEdgeToEdge()
+        appUpdateController.start()
+        setContent {
+            // RootViewModel hands us the theme-mode pref. We resolve SYSTEM
+            // against isSystemInDarkTheme() at composition time so a theme
+            // switch in the OS settings updates us live, and a LIGHT/DARK
+            // override beats the system regardless.
+            val rootViewModel: RootViewModel = hiltViewModel()
+            val themeMode by rootViewModel.themeMode.collectAsState()
+            val isDark = when (themeMode) {
+                ThemeMode.SYSTEM -> isSystemInDarkTheme()
+                ThemeMode.LIGHT -> false
+                ThemeMode.DARK -> true
+            }
+            StorehopTheme(darkTheme = isDark) {
+                Surface(modifier = Modifier.fillMaxSize()) {
+                    val updateReady by appUpdateController.isUpdateReadyToInstall.collectAsState()
+                    AppRoot(rootViewModel)
+                    UpdateReadyOverlay(
+                        visible = updateReady,
+                        onRestart = { appUpdateController.completeUpdate() },
+                    )
+                }
+            }
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        appUpdateController.checkForUpdate(updateFlowLauncher)
+    }
+
+    override fun onDestroy() {
+        appUpdateController.stop()
+        super.onDestroy()
+    }
+}
+
+/**
+ * Top-level overlay snackbar shown when Play has finished downloading a
+ * newer version of the app. Composed above [AppRoot] so it appears on
+ * every screen. Tapping "Restart" hands off to Play, which installs and
+ * relaunches us.
+ */
+@Composable
+private fun UpdateReadyOverlay(visible: Boolean, onRestart: () -> Unit) {
+    if (!visible) return
+    val hostState = remember { SnackbarHostState() }
+    val message = stringResource(R.string.update_ready_message)
+    val action = stringResource(R.string.update_ready_action)
+    LaunchedEffect(Unit) {
+        // Indefinite by design: the user should make an explicit decision
+        // about restarting; we don't want to flash this and miss the moment.
+        val result = hostState.showSnackbar(
+            message = message,
+            actionLabel = action,
+            duration = androidx.compose.material3.SnackbarDuration.Indefinite,
+        )
+        if (result == SnackbarResult.ActionPerformed) {
+            onRestart()
+        }
+    }
+    // `enableEdgeToEdge()` makes the Activity draw under the gesture-nav
+    // bar, so this top-level overlay (which lives outside any Scaffold)
+    // has to add the inset itself or the snackbar gets clipped by the
+    // Pixel back/home/recents row.
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .navigationBarsPadding(),
+        contentAlignment = Alignment.BottomCenter,
+    ) {
+        SnackbarHost(hostState) { Snackbar(it) }
+    }
+}
+
+@HiltViewModel
+class RootViewModel @Inject constructor(
+    val session: UserSessionProvider,
+    private val auth: FirebaseAuth,
+    userPrefs: UserPreferencesRepository,
+) : ViewModel() {
+    fun isAnonymous(): Boolean = auth.currentUser?.isAnonymous == true
+
+    /**
+     * Theme-mode preference, with SYSTEM as the seed so first-launch users
+     * follow OS dark mode until they explicitly pick LIGHT or DARK from
+     * Settings.
+     */
+    val themeMode: kotlinx.coroutines.flow.StateFlow<ThemeMode> = userPrefs.themeMode
+        .stateIn(
+            viewModelScope,
+            kotlinx.coroutines.flow.SharingStarted.Eagerly,
+            ThemeMode.SYSTEM,
+        )
+}
+
+@Composable
+private fun AppRoot(viewModel: RootViewModel = hiltViewModel()) {
+    val uid by viewModel.session.userId.collectAsState()
+    when (uid) {
+        null -> LoadingPlaceholder()
+        else -> SignedInRoot()
+    }
+}
+
+@Composable
+private fun LoadingPlaceholder() {
+    Box(
+        modifier = Modifier.fillMaxSize().padding(24.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(text = "Signing in...")
+    }
+}
+
+/**
+ * Two-tab scaffold: Shop and Items. Each tab is a separate Compose Navigation
+ * branch under a single `NavHost`; tapping a bottom-nav item navigates to that
+ * tab's root and resets to the saved state for that tab (so going Shop → ...
+ * → Items → Shop returns you where you were in the Shop tab).
+ */
+@Composable
+private fun SignedInRoot() {
+    val navController = rememberNavController()
+    val backStackEntry by navController.currentBackStackEntryAsState()
+    val currentRoute = backStackEntry?.destination?.route
+
+    Scaffold(
+        bottomBar = {
+            NavigationBar {
+                NavigationBarItem(
+                    selected = Routes.isShopTabRoute(currentRoute),
+                    onClick = { navigateToTab(navController, Routes.SHOP, currentRoute) },
+                    icon = { Icon(Icons.Filled.Storefront, contentDescription = null) },
+                    label = { Text(stringResource(R.string.nav_shop)) },
+                )
+                NavigationBarItem(
+                    selected = Routes.isItemsTabRoute(currentRoute),
+                    onClick = { navigateToTab(navController, Routes.ITEMS, currentRoute) },
+                    icon = { Icon(Icons.Filled.List, contentDescription = null) },
+                    label = { Text(stringResource(R.string.nav_items)) },
+                )
+            }
+        },
+    ) { padding ->
+        NavHost(
+            navController = navController,
+            startDestination = Routes.SHOP,
+            modifier = Modifier.padding(padding),
+        ) {
+            composable(Routes.SHOP) {
+                StorePickerScreen(
+                    onPickStore = { id -> navController.navigate(Routes.shopAtStore(id)) },
+                    onOpenSettings = { navController.navigate(Routes.SETTINGS) },
+                    onEditAisles = { id -> navController.navigate(Routes.editAisleOrder(id)) },
+                )
+            }
+            composable(
+                route = Routes.SHOP_AT_STORE,
+                arguments = listOf(navArgument("storeId") { type = NavType.StringType }),
+            ) {
+                ShopAtStoreScreen(
+                    onBack = { navController.popBackStack() },
+                    onEditItem = { id -> navController.navigate(Routes.itemEdit(id)) },
+                )
+            }
+            composable(
+                route = Routes.EDIT_AISLE_ORDER,
+                arguments = listOf(navArgument("storeId") { type = NavType.StringType }),
+            ) {
+                EditAisleOrderScreen(onBack = { navController.popBackStack() })
+            }
+
+            composable(Routes.ITEMS) {
+                ItemsListScreen(
+                    onAddItem = { navController.navigate(Routes.ITEM_ADD) },
+                    onEditItem = { id -> navController.navigate(Routes.itemEdit(id)) },
+                    onOpenSettings = { navController.navigate(Routes.SETTINGS) },
+                    onOpenCategories = { navController.navigate(Routes.ITEMS_CATEGORIES) },
+                )
+            }
+            composable(Routes.ITEMS_CATEGORIES) {
+                ManageCategoriesScreen(onBack = { navController.popBackStack() })
+            }
+            composable(Routes.ITEM_ADD) {
+                ItemFormScreen(onBack = { navController.popBackStack() })
+            }
+            composable(
+                route = Routes.ITEM_EDIT,
+                arguments = listOf(navArgument("itemId") { type = NavType.StringType }),
+            ) {
+                ItemFormScreen(onBack = { navController.popBackStack() })
+            }
+
+            composable(Routes.SETTINGS) {
+                SettingsScreen(
+                    onBack = { navController.popBackStack() },
+                    onOpenStatistics = { navController.navigate(Routes.STATISTICS) },
+                    onOpenHousehold = { navController.navigate(Routes.HOUSEHOLD) },
+                )
+            }
+            composable(Routes.STATISTICS) {
+                StatisticsScreen(onBack = { navController.popBackStack() })
+            }
+            composable(Routes.HOUSEHOLD) {
+                com.storehop.app.ui.settings.HouseholdScreen(
+                    onBack = { navController.popBackStack() },
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Bottom-nav tab navigation. Pre-pops Settings (the only non-tab peer
+ * destination) before the standard popUpTo+restoreState combo, because
+ * the canonical Material 3 bottom-nav pattern misbehaves when the
+ * current destination is a peer of the tabs rather than a child of one.
+ *
+ * The user-visible bug this fixes: from the Settings screen, tapping
+ * Items in the bottom nav sometimes landed on Shop instead of Items.
+ * Root cause was the popUpTo(startDestination)+restoreState combo
+ * leaving the chosen tab in an inconsistent state when the back stack
+ * had a non-tab destination on top. Explicitly popping Settings first
+ * makes the tab transition deterministic.
+ */
+private fun navigateToTab(
+    navController: androidx.navigation.NavController,
+    tabRoute: String,
+    currentRoute: String?,
+) {
+    if (currentRoute == Routes.SETTINGS) {
+        navController.popBackStack(Routes.SETTINGS, inclusive = true)
+    } else if (currentRoute == Routes.STATISTICS) {
+        // Statistics is reachable only via Settings, so popping it inclusively
+        // also clears the Settings underneath — same reason as the Settings
+        // case above (peer-of-tabs back-stack quirk in Compose Navigation).
+        navController.popBackStack(Routes.SETTINGS, inclusive = true)
+    }
+    navController.navigate(tabRoute) {
+        popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+        launchSingleTop = true
+        restoreState = true
+    }
+}
