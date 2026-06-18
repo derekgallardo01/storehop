@@ -348,6 +348,88 @@ final class ItemRepositoryTests: XCTestCase {
 
     // MARK: - Ownership
 
+    // MARK: - v0.9.0 master-list filter (one-off stores)
+    //
+    // `ItemWithCategoryAndStores.fetchAll` is what `ItemDao.observeAll`
+    // delegates to. The master Items list relies on this query to hide
+    // items whose alive xrefs ALL point at one-off stores (one-off
+    // couch, hardware shelves, etc.) so the master list stays a
+    // grocery-routine signal. Mirrors Android's
+    // `ItemRepositoryImplTest` filter cases.
+
+    func testFetchAllHidesItemTaggedOnlyToOneOffStores() async throws {
+        let s = try setup()
+        // Reseed: add a one-off store on top of the default Lidl + Aldi.
+        try s.db.seed(
+            items: [TestFixtures.item(id: "i_couch", name: "Couch", userId: "u1")],
+            stores: [TestFixtures.store(id: "s_hardware", name: "Hardware", userId: "u1", isOneOff: true)],
+            xrefs: [TestFixtures.xref(itemId: "i_couch", storeId: "s_hardware")]
+        )
+        let rows = try await s.db.queue.read { conn in
+            try ItemWithCategoryAndStores.fetchAll(conn, householdId: "u1")
+        }
+        XCTAssertEqual(rows.map(\.item.id), [],
+                       "Item tagged only to a one-off store should NOT appear in the master Items list")
+    }
+
+    func testFetchAllShowsItemTaggedToMixOfOneOffAndRegularStores() async throws {
+        let s = try setup()
+        try s.db.seed(
+            items: [TestFixtures.item(id: "i_brackets", name: "Brackets", userId: "u1")],
+            stores: [TestFixtures.store(id: "s_hardware", name: "Hardware", userId: "u1", isOneOff: true)],
+            xrefs: [
+                TestFixtures.xref(itemId: "i_brackets", storeId: "s_hardware"),
+                TestFixtures.xref(itemId: "i_brackets", storeId: "s_lidl"),  // regular store keeps it visible
+            ]
+        )
+        let rows = try await s.db.queue.read { conn in
+            try ItemWithCategoryAndStores.fetchAll(conn, householdId: "u1")
+        }
+        XCTAssertEqual(rows.map(\.item.id), ["i_brackets"],
+                       "Mixed-tagging keeps the item visible (regular xref wins)")
+    }
+
+    func testFetchAllShowsItemWithNoAliveXrefs() async throws {
+        let s = try setup()
+        // Item with zero xrefs at all — common for fresh CSV imports or
+        // items the user just created without picking any stores yet. The
+        // filter only hides items whose alive xrefs EXIST and are ALL
+        // one-off; untagged items always stay visible.
+        try s.db.seed(
+            items: [TestFixtures.item(id: "i_milk", name: "Milk", userId: "u1")]
+        )
+        let rows = try await s.db.queue.read { conn in
+            try ItemWithCategoryAndStores.fetchAll(conn, householdId: "u1")
+        }
+        XCTAssertEqual(rows.map(\.item.id), ["i_milk"],
+                       "Untagged items must stay visible — the filter only hides one-off-only items")
+    }
+
+    func testFetchAllShowsItemAfterFlippingOneOffStoreBackToRegular() async throws {
+        let s = try setup()
+        // Start: item tagged only to one-off "Hardware" → hidden.
+        try s.db.seed(
+            items: [TestFixtures.item(id: "i_lamp", name: "Lamp", userId: "u1")],
+            stores: [TestFixtures.store(id: "s_hardware", name: "Hardware", userId: "u1", isOneOff: true)],
+            xrefs: [TestFixtures.xref(itemId: "i_lamp", storeId: "s_hardware")]
+        )
+        let beforeFlip = try await s.db.queue.read { conn in
+            try ItemWithCategoryAndStores.fetchAll(conn, householdId: "u1")
+        }
+        XCTAssertEqual(beforeFlip.map(\.item.id), [], "Hidden while only xref is one-off")
+
+        // Flip the store back to regular — the filter is dynamic, item
+        // should reappear without touching the item itself.
+        try await s.db.queue.write { conn in
+            try conn.execute(sql: "UPDATE stores SET isOneOff = 0 WHERE id = ?", arguments: ["s_hardware"])
+        }
+        let afterFlip = try await s.db.queue.read { conn in
+            try ItemWithCategoryAndStores.fetchAll(conn, householdId: "u1")
+        }
+        XCTAssertEqual(afterFlip.map(\.item.id), ["i_lamp"],
+                       "Flipping the store back to regular re-exposes the item — filter is dynamic")
+    }
+
     func testWritesThrowWhenNotSignedIn() async throws {
         let db = try StorehopDatabase.inMemoryForTests()
         let writer = db.queue

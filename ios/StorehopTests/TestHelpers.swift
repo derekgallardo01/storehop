@@ -51,7 +51,8 @@ enum TestFixtures {
         isArchived: Bool = false,
         isSeeded: Bool = false,
         displayOrder: Int = 0,
-        now: Int64 = 0
+        now: Int64 = 0,
+        isOneOff: Bool = false
     ) -> Store {
         Store(
             id: id,
@@ -65,7 +66,8 @@ enum TestFixtures {
             deletedAt: nil,
             pendingSync: true,
             displayOrder: displayOrder,
-            householdId: householdId ?? userId
+            householdId: householdId ?? userId,
+            isOneOff: isOneOff
         )
     }
 

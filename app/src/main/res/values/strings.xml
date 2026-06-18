@@ -361,4 +361,9 @@
     <string name="store_form_one_off_toggle">Mark as one-off store</string>
     <string name="store_form_one_off_subtitle">Items here stay out of the master Items list. For specialty / one-time purchases.</string>
     <string name="store_chip_one_off_suffix"> (One-off)</string>
+    <!-- v0.9.0 — store-row overflow / context menu action labels. -->
+    <string name="store_action_mark_one_off">Mark as one-off</string>
+    <string name="store_action_unmark_one_off">Unmark as one-off</string>
+    <!-- v0.9.0 — fallback error when StoreRepository.setOneOff write fails. -->
+    <string name="error_could_not_update_store">Couldn\'t update store. Try again.</string>
 </resources>
