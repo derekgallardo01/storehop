@@ -289,4 +289,101 @@ final class ItemFormViewModelTests: XCTestCase {
         XCTAssertNotNil(result)
         XCTAssertEqual(s.viewModel.categoryId, "c_dairy")
     }
+
+    // MARK: - v0.9.0 allPickedStoresAreOneOff
+    //
+    // Drives the staple + priority toggle visibility in the form: those
+    // concepts don't combine with "one-off purchase" semantically, so the
+    // form hides them when every picked store is one-off. Mirrors
+    // Android's `ItemFormViewModelTest.allPickedStoresAreOneOff` cases.
+
+    func testAllPickedStoresAreOneOffIsFalseWhenNothingPicked() async throws {
+        let s = try await makeOneOffSetup()
+        XCTAssertEqual(s.viewModel.storeIds, [], "Sanity: no pre-selection")
+        XCTAssertFalse(s.viewModel.allPickedStoresAreOneOff,
+                       "Empty selection should keep toggles visible — false")
+    }
+
+    func testAllPickedStoresAreOneOffIsTrueWhenEveryPickedStoreIsOneOff() async throws {
+        let s = try await makeOneOffSetup()
+        s.viewModel.storeIds = ["s_hardware", "s_online"]  // both are one-off
+        XCTAssertTrue(s.viewModel.allPickedStoresAreOneOff,
+                      "Both picked stores have isOneOff=true → hide toggles")
+    }
+
+    func testAllPickedStoresAreOneOffIsFalseWhenAtLeastOnePickedStoreIsRegular() async throws {
+        let s = try await makeOneOffSetup()
+        s.viewModel.storeIds = ["s_lidl", "s_hardware"]  // mixed
+        XCTAssertFalse(s.viewModel.allPickedStoresAreOneOff,
+                       "Mixed regular + one-off picks should keep toggles visible — false")
+    }
+
+    /// Seeds two regular stores (`s_lidl`, `s_aldi`) plus two one-off stores
+    /// (`s_hardware`, `s_online`) so the three `allPickedStoresAreOneOff`
+    /// cases above can exercise empty / all-one-off / mixed selections.
+    private func makeOneOffSetup(uid: String = "u1") async throws -> Setup {
+        let db = try StorehopDatabase.inMemoryForTests()
+        try db.seed(
+            stores: [
+                TestFixtures.store(id: "s_lidl",     name: "Lidl",     userId: uid),
+                TestFixtures.store(id: "s_aldi",     name: "Aldi",     userId: uid),
+                TestFixtures.store(id: "s_hardware", name: "Hardware", userId: uid, isOneOff: true),
+                TestFixtures.store(id: "s_online",   name: "Online",   userId: uid, isOneOff: true),
+            ],
+            categories: [
+                TestFixtures.category(id: "c_dairy", name: "Dairy", userId: uid),
+            ]
+        )
+        let session = LocalOnlyUserSessionProvider(uid: uid)
+        let clock = MutableClock(nowMs: 1_000)
+        let writer = db.queue
+        let householdSession = LocalOnlyHouseholdSessionProvider(initialHouseholdId: uid)
+        let itemRepo = ItemRepository(
+            writer: writer,
+            itemDao: ItemDao(writer: writer),
+            xrefDao: ItemStoreXrefDao(writer: writer),
+            scoDao: StoreCategoryOrderDao(writer: writer),
+            purchaseDao: PurchaseRecordDao(writer: writer),
+            session: session,
+            householdSession: householdSession,
+            clock: clock,
+            ids: SequenceIdGenerator()
+        )
+        let categoryRepo = CategoryRepository(
+            writer: writer,
+            categoryDao: CategoryDao(writer: writer),
+            itemDao: ItemDao(writer: writer),
+            scoDao: StoreCategoryOrderDao(writer: writer),
+            session: session,
+            householdSession: householdSession,
+            clock: clock,
+            ids: SequenceIdGenerator()
+        )
+        let storeRepo = StoreRepository(
+            writer: writer,
+            storeDao: StoreDao(writer: writer),
+            xrefDao: ItemStoreXrefDao(writer: writer),
+            scoDao: StoreCategoryOrderDao(writer: writer),
+            session: session,
+            householdSession: householdSession,
+            clock: clock,
+            ids: SequenceIdGenerator()
+        )
+        let undoBus = UndoEventBus()
+        let vm = ItemFormViewModel(
+            itemId: nil,
+            itemRepository: itemRepo,
+            categoryRepository: categoryRepo,
+            storeRepository: storeRepo,
+            imageUploader: NoOpImageUploader(),
+            undoEventBus: undoBus,
+            session: session
+        )
+        vm.bind()
+        // Wait for the stores ValueObservation to surface all four seeded
+        // rows into vm.stores so `allPickedStoresAreOneOff` can resolve
+        // picked ids against the live list.
+        try await Task.sleep(nanoseconds: 100_000_000)
+        return Setup(db: db, viewModel: vm, undoEventBus: undoBus)
+    }
 }

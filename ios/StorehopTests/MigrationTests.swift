@@ -122,6 +122,48 @@ final class MigrationTests: XCTestCase {
         }
     }
 
+    // MARK: - v9_stores_one_off (one-off stores)
+
+    func testV9AddsIsOneOffColumnToStoresWithDefaultZero() throws {
+        let database = try makeDatabase()
+        try database.queue.read { db in
+            let cols = try Row.fetchAll(db, sql: "PRAGMA table_info(stores)")
+            let isOneOff = cols.first { ($0["name"] as String?) == "isOneOff" }
+            XCTAssertNotNil(isOneOff, "v9_stores_one_off must add the `isOneOff` column")
+            let type: String? = isOneOff?["type"]
+            XCTAssertEqual(type, "INTEGER", "isOneOff must be INTEGER (Bool maps to INTEGER in SQLite)")
+            let notNull: Int? = isOneOff?["notnull"]
+            XCTAssertEqual(notNull, 1, "isOneOff must be NOT NULL")
+            let defaultValue: String? = isOneOff?["dflt_value"]
+            XCTAssertEqual(defaultValue, "0",
+                           "isOneOff must default to 0 — pre-v0.9 rows backfill as regular stores")
+        }
+    }
+
+    func testV9CreatesCompositeIndexOnStoresHouseholdIdIsOneOff() throws {
+        // The EXISTS subquery in `ItemWithCategoryAndStores.fetchAll`
+        // joins `item_store_xref` → `stores` filtered by `householdId`
+        // and `isOneOff = 0`. The composite index keeps that scan
+        // sargable as the household's store count grows.
+        let database = try makeDatabase()
+        try database.queue.read { db in
+            let rows = try Row.fetchAll(db, sql: "PRAGMA index_list(stores)")
+            let entry = rows.first { ($0["name"] as String?) == "index_stores_householdId_isOneOff" }
+            XCTAssertNotNil(entry, "v9_stores_one_off must create index_stores_householdId_isOneOff")
+            let unique: Int? = entry?["unique"]
+            XCTAssertEqual(unique, 0,
+                           "The composite (householdId, isOneOff) index must be non-unique")
+
+            let info = try Row.fetchAll(
+                db,
+                sql: "PRAGMA index_info(index_stores_householdId_isOneOff)"
+            )
+            let cols = info.compactMap { $0["name"] as String? }
+            XCTAssertEqual(cols, ["householdId", "isOneOff"],
+                           "Composite index columns must be (householdId, isOneOff) in that order")
+        }
+    }
+
     func testV6IndexesAreNonUnique() throws {
         let database = try makeDatabase()
         try database.queue.read { db in

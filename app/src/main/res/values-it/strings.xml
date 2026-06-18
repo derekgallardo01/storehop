@@ -356,4 +356,7 @@
     <string name="store_form_one_off_toggle">Segna come negozio una tantum</string>
     <string name="store_form_one_off_subtitle">Gli articoli qui non compaiono nella lista principale Articoli. Per acquisti specifici o una tantum.</string>
     <string name="store_chip_one_off_suffix"> (Una tantum)</string>
+    <string name="store_action_mark_one_off">Segna come una tantum</string>
+    <string name="store_action_unmark_one_off">Rimuovi una tantum</string>
+    <string name="error_could_not_update_store">Impossibile aggiornare il negozio. Riprova.</string>
 </resources>

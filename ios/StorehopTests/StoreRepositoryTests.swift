@@ -183,4 +183,83 @@ final class StoreRepositoryTests: XCTestCase {
         }
         XCTAssertEqual(store?.name, "LIDL")
     }
+
+    // MARK: - v0.9.0 one-off stores
+
+    func testAddStoreWithIsOneOffPersistsTheFlag() async throws {
+        let s = try setup()
+        let id = try await s.repo.addStore(name: "Hardware", colorArgb: nil, isOneOff: true)
+        let store = try await s.db.queue.read { conn in
+            try Store.fetchOne(conn, sql: "SELECT * FROM stores WHERE id = ?", arguments: [id])
+        }
+        XCTAssertEqual(store?.isOneOff, true)
+    }
+
+    func testAddStoreDefaultsToRegularWhenIsOneOffOmitted() async throws {
+        let s = try setup()
+        // `addStore`'s `isOneOff` parameter defaults to `false`, so older
+        // call sites that don't pass it still produce regular (non-one-off)
+        // stores. Pin this behavior so a default flip doesn't silently
+        // convert every newly-added store into a one-off.
+        let id = try await s.repo.addStore(name: "Lidl")
+        let store = try await s.db.queue.read { conn in
+            try Store.fetchOne(conn, sql: "SELECT * FROM stores WHERE id = ?", arguments: [id])
+        }
+        XCTAssertEqual(store?.isOneOff, false)
+    }
+
+    func testSetOneOffFlipsBothDirectionsAndBumpsPendingSync() async throws {
+        let s = try setup()
+        let id = try await s.repo.addStore(name: "Lidl")
+        // Reset pendingSync so we can observe the bump from setOneOff alone.
+        try await s.db.queue.write { conn in
+            try conn.execute(sql: "UPDATE stores SET pendingSync = 0 WHERE id = ?", arguments: [id])
+        }
+        s.clock.now = 2_000
+
+        try await s.repo.setOneOff(id: id, isOneOff: true)
+        var store = try await s.db.queue.read { conn in
+            try Store.fetchOne(conn, sql: "SELECT * FROM stores WHERE id = ?", arguments: [id])
+        }
+        XCTAssertEqual(store?.isOneOff, true, "Flip → one-off")
+        XCTAssertEqual(store?.updatedAt, 2_000, "updatedAt bumped")
+        XCTAssertTrue(store?.pendingSync ?? false, "pendingSync flagged")
+
+        // Now flip back.
+        try await s.db.queue.write { conn in
+            try conn.execute(sql: "UPDATE stores SET pendingSync = 0 WHERE id = ?", arguments: [id])
+        }
+        s.clock.now = 3_000
+        try await s.repo.setOneOff(id: id, isOneOff: false)
+        store = try await s.db.queue.read { conn in
+            try Store.fetchOne(conn, sql: "SELECT * FROM stores WHERE id = ?", arguments: [id])
+        }
+        XCTAssertEqual(store?.isOneOff, false, "Flip → regular")
+        XCTAssertEqual(store?.updatedAt, 3_000, "updatedAt bumped again")
+        XCTAssertTrue(store?.pendingSync ?? false, "pendingSync flagged again")
+    }
+
+    func testSetOneOffIsIdempotentWhenValueUnchanged() async throws {
+        let s = try setup()
+        let id = try await s.repo.addStore(name: "Lidl")
+        // Reset pendingSync + capture a baseline updatedAt so a no-op call
+        // doesn't touch them. This protects the LWW timestamp from churning
+        // on rapid taps that don't change the underlying flag.
+        try await s.db.queue.write { conn in
+            try conn.execute(sql: """
+                UPDATE stores SET pendingSync = 0, updatedAt = 999
+                WHERE id = ?
+                """, arguments: [id])
+        }
+        s.clock.now = 5_000
+
+        try await s.repo.setOneOff(id: id, isOneOff: false)  // already false
+
+        let store = try await s.db.queue.read { conn in
+            try Store.fetchOne(conn, sql: "SELECT * FROM stores WHERE id = ?", arguments: [id])
+        }
+        XCTAssertEqual(store?.isOneOff, false, "Still false")
+        XCTAssertEqual(store?.updatedAt, 999, "No-op preserves updatedAt — not bumped to clock.now")
+        XCTAssertFalse(store?.pendingSync ?? true, "No-op skips the pendingSync flag")
+    }
 }

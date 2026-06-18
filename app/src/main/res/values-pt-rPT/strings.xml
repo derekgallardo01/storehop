@@ -359,4 +359,7 @@
     <string name="store_form_one_off_toggle">Marcar como loja de compra única</string>
     <string name="store_form_one_off_subtitle">Os itens daqui não aparecem na lista principal de Itens. Para compras pontuais ou especiais.</string>
     <string name="store_chip_one_off_suffix"> (Única)</string>
+    <string name="store_action_mark_one_off">Marcar como única</string>
+    <string name="store_action_unmark_one_off">Desmarcar como única</string>
+    <string name="error_could_not_update_store">Não foi possível atualizar a loja. Tente novamente.</string>
 </resources>
