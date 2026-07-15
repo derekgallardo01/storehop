@@ -39,10 +39,17 @@ data class ItemStoreXref(
     @ColumnInfo(defaultValue = "1") val pendingSync: Boolean = true,
     /**
      * Per-store need state. True means "still need to buy this here." False
-     * means "I bought this at this store" -- doesn't affect any other store
-     * the item is tagged to, so checking off milk at Lidl leaves milk's
-     * Aldi xref untouched (the user mental model: each shop's row is its
-     * own state).
+     * means "I bought this here."
+     *
+     * The *storage* is per-(item, store), but the *check-off cascade* is
+     * global: one shopping trip satisfies the need everywhere. Buying milk at
+     * Lidl cascades `isNeeded = 0` to milk's Aldi xref too
+     * ([ItemStoreXrefDao.markPurchasedAcrossAllStores]); un-buying it at Lidl
+     * cascades `isNeeded = 1` back across every tagged store
+     * ([ItemStoreXrefDao.markNeededAcrossAllStores]). The per-store column
+     * still lets the strike-through window and staple visibility differ per
+     * screen, but "needed" is effectively one state shared across the item's
+     * stores.
      */
     @ColumnInfo(defaultValue = "1") val isNeeded: Boolean = true,
     /**

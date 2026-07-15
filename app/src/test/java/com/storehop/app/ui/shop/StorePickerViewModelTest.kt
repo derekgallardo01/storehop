@@ -167,6 +167,58 @@ class StorePickerViewModelTest {
         }
     }
 
+    // ---- v0.9 Buy Today banner (#5b) --------------------------------------
+
+    @Test fun `buyTodaySummary is null when nothing is flagged`() = runTest {
+        rowsFlow.value = listOf(
+            pickerRow("store_lidl", critical = listOf("Milk"), buyToday = emptyList()),
+        )
+        val vm = newVm()
+        vm.buyTodaySummary.test {
+            advanceUntilIdle()
+            assertThat(expectMostRecentItem()).isNull()
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test fun `buyTodaySummary aggregates flagged items and picks the top store`() = runTest {
+        rowsFlow.value = listOf(
+            pickerRow("store_aldi", critical = emptyList(), buyToday = listOf("Advil")),
+            pickerRow("store_lidl", critical = emptyList(), buyToday = listOf("Dog food", "Batteries")),
+        )
+        val vm = newVm()
+        vm.buyTodaySummary.test {
+            advanceUntilIdle()
+            val state = expectMostRecentItem()!!
+            assertThat(state.totalCount).isEqualTo(3)
+            assertThat(state.topStoreName).isEqualTo("store_lidl")
+            assertThat(state.topStoreCount).isEqualTo(2)
+            assertThat(state.singleStore).isFalse()
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test fun `buyTodaySummary includes one-off stores unlike the critical banner`() = runTest {
+        // A one-off pet store with a "buy today" item must still surface here,
+        // even though the critical banner deliberately skips one-off stores.
+        rowsFlow.value = listOf(
+            pickerRow("pet_store", critical = listOf("Dog food"), buyToday = listOf("Dog food"), oneOff = true),
+        )
+        val vm = newVm()
+
+        vm.buyTodaySummary.test {
+            advanceUntilIdle()
+            assertThat(expectMostRecentItem()!!.totalCount).isEqualTo(1)
+            cancelAndIgnoreRemainingEvents()
+        }
+        vm.criticalSummary.test {
+            advanceUntilIdle()
+            // Critical banner excludes the one-off store -> null.
+            assertThat(expectMostRecentItem()).isNull()
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
     @Test fun `addStore returns localized empty-name error when blank`() = runTest {
         val vm = newVm()
         assertThat(vm.addStore("   ")).isEqualTo("ENAME_EMPTY")
@@ -238,14 +290,18 @@ class StorePickerViewModelTest {
         storeId: String,
         critical: List<String>,
         neededCount: Int = 1,
+        buyToday: List<String> = emptyList(),
+        oneOff: Boolean = false,
     ) = StorePickerRow(
         store = Store(
             id = storeId, name = storeId, colorArgb = null,
             isArchived = false, isSeeded = true, userId = "u",
             createdAt = 1L, updatedAt = 1L, deletedAt = null,
+            isOneOff = oneOff,
         ),
         neededCount = neededCount,
         pickedUpInSessionCount = 0,
         criticalItemNames = critical,
+        buyTodayItemNames = buyToday,
     )
 }

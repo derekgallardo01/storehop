@@ -64,7 +64,8 @@ struct ItemRepository: Sendable {
         brand: String?,
         imageUrl: String?,
         isStaple: Bool,
-        isPriority: Bool
+        isPriority: Bool,
+        isBuyToday: Bool = false
     ) async throws -> String {
         let userId = try await session.requireSignedIn()
         let householdId = try await householdSession.requireHouseholdId()
@@ -88,6 +89,7 @@ struct ItemRepository: Sendable {
             imageUrl: imageUrl,
             isStaple: isStaple,
             isPriority: isPriority,
+            isBuyToday: isBuyToday,
             householdId: householdId
         )
 
@@ -113,7 +115,8 @@ struct ItemRepository: Sendable {
         brand: String?,
         imageUrl: String?,
         isStaple: Bool,
-        isPriority: Bool
+        isPriority: Bool,
+        isBuyToday: Bool = false
     ) async throws {
         let householdId = try await householdSession.requireHouseholdId()
         let now = clock.nowMs()
@@ -136,6 +139,7 @@ struct ItemRepository: Sendable {
             current.imageUrl = imageUrl
             current.isStaple = isStaple
             current.isPriority = isPriority
+            current.isBuyToday = isBuyToday
             current.updatedAt = now
             current.pendingSync = true
             try current.upsert(db)
@@ -199,6 +203,11 @@ struct ItemRepository: Sendable {
             let ownerHouseholdId = current.householdId
 
             try ItemStoreXrefDao.markPurchasedAcrossAllStores(on: db, householdId: ownerHouseholdId, itemId: itemId, now: now)
+            // v0.9: buying the item satisfies "Buy Today!" — clear the
+            // transient urgency flag so it drops off the Buy Today banner.
+            if current.isBuyToday {
+                try ItemDao.setBuyToday(on: db, householdId: ownerHouseholdId, id: itemId, value: false, now: now)
+            }
             // PurchaseRecord's userId is the *purchaser* (the user who
             // clicked the checkbox), not the item's creator. Under
             // multi-user this matters: stats filter by purchaser per the
@@ -282,6 +291,18 @@ struct ItemRepository: Sendable {
         try await writer.write { db in
             guard let current = try ItemDao.findLiveById(on: db, householdId: householdId, id: itemId) else { return }
             try ItemStoreXrefDao.markNeededAtStore(on: db, householdId: current.householdId, itemId: itemId, storeId: storeId, now: now)
+        }
+    }
+
+    /// v0.9 "Buy Today!": set or clear the transient urgency flag on an item.
+    /// Surfaces in the Buy Today banner atop the Stores screen; auto-clears on
+    /// purchase.
+    func setBuyToday(itemId: String, value: Bool) async throws {
+        let householdId = try await householdSession.requireHouseholdId()
+        let now = clock.nowMs()
+        try await writer.write { db in
+            guard let current = try ItemDao.findLiveById(on: db, householdId: householdId, id: itemId) else { return }
+            try ItemDao.setBuyToday(on: db, householdId: current.householdId, id: itemId, value: value, now: now)
         }
     }
 
@@ -404,16 +425,22 @@ struct ItemRepository: Sendable {
         let householdId = try await householdSession.requireHouseholdId()
         let trimmed = name.trim()
         precondition(!trimmed.isEmpty, "name must be non-empty")
-        // One-shot read for the dedupe lookup. The downstream call (either
-        // tagItemToStore or addItem) opens its own writer transaction; no
-        // need to wrap them together since each is atomic.
-        let existing = try await writer.read { db in
-            try ItemDao.findByName(on: db, householdId: householdId, name: trimmed)
+        // One-shot read for the dedupe lookup + the target store's one-off
+        // status. The downstream call (either tagItemToStore or addItem) opens
+        // its own writer transaction; no need to wrap them together since each
+        // is atomic.
+        let lookup = try await writer.read { db -> (existing: Item?, isOneOff: Bool) in
+            let existing = try ItemDao.findByName(on: db, householdId: householdId, name: trimmed)
+            let store = try StoreDao.findById(on: db, householdId: householdId, id: storeId)
+            return (existing, store?.isOneOff ?? false)
         }
-        if let existing {
+        if let existing = lookup.existing {
             try await tagItemToStore(itemId: existing.id, storeId: storeId)
             return existing.id
         }
+        // v0.9: new items default to "Always on the list" (staple), EXCEPT when
+        // quick-added at a one-off store — one-offs are "buy once," so a staple
+        // there would be contradictory.
         return try await addItem(
             name: trimmed,
             categoryId: nil,
@@ -422,7 +449,7 @@ struct ItemRepository: Sendable {
             notes: nil,
             brand: nil,
             imageUrl: nil,
-            isStaple: false,
+            isStaple: !lookup.isOneOff,
             isPriority: false
         )
     }

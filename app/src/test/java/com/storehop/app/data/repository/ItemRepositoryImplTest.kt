@@ -45,6 +45,7 @@ class ItemRepositoryImplTest {
             xrefDao = db.itemStoreXrefDao(),
             purchaseRecordDao = db.purchaseRecordDao(),
             scoDao = db.storeCategoryOrderDao(),
+            storeDao = db.storeDao(),
             ids = sequentialIds,
             clock = fixedClock,
             session = session,
@@ -733,6 +734,7 @@ class ItemRepositoryImplTest {
             xrefDao = db.itemStoreXrefDao(),
             purchaseRecordDao = db.purchaseRecordDao(),
             scoDao = db.storeCategoryOrderDao(),
+            storeDao = db.storeDao(),
             ids = sequentialIds,
             clock = fixedClock,
             session = foreignSession,
@@ -815,6 +817,49 @@ class ItemRepositoryImplTest {
         repo.softDelete(bread)
         val afterDelete = repo.observeNeededItemIds().first()
         assertThat(afterDelete).isEmpty()
+    }
+
+    // ---- v0.9: Buy Today (#5b) + quick-add staple default (#5a) ------------
+
+    @Test fun `markPurchasedAtStore clears the isBuyToday flag`() = runTest {
+        val id = repo.addItem(
+            name = "Advil", categoryId = null, storeIds = setOf("store_lidl"),
+            isBuyToday = true,
+        )
+        assertThat(repo.observeById(id).first()!!.item.isBuyToday).isTrue()
+
+        repo.markPurchasedAtStore(id, "store_lidl")
+
+        assertThat(repo.observeById(id).first()!!.item.isBuyToday).isFalse()
+    }
+
+    @Test fun `setBuyToday toggles the transient urgency flag`() = runTest {
+        val id = repo.addItem(name = "Advil", categoryId = null, storeIds = setOf("store_lidl"))
+        assertThat(repo.observeById(id).first()!!.item.isBuyToday).isFalse()
+
+        repo.setBuyToday(id, true)
+        assertThat(repo.observeById(id).first()!!.item.isBuyToday).isTrue()
+
+        repo.setBuyToday(id, false)
+        assertThat(repo.observeById(id).first()!!.item.isBuyToday).isFalse()
+    }
+
+    @Test fun `addItemFromQuickAdd defaults staple true at a regular store`() = runTest {
+        val id = repo.addItemFromQuickAdd("Bananas", "store_lidl")
+        assertThat(repo.observeById(id).first()!!.item.isStaple).isTrue()
+    }
+
+    @Test fun `addItemFromQuickAdd defaults staple false at a one-off store`() = runTest {
+        db.storeDao().upsert(
+            Store(
+                id = "store_ikea", name = "IKEA", colorArgb = null,
+                isArchived = false, isSeeded = false, userId = TEST_USER_ID,
+                createdAt = 1L, updatedAt = 1L, deletedAt = null,
+                isOneOff = true, householdId = TEST_USER_ID,
+            ),
+        )
+        val id = repo.addItemFromQuickAdd("Lamp", "store_ikea")
+        assertThat(repo.observeById(id).first()!!.item.isStaple).isFalse()
     }
 
     // ---- Helpers ------------------------------------------------------------

@@ -43,6 +43,14 @@ data class Item(
     @ColumnInfo(defaultValue = "0") val isStaple: Boolean = false,
     @ColumnInfo(defaultValue = "0") val isPriority: Boolean = false,
     /**
+     * v0.9 "Buy Today!": a transient urgency flag, distinct from the permanent
+     * [isPriority] ("Critical"). The user sets it when an item must be bought
+     * today; it surfaces in the always-on Buy Today banner at the top of the
+     * Stores screen and auto-clears when the item is marked purchased. Not a
+     * catalog attribute — deliberately absent from the CSV template.
+     */
+    @ColumnInfo(defaultValue = "0") val isBuyToday: Boolean = false,
+    /**
      * v0.7.0 multi-user: access scope. Every entity belongs to one household.
      * Single-user households have `householdId == userId` (auto-migrated on
      * first launch). When a user joins another household via invite, every

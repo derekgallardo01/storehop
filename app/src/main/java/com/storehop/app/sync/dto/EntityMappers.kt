@@ -35,6 +35,7 @@ fun Item.toDto() = ItemDto(
     imageUrl = imageUrl,
     isStaple = isStaple,
     isPriority = isPriority,
+    isBuyToday = isBuyToday,
     householdId = householdId,
 )
 
@@ -134,6 +135,7 @@ fun ItemDto.toEntity() = Item(
     imageUrl = imageUrl,
     isStaple = isStaple,
     isPriority = isPriority,
+    isBuyToday = isBuyToday,
     householdId = householdId.ifEmpty { userId },
 )
 

@@ -36,6 +36,7 @@ import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.Today
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.SearchOff
@@ -69,6 +70,9 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -76,9 +80,11 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import coil.compose.AsyncImage
 import com.storehop.app.R
 import com.storehop.app.data.db.relations.ShoppingRow
 import com.storehop.app.data.prefs.SortMode
+import com.storehop.app.ui.common.ZoomableImageDialog
 import com.storehop.app.ui.util.EmptyState
 import com.storehop.app.ui.util.UndoBar
 import com.storehop.app.ui.util.UndoBarState
@@ -203,6 +209,9 @@ fun ShopAtStoreScreen(
         },
     ) { padding ->
         Column(modifier = Modifier.padding(padding).fillMaxSize()) {
+            if (state.buyTodayNames.isNotEmpty()) {
+                BuyTodayBanner(names = state.buyTodayNames)
+            }
             if (state.criticalNames.isNotEmpty()) {
                 CriticalBanner(criticalNames = state.criticalNames)
             }
@@ -440,6 +449,55 @@ private fun QuickAddSuggestionRow(
 }
 
 @Composable
+private fun BuyTodayBanner(names: List<String>) {
+    // In-store mirror of the Stores-overview Buy Today banner, so the "get it
+    // today" signal is visible while shopping this store (Mike-reported
+    // v0.9.1). Same expand/collapse + urgent error styling as the overview.
+    var expanded by remember { mutableStateOf(false) }
+    val onContainer = MaterialTheme.colorScheme.onErrorContainer
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp)
+            .clickable { expanded = !expanded },
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.errorContainer,
+        ),
+    ) {
+        Column(modifier = Modifier.padding(12.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Filled.Today, contentDescription = null, tint = onContainer)
+                Spacer(Modifier.width(12.dp))
+                val n = names.size
+                Text(
+                    text = pluralStringResource(R.plurals.buy_today_at_this_store, n, n),
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    color = onContainer,
+                    modifier = Modifier.weight(1f),
+                )
+                Icon(
+                    imageVector = if (expanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
+                    contentDescription = stringResource(
+                        if (expanded) R.string.buy_today_banner_collapse_cd
+                        else R.string.buy_today_banner_expand_cd,
+                    ),
+                    tint = onContainer,
+                )
+            }
+            AnimatedVisibility(visible = expanded) {
+                Text(
+                    text = names.joinToString(", "),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = onContainer,
+                    modifier = Modifier.padding(top = 6.dp, start = 36.dp),
+                )
+            }
+        }
+    }
+}
+
+@Composable
 private fun CriticalBanner(criticalNames: List<String>) {
     // Collapsed by default: with many criticals the comma-joined list grew
     // tall enough to push the rest of the screen off the fold. Mirrors the
@@ -559,7 +617,8 @@ private fun ShopAtStoreRow(
                 ),
         )
         Checkbox(checked = isPurchased, onCheckedChange = { onTap() })
-        Column(modifier = Modifier.weight(1f).padding(end = 16.dp, top = 8.dp, bottom = 8.dp)) {
+        ShopRowThumbnail(name = row.itemName, imageUrl = row.imageUrl)
+        Column(modifier = Modifier.weight(1f).padding(start = 8.dp, end = 16.dp, top = 8.dp, bottom = 8.dp)) {
             Text(
                 text = row.itemName,
                 style = MaterialTheme.typography.bodyLarge,
@@ -574,6 +633,16 @@ private fun ShopAtStoreRow(
                     textDecoration = nameDecoration,
                 )
             }
+        }
+        if (row.isBuyToday && !isPurchased) {
+            // "Buy today" marker so the urgent item is findable while
+            // scrolling this store's list, not just in the top banner.
+            Icon(
+                Icons.Filled.Today,
+                contentDescription = stringResource(R.string.badge_buy_today),
+                tint = MaterialTheme.colorScheme.error,
+                modifier = Modifier.size(18.dp).padding(end = 8.dp),
+            )
         }
         if (row.isStaple && isPurchased) {
             // "Always on the list" pin so the user knows why this row will
@@ -592,6 +661,45 @@ private fun ShopAtStoreRow(
                 modifier = Modifier.size(18.dp).padding(end = 16.dp),
             )
         }
+    }
+}
+
+/**
+ * 40dp circular product thumbnail for a Shop-at-Store row (parity with iOS,
+ * which has shown a per-row thumbnail since v0.9; Android previously showed
+ * none). Tapping a row that has a photo opens the full-screen zoomable viewer;
+ * rows with no photo render an initial-letter placeholder and are inert.
+ */
+@Composable
+private fun ShopRowThumbnail(name: String, imageUrl: String?) {
+    var viewing by remember { mutableStateOf(false) }
+    Box(
+        modifier = Modifier
+            .size(40.dp)
+            .clip(CircleShape)
+            .background(MaterialTheme.colorScheme.surfaceVariant)
+            .then(
+                if (imageUrl != null) Modifier.clickable { viewing = true } else Modifier,
+            ),
+        contentAlignment = Alignment.Center,
+    ) {
+        if (imageUrl != null) {
+            AsyncImage(
+                model = imageUrl,
+                contentDescription = stringResource(R.string.photo_item),
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.size(40.dp),
+            )
+        } else {
+            Text(
+                text = name.trim().firstOrNull()?.uppercase() ?: "?",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+    if (viewing && imageUrl != null) {
+        ZoomableImageDialog(model = imageUrl, onDismiss = { viewing = false })
     }
 }
 

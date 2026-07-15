@@ -16,6 +16,10 @@ struct StorePickerRow: Hashable, Sendable, Identifiable {
     /// Empty if none. Drives the per-store "⚠ N critical" badge AND the
     /// cross-store banner (caller dedupes across rows).
     let criticalItemNames: [String]
+    /// v0.9: names of "Buy Today!"-flagged items currently needed at this
+    /// store. Drives the cross-store Buy Today banner. Unlike
+    /// `criticalItemNames`, one-off stores are NOT excluded upstream.
+    let buyTodayItemNames: [String]
 
     var id: String { store.id }
 }
@@ -67,7 +71,8 @@ struct ShoppingRepository: Sendable {
                     store: store,
                     neededCount: needed.count,
                     pickedUpInSessionCount: pickedUp.count,
-                    criticalItemNames: needed.filter { $0.isPriority }.map { $0.itemName }
+                    criticalItemNames: needed.filter { $0.isPriority }.map { $0.itemName },
+                    buyTodayItemNames: needed.filter { $0.isBuyToday }.map { $0.itemName }
                 )
             }
         }

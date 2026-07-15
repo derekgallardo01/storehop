@@ -164,6 +164,16 @@ struct ItemDao: Sendable {
             """, arguments: [now, categoryId, householdId])
     }
 
+    /// v0.9 "Buy Today!": set (or clear) the transient urgency flag on an item.
+    /// Cleared automatically on purchase; set from the item form. Idempotent.
+    static func setBuyToday(on db: Database, householdId: String, id: String, value: Bool, now: Int64) throws {
+        try db.execute(sql: """
+            UPDATE items
+            SET isBuyToday = ?, updatedAt = ?, pendingSync = 1
+            WHERE id = ? AND householdId = ?
+            """, arguments: [value, now, id, householdId])
+    }
+
     func restoreCategoryReferences(householdId: String, categoryId: String, clearedAt: Int64, now: Int64) async throws {
         try await writer.write { db in
             try Self.restoreCategoryReferences(on: db, householdId: householdId, categoryId: categoryId, clearedAt: clearedAt, now: now)

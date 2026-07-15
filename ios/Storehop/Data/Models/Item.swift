@@ -28,6 +28,12 @@ struct Item: Codable, FetchableRecord, MutablePersistableRecord, Identifiable, H
     var imageUrl: String?
     var isStaple: Bool
     var isPriority: Bool
+    /// v0.9 "Buy Today!": transient urgency flag, distinct from the permanent
+    /// `isPriority` ("Critical"). Set when an item must be bought today;
+    /// surfaces in the Buy Today banner atop the Stores screen and auto-clears
+    /// on purchase. Defaulted so existing `Item(...)` construction sites and
+    /// GRDB decodes of pre-migration rows keep compiling / decoding.
+    var isBuyToday: Bool = false
     /// v0.7.0 multi-user access scope. Every entity belongs to one
     /// household. Single-member households have `householdId == userId`
     /// (auto-migrated on first launch by the v7→v8 schema migration).
@@ -53,6 +59,7 @@ struct Item: Codable, FetchableRecord, MutablePersistableRecord, Identifiable, H
         static let imageUrl        = Column(CodingKeys.imageUrl)
         static let isStaple        = Column(CodingKeys.isStaple)
         static let isPriority      = Column(CodingKeys.isPriority)
+        static let isBuyToday      = Column(CodingKeys.isBuyToday)
         static let householdId     = Column(CodingKeys.householdId)
     }
 }

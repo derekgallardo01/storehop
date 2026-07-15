@@ -46,26 +46,30 @@ struct ItemDto: Codable, Sendable, Equatable {
     var imageUrl: String?
     var isStaple: Bool
     var isPriority: Bool
+    /// v0.9 "Buy Today!" transient urgency flag. Defaults false so older docs
+    /// (which omit the field) decode as un-flagged.
+    var isBuyToday: Bool = false
     var householdId: String = ""
 
     enum CodingKeys: String, CodingKey {
         case id, name, categoryId, notes, quantity, isNeeded, lastPurchasedAt
         case userId, createdAt, updatedAt, deletedAt, brand, imageUrl
-        case isStaple, isPriority, householdId
+        case isStaple, isPriority, isBuyToday, householdId
     }
 
     init(id: String, name: String, categoryId: String?, notes: String?,
          quantity: String?, isNeeded: Bool, lastPurchasedAt: Int64?,
          userId: String, createdAt: Int64, updatedAt: Int64, deletedAt: Int64?,
          brand: String?, imageUrl: String?, isStaple: Bool, isPriority: Bool,
-         householdId: String = "") {
+         isBuyToday: Bool = false, householdId: String = "") {
         self.id = id; self.name = name; self.categoryId = categoryId
         self.notes = notes; self.quantity = quantity; self.isNeeded = isNeeded
         self.lastPurchasedAt = lastPurchasedAt; self.userId = userId
         self.createdAt = createdAt; self.updatedAt = updatedAt
         self.deletedAt = deletedAt; self.brand = brand
         self.imageUrl = imageUrl; self.isStaple = isStaple
-        self.isPriority = isPriority; self.householdId = householdId
+        self.isPriority = isPriority; self.isBuyToday = isBuyToday
+        self.householdId = householdId
     }
 
     init(from decoder: Decoder) throws {
@@ -85,6 +89,7 @@ struct ItemDto: Codable, Sendable, Equatable {
         imageUrl = try c.decodeIfPresent(String.self, forKey: .imageUrl)
         isStaple = try c.decodeIfPresent(Bool.self, forKey: .isStaple) ?? false
         isPriority = try c.decodeIfPresent(Bool.self, forKey: .isPriority) ?? false
+        isBuyToday = try c.decodeIfPresent(Bool.self, forKey: .isBuyToday) ?? false
         householdId = try c.decodeIfPresent(String.self, forKey: .householdId) ?? userId
     }
 }

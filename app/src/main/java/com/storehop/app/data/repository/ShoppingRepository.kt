@@ -25,6 +25,13 @@ data class StorePickerRow(
      * badge AND the cross-store banner (caller dedupes across rows).
      */
     val criticalItemNames: List<String>,
+    /**
+     * v0.9: names of "Buy Today!"-flagged items currently needed at this
+     * store. Drives the cross-store Buy Today banner. Unlike
+     * [criticalItemNames], one-off stores are NOT excluded upstream —
+     * urgency doesn't care whether the trip is a grocery run.
+     */
+    val buyTodayItemNames: List<String>,
 )
 
 interface ShoppingRepository {

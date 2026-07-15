@@ -5,6 +5,7 @@ import com.storehop.app.data.dao.ItemDao
 import com.storehop.app.data.dao.ItemStoreXrefDao
 import com.storehop.app.data.dao.PurchaseRecordDao
 import com.storehop.app.data.dao.StoreCategoryOrderDao
+import com.storehop.app.data.dao.StoreDao
 import com.storehop.app.data.db.StorehopDatabase
 import com.storehop.app.data.db.relations.ItemWithCategoryAndStores
 import com.storehop.app.data.entity.Item
@@ -38,6 +39,7 @@ class ItemRepositoryImpl @Inject constructor(
     private val xrefDao: ItemStoreXrefDao,
     private val purchaseRecordDao: PurchaseRecordDao,
     private val scoDao: StoreCategoryOrderDao,
+    private val storeDao: StoreDao,
     private val ids: IdGenerator,
     private val clock: Clock,
     private val session: UserSessionProvider,
@@ -65,6 +67,7 @@ class ItemRepositoryImpl @Inject constructor(
         imageUrl: String?,
         isStaple: Boolean,
         isPriority: Boolean,
+        isBuyToday: Boolean,
     ): String = db.withTransaction {
         val userId = requireSignedIn()
         val householdId = requireHousehold()
@@ -87,6 +90,7 @@ class ItemRepositoryImpl @Inject constructor(
                 imageUrl = imageUrl,
                 isStaple = isStaple,
                 isPriority = isPriority,
+                isBuyToday = isBuyToday,
                 householdId = householdId,
             ),
         )
@@ -108,6 +112,7 @@ class ItemRepositoryImpl @Inject constructor(
         imageUrl: String?,
         isStaple: Boolean,
         isPriority: Boolean,
+        isBuyToday: Boolean,
     ) = db.withTransaction {
         val householdId = requireHousehold()
         val now = clock.millis()
@@ -124,6 +129,7 @@ class ItemRepositoryImpl @Inject constructor(
                 imageUrl = imageUrl,
                 isStaple = isStaple,
                 isPriority = isPriority,
+                isBuyToday = isBuyToday,
                 updatedAt = now,
                 pendingSync = true,
             ),
@@ -182,6 +188,11 @@ class ItemRepositoryImpl @Inject constructor(
                 ?: return@withTransaction null
 
             xrefDao.markPurchasedAcrossAllStores(current.householdId, itemId, now)
+            // v0.9: buying the item satisfies "Buy Today!" -- clear the
+            // transient urgency flag so it drops off the Buy Today banner.
+            if (current.isBuyToday) {
+                itemDao.setBuyToday(current.householdId, itemId, value = false, now)
+            }
             // PurchaseRecord's userId is the *purchaser* (the user who clicked
             // the checkbox), not the item's creator. Under multi-user this
             // matters: stats filter by purchaser per the v0.7.0 design ("what
@@ -208,6 +219,13 @@ class ItemRepositoryImpl @Inject constructor(
         val current = itemDao.observeById(householdId, itemId).first()?.item
             ?: return@withTransaction
         xrefDao.markNeededAtStore(current.householdId, itemId, storeId, clock.millis())
+    }
+
+    override suspend fun setBuyToday(itemId: String, value: Boolean) = db.withTransaction {
+        val householdId = requireHousehold()
+        val current = itemDao.observeById(householdId, itemId).first()?.item
+            ?: return@withTransaction
+        itemDao.setBuyToday(current.householdId, itemId, value, clock.millis())
     }
 
     override suspend fun tagItemToStore(itemId: String, storeId: String) = db.withTransaction {
@@ -252,7 +270,16 @@ class ItemRepositoryImpl @Inject constructor(
             tagItemToStore(existing.id, storeId)
             existing.id
         } else {
-            addItem(name = trimmed, categoryId = null, storeIds = setOf(storeId))
+            // v0.9: new items default to "Always on the list" (staple), EXCEPT
+            // when quick-added at a one-off store -- one-offs are "buy once,"
+            // so a staple there would be contradictory.
+            val isOneOff = storeDao.findById(householdId, storeId)?.isOneOff == true
+            addItem(
+                name = trimmed,
+                categoryId = null,
+                storeIds = setOf(storeId),
+                isStaple = !isOneOff,
+            )
         }
     }
 

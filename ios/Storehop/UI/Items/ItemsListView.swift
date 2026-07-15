@@ -338,6 +338,7 @@ private struct ItemRowView: View {
 private struct ItemThumbnail: View {
     let name: String
     let imageUrl: String?
+    @State private var enlarged = false
 
     var body: some View {
         Group {
@@ -347,6 +348,13 @@ private struct ItemThumbnail: View {
                 } placeholder: { placeholderCircle }
                 .frame(width: 40, height: 40)
                 .clipShape(Circle())
+                .contentShape(Circle())
+                // Tap the photo to enlarge; the tap is captured here so the
+                // row's own tap (open editor) doesn't also fire.
+                .onTapGesture { enlarged = true }
+                .fullScreenCover(isPresented: $enlarged) {
+                    ZoomableImageView(imageUrl: imageUrl)
+                }
             } else {
                 placeholderCircle
             }

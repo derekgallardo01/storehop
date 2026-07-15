@@ -458,6 +458,66 @@ final class ItemRepositoryTests: XCTestCase {
             XCTFail("Expected NotSignedInError, got \(error)")
         }
     }
+
+    // MARK: - v0.9 Buy Today (#5b) + quick-add staple default (#5a)
+
+    private func fetchItem(_ s: Setup, _ id: String) async throws -> Item? {
+        try await s.db.queue.read { conn in
+            try Item.fetchOne(conn, sql: "SELECT * FROM items WHERE id = ?", arguments: [id])
+        }
+    }
+
+    func testMarkPurchasedAtStoreClearsIsBuyToday() async throws {
+        let s = try setup()
+        let id = try await s.repo.addItem(
+            name: "Advil", categoryId: nil, storeIds: ["s_lidl"],
+            quantity: nil, notes: nil, brand: nil, imageUrl: nil,
+            isStaple: false, isPriority: false, isBuyToday: true
+        )
+        let before = try await fetchItem(s, id)?.isBuyToday
+        XCTAssertEqual(before, true)
+
+        _ = try await s.repo.markPurchasedAtStore(itemId: id, storeId: "s_lidl")
+
+        let after = try await fetchItem(s, id)?.isBuyToday
+        XCTAssertEqual(after, false, "Buying the item clears its Buy Today flag")
+    }
+
+    func testSetBuyTodayTogglesTheFlag() async throws {
+        let s = try setup()
+        let id = try await s.repo.addItem(
+            name: "Advil", categoryId: nil, storeIds: ["s_lidl"],
+            quantity: nil, notes: nil, brand: nil, imageUrl: nil,
+            isStaple: false, isPriority: false
+        )
+        let initial = try await fetchItem(s, id)?.isBuyToday
+        XCTAssertEqual(initial, false)
+
+        try await s.repo.setBuyToday(itemId: id, value: true)
+        let on = try await fetchItem(s, id)?.isBuyToday
+        XCTAssertEqual(on, true)
+
+        try await s.repo.setBuyToday(itemId: id, value: false)
+        let off = try await fetchItem(s, id)?.isBuyToday
+        XCTAssertEqual(off, false)
+    }
+
+    func testQuickAddDefaultsStapleTrueAtRegularStore() async throws {
+        let s = try setup()
+        let id = try await s.repo.addItemFromQuickAdd(name: "Bananas", storeId: "s_lidl")
+        let staple = try await fetchItem(s, id)?.isStaple
+        XCTAssertEqual(staple, true)
+    }
+
+    func testQuickAddDefaultsStapleFalseAtOneOffStore() async throws {
+        let s = try setup()
+        try s.db.seed(
+            stores: [TestFixtures.store(id: "s_ikea", name: "IKEA", userId: "u1", isOneOff: true)]
+        )
+        let id = try await s.repo.addItemFromQuickAdd(name: "Lamp", storeId: "s_ikea")
+        let staple = try await fetchItem(s, id)?.isStaple
+        XCTAssertEqual(staple, false)
+    }
 }
 
 // MARK: - Test doubles

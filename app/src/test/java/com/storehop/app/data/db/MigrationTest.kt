@@ -195,6 +195,31 @@ class MigrationTest {
         }
     }
 
+    @Test fun `v10 to v11 adds isBuyToday column to items with default 0`() {
+        // v0.9 "Buy Today!": column-only migration, no backfill (every
+        // existing item starts un-flagged).
+        withV1Db { db ->
+            db.execSQL("INSERT INTO items(id,name,categoryId,notes,quantity,isNeeded,lastPurchasedAt,userId,createdAt,updatedAt,deletedAt) " +
+                "VALUES('i1','Milk',NULL,NULL,NULL,1,NULL,'u',1,1,NULL)")
+        }.migrateTo(11).use { db ->
+            val cols = mutableMapOf<String, Pair<String, String?>>()
+            db.query("PRAGMA table_info(`items`)").use { c ->
+                val nameIdx = c.getColumnIndexOrThrow("name")
+                val typeIdx = c.getColumnIndexOrThrow("type")
+                val defaultIdx = c.getColumnIndexOrThrow("dflt_value")
+                while (c.moveToNext()) {
+                    cols[c.getString(nameIdx)] = c.getString(typeIdx) to c.getString(defaultIdx)
+                }
+            }
+            assertThat(cols).containsKey("isBuyToday")
+            assertThat(cols.getValue("isBuyToday").first).isEqualTo("INTEGER")
+            assertThat(cols.getValue("isBuyToday").second).isEqualTo("0")
+            db.queryRow("SELECT isBuyToday FROM items WHERE id='i1'") { c ->
+                assertThat(c.getInt(0)).isEqualTo(0)
+            }
+        }
+    }
+
     @Test fun `v8 to v9 creates alive_item_store_xref view that filters tombstones`() {
         // v0.8.1: the @Junction on ItemWithCategoryAndStores now reads via
         // this view so soft-deleted xrefs don't leak ghost stores into
@@ -403,7 +428,7 @@ class MigrationTest {
             val migrations = listOf(
                 MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5,
                 MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9,
-                MIGRATION_9_10,
+                MIGRATION_9_10, MIGRATION_10_11,
             )
             val needed = migrations.filter { it.endVersion <= targetVersion }
             needed.forEach { it.migrate(db) }

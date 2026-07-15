@@ -3171,6 +3171,64 @@
         }
       }
     },
+    "image_viewer_cd": {
+      "extractionState": "manual",
+      "localizations": {
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fotografia do produto ampliada"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enlarged product photo"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Foto del producto ampliada"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Foto del prodotto ingrandita"
+          }
+        }
+      }
+    },
+    "image_viewer_close": {
+      "extractionState": "manual",
+      "localizations": {
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fechar"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Close"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cerrar"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chiudi"
+          }
+        }
+      }
+    },
     "item_photo_empty": {
       "extractionState": "manual",
       "localizations": {
@@ -5026,6 +5084,24 @@
         "it": { "stringUnit": { "state": "translated", "value": "%lld articoli critici" } }
       }
     },
+    "buy_today_at_this_store %lld": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "%lld to buy today here" } },
+        "pt-PT": { "stringUnit": { "state": "translated", "value": "%lld para comprar hoje aqui" } },
+        "es": { "stringUnit": { "state": "translated", "value": "%lld para comprar hoy aquí" } },
+        "it": { "stringUnit": { "state": "translated", "value": "%lld da comprare oggi qui" } }
+      }
+    },
+    "badge_buy_today": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Buy today" } },
+        "pt-PT": { "stringUnit": { "state": "translated", "value": "Comprar hoje" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Comprar hoy" } },
+        "it": { "stringUnit": { "state": "translated", "value": "Compra oggi" } }
+      }
+    },
     "critical_needs_count %lld": {
       "extractionState": "manual",
       "localizations": {
@@ -5051,6 +5127,69 @@
         "pt-PT": { "stringUnit": { "state": "translated", "value": "%1$@ (%2$lld)" } },
         "es": { "stringUnit": { "state": "translated", "value": "%1$@ (%2$lld)" } },
         "it": { "stringUnit": { "state": "translated", "value": "%1$@ (%2$lld)" } }
+      }
+    },
+    "buy_today_count %lld": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "%lld items to buy today" } },
+        "pt-PT": { "stringUnit": { "state": "translated", "value": "%lld artigos para comprar hoje" } },
+        "es": { "stringUnit": { "state": "translated", "value": "%lld artículos para comprar hoy" } },
+        "it": { "stringUnit": { "state": "translated", "value": "%lld articoli da comprare oggi" } }
+      }
+    },
+    "buy_today_most_at %@ %lld": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Most at %1$@ (%2$lld)" } },
+        "pt-PT": { "stringUnit": { "state": "translated", "value": "Mais em %1$@ (%2$lld)" } },
+        "es": { "stringUnit": { "state": "translated", "value": "La mayoría en %1$@ (%2$lld)" } },
+        "it": { "stringUnit": { "state": "translated", "value": "La maggior parte da %1$@ (%2$lld)" } }
+      }
+    },
+    "buy_today_store_header %@ %lld": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "%1$@ (%2$lld)" } },
+        "pt-PT": { "stringUnit": { "state": "translated", "value": "%1$@ (%2$lld)" } },
+        "es": { "stringUnit": { "state": "translated", "value": "%1$@ (%2$lld)" } },
+        "it": { "stringUnit": { "state": "translated", "value": "%1$@ (%2$lld)" } }
+      }
+    },
+    "buy_today_expand_cd": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Show items to buy today" } },
+        "pt-PT": { "stringUnit": { "state": "translated", "value": "Mostrar artigos para comprar hoje" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Mostrar artículos para comprar hoy" } },
+        "it": { "stringUnit": { "state": "translated", "value": "Mostra articoli da comprare oggi" } }
+      }
+    },
+    "buy_today_collapse_cd": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Hide items to buy today" } },
+        "pt-PT": { "stringUnit": { "state": "translated", "value": "Ocultar artigos para comprar hoje" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Ocultar artículos para comprar hoy" } },
+        "it": { "stringUnit": { "state": "translated", "value": "Nascondi articoli da comprare oggi" } }
+      }
+    },
+    "item_buy_today_label": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Buy today" } },
+        "pt-PT": { "stringUnit": { "state": "translated", "value": "Comprar hoje" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Comprar hoy" } },
+        "it": { "stringUnit": { "state": "translated", "value": "Compra oggi" } }
+      }
+    },
+    "item_buy_today_help": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Surfaces at the top of Stores today; clears when you buy it." } },
+        "pt-PT": { "stringUnit": { "state": "translated", "value": "Aparece no topo das Lojas hoje; desaparece quando o comprar." } },
+        "es": { "stringUnit": { "state": "translated", "value": "Aparece arriba en Tiendas hoy; se quita cuando lo compras." } },
+        "it": { "stringUnit": { "state": "translated", "value": "Compare in cima ai Negozi oggi; si azzera quando lo compri." } }
       }
     },
     "items_empty_no_query_title": {

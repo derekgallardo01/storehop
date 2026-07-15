@@ -185,7 +185,8 @@ class ItemFormViewModelTest {
             itemRepo.updateItem(
                 id = "new-id", name = "Milk", categoryId = null, storeIds = emptySet(),
                 quantity = null, notes = null, brand = null,
-                imageUrl = "https://img/new.jpg", isStaple = false, isPriority = false,
+                // v0.9: new items default to "Always on the list" (staple).
+                imageUrl = "https://img/new.jpg", isStaple = true, isPriority = false,
             )
         }
         assertThat(vm.state.value.saved).isTrue()

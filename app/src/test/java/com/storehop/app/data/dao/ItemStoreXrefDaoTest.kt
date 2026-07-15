@@ -247,6 +247,81 @@ class ItemStoreXrefDaoTest {
         assertThat(ids.toSet()).containsExactly("milk", "bread")
     }
 
+    // ---- v0.9: retained-store convergence + Force-Sync repair (#3/#4) -------
+
+    @Test fun `setStoresForItem un-strands a retained store when the item is needed elsewhere`() = runTest {
+        // store_a still needed, store_b stranded at isNeeded=0 by a prior
+        // purchase cascade. Re-saving the form with BOTH still selected must
+        // bring store_b back onto the list.
+        dao.upsert(xref("milk", "store_a").copy(isNeeded = true))
+        dao.upsert(xref("milk", "store_b").copy(isNeeded = false, lastPurchasedAt = 100L))
+
+        dao.setStoresForItem("milk", setOf("store_a", "store_b"), TEST_USER_ID, TEST_USER_ID, now = 300L)
+
+        val live = dao.findForItem("milk").associateBy { it.storeId }
+        assertThat(live.getValue("store_a").isNeeded).isTrue()
+        assertThat(live.getValue("store_b").isNeeded).isTrue()
+        assertThat(live.getValue("store_b").updatedAt).isEqualTo(300L)
+    }
+
+    @Test fun `setStoresForItem leaves a fully-purchased item purchased on re-save`() = runTest {
+        // Both stores purchased (item is off every list). Editing it must NOT
+        // resurrect it onto the lists just because it was re-saved.
+        dao.upsert(xref("milk", "store_a").copy(isNeeded = false, lastPurchasedAt = 100L))
+        dao.upsert(xref("milk", "store_b").copy(isNeeded = false, lastPurchasedAt = 100L))
+
+        dao.setStoresForItem("milk", setOf("store_a", "store_b"), TEST_USER_ID, TEST_USER_ID, now = 300L)
+
+        val live = dao.findForItem("milk").associateBy { it.storeId }
+        assertThat(live.getValue("store_a").isNeeded).isFalse()
+        assertThat(live.getValue("store_b").isNeeded).isFalse()
+    }
+
+    @Test fun `setStoresForItem adds a new store as needed when the item is needed globally`() = runTest {
+        dao.upsert(xref("milk", "store_a").copy(isNeeded = true))
+
+        dao.setStoresForItem("milk", setOf("store_a", "store_b"), TEST_USER_ID, TEST_USER_ID, now = 300L)
+
+        assertThat(dao.findForItem("milk").single { it.storeId == "store_b" }.isNeeded).isTrue()
+    }
+
+    @Test fun `repairStrandedNeededLinks converges items needed somewhere and skips the rest`() = runTest {
+        // milk: needed at A, stranded at B -> both should end needed.
+        dao.upsert(xref("milk", "store_a").copy(isNeeded = true))
+        dao.upsert(xref("milk", "store_b").copy(isNeeded = false, lastPurchasedAt = 100L))
+        // bread: fully purchased everywhere -> stays purchased.
+        db.itemDao().upsert(
+            Item(
+                id = "bread", name = "Bread", categoryId = null, notes = null,
+                quantity = null, isNeeded = false, lastPurchasedAt = null,
+                userId = TEST_USER_ID, createdAt = 1L, updatedAt = 1L, deletedAt = null,
+                householdId = TEST_USER_ID,
+            ),
+        )
+        dao.upsert(xref("bread", "store_a").copy(isNeeded = false, lastPurchasedAt = 100L))
+        dao.upsert(xref("bread", "store_c").copy(isNeeded = false, lastPurchasedAt = 100L))
+
+        val repaired = dao.repairStrandedNeededLinks(TEST_USER_ID, now = 9_000L)
+
+        // Only milk@store_b was stranded -> exactly one row repaired.
+        assertThat(repaired).isEqualTo(1)
+        val milk = dao.findForItem("milk").associateBy { it.storeId }
+        assertThat(milk.getValue("store_a").isNeeded).isTrue()
+        assertThat(milk.getValue("store_b").isNeeded).isTrue()
+        assertThat(milk.getValue("store_b").pendingSync).isTrue()
+        val bread = dao.findForItem("bread")
+        assertThat(bread.all { !it.isNeeded }).isTrue()
+    }
+
+    @Test fun `repairStrandedNeededLinks is idempotent`() = runTest {
+        dao.upsert(xref("milk", "store_a").copy(isNeeded = true))
+        dao.upsert(xref("milk", "store_b").copy(isNeeded = false, lastPurchasedAt = 100L))
+
+        assertThat(dao.repairStrandedNeededLinks(TEST_USER_ID, now = 9_000L)).isEqualTo(1)
+        // Second run: nothing left stranded.
+        assertThat(dao.repairStrandedNeededLinks(TEST_USER_ID, now = 9_100L)).isEqualTo(0)
+    }
+
     private fun xref(itemId: String, storeId: String, now: Long = 1L) = ItemStoreXref(
         itemId = itemId, storeId = storeId, userId = TEST_USER_ID,
         createdAt = now, updatedAt = now, deletedAt = null,

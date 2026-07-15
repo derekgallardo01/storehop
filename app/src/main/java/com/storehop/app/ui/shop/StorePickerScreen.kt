@@ -31,6 +31,7 @@ import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Today
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.outlined.Store
 import androidx.compose.material3.AlertDialog
@@ -92,6 +93,7 @@ fun StorePickerScreen(
 ) {
     val rows by viewModel.rows.collectAsState()
     val criticalSummary by viewModel.criticalSummary.collectAsState()
+    val buyTodaySummary by viewModel.buyTodaySummary.collectAsState()
 
     // Local mutable copy so the dragging row visually moves before the DB
     // round-trip lands (and so the upstream Flow re-emit triggered by our
@@ -152,6 +154,7 @@ fun StorePickerScreen(
         },
     ) { padding ->
         Column(modifier = Modifier.padding(padding).fillMaxSize()) {
+            buyTodaySummary?.let { BuyTodayBanner(state = it) }
             criticalSummary?.let { CriticalNeedsBanner(state = it) }
             if (localRows.isEmpty()) {
                 EmptyState(
@@ -327,6 +330,94 @@ private fun AddStoreDialog(
             }
         },
     )
+}
+
+/**
+ * v0.9 "Buy Today!" banner — pinned above the Critical banner at the top of the
+ * Stores screen. Distinct urgent styling (error container) so it reads as
+ * "act today," not "don't forget eventually." Collapsed by default; tap to
+ * expand a per-store breakdown. Mirrors [CriticalNeedsBanner]'s structure.
+ */
+@Composable
+private fun BuyTodayBanner(state: BuyTodayBannerState) {
+    var expanded by remember { mutableStateOf(false) }
+    val onContainer = MaterialTheme.colorScheme.onErrorContainer
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp)
+            .clickable { expanded = !expanded },
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.errorContainer,
+        ),
+    ) {
+        Column(modifier = Modifier.padding(12.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    Icons.Filled.Today,
+                    contentDescription = null,
+                    tint = onContainer,
+                )
+                Spacer(Modifier.width(12.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = pluralStringResource(
+                            R.plurals.buy_today_banner_count,
+                            state.totalCount,
+                            state.totalCount,
+                        ),
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.SemiBold,
+                        color = onContainer,
+                    )
+                    Spacer(Modifier.height(2.dp))
+                    Text(
+                        text = if (state.singleStore) {
+                            stringResource(R.string.buy_today_banner_all_at, state.topStoreName)
+                        } else {
+                            stringResource(
+                                R.string.buy_today_banner_most_at,
+                                state.topStoreName,
+                                state.topStoreCount,
+                            )
+                        },
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = onContainer,
+                    )
+                }
+                Icon(
+                    imageVector = if (expanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
+                    contentDescription = stringResource(
+                        if (expanded) R.string.buy_today_banner_collapse_cd
+                        else R.string.buy_today_banner_expand_cd,
+                    ),
+                    tint = onContainer,
+                )
+            }
+            AnimatedVisibility(visible = expanded) {
+                Column(modifier = Modifier.padding(top = 8.dp, start = 36.dp)) {
+                    state.byStore.forEach { (storeName, items) ->
+                        Text(
+                            text = stringResource(
+                                R.string.buy_today_banner_store_section,
+                                storeName,
+                                items.size,
+                            ),
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            color = onContainer,
+                        )
+                        Text(
+                            text = items.joinToString(", "),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = onContainer,
+                        )
+                        Spacer(Modifier.height(6.dp))
+                    }
+                }
+            }
+        }
+    }
 }
 
 @Composable

@@ -171,6 +171,16 @@ struct ItemStoreXrefDao: Sendable {
     /// no longer in `storeIds` and upserts the new set.
     /// `householdId` scopes who owns the row (the parent item's householdId);
     /// `userId` is the parent's creator-stamp copied onto the new junction rows.
+    ///
+    /// v0.9: retained stores (already alive AND still selected) used to be
+    /// left untouched, so a store stranded at `isNeeded = 0` by a prior
+    /// cross-store purchase cascade stayed invisible on that store's list even
+    /// after the user re-saved the item with the store still ticked (the
+    /// "Aldi is selected but the item never appears" bug). We now converge
+    /// `isNeeded` across the final store set to the item's current global
+    /// needed state: needed at any alive store → needed at all of them;
+    /// purchased everywhere → left purchased (so editing a bought item's name
+    /// doesn't resurrect it onto every list).
     func setStoresForItem(itemId: String, storeIds: Set<String>, householdId: String, userId: String, now: Int64) async throws {
         try await writer.write { db in
             try Self.setStoresForItem(on: db, itemId: itemId, storeIds: storeIds, householdId: householdId, userId: userId, now: now)
@@ -182,6 +192,10 @@ struct ItemStoreXrefDao: Sendable {
         let existingIds = Set(existing.map(\.storeId))
         let toRemove = existingIds.subtracting(storeIds)
         let toAdd = storeIds.subtracting(existingIds)
+        // Global needed state, evaluated from the alive xrefs BEFORE mutating
+        // anything. A newly-created item (no existing xrefs) counts as needed
+        // so its first stores land on the list.
+        let neededGlobally = existing.isEmpty || existing.contains { $0.isNeeded }
 
         for storeId in toRemove {
             try softDelete(on: db, householdId: householdId, itemId: itemId, storeId: storeId, now: now)
@@ -195,11 +209,19 @@ struct ItemStoreXrefDao: Sendable {
                 updatedAt: now,
                 deletedAt: nil,
                 pendingSync: true,
-                isNeeded: true,
+                isNeeded: neededGlobally,
                 lastPurchasedAt: nil,
                 householdId: householdId
             )
             try xref.upsert(db)
+        }
+        // Converge retained stores stranded at isNeeded = 0 while the item is
+        // needed globally. Only touch stranded rows so already-correct rows
+        // aren't needlessly re-dirtied for sync.
+        if neededGlobally {
+            for xref in existing where storeIds.contains(xref.storeId) && !xref.isNeeded {
+                try markNeededAtStore(on: db, householdId: householdId, itemId: itemId, storeId: xref.storeId, now: now)
+            }
         }
     }
 
@@ -268,6 +290,31 @@ struct ItemStoreXrefDao: Sendable {
                 pendingSync = 1
             WHERE itemId = ? AND householdId = ? AND deletedAt IS NULL
             """, arguments: [now, itemId, householdId])
+    }
+
+    /// v0.9 repair pass (Force Sync now): converge every item to global-needed.
+    /// For any item needed at ≥1 alive store, flip every OTHER alive store for
+    /// that item to needed too. Heals rows stranded at `isNeeded = 0` by the
+    /// pre-v0.9 asymmetric un-check. Idempotent — items needed nowhere are left
+    /// purchased, already-converged items match nothing. Flipped rows get
+    /// `pendingSync = 1` so the same Force-Sync flush pushes them up. Returns
+    /// the number of rows repaired.
+    @discardableResult
+    func repairStrandedNeededLinks(householdId: String, now: Int64) async throws -> Int {
+        try await writer.write { db in
+            try db.execute(sql: """
+                UPDATE item_store_xref
+                SET isNeeded = 1, updatedAt = ?, pendingSync = 1
+                WHERE householdId = ?
+                  AND deletedAt IS NULL
+                  AND isNeeded = 0
+                  AND itemId IN (
+                    SELECT itemId FROM item_store_xref
+                    WHERE householdId = ? AND deletedAt IS NULL AND isNeeded = 1
+                  )
+                """, arguments: [now, householdId, householdId])
+            return db.changesCount
+        }
     }
 
     func markNeededAtStore(householdId: String, itemId: String, storeId: String, now: Int64) async throws {

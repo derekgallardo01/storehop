@@ -217,6 +217,16 @@ fun ItemFormScreen(
                 )
             }
 
+            // "Buy today" stays available even for one-off-only items — urgency
+            // applies to any kind of trip, so it's outside the one-off guard
+            // that hides the recurring/critical toggles.
+            ToggleRow(
+                title = stringResource(R.string.form_toggle_buy_today),
+                subtitle = stringResource(R.string.form_toggle_buy_today_subtitle),
+                checked = state.isBuyToday,
+                onCheckedChange = viewModel::setBuyToday,
+            )
+
             ImagePickerTile(
                 imageUrl = state.imageUrl,
                 localUri = state.localImageUri,

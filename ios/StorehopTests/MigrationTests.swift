@@ -23,6 +23,7 @@ final class MigrationTests: XCTestCase {
             "v7_categories_display_order",
             "v8_household_scope",
             "v9_stores_one_off",
+            "v10_items_buy_today",
         ])
     }
 
@@ -161,6 +162,24 @@ final class MigrationTests: XCTestCase {
             let cols = info.compactMap { $0["name"] as String? }
             XCTAssertEqual(cols, ["householdId", "isOneOff"],
                            "Composite index columns must be (householdId, isOneOff) in that order")
+        }
+    }
+
+    // MARK: - v10_items_buy_today (Buy Today!)
+
+    func testV10AddsIsBuyTodayColumnToItemsWithDefaultZero() throws {
+        let database = try makeDatabase()
+        try database.queue.read { db in
+            let cols = try Row.fetchAll(db, sql: "PRAGMA table_info(items)")
+            let isBuyToday = cols.first { ($0["name"] as String?) == "isBuyToday" }
+            XCTAssertNotNil(isBuyToday, "v10_items_buy_today must add the `isBuyToday` column")
+            let type: String? = isBuyToday?["type"]
+            XCTAssertEqual(type, "INTEGER", "isBuyToday must be INTEGER (Bool maps to INTEGER in SQLite)")
+            let notNull: Int? = isBuyToday?["notnull"]
+            XCTAssertEqual(notNull, 1, "isBuyToday must be NOT NULL")
+            let defaultValue: String? = isBuyToday?["dflt_value"]
+            XCTAssertEqual(defaultValue, "0",
+                           "isBuyToday must default to 0 — pre-v0.9 items backfill as un-flagged")
         }
     }
 

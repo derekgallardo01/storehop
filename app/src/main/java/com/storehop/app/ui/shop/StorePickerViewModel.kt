@@ -29,6 +29,21 @@ data class CriticalBannerState(
     val byStore: List<Pair<String, List<String>>>,
 )
 
+/**
+ * Snapshot of the "Buy Today!" banner state. Same shape as
+ * [CriticalBannerState] but sourced from the transient buy-today flag and,
+ * unlike Critical, it does NOT exclude one-off stores — urgency applies to any
+ * kind of trip. `byStore` lists only stores with at least one buy-today item,
+ * in displayOrder.
+ */
+data class BuyTodayBannerState(
+    val totalCount: Int,
+    val topStoreName: String,
+    val topStoreCount: Int,
+    val singleStore: Boolean,
+    val byStore: List<Pair<String, List<String>>>,
+)
+
 @HiltViewModel
 class StorePickerViewModel @Inject constructor(
     @ApplicationContext private val appContext: Context,
@@ -76,6 +91,30 @@ class StorePickerViewModel @Inject constructor(
                 topStoreCount = top.criticalItemNames.size,
                 singleStore = withCriticals.size == 1,
                 byStore = withCriticals.map { it.store.name to it.criticalItemNames },
+            )
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000L), null)
+
+    /**
+     * v0.9 "Buy Today!" summary across stores. Null when nothing is flagged
+     * (banner hidden). Same routing hint as [criticalSummary] — names the
+     * store covering the most buy-today items so the user knows where to head
+     * first — but one-off stores ARE included here (a "Buy today" dog bed at a
+     * one-off pet store is still due today). Answers "what must I get today,
+     * and where?" independently of the Critical-count ranking.
+     */
+    val buyTodaySummary: StateFlow<BuyTodayBannerState?> = rows
+        .map { all ->
+            val withBuyToday = all.filter { it.buyTodayItemNames.isNotEmpty() }
+            if (withBuyToday.isEmpty()) return@map null
+            val total = withBuyToday.flatMap { it.buyTodayItemNames }.distinct().size
+            val top = withBuyToday.maxByOrNull { it.buyTodayItemNames.size }!!
+            BuyTodayBannerState(
+                totalCount = total,
+                topStoreName = top.store.name,
+                topStoreCount = top.buyTodayItemNames.size,
+                singleStore = withBuyToday.size == 1,
+                byStore = withBuyToday.map { it.store.name to it.buyTodayItemNames },
             )
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000L), null)

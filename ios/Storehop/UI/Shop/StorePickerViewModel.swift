@@ -23,6 +23,28 @@ struct CriticalBannerState: Equatable, Sendable {
     }
 }
 
+/// Snapshot of the "Buy Today!" banner state. Same shape as
+/// `CriticalBannerState` but sourced from the transient buy-today flag and,
+/// unlike Critical, it does NOT exclude one-off stores — urgency applies to
+/// any kind of trip. Mirrors `BuyTodayBannerState` in Android's
+/// `StorePickerViewModel.kt`.
+struct BuyTodayBannerState: Equatable, Sendable {
+    let totalCount: Int
+    let topStoreName: String
+    let topStoreCount: Int
+    let singleStore: Bool
+    let byStore: [(String, [String])]
+
+    static func == (lhs: BuyTodayBannerState, rhs: BuyTodayBannerState) -> Bool {
+        lhs.totalCount == rhs.totalCount
+            && lhs.topStoreName == rhs.topStoreName
+            && lhs.topStoreCount == rhs.topStoreCount
+            && lhs.singleStore == rhs.singleStore
+            && lhs.byStore.count == rhs.byStore.count
+            && zip(lhs.byStore, rhs.byStore).allSatisfy { l, r in l.0 == r.0 && l.1 == r.1 }
+    }
+}
+
 @Observable
 @MainActor
 final class StorePickerViewModel {
@@ -33,6 +55,11 @@ final class StorePickerViewModel {
     /// knows where to shop first. Ties resolve to whichever store appears
     /// earlier in `rows` (which is already in user display order).
     var criticalBannerState: CriticalBannerState?
+    /// v0.9 "Buy Today!" summary across stores. Nil when nothing is flagged
+    /// (banner hidden). Same routing hint as `criticalBannerState`, but one-off
+    /// stores are included here — a "Buy today" item at a one-off store is
+    /// still due today.
+    var buyTodayBannerState: BuyTodayBannerState?
 
     /// Last-error string from add/rename. Bound to dialogs as inline
     /// supportingText. Reset to nil on successful submit.
@@ -81,6 +108,7 @@ final class StorePickerViewModel {
     private func applyRows(_ rows: [StorePickerRow]) {
         self.rows = rows
         self.criticalBannerState = Self.makeBannerState(from: rows)
+        self.buyTodayBannerState = Self.makeBuyTodayBannerState(from: rows)
     }
 
     /// Build the routing-aware banner state. Walks rows in display order so
@@ -118,6 +146,33 @@ final class StorePickerViewModel {
             topStoreCount: top.criticalItemNames.count,
             singleStore: withCriticals.count == 1,
             byStore: withCriticals.map { ($0.store.name, $0.criticalItemNames) }
+        )
+    }
+
+    /// Build the Buy Today banner state. Same routing hint as
+    /// `makeBannerState` but one-off stores are included — urgency applies to
+    /// any kind of trip.
+    private static func makeBuyTodayBannerState(from rows: [StorePickerRow]) -> BuyTodayBannerState? {
+        let withBuyToday = rows.filter { !$0.buyTodayItemNames.isEmpty }
+        guard !withBuyToday.isEmpty else { return nil }
+
+        var seen: Set<String> = []
+        for row in withBuyToday {
+            for name in row.buyTodayItemNames { seen.insert(name) }
+        }
+        let total = seen.count
+
+        var top = withBuyToday[0]
+        for row in withBuyToday.dropFirst() where row.buyTodayItemNames.count > top.buyTodayItemNames.count {
+            top = row
+        }
+
+        return BuyTodayBannerState(
+            totalCount: total,
+            topStoreName: top.store.name,
+            topStoreCount: top.buyTodayItemNames.count,
+            singleStore: withBuyToday.count == 1,
+            byStore: withBuyToday.map { ($0.store.name, $0.buyTodayItemNames) }
         )
     }
 

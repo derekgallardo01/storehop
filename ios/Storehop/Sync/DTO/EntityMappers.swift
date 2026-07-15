@@ -31,6 +31,7 @@ extension Item {
             imageUrl: imageUrl,
             isStaple: isStaple,
             isPriority: isPriority,
+            isBuyToday: isBuyToday,
             householdId: householdId
         )
     }
@@ -55,6 +56,7 @@ extension ItemDto {
             imageUrl: imageUrl,
             isStaple: isStaple,
             isPriority: isPriority,
+            isBuyToday: isBuyToday,
             householdId: householdId.isEmpty ? userId : householdId
         )
     }

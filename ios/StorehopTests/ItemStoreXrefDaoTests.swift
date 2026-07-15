@@ -46,19 +46,50 @@ final class ItemStoreXrefDaoTests: XCTestCase {
         XCTAssertEqual(Set(xrefs.map(\.storeId)), ["s_lidl", "s_continente"])
     }
 
-    func testSetStoresForItemPreservesExistingXrefStateOnUntouchedRows() async throws {
+    func testSetStoresForItemUnStrandsRetainedStoreWhenNeededElsewhere() async throws {
+        // v0.9 (#3): Lidl stranded at !isNeeded while Aldi is still needed.
+        // Re-saving with both stores selected must converge Lidl back to
+        // needed so a tagged store never silently drops off the list.
         let (_, dao) = try setup()
         try await dao.setStoresForItem(itemId: "i1", storeIds: ["s_lidl", "s_aldi"], householdId: "u1", userId: "u1", now: 1_000)
-        // Mark Lidl purchased at t=1500.
         try await dao.markPurchasedAtStore(householdId: "u1", itemId: "i1", storeId: "s_lidl", now: 1_500)
 
-        // Re-save with same set of stores — should not flip Lidl back to needed.
         try await dao.setStoresForItem(itemId: "i1", storeIds: ["s_lidl", "s_aldi"], householdId: "u1", userId: "u1", now: 2_000)
 
         let lidl = try await dao.findForItem(itemId: "i1").first { $0.storeId == "s_lidl" }
         XCTAssertNotNil(lidl)
-        XCTAssertFalse(lidl?.isNeeded ?? true, "Lidl xref must remain purchased after a no-op set")
-        XCTAssertEqual(lidl?.lastPurchasedAt, 1_500)
+        XCTAssertTrue(lidl?.isNeeded ?? false, "Lidl must be converged back to needed (item is needed at Aldi)")
+    }
+
+    func testSetStoresForItemLeavesFullyPurchasedItemPurchased() async throws {
+        // Editing a bought-everywhere item must NOT resurrect it onto lists.
+        let (_, dao) = try setup()
+        try await dao.setStoresForItem(itemId: "i1", storeIds: ["s_lidl", "s_aldi"], householdId: "u1", userId: "u1", now: 1_000)
+        try await dao.markPurchasedAcrossAllStores(householdId: "u1", itemId: "i1", now: 1_500)
+
+        try await dao.setStoresForItem(itemId: "i1", storeIds: ["s_lidl", "s_aldi"], householdId: "u1", userId: "u1", now: 2_000)
+
+        let xrefs = try await dao.findForItem(itemId: "i1")
+        XCTAssertTrue(xrefs.allSatisfy { !$0.isNeeded }, "Fully-purchased item stays purchased on re-save")
+    }
+
+    // MARK: - v0.9 Force-Sync repair (#3)
+
+    func testRepairStrandedNeededLinksConvergesNeededItemsAndSkipsPurchased() async throws {
+        let (_, dao) = try setup()
+        // i1 needed at Lidl, stranded at Aldi -> both should end needed.
+        try await dao.setStoresForItem(itemId: "i1", storeIds: ["s_lidl", "s_aldi"], householdId: "u1", userId: "u1", now: 1_000)
+        try await dao.markPurchasedAtStore(householdId: "u1", itemId: "i1", storeId: "s_aldi", now: 1_500)
+
+        let repaired = try await dao.repairStrandedNeededLinks(householdId: "u1", now: 9_000)
+
+        XCTAssertEqual(repaired, 1, "Only the stranded Aldi row should be repaired")
+        let xrefs = try await dao.findForItem(itemId: "i1")
+        XCTAssertTrue(xrefs.allSatisfy { $0.isNeeded })
+
+        // Idempotent: a second pass repairs nothing.
+        let again = try await dao.repairStrandedNeededLinks(householdId: "u1", now: 9_100)
+        XCTAssertEqual(again, 0)
     }
 
     // MARK: - cross-store cascade

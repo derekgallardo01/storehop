@@ -39,8 +39,15 @@ data class ItemFormState(
     val brand: String = "",
     val categoryId: String? = null,
     val storeIds: Set<String> = emptySet(),
-    val isStaple: Boolean = false,
+    /**
+     * v0.9: new items default to "Always on the list." Edit mode overrides this
+     * with the stored value on load; the one-off guard in [ItemFormViewModel.submit]
+     * coerces it back to false when every picked store is a one-off store.
+     */
+    val isStaple: Boolean = true,
     val isPriority: Boolean = false,
+    /** v0.9 "Buy Today!" transient urgency flag. */
+    val isBuyToday: Boolean = false,
     /** Already-uploaded image URL from a prior save. */
     val imageUrl: String? = null,
     /** A local URI the user just picked but hasn't uploaded yet. */
@@ -138,6 +145,7 @@ class ItemFormViewModel @Inject constructor(
                         storeIds = row.stores.map { it.id }.toSet(),
                         isStaple = row.item.isStaple,
                         isPriority = row.item.isPriority,
+                        isBuyToday = row.item.isBuyToday,
                         imageUrl = row.item.imageUrl,
                         isLoading = false,
                     )
@@ -164,6 +172,7 @@ class ItemFormViewModel @Inject constructor(
     }
     fun setStaple(v: Boolean) { _state.value = _state.value.copy(isStaple = v) }
     fun setPriority(v: Boolean) { _state.value = _state.value.copy(isPriority = v) }
+    fun setBuyToday(v: Boolean) { _state.value = _state.value.copy(isBuyToday = v) }
 
     /**
      * Create a new category from the inline "+ New category" affordance in
@@ -213,6 +222,11 @@ class ItemFormViewModel @Inject constructor(
         _state.value = s.copy(isSubmitting = true, saveError = null)
         viewModelScope.launch {
             try {
+                // v0.9: staples and one-offs don't combine. When every picked
+                // store is a one-off store the toggle rows are hidden, so
+                // coerce the (defaulted-on) staple flag back to false before
+                // persisting.
+                val isStapleToSave = if (allPickedStoresAreOneOff.value) false else s.isStaple
                 // Persist the row first so we have an id for the upload path.
                 // Image URL gets patched in by a follow-up updateItem if the
                 // user staged a local pick; otherwise we save as-is.
@@ -223,8 +237,9 @@ class ItemFormViewModel @Inject constructor(
                         storeIds = s.storeIds,
                         brand = s.brand.takeIf { it.isNotBlank() },
                         imageUrl = s.imageUrl,
-                        isStaple = s.isStaple,
+                        isStaple = isStapleToSave,
                         isPriority = s.isPriority,
+                        isBuyToday = s.isBuyToday,
                     )
                 } else {
                     itemRepository.updateItem(
@@ -236,8 +251,9 @@ class ItemFormViewModel @Inject constructor(
                         notes = null,
                         brand = s.brand.takeIf { it.isNotBlank() },
                         imageUrl = s.imageUrl,
-                        isStaple = s.isStaple,
+                        isStaple = isStapleToSave,
                         isPriority = s.isPriority,
+                        isBuyToday = s.isBuyToday,
                     )
                     itemId
                 }
@@ -254,8 +270,9 @@ class ItemFormViewModel @Inject constructor(
                         notes = null,
                         brand = s.brand.takeIf { it.isNotBlank() },
                         imageUrl = url,
-                        isStaple = s.isStaple,
+                        isStaple = isStapleToSave,
                         isPriority = s.isPriority,
+                        isBuyToday = s.isBuyToday,
                     )
                 }
                 _state.value = _state.value.copy(

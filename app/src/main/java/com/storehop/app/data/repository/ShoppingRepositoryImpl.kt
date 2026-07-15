@@ -55,6 +55,9 @@ class ShoppingRepositoryImpl @Inject constructor(
                             criticalItemNames = needed
                                 .filter { it.isPriority }
                                 .map { it.itemName },
+                            buyTodayItemNames = needed
+                                .filter { it.isBuyToday }
+                                .map { it.itemName },
                         )
                     }
                 }
