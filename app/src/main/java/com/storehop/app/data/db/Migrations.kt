@@ -220,6 +220,18 @@ val MIGRATION_9_10 = object : Migration(9, 10) {
     }
 }
 
+/**
+ * v0.9 "Buy Today!": add the transient per-item urgency flag. Default = 0 so
+ * every existing item starts un-flagged. No index — the banner reads through
+ * the existing store-picker query, which already filters by household + alive
+ * xref, and the flag is a cheap post-filter on that small result set.
+ */
+val MIGRATION_10_11 = object : Migration(10, 11) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE `items` ADD COLUMN `isBuyToday` INTEGER NOT NULL DEFAULT 0")
+    }
+}
+
 val MIGRATION_7_8 = object : Migration(7, 8) {
     override fun migrate(db: SupportSQLiteDatabase) {
         // Add householdId to every per-user entity. Empty-string default

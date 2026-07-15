@@ -117,6 +117,17 @@ interface ItemStoreXrefDao {
      * Tombstones any xref no longer in [storeIds] and upserts the new set.
      * `householdId` scopes who owns the row (the parent item's householdId);
      * `userId` is the parent's creator-stamp copied onto the new junction rows.
+     *
+     * v0.9: retained stores (already alive AND still selected) used to be left
+     * completely untouched, so a store stranded at `isNeeded = 0` by a prior
+     * cross-store purchase cascade stayed invisible on that store's list even
+     * after the user re-saved the item with the store still ticked — the
+     * "Aldi is selected but the item never appears" bug Mike reported. We now
+     * converge `isNeeded` across the final store set to the item's current
+     * global needed state: if the item is needed at ANY alive store it's
+     * needed at all of them; if it's fully purchased everywhere we leave it
+     * purchased (so editing a bought item's name doesn't resurrect it onto
+     * every list).
      */
     @Transaction
     suspend fun setStoresForItem(
@@ -130,6 +141,11 @@ interface ItemStoreXrefDao {
         val existingIds = existing.map { it.storeId }.toSet()
         val toRemove = existingIds - storeIds
         val toAdd = storeIds - existingIds
+        // Global needed state, evaluated from the alive xrefs BEFORE we mutate
+        // anything. A newly-created item (no existing xrefs) counts as needed
+        // so its first stores land on the list, matching the old
+        // upsert-with-isNeeded=true default.
+        val neededGlobally = existing.isEmpty() || existing.any { it.isNeeded }
         toRemove.forEach { softDelete(householdId, itemId, it, now) }
         toAdd.forEach { storeId ->
             upsert(
@@ -140,9 +156,18 @@ interface ItemStoreXrefDao {
                     createdAt = now,
                     updatedAt = now,
                     deletedAt = null,
+                    isNeeded = neededGlobally,
                     householdId = householdId,
                 ),
             )
+        }
+        // Converge retained stores that are stranded at isNeeded = 0 while the
+        // item is needed globally. Only touch the stranded ones so we don't
+        // needlessly re-dirty already-correct rows for sync.
+        if (neededGlobally) {
+            existing.asSequence()
+                .filter { it.storeId in storeIds && !it.isNeeded }
+                .forEach { markNeededAtStore(householdId, itemId, it.storeId, now) }
         }
     }
 
@@ -289,6 +314,32 @@ interface ItemStoreXrefDao {
         """,
     )
     fun observeNeededItemIds(householdId: String): Flow<List<String>>
+
+    /**
+     * v0.9 repair pass (Force Sync now): converge every item to global-needed.
+     * For any item that is needed at ≥1 alive store, flip every OTHER alive
+     * store for that item to needed too. Heals rows stranded at `isNeeded = 0`
+     * by the pre-v0.9 asymmetric un-check (which only restored the store you
+     * were standing in). Idempotent — items needed nowhere are left purchased,
+     * and already-converged items match nothing. Flipped rows are flagged
+     * `pendingSync = 1` so the same Force-Sync flush pushes them up.
+     *
+     * Returns the number of rows repaired.
+     */
+    @Query(
+        """
+        UPDATE item_store_xref
+        SET isNeeded = 1, updatedAt = :now, pendingSync = 1
+        WHERE householdId = :householdId
+          AND deletedAt IS NULL
+          AND isNeeded = 0
+          AND itemId IN (
+            SELECT itemId FROM item_store_xref
+            WHERE householdId = :householdId AND deletedAt IS NULL AND isNeeded = 1
+          )
+        """,
+    )
+    suspend fun repairStrandedNeededLinks(householdId: String, now: Long): Int
 }
 
 /**

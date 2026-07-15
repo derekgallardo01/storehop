@@ -119,6 +119,52 @@ class ShopAtStoreViewModelTest {
         }
     }
 
+    @Test fun `category mode orders rows independent of isNeeded so toggling doesn't jump`() = runTest {
+        // The DAO emits rows isNeeded-first; category mode must NOT inherit
+        // that, or un-checking a row yanks it up the list and loses the scroll
+        // anchor (Mike's v0.9 report). Feed rows in DAO order (needed first)
+        // and assert the grouped list is name-ordered within the category,
+        // i.e. the purchased "Apple" still sorts before the needed "Banana".
+        rowsFlow.value = listOf(
+            catRow("banana", "Banana", isNeeded = true, categoryName = "Produce", displayOrder = 0),
+            catRow("apple", "Apple", isNeeded = false, categoryName = "Produce", displayOrder = 0),
+        )
+        coEvery { shoppingRepo.shoppingListForStore(any(), any()) } returns rowsFlow
+        coEvery { storeRepo.observeById(any()) } returns flowOf(testStore())
+
+        val vm = newVm()
+        vm.uiState.test {
+            awaitItem()
+            advanceUntilIdle()
+            val names = expectMostRecentItem().rowsByCategory.flatMap { it.rows }.map { it.itemName }
+            assertThat(names).containsExactly("Apple", "Banana").inOrder()
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test fun `buyTodayNames surfaces needed buy-today items at this store and ignores search`() = runTest {
+        // Mike v0.9.1: the "buy today" signal must show while shopping a store,
+        // not only on the Stores overview. Gated on isNeeded (a bought one
+        // drops off) and unaffected by the search filter.
+        rowsFlow.value = listOf(
+            row("advil", "Advil", isNeeded = true, isBuyToday = true),
+            row("gum", "Gum", isNeeded = false, isBuyToday = true),   // purchased -> excluded
+            row("milk", "Milk"),
+        )
+        coEvery { shoppingRepo.shoppingListForStore(any(), any()) } returns rowsFlow
+        coEvery { storeRepo.observeById(any()) } returns flowOf(testStore())
+
+        val vm = newVm()
+        vm.setQuery("milk") // hides Advil from the list, but not from the banner
+
+        vm.uiState.test {
+            awaitItem()
+            advanceUntilIdle()
+            assertThat(expectMostRecentItem().buyTodayNames).containsExactly("Advil")
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
     @Test fun `togglePurchased on a needed row routes to cascade markPurchasedAtStore`() = runTest {
         coEvery { shoppingRepo.shoppingListForStore(any(), any()) } returns rowsFlow
         coEvery { storeRepo.observeById(any()) } returns flowOf(testStore())
@@ -132,7 +178,10 @@ class ShopAtStoreViewModelTest {
         coVerify(exactly = 0) { itemRepo.markNeededAtStore(any(), any()) }
     }
 
-    @Test fun `togglePurchased on a purchased row flips it back to needed at THIS store only`() = runTest {
+    @Test fun `togglePurchased on a purchased row cascades needed across every tagged store`() = runTest {
+        // v0.9: un-check is symmetric with the purchase cascade. Un-buying at
+        // Continente must bring the item back at Pingo too, so the VM cascades
+        // via markNeededAcrossAllStores rather than the old single-store path.
         coEvery { shoppingRepo.shoppingListForStore(any(), any()) } returns rowsFlow
         coEvery { storeRepo.observeById(any()) } returns flowOf(testStore())
 
@@ -140,7 +189,8 @@ class ShopAtStoreViewModelTest {
         vm.togglePurchased(row("milk", "Milk", isNeeded = false))
         advanceUntilIdle()
 
-        coVerify(exactly = 1) { itemRepo.markNeededAtStore("milk", "store_lidl") }
+        coVerify(exactly = 1) { itemRepo.markNeededAcrossAllStores("milk") }
+        coVerify(exactly = 0) { itemRepo.markNeededAtStore(any(), any()) }
         coVerify(exactly = 0) { itemRepo.markPurchasedAtStore(any(), any()) }
     }
 
@@ -464,6 +514,7 @@ class ShopAtStoreViewModelTest {
         isNeeded: Boolean = true,
         isPriority: Boolean = false,
         isStaple: Boolean = false,
+        isBuyToday: Boolean = false,
     ) = ShoppingRow(
         itemId = id,
         itemName = name,
@@ -474,11 +525,36 @@ class ShopAtStoreViewModelTest {
         imageUrl = null,
         isPriority = isPriority,
         isStaple = isStaple,
+        isBuyToday = isBuyToday,
         categoryId = "cat_dairy_eggs",
         categoryName = "Dairy & Eggs",
         categoryNameKey = "cat_dairy_eggs",
         categoryIcon = null,
         displayOrder = 0,
+    )
+
+    private fun catRow(
+        id: String,
+        name: String,
+        isNeeded: Boolean,
+        categoryName: String,
+        displayOrder: Int,
+    ) = ShoppingRow(
+        itemId = id,
+        itemName = name,
+        quantity = null,
+        notes = null,
+        isNeeded = isNeeded,
+        brand = null,
+        imageUrl = null,
+        isPriority = false,
+        isStaple = false,
+        isBuyToday = false,
+        categoryId = categoryName,
+        categoryName = categoryName,
+        categoryNameKey = null,
+        categoryIcon = null,
+        displayOrder = displayOrder,
     )
 
     private fun testStore() = Store(

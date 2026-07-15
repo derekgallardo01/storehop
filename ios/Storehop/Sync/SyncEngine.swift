@@ -433,6 +433,13 @@ final actor SyncEngine {
         uid: String,
         timeoutNanos: UInt64 = 30 * NSEC_PER_SEC
     ) async -> Bool {
+        // v0.9 repair pass: converge any item stranded at isNeeded = 0 by the
+        // pre-v0.9 asymmetric un-check back to global-needed BEFORE we flush,
+        // so healed rows (flagged pendingSync = 1) push up in this same drain.
+        // Idempotent; a no-op once data is already consistent.
+        let now = Int64(Date().timeIntervalSince1970 * 1000)
+        let repaired = (try? await xrefDao.repairStrandedNeededLinks(householdId: householdId, now: now)) ?? 0
+        if repaired > 0 { print("[SyncEngine] Force sync repaired \(repaired) stranded item↔store link(s)") }
         await userPreferencesSync?.flushPending(uid: uid)
         return await withTaskGroup(of: Bool.self) { group in
             group.addTask {

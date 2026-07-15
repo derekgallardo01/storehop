@@ -287,6 +287,12 @@ class SyncEngine @Inject constructor(
         uid: String,
         timeoutMs: Long = 30_000L,
     ): Boolean {
+        // v0.9 repair pass: converge any item stranded at isNeeded = 0 by the
+        // pre-v0.9 asymmetric un-check back to global-needed BEFORE we flush,
+        // so the healed rows (flagged pendingSync = 1) push up in this same
+        // drain. Idempotent; a no-op once data is already consistent.
+        val repaired = xrefDao.repairStrandedNeededLinks(householdId, System.currentTimeMillis())
+        if (repaired > 0) Log.i(TAG, "Force sync repaired $repaired stranded item↔store link(s)")
         userPreferencesSync.flushPending(uid)
         val drained = withTimeoutOrNull(timeoutMs) {
             observeAllPendingCount(householdId).first { it == 0 }

@@ -17,8 +17,13 @@ final class ItemFormViewModel {
     var brand: String = ""
     var categoryId: String?
     var storeIds: Set<String> = []
-    var isStaple: Bool = false
+    /// v0.9: new items default to "Always on the list." Edit mode overrides
+    /// this with the stored value on load (`applyLoaded`); the one-off guard in
+    /// `submit()` coerces it back to false when every picked store is one-off.
+    var isStaple: Bool = true
     var isPriority: Bool = false
+    /// v0.9 "Buy Today!" transient urgency flag.
+    var isBuyToday: Bool = false
 
     /// Already-uploaded image URL from a prior save.
     var imageUrl: String?
@@ -136,6 +141,7 @@ final class ItemFormViewModel {
         storeIds = Set(row.stores.map(\.id))
         isStaple = row.item.isStaple
         isPriority = row.item.isPriority
+        isBuyToday = row.item.isBuyToday
         imageUrl = row.item.imageUrl
         isLoading = false
     }
@@ -198,8 +204,12 @@ final class ItemFormViewModel {
             brand: brand.trimmingCharacters(in: .whitespacesAndNewlines),
             categoryId: categoryId,
             storeIds: storeIds,
-            isStaple: isStaple,
+            // v0.9: staples and one-offs don't combine. When every picked store
+            // is a one-off store the toggle rows are hidden, so coerce the
+            // (defaulted-on) staple flag back to false before persisting.
+            isStaple: allPickedStoresAreOneOff ? false : isStaple,
             isPriority: isPriority,
+            isBuyToday: isBuyToday,
             imageUrl: imageUrl,
             localImage: localImage
         )
@@ -219,7 +229,8 @@ final class ItemFormViewModel {
                         brand: snapshot.brand.isEmpty ? nil : snapshot.brand,
                         imageUrl: snapshot.imageUrl,
                         isStaple: snapshot.isStaple,
-                        isPriority: snapshot.isPriority
+                        isPriority: snapshot.isPriority,
+                        isBuyToday: snapshot.isBuyToday
                     )
                     savedId = existingId
                 } else {
@@ -232,7 +243,8 @@ final class ItemFormViewModel {
                         brand: snapshot.brand.isEmpty ? nil : snapshot.brand,
                         imageUrl: snapshot.imageUrl,
                         isStaple: snapshot.isStaple,
-                        isPriority: snapshot.isPriority
+                        isPriority: snapshot.isPriority,
+                        isBuyToday: snapshot.isBuyToday
                     )
                 }
 
@@ -249,7 +261,8 @@ final class ItemFormViewModel {
                         brand: snapshot.brand.isEmpty ? nil : snapshot.brand,
                         imageUrl: url,
                         isStaple: snapshot.isStaple,
-                        isPriority: snapshot.isPriority
+                        isPriority: snapshot.isPriority,
+                        isBuyToday: snapshot.isBuyToday
                     )
                 }
 

@@ -18,6 +18,7 @@ interface ItemRepository {
         imageUrl: String? = null,
         isStaple: Boolean = false,
         isPriority: Boolean = false,
+        isBuyToday: Boolean = false,
     ): String
 
     suspend fun updateItem(
@@ -31,7 +32,15 @@ interface ItemRepository {
         imageUrl: String? = null,
         isStaple: Boolean = false,
         isPriority: Boolean = false,
+        isBuyToday: Boolean = false,
     )
+
+    /**
+     * v0.9 "Buy Today!": set or clear the transient urgency flag on an item.
+     * Surfaces in the Buy Today banner at the top of the Stores screen and
+     * auto-clears on purchase.
+     */
+    suspend fun setBuyToday(itemId: String, value: Boolean)
 
     suspend fun softDelete(id: String)
 

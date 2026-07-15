@@ -43,6 +43,9 @@ final class SchemaParityTests: XCTestCase {
                 ColumnSpec(name: "isStaple",        type: "INTEGER", notNull: true,  defaultValue: "0", pkPosition: 0),
                 ColumnSpec(name: "isPriority",      type: "INTEGER", notNull: true,  defaultValue: "0", pkPosition: 0),
                 ColumnSpec(name: "householdId",     type: "TEXT",    notNull: true,  defaultValue: "''", pkPosition: 0),
+                // v0.9 "Buy Today!" — added by `v10_items_buy_today` (ALTER
+                // appends it physically last, after householdId's v8 add).
+                ColumnSpec(name: "isBuyToday",      type: "INTEGER", notNull: true,  defaultValue: "0", pkPosition: 0),
             ]
         )
     }

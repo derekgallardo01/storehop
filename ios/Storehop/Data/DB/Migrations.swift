@@ -305,6 +305,16 @@ enum Migrations {
                 """)
         }
 
+        // v0.9 "Buy Today!": add the transient per-item urgency flag. Default
+        // = 0 so every existing item starts un-flagged. Mirrors Android's
+        // schema v10 -> v11 (MIGRATION_10_11). No index — the banner reads
+        // through the existing store-picker query and post-filters a small set.
+        migrator.registerMigration("v10_items_buy_today") { db in
+            try db.execute(sql: """
+                ALTER TABLE items ADD COLUMN isBuyToday INTEGER NOT NULL DEFAULT 0
+                """)
+        }
+
         return migrator
     }
 }

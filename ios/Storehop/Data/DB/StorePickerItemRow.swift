@@ -14,5 +14,6 @@ struct StorePickerItemRow: FetchableRecord, Decodable, Hashable, Sendable {
     let itemId: String
     let itemName: String
     let isPriority: Bool
+    let isBuyToday: Bool
     let isNeeded: Bool
 }

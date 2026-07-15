@@ -97,6 +97,8 @@
     <string name="form_toggle_staple_subtitle">Stays visible even after you mark it purchased</string>
     <string name="form_toggle_priority">Critical — don\'t let me forget this</string>
     <string name="form_toggle_priority_subtitle">Highlights this item across every store\'s list when needed</string>
+    <string name="form_toggle_buy_today">Buy today</string>
+    <string name="form_toggle_buy_today_subtitle">Surfaces at the top of Stores today; clears when you buy it</string>
     <string name="form_error_name_required">Name is required</string>
     <string name="delete_item_title">Delete item?</string>
     <string name="delete_item_message">This removes \"%1$s\" from every store\'s list.</string>
@@ -106,6 +108,7 @@
     <string name="action_keep_editing">Keep editing</string>
     <string name="badge_always_on_list">Always on the list</string>
     <string name="badge_critical">Critical</string>
+    <string name="badge_buy_today">Buy today</string>
 
     <!-- Photo picker. -->
     <string name="photo_section_label">Photo</string>
@@ -115,6 +118,9 @@
     <string name="photo_remove">Remove photo</string>
     <string name="photo_add">Add photo</string>
     <string name="photo_item">Item photo</string>
+    <string name="photo_view">View photo</string>
+    <string name="image_viewer_cd">Enlarged product photo</string>
+    <string name="image_viewer_close">Close</string>
 
     <!-- Shop-at-Store. -->
     <string name="action_more">More</string>
@@ -151,6 +157,15 @@
     <string name="critical_banner_store_section">%1$s (%2$d)</string>
     <string name="critical_banner_expand_cd">Show critical items by store</string>
     <string name="critical_banner_collapse_cd">Hide critical items by store</string>
+    <plurals name="buy_today_banner_count">
+        <item quantity="one">%d item to buy today</item>
+        <item quantity="other">%d items to buy today</item>
+    </plurals>
+    <string name="buy_today_banner_all_at">All at %s</string>
+    <string name="buy_today_banner_most_at">Most at %1$s (%2$d)</string>
+    <string name="buy_today_banner_store_section">%1$s (%2$d)</string>
+    <string name="buy_today_banner_expand_cd">Show today\'s items by store</string>
+    <string name="buy_today_banner_collapse_cd">Hide today\'s items by store</string>
     <string name="store_nothing_needed">Nothing needed</string>
     <string name="store_all_set">✓ All set</string>
     <string name="add_store_dialog_title">Add a store</string>
@@ -183,6 +198,10 @@
     <plurals name="critical_at_this_store">
         <item quantity="one">%d critical item</item>
         <item quantity="other">%d critical items</item>
+    </plurals>
+    <plurals name="buy_today_at_this_store">
+        <item quantity="one">%d item to buy today here</item>
+        <item quantity="other">%d items to buy today here</item>
     </plurals>
     <plurals name="store_critical_chip">
         <item quantity="one">⚠ %d</item>

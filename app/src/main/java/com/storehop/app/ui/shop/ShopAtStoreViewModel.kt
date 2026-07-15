@@ -37,6 +37,12 @@ data class ShopAtStoreUiState(
      */
     val rowsAlphabetic: List<ShoppingRow> = emptyList(),
     val criticalNames: List<String> = emptyList(),
+    /**
+     * Names of "Buy Today!"-flagged items still needed at THIS store. Drives
+     * the in-store Buy Today banner so the urgency surfaces while shopping,
+     * not only on the Stores overview (Mike-reported v0.9.1).
+     */
+    val buyTodayNames: List<String> = emptyList(),
     val query: String = "",
     val showPurchased: Boolean = true,
     val sortMode: SortMode = SortMode.CATEGORY,
@@ -122,7 +128,26 @@ class ShopAtStoreViewModel @Inject constructor(
             ShopAtStoreUiState(
                 store = st,
                 rowsByCategory = if (sortMode == SortMode.CATEGORY) {
-                    filtered.groupByCategory()
+                    // Order the list independently of isNeeded (aisle order,
+                    // then item name) BEFORE grouping. The DAO sorts
+                    // `isNeeded DESC` first, which in category mode made a row
+                    // leap from the purchased tail into the needed block on
+                    // un-check -- reordering whole sections and yanking the
+                    // scroll anchor (Mike's v0.9 report). Alphabetic mode never
+                    // jumped because it already drops isNeeded from its sort;
+                    // this makes category mode match: toggling a row's checked
+                    // state no longer moves it.
+                    filtered
+                        .sortedWith(
+                            compareBy(
+                                { it.displayOrder ?: 9999 },
+                                // Uncategorized rows sort last (U+FFFF); they're
+                                // grouped under "(uncategorized)" by groupByCategory.
+                                { it.categoryName?.lowercase() ?: "￿" },
+                                { it.itemName.lowercase() },
+                            ),
+                        )
+                        .groupByCategory()
                 } else emptyList(),
                 rowsAlphabetic = if (sortMode == SortMode.ALPHABETIC) {
                     filtered.sortedBy { it.itemName.lowercase() }
@@ -136,6 +161,11 @@ class ShopAtStoreViewModel @Inject constructor(
                 // struck-through. "Critical" means "still unbought".
                 criticalNames = allRows
                     .filter { it.isPriority && it.isNeeded }
+                    .map { it.itemName },
+                // Same gating as criticalNames: only items still needed here
+                // count, and the banner ignores search + hide-purchased.
+                buyTodayNames = allRows
+                    .filter { it.isBuyToday && it.isNeeded }
                     .map { it.itemName },
                 query = q,
                 showPurchased = showP,
@@ -213,9 +243,13 @@ class ShopAtStoreViewModel @Inject constructor(
      *  - needed -> cascade-mark purchased: a single shopping trip flips every
      *    store the item is tagged to, and writes one PurchaseRecord at the
      *    store the user is currently shopping at.
-     *  - purchased -> mark needed again at THIS store only (manual un-check;
-     *    no PurchaseRecord touched). The snackbar Undo path is the primary
-     *    way to back out a mis-tap.
+     *  - purchased -> cascade-mark needed again across every store the item is
+     *    tagged to (manual un-check). Symmetric with the purchase cascade: if
+     *    buying it at Continente cleared it from Pingo, un-buying it at
+     *    Continente must bring it back at Pingo too (Mike-reported v0.9). No
+     *    PurchaseRecord is touched -- this is a list-state correction, not a
+     *    purchase event; the snackbar Undo path stays the "as if it never
+     *    happened" reversal.
      */
     fun togglePurchased(row: ShoppingRow) {
         viewModelScope.launch {
@@ -223,7 +257,7 @@ class ShopAtStoreViewModel @Inject constructor(
                 lastPurchaseSnapshot = itemRepository.markPurchasedAtStore(row.itemId, storeId)
             } else {
                 lastPurchaseSnapshot = null
-                itemRepository.markNeededAtStore(row.itemId, storeId)
+                itemRepository.markNeededAcrossAllStores(row.itemId)
             }
         }
     }

@@ -19,6 +19,7 @@ struct ShoppingRow: FetchableRecord, Decodable, Hashable, Sendable {
     let imageUrl: String?
     let isPriority: Bool
     let isStaple: Bool
+    let isBuyToday: Bool
     let categoryId: String?
     let categoryName: String?
     let categoryNameKey: String?
@@ -35,6 +36,7 @@ struct ShoppingRow: FetchableRecord, Decodable, Hashable, Sendable {
         case imageUrl
         case isPriority
         case isStaple
+        case isBuyToday
         case categoryId    = "cat_id"
         case categoryName  = "cat_name"
         case categoryNameKey = "cat_nameKey"

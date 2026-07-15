@@ -22,6 +22,7 @@ import androidx.compose.material.icons.filled.AddAPhoto
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.PhotoLibrary
+import androidx.compose.material.icons.filled.ZoomIn
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -45,6 +46,7 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
 import coil.compose.AsyncImage
 import com.storehop.app.R
+import com.storehop.app.ui.common.ZoomableImageDialog
 import java.io.File
 
 /**
@@ -69,8 +71,13 @@ fun ImagePickerTile(
 ) {
     val context = LocalContext.current
     var sheetOpen by remember { mutableStateOf(false) }
+    var viewingImage by remember { mutableStateOf(false) }
     var pendingCaptureUri by remember { mutableStateOf<Uri?>(null) }
     val sheetState = rememberModalBottomSheetState()
+
+    // The enlarge target: the freshly-picked local URI takes precedence over
+    // the already-saved remote URL so the user sees what they just chose.
+    val viewerModel: Any? = localUri ?: imageUrl
 
     val galleryLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.PickVisualMedia(),
@@ -140,6 +147,16 @@ fun ImagePickerTile(
                     style = MaterialTheme.typography.titleMedium,
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                 )
+                if (viewerModel != null) {
+                    ListItem(
+                        headlineContent = { Text(stringResource(R.string.photo_view)) },
+                        leadingContent = { Icon(Icons.Filled.ZoomIn, contentDescription = null) },
+                        modifier = Modifier.clickable {
+                            sheetOpen = false
+                            viewingImage = true
+                        },
+                    )
+                }
                 ListItem(
                     headlineContent = { Text(stringResource(R.string.photo_take)) },
                     leadingContent = { Icon(Icons.Filled.CameraAlt, contentDescription = null) },
@@ -174,6 +191,10 @@ fun ImagePickerTile(
                 }
             }
         }
+    }
+
+    if (viewingImage && viewerModel != null) {
+        ZoomableImageDialog(model = viewerModel, onDismiss = { viewingImage = false })
     }
 }
 

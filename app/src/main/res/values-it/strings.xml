@@ -97,6 +97,8 @@
     <string name="form_toggle_staple_subtitle">Resta visibile anche dopo averlo segnato come acquistato</string>
     <string name="form_toggle_priority">Critico: non farmelo dimenticare</string>
     <string name="form_toggle_priority_subtitle">Evidenzia questo articolo nella lista di ogni negozio quando serve</string>
+    <string name="form_toggle_buy_today">Compra oggi</string>
+    <string name="form_toggle_buy_today_subtitle">Compare in cima ai Negozi oggi; si azzera quando lo compri</string>
     <string name="form_error_name_required">Il nome è obbligatorio</string>
     <string name="delete_item_title">Eliminare l\'articolo?</string>
     <string name="delete_item_message">Questo rimuove \"%1$s\" dalla lista di ogni negozio.</string>
@@ -106,6 +108,7 @@
     <string name="action_keep_editing">Continua a modificare</string>
     <string name="badge_always_on_list">Sempre nella lista</string>
     <string name="badge_critical">Critico</string>
+    <string name="badge_buy_today">Compra oggi</string>
 
     <!-- Selettore foto. -->
     <string name="photo_section_label">Foto</string>
@@ -115,6 +118,9 @@
     <string name="photo_remove">Rimuovi foto</string>
     <string name="photo_add">Aggiungi foto</string>
     <string name="photo_item">Foto dell\'articolo</string>
+    <string name="photo_view">Vedi foto</string>
+    <string name="image_viewer_cd">Foto del prodotto ingrandita</string>
+    <string name="image_viewer_close">Chiudi</string>
 
     <!-- Spesa al negozio. -->
     <string name="action_more">Altro</string>
@@ -151,6 +157,15 @@
     <string name="critical_banner_store_section">%1$s (%2$d)</string>
     <string name="critical_banner_expand_cd">Mostra articoli critici per negozio</string>
     <string name="critical_banner_collapse_cd">Nascondi articoli critici per negozio</string>
+    <plurals name="buy_today_banner_count">
+        <item quantity="one">%d articolo da comprare oggi</item>
+        <item quantity="other">%d articoli da comprare oggi</item>
+    </plurals>
+    <string name="buy_today_banner_all_at">Tutti da %s</string>
+    <string name="buy_today_banner_most_at">La maggior parte da %1$s (%2$d)</string>
+    <string name="buy_today_banner_store_section">%1$s (%2$d)</string>
+    <string name="buy_today_banner_expand_cd">Mostra gli articoli di oggi per negozio</string>
+    <string name="buy_today_banner_collapse_cd">Nascondi gli articoli di oggi per negozio</string>
     <string name="store_nothing_needed">Nulla da prendere</string>
     <string name="store_all_set">✓ Tutto fatto</string>
     <string name="add_store_dialog_title">Aggiungi un negozio</string>
@@ -183,6 +198,10 @@
     <plurals name="critical_at_this_store">
         <item quantity="one">%d articolo critico</item>
         <item quantity="other">%d articoli critici</item>
+    </plurals>
+    <plurals name="buy_today_at_this_store">
+        <item quantity="one">%d articolo da comprare oggi qui</item>
+        <item quantity="other">%d articoli da comprare oggi qui</item>
     </plurals>
     <plurals name="store_critical_chip">
         <item quantity="one">⚠ %d</item>

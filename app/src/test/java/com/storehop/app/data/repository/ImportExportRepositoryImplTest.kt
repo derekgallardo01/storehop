@@ -49,6 +49,7 @@ class ImportExportRepositoryImplTest {
             db = db, itemDao = db.itemDao(), xrefDao = db.itemStoreXrefDao(),
             purchaseRecordDao = db.purchaseRecordDao(),
             scoDao = db.storeCategoryOrderDao(),
+            storeDao = db.storeDao(),
             ids = ids, clock = clock, session = session,
             householdSession = householdSession,
         )
@@ -137,6 +138,7 @@ class ImportExportRepositoryImplTest {
                 db = db, itemDao = db.itemDao(), xrefDao = db.itemStoreXrefDao(),
                 purchaseRecordDao = db.purchaseRecordDao(),
                 scoDao = db.storeCategoryOrderDao(),
+                storeDao = db.storeDao(),
                 ids = ids, clock = clock, session = session,
                 householdSession = householdSession,
             ),

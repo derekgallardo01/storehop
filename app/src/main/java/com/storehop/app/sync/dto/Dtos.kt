@@ -40,6 +40,9 @@ class ItemDto(
     var imageUrl: String? = null,
     var isStaple: Boolean = false,
     var isPriority: Boolean = false,
+    /** v0.9 "Buy Today!" transient urgency flag. Defaults false so older
+     *  devices' writes (which omit the field) deserialize as un-flagged. */
+    var isBuyToday: Boolean = false,
     var householdId: String = "",
 )
 

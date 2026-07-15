@@ -12,6 +12,7 @@ data class ShoppingRow(
     @ColumnInfo(name = "imageUrl") val imageUrl: String?,
     @ColumnInfo(name = "isPriority") val isPriority: Boolean,
     @ColumnInfo(name = "isStaple") val isStaple: Boolean,
+    @ColumnInfo(name = "isBuyToday") val isBuyToday: Boolean,
     @ColumnInfo(name = "cat_id") val categoryId: String?,
     @ColumnInfo(name = "cat_name") val categoryName: String?,
     /**

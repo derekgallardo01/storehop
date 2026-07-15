@@ -38,6 +38,13 @@ struct ShopAtStoreView: View {
         @Bindable var vm = viewModel
         return ZStack(alignment: .bottom) {
             List {
+                if !viewModel.buyTodayNames.isEmpty {
+                    Section {
+                        InStoreBuyTodayBanner(names: viewModel.buyTodayNames)
+                            .listRowBackground(Color.clear)
+                            .listRowInsets(EdgeInsets())
+                    }
+                }
                 if !viewModel.criticalNames.isEmpty {
                     Section {
                         CriticalNeedsBanner(names: viewModel.criticalNames)
@@ -236,6 +243,12 @@ private struct ShoppingRowView: View {
                 }
             }
             Spacer()
+            if row.isBuyToday && row.isNeeded {
+                Image(systemName: "calendar.badge.exclamationmark")
+                    .foregroundStyle(StorehopColors.error)
+                    .imageScale(.small)
+                    .accessibilityLabel(Text(L("badge_buy_today")))
+            }
             if row.isPriority {
                 Image(systemName: "star.fill")
                     .foregroundStyle(.yellow)
@@ -259,6 +272,7 @@ private struct ShoppingRowView: View {
 private struct ItemThumbnail: View {
     let name: String
     let imageUrl: String?
+    @State private var enlarged = false
 
     var body: some View {
         Group {
@@ -270,6 +284,13 @@ private struct ItemThumbnail: View {
                 }
                 .frame(width: 36, height: 36)
                 .clipShape(Circle())
+                .contentShape(Circle())
+                // Tap the photo to enlarge; the tap is captured here so the
+                // row's own tap (toggle purchased) doesn't also fire.
+                .onTapGesture { enlarged = true }
+                .fullScreenCover(isPresented: $enlarged) {
+                    ZoomableImageView(imageUrl: imageUrl)
+                }
             } else {
                 placeholderCircle
             }
@@ -285,6 +306,46 @@ private struct ItemThumbnail: View {
                     .font(StorehopTypography.labelMedium)
                     .foregroundStyle(StorehopColors.onSurfaceVariant)
             }
+    }
+}
+
+/// In-store mirror of the Stores-overview Buy Today banner, so the "get it
+/// today" signal shows while shopping this store (Mike-reported v0.9.1). Same
+/// collapse pattern as `CriticalNeedsBanner`, with urgent error styling.
+private struct InStoreBuyTodayBanner: View {
+    let names: [String]
+    @State private var expanded = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(alignment: .center, spacing: 12) {
+                Image(systemName: "calendar.badge.exclamationmark")
+                    .foregroundStyle(.white)
+                Text(String(format: L("buy_today_at_this_store %lld"), names.count))
+                    .font(StorehopTypography.titleSmall.weight(.semibold))
+                    .foregroundStyle(.white)
+                Spacer()
+                Image(systemName: expanded ? "chevron.up" : "chevron.down")
+                    .foregroundStyle(.white)
+                    .accessibilityHidden(true)
+            }
+            if expanded {
+                Text(names.joined(separator: ", "))
+                    .font(StorehopTypography.bodyMedium)
+                    .foregroundStyle(.white)
+                    .padding(.top, 6)
+                    .padding(.leading, 28)
+            }
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(StorehopColors.error, in: RoundedRectangle(cornerRadius: StorehopShape.cornerMedium))
+        .padding(.horizontal, 16)
+        .padding(.vertical, 4)
+        .contentShape(Rectangle())
+        .onTapGesture { withAnimation(.easeInOut(duration: 0.2)) { expanded.toggle() } }
+        .accessibilityElement(children: .combine)
+        .accessibilityHint(L(expanded ? "buy_today_collapse_cd" : "buy_today_expand_cd"))
     }
 }
 

@@ -41,6 +41,10 @@ final class ShopAtStoreViewModel {
     /// when `sortMode == .alphabetic`.
     var alphabeticRows: [ShoppingRow] = []
     var criticalNames: [String] = []
+    /// Names of "Buy Today!"-flagged items still needed at THIS store. Drives
+    /// the in-store Buy Today banner so the urgency shows while shopping, not
+    /// only on the Stores overview (Mike-reported v0.9.1).
+    var buyTodayNames: [String] = []
     var query: String = "" {
         didSet { refreshSections() }
     }
@@ -183,6 +187,7 @@ final class ShopAtStoreViewModel {
     private func applyRows(_ rows: [ShoppingRow]) {
         rawRows = rows
         criticalNames = rows.filter { $0.isPriority && $0.isNeeded }.map(\.itemName)
+        buyTodayNames = rows.filter { $0.isBuyToday && $0.isNeeded }.map(\.itemName)
         refreshSections()
         // The "needed at this store" set comes from `rawRows`, so suggestions
         // also need to refresh when the shopping list changes (an item just
@@ -245,7 +250,22 @@ final class ShopAtStoreViewModel {
         }
         switch sortMode {
         case .category:
-            sections = Self.groupByCategory(filtered)
+            // Order independently of isNeeded (aisle order, then item name)
+            // BEFORE grouping. The DAO sorts `isNeeded DESC` first, which in
+            // category mode made a row leap from the purchased tail into the
+            // needed block on un-check — reordering whole sections and yanking
+            // the scroll anchor (Mike's v0.9 report). Alphabetic mode never
+            // jumped because it already drops isNeeded; this matches it.
+            let ordered = filtered.sorted { a, b in
+                let ao = a.displayOrder ?? 9999
+                let bo = b.displayOrder ?? 9999
+                if ao != bo { return ao < bo }
+                let ac = a.categoryName?.lowercased() ?? "\u{FFFF}"
+                let bc = b.categoryName?.lowercased() ?? "\u{FFFF}"
+                if ac != bc { return ac < bc }
+                return a.itemName.lowercased() < b.itemName.lowercased()
+            }
+            sections = Self.groupByCategory(ordered)
             alphabeticRows = []
         case .alphabetic:
             sections = []
@@ -255,7 +275,11 @@ final class ShopAtStoreViewModel {
 
     /// Tap behavior on a row.
     ///   - needed → cascade-mark purchased (one trip = all stores).
-    ///   - purchased → mark needed at this store only (manual un-check).
+    ///   - purchased → cascade-mark needed across every store the item is
+    ///     tagged to (manual un-check). Symmetric with the purchase cascade:
+    ///     un-buying at Continente must bring the item back at Pingo too
+    ///     (Mike-reported v0.9). No PurchaseRecord is touched — the snackbar
+    ///     Undo path stays the "as if it never happened" reversal.
     func togglePurchased(row: ShoppingRow) {
         Task {
             if row.isNeeded {
@@ -265,7 +289,7 @@ final class ShopAtStoreViewModel {
             } else {
                 lastPurchaseSnapshot = nil
                 lastPurchaseDisplayName = nil
-                try? await itemRepository.markNeededAtStore(itemId: row.itemId, storeId: storeId)
+                try? await itemRepository.markNeededAcrossAllStores(itemId: row.itemId)
             }
         }
     }

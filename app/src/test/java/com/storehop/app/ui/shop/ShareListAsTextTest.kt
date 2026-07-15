@@ -24,6 +24,7 @@ class ShareListAsTextTest {
             imageUrl = null,
             isPriority = false,
             isStaple = false,
+            isBuyToday = false,
             categoryId = null,
             categoryName = null,
             categoryNameKey = null,

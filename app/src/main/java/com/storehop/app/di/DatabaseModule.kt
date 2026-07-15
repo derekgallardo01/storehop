@@ -21,6 +21,7 @@ import com.storehop.app.data.db.MIGRATION_6_7
 import com.storehop.app.data.db.MIGRATION_7_8
 import com.storehop.app.data.db.MIGRATION_8_9
 import com.storehop.app.data.db.MIGRATION_9_10
+import com.storehop.app.data.db.MIGRATION_10_11
 import com.storehop.app.data.db.StorehopDatabase
 import dagger.Module
 import dagger.Provides
@@ -47,6 +48,7 @@ object DatabaseModule {
         .addMigrations(
             MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6,
             MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10,
+            MIGRATION_10_11,
         )
         // v0.7.0: safety net for the downgrade direction. If a user
         // installs a hypothetical v0.7.x / v0.8.x and then reverts to

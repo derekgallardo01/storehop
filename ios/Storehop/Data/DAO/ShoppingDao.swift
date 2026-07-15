@@ -83,6 +83,7 @@ struct ShoppingDao: Sendable {
                i.imageUrl      AS imageUrl,
                i.isPriority    AS isPriority,
                i.isStaple      AS isStaple,
+               i.isBuyToday    AS isBuyToday,
                c.id            AS cat_id,
                c.name          AS cat_name,
                c.nameKey       AS cat_nameKey,
@@ -122,6 +123,7 @@ struct ShoppingDao: Sendable {
                i.id         AS itemId,
                i.name       AS itemName,
                i.isPriority AS isPriority,
+               i.isBuyToday AS isBuyToday,
                isx.isNeeded AS isNeeded
         FROM items i
         INNER JOIN item_store_xref isx

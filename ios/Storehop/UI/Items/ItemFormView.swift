@@ -112,6 +112,16 @@ struct ItemFormView: View {
                 }
             }
 
+            // "Buy today" stays available even for one-off-only items —
+            // urgency applies to any kind of trip, so it's outside the
+            // one-off guard that hides the recurring/critical toggles.
+            Section {
+                Toggle(L("item_buy_today_label"), isOn: $vm.isBuyToday)
+            } footer: {
+                Text(L("item_buy_today_help"))
+                    .font(StorehopTypography.bodySmall)
+            }
+
             Section(header: Text(L("item_photo_label"))) {
                 photoSection(viewModel: viewModel)
             }
@@ -237,6 +247,7 @@ struct ItemFormView: View {
 private struct ItemFormPhoto: View {
     let image: UIImage?
     let imageUrl: String?
+    @State private var enlarged = false
 
     var body: some View {
         ZStack {
@@ -259,6 +270,12 @@ private struct ItemFormPhoto: View {
                 }
                 .frame(maxWidth: .infinity, maxHeight: 160)
                 .clipShape(RoundedRectangle(cornerRadius: StorehopShape.cornerMedium))
+                // Tap the saved photo to see it full-screen and zoom in.
+                .contentShape(RoundedRectangle(cornerRadius: StorehopShape.cornerMedium))
+                .onTapGesture { enlarged = true }
+                .fullScreenCover(isPresented: $enlarged) {
+                    ZoomableImageView(imageUrl: imageUrl)
+                }
             } else {
                 VStack(spacing: 4) {
                     Image(systemName: "photo")

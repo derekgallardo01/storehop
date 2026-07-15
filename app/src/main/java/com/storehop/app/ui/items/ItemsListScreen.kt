@@ -68,6 +68,7 @@ import androidx.compose.ui.platform.LocalContext
 import com.storehop.app.R
 import com.storehop.app.data.db.relations.ItemWithCategoryAndStores
 import com.storehop.app.data.prefs.SortMode
+import com.storehop.app.ui.common.ZoomableImageDialog
 import com.storehop.app.ui.items.components.BulkStorePickerDialog
 import com.storehop.app.ui.util.EmptyState
 import com.storehop.app.ui.util.UndoBar
@@ -442,15 +443,22 @@ private fun ItemRow(
             // above replaces it, keeping the row width identical).
             val url = row.item.imageUrl
             if (!url.isNullOrBlank()) {
+                var viewing by remember(url) { mutableStateOf(false) }
                 AsyncImage(
                     model = url,
-                    contentDescription = null,
+                    contentDescription = stringResource(R.string.photo_item),
                     contentScale = ContentScale.Crop,
                     modifier = Modifier
                         .size(40.dp)
                         .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.primaryContainer),
+                        .background(MaterialTheme.colorScheme.primaryContainer)
+                        // Tap the photo to enlarge; the row body still opens
+                        // the editor (the tap here is consumed first).
+                        .clickable { viewing = true },
                 )
+                if (viewing) {
+                    ZoomableImageDialog(model = url, onDismiss = { viewing = false })
+                }
             } else {
                 Box(
                     modifier = Modifier

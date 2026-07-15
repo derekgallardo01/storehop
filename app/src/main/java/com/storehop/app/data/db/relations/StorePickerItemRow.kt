@@ -18,5 +18,6 @@ data class StorePickerItemRow(
     @ColumnInfo(name = "itemId") val itemId: String,
     @ColumnInfo(name = "itemName") val itemName: String,
     @ColumnInfo(name = "isPriority") val isPriority: Boolean,
+    @ColumnInfo(name = "isBuyToday") val isBuyToday: Boolean,
     @ColumnInfo(name = "isNeeded") val isNeeded: Boolean,
 )

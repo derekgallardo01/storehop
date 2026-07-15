@@ -31,7 +31,7 @@ import com.storehop.app.data.entity.StoreCategoryOrder
         HouseholdMember::class,
     ],
     views = [AliveItemStoreXref::class],
-    version = 10,
+    version = 11,
     exportSchema = true,
 )
 abstract class StorehopDatabase : RoomDatabase() {

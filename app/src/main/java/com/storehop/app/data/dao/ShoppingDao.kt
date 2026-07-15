@@ -19,10 +19,12 @@ interface ShoppingDao {
     /**
      * The cross-cutting query that powers a "Shop at Store" screen.
      *
-     * Need state is now per-(item, store) -- it lives on the xref row, not
-     * the item. So checking off milk at Lidl flips `isx(Lidl, milk).isNeeded`
-     * but leaves `isx(Aldi, milk).isNeeded` untouched: the Aldi screen still
-     * sees milk as needed, the Lidl screen sees it as struck-through.
+     * Need state lives on the xref row, not the item, but the check-off
+     * cascade is global: checking off milk at Lidl flips `isx(Lidl, milk)`
+     * AND cascades `isx(Aldi, milk).isNeeded = 0` too, so one trip clears
+     * milk from every store it's tagged to. Within the same session both
+     * screens show it struck-through (the strike-through window); un-checking
+     * at either store cascades it back to needed everywhere.
      *
      * Includes (for this store specifically):
      *  - xrefs with `isNeeded = 1` (still on the list at this store)
@@ -66,6 +68,7 @@ interface ShoppingDao {
                i.imageUrl      AS imageUrl,
                i.isPriority    AS isPriority,
                i.isStaple      AS isStaple,
+               i.isBuyToday    AS isBuyToday,
                c.id            AS cat_id,
                c.name          AS cat_name,
                c.nameKey       AS cat_nameKey,
@@ -125,6 +128,7 @@ interface ShoppingDao {
                i.id         AS itemId,
                i.name       AS itemName,
                i.isPriority AS isPriority,
+               i.isBuyToday AS isBuyToday,
                isx.isNeeded AS isNeeded
         FROM items i
         INNER JOIN item_store_xref isx

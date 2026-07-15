@@ -39,6 +39,13 @@ struct StorePickerView: View {
         @Bindable var vm = viewModel
         return ZStack(alignment: .bottomTrailing) {
             List {
+                if let buyToday = viewModel.buyTodayBannerState {
+                    Section {
+                        BuyTodayBanner(state: buyToday)
+                            .listRowBackground(Color.clear)
+                            .listRowInsets(EdgeInsets())
+                    }
+                }
                 if let banner = viewModel.criticalBannerState {
                     Section {
                         CriticalNeedsBanner(state: banner)
@@ -363,6 +370,72 @@ private struct CriticalNeedsBanner: View {
         .accessibilityHint(L(expanded
             ? "critical_banner_collapse_cd"
             : "critical_banner_expand_cd"))
+    }
+}
+
+/// v0.9 "Buy Today!" banner — pinned above the Critical banner. Distinct
+/// urgent styling (`error` brand fill) so it reads as "act today," not
+/// "don't forget eventually." Collapsed by default; tap to expand a per-store
+/// breakdown. Mirrors Android's `BuyTodayBanner` and this file's
+/// `CriticalNeedsBanner` structure.
+private struct BuyTodayBanner: View {
+    let state: BuyTodayBannerState
+    @State private var expanded = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(alignment: .center, spacing: 12) {
+                Image(systemName: "calendar.badge.exclamationmark")
+                    .foregroundStyle(.white)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(String(format: L("buy_today_count %lld"), state.totalCount))
+                        .font(StorehopTypography.titleSmall.weight(.semibold))
+                        .foregroundStyle(.white)
+                    if !state.singleStore {
+                        Text(String(
+                            format: L("buy_today_most_at %@ %lld"),
+                            state.topStoreName,
+                            state.topStoreCount
+                        ))
+                            .font(StorehopTypography.bodySmall)
+                            .foregroundStyle(.white)
+                    }
+                }
+                Spacer()
+                Image(systemName: expanded ? "chevron.up" : "chevron.down")
+                    .foregroundStyle(.white)
+                    .accessibilityHidden(true)
+            }
+            if expanded {
+                VStack(alignment: .leading, spacing: 8) {
+                    ForEach(Array(state.byStore.enumerated()), id: \.offset) { _, entry in
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(String(
+                                format: L("buy_today_store_header %@ %lld"),
+                                entry.0,
+                                entry.1.count
+                            ))
+                                .font(StorehopTypography.labelMedium.weight(.semibold))
+                                .foregroundStyle(.white)
+                            Text(entry.1.joined(separator: ", "))
+                                .font(StorehopTypography.bodyMedium)
+                                .foregroundStyle(.white)
+                        }
+                    }
+                }
+                .padding(.top, 8)
+                .padding(.leading, 28)
+            }
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(StorehopColors.error, in: RoundedRectangle(cornerRadius: StorehopShape.cornerMedium))
+        .padding(.horizontal, 16)
+        .padding(.vertical, 4)
+        .contentShape(Rectangle())
+        .onTapGesture { withAnimation(.easeInOut(duration: 0.2)) { expanded.toggle() } }
+        .accessibilityElement(children: .combine)
+        .accessibilityHint(L(expanded ? "buy_today_collapse_cd" : "buy_today_expand_cd"))
     }
 }
 

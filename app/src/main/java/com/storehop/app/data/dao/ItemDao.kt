@@ -153,6 +153,20 @@ interface ItemDao {
     suspend fun markNeeded(householdId: String, id: String, now: Long)
 
     /**
+     * v0.9 "Buy Today!": set (or clear) the transient urgency flag on an item.
+     * Cleared automatically when the item is marked purchased; set manually
+     * from the item form or the Items-list quick action. Idempotent.
+     */
+    @Query(
+        """
+        UPDATE items
+        SET isBuyToday = :value, updatedAt = :now, pendingSync = 1
+        WHERE id = :id AND householdId = :householdId
+        """,
+    )
+    suspend fun setBuyToday(householdId: String, id: String, value: Boolean, now: Long)
+
+    /**
      * Clear `categoryId` on every live item that points at a category that's
      * being soft-deleted. Used by the category cascade — without this, items
      * would still resolve their @Relation join to the (tombstoned) category
