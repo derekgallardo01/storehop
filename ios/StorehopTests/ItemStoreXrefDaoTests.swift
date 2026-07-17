@@ -61,6 +61,19 @@ final class ItemStoreXrefDaoTests: XCTestCase {
         XCTAssertTrue(lidl?.isNeeded ?? false, "Lidl must be converged back to needed (item is needed at Aldi)")
     }
 
+    func testSetStoresForItemAddsNewStoreAsNeededWhenItemIsNeededGlobally() async throws {
+        // Re-save of an existing tagged item: the NEW store must adopt
+        // needed=true because the item is still needed at Lidl. (First-call
+        // adoption is covered above; this pins the pre-existing-xref path.)
+        let (_, dao) = try setup()
+        try await dao.setStoresForItem(itemId: "i1", storeIds: ["s_lidl"], householdId: "u1", userId: "u1", now: 1_000)
+
+        try await dao.setStoresForItem(itemId: "i1", storeIds: ["s_lidl", "s_aldi"], householdId: "u1", userId: "u1", now: 2_000)
+
+        let aldi = try await dao.findForItem(itemId: "i1").first { $0.storeId == "s_aldi" }
+        XCTAssertEqual(aldi?.isNeeded, true, "New store inherits needed while the item is needed somewhere")
+    }
+
     func testSetStoresForItemLeavesFullyPurchasedItemPurchased() async throws {
         // Editing a bought-everywhere item must NOT resurrect it onto lists.
         let (_, dao) = try setup()

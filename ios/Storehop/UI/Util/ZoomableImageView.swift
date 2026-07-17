@@ -3,14 +3,30 @@ import SwiftUI
 /// Full-screen, pinch-to-zoom viewer for a product photo. Reused everywhere a
 /// thumbnail can be tapped to enlarge (item form, Items list, Shop-at-Store
 /// rows). Present it in a `.fullScreenCover`; callers should only do so when
-/// they have a non-nil image URL.
+/// they have a non-nil image URL or a staged local image.
 ///
 ///  - Pinch to zoom (clamped 1x–5x), drag to pan while zoomed.
 ///  - Double-tap toggles between fit (1x) and 2.5x.
 ///  - Tap the backdrop, tap the close button, or swipe down to dismiss.
 struct ZoomableImageView: View {
-    let imageUrl: String
+    /// A photo can come from Storage (saved item) or straight from the
+    /// picker/camera (staged in the form, not yet uploaded). Same gestures
+    /// either way.
+    enum Source {
+        case remote(String)
+        case local(UIImage)
+    }
+
+    let source: Source
     @Environment(\.dismiss) private var dismiss
+
+    init(imageUrl: String) {
+        self.source = .remote(imageUrl)
+    }
+
+    init(image: UIImage) {
+        self.source = .local(image)
+    }
 
     @State private var scale: CGFloat = 1
     @State private var lastScale: CGFloat = 1
@@ -51,22 +67,30 @@ struct ZoomableImageView: View {
 
     @ViewBuilder
     private var imageContent: some View {
-        if let url = URL(string: imageUrl) {
-            AsyncImage(url: url) { phase in
-                switch phase {
-                case .success(let image):
-                    image.resizable().scaledToFit()
-                case .empty:
-                    ProgressView().tint(.white)
-                case .failure:
-                    Image(systemName: "photo")
-                        .font(.largeTitle)
-                        .foregroundStyle(.white.opacity(0.6))
-                @unknown default:
-                    EmptyView()
+        switch source {
+        case .local(let uiImage):
+            Image(uiImage: uiImage)
+                .resizable()
+                .scaledToFit()
+                .accessibilityLabel(Text(L("image_viewer_cd")))
+        case .remote(let imageUrl):
+            if let url = URL(string: imageUrl) {
+                AsyncImage(url: url) { phase in
+                    switch phase {
+                    case .success(let image):
+                        image.resizable().scaledToFit()
+                    case .empty:
+                        ProgressView().tint(.white)
+                    case .failure:
+                        Image(systemName: "photo")
+                            .font(.largeTitle)
+                            .foregroundStyle(.white.opacity(0.6))
+                    @unknown default:
+                        EmptyView()
+                    }
                 }
+                .accessibilityLabel(Text(L("image_viewer_cd")))
             }
-            .accessibilityLabel(Text(L("image_viewer_cd")))
         }
     }
 

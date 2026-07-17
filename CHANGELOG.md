@@ -7,6 +7,130 @@ project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 For the high-level roadmap and earlier-than-0.5.0 history, see the
 "Roadmap" section in the [README](README.md).
 
+## [0.9.1-ios] - 2026-07-16
+
+**iOS parity pass for v0.9.1.** The v0.9.1 commit shipped both
+platforms' production code together, but only the Android suite ran
+and two small behaviors plus the ViewModel-layer tests were missed.
+This closes the post-ship parity audit (same drill as the v0.9.0
+parity-debt pass).
+
+### Fixed: parity gaps
+
+- **"All at \<store\>" banner subtitle.** When every Buy Today item
+  routes to a single store, Android's overview banner names it; iOS
+  rendered no subtitle at all in the single-store case. `BuyTodayBanner`
+  ([StorePickerView.swift](ios/Storehop/UI/Shop/StorePickerView.swift))
+  now shows `buy_today_all_at %@` (en / es / it / pt-PT added to the
+  String Catalog, translations harmonized with Android's).
+- **"All at \<store\>" on the critical banner too.** The adversarial
+  re-audit found the identical subtitle gap one banner up:
+  `CriticalNeedsBanner` hid its routing line entirely in the
+  single-store case (a deliberate v0.6.10 divergence), while Android
+  has shown `critical_banner_all_at` since the initial commit. Fixed
+  the same way (`critical_needs_all_at %@`, all four locales).
+- **Zoom a freshly picked photo.** The item form's staged local photo
+  (picked but not yet saved/uploaded) wasn't tappable — only the
+  saved-URL branch opened the viewer. `ZoomableImageView` gains a
+  `Source` enum (`.remote(String)` / `.local(UIImage)`) with the same
+  gestures, and `ItemFormPhoto`'s local branch gets the same
+  tap → `fullScreenCover` treatment. Matches Android's
+  `ImagePickerTile`, which viewers `localUri ?: imageUrl`.
+
+### Fixed: iOS suite was red at HEAD
+
+`ShoppingDaoTests` pins the Shop-at-Store and Store-Picker queries
+with embedded SQL copies; v0.9.1 added the non-optional `isBuyToday`
+field to `ShoppingRow`/`StorePickerItemRow` without updating those
+copies, so 7 of the 8 cases threw "column not found: isBuyToday" on
+decode. Only surfaced now because the ship commit ran the Android
+suite but not the iOS one. Both embedded queries now select
+`i.isBuyToday` like the production DAO.
+
+Also stabilized `SyncEngineTests.testPushPausesWhenPullStateRegresses-
+AwayFromSucceeded`: the 100ms settle after flipping pull-state to
+failed was tight enough to flake under full-suite contention (the
+push job hadn't cancelled yet when the second store was seeded).
+Widened to 1s, same precedent as the sibling tests' 16fa726 bumps.
+
+### Tests: ViewModel-layer backfill (10)
+
+v0.9.1 backfilled iOS DAO/repo/migration tests but skipped the VM
+layer. Added, mirroring Android's v0.9.1 test additions:
+
+- **StorePickerViewModelTests (new file, 4):** banner nil when nothing
+  flagged; aggregates + picks top store; includes one-off stores
+  (unlike the critical banner); exposes single-store name for the
+  "All at" subtitle.
+- **ShopAtStoreViewModelTests (3):** category mode orders rows
+  independent of isNeeded (scroll-jump regression); `buyTodayNames`
+  gated on isNeeded and unaffected by search; un-check cascades
+  needed across every tagged store (`markNeededAcrossAllStores` was
+  previously untested at any layer).
+- **ItemStoreXrefDaoTests (1):** `setStoresForItem` re-save adds a new
+  store as needed when the item is needed globally.
+- **ItemFormViewModelTests (2):** new-item save persists the
+  `isStaple = true` default; submit coerces staple back to `false`
+  when every picked store is one-off (the hidden-toggle path).
+
+`TestFixtures.item` gains `isBuyToday: Bool = false`.
+
+### Confirmed at parity (no changes needed)
+
+Buy Today data model + migration `v10_items_buy_today` + Firestore
+DTO/sync, both banners + row badge, auto-clear on purchase, staple
+default + quick-add one-off variant, un-check cascade, stranded-xref
+convergence on save + Force-Sync repair pass, and the category-sort
+scroll fix — all verified as behavior mirrors of the Android v0.9.1
+implementation. Localization: all 11 new iOS keys fully translated
+(en / es / it / pt-PT). Known limitation carried forward: the count
+strings are plain format strings (no xcstrings plural variations), so
+singular renders "1 items" — consistent with the older critical keys;
+a platform-wide plurals pass is separate follow-up work.
+
+### Versions
+
+- iOS: `MARKETING_VERSION` 0.9.0 → 0.9.1;
+  `CURRENT_PROJECT_VERSION` 55 → 56.
+
+## [0.9.1] - 2026-07-15
+
+**Buy Today, image viewer, sync fixes, staple default, scroll fix.**
+Batch of fixes and enhancements reported by Mike Haynes. Both
+platforms in one commit (`db00d13`); the iOS parity audit that
+followed is [0.9.1-ios] above.
+
+### Added
+
+- **"Buy Today!" flag.** Transient per-item urgency, distinct from
+  Critical. Surfaces in a banner on the Stores overview AND inside
+  each store (banner + row badge), includes one-off stores,
+  auto-clears on purchase. Schema v11 (Android) / migration
+  `v10_items_buy_today` (iOS); synced to Firestore.
+- **Full-screen pinch-zoom image viewer**, reachable from the item
+  form, Items list, and Shop rows. Android Shop rows now show a
+  product thumbnail (parity with iOS).
+
+### Changed
+
+- New items default to "Always on the list" (staple), except when
+  tagged only to one-off stores.
+
+### Fixed
+
+- Un-checking an item now cascades "needed" across every tagged
+  store, mirroring the purchase cascade.
+- Converge stranded item-store links on item save; add a Force-Sync
+  repair pass so items already stuck off a store's list come back.
+- Category-sorted store list no longer jumps/loses scroll on un-check
+  (ordering is now independent of checked state, like alphabetical
+  mode).
+
+### Versions
+
+- Android: `versionCode 67 → 69` (68 burned on a Play upload),
+  `versionName 0.9.0 → 0.9.1`.
+
 ## [0.9.0] - 2026-05-26
 
 **One-off stores (Android).** A new flag on the `Store` entity lets

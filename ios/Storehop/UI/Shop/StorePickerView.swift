@@ -305,8 +305,9 @@ private struct CriticalChip: View {
 ///
 /// On Android the same data shape is `CriticalBannerState`; on iOS it
 /// lives in `StorePickerViewModel.criticalBannerState`. Single-store
-/// case hides the "Most at" hint (just shows the count) since there's
-/// no routing decision to make.
+/// case shows "All at <store>" instead of the "Most at" hint — the
+/// store name still matters even when there's no routing decision
+/// (matches Android's `critical_banner_all_at`).
 private struct CriticalNeedsBanner: View {
     let state: CriticalBannerState
     @State private var expanded = false
@@ -323,15 +324,15 @@ private struct CriticalNeedsBanner: View {
                     ))
                         .font(StorehopTypography.titleSmall.weight(.semibold))
                         .foregroundStyle(StorehopColors.onPrimaryContainer)
-                    if !state.singleStore {
-                        Text(String(
+                    Text(state.singleStore
+                        ? String(format: L("critical_needs_all_at %@"), state.topStoreName)
+                        : String(
                             format: L("critical_needs_most_at %@ %lld"),
                             state.topStoreName,
                             state.topStoreCount
                         ))
-                            .font(StorehopTypography.bodySmall)
-                            .foregroundStyle(StorehopColors.onPrimaryContainer)
-                    }
+                        .font(StorehopTypography.bodySmall)
+                        .foregroundStyle(StorehopColors.onPrimaryContainer)
                 }
                 Spacer()
                 Image(systemName: expanded ? "chevron.up" : "chevron.down")
@@ -391,15 +392,15 @@ private struct BuyTodayBanner: View {
                     Text(String(format: L("buy_today_count %lld"), state.totalCount))
                         .font(StorehopTypography.titleSmall.weight(.semibold))
                         .foregroundStyle(.white)
-                    if !state.singleStore {
-                        Text(String(
+                    Text(state.singleStore
+                        ? String(format: L("buy_today_all_at %@"), state.topStoreName)
+                        : String(
                             format: L("buy_today_most_at %@ %lld"),
                             state.topStoreName,
                             state.topStoreCount
                         ))
-                            .font(StorehopTypography.bodySmall)
-                            .foregroundStyle(.white)
-                    }
+                        .font(StorehopTypography.bodySmall)
+                        .foregroundStyle(.white)
                 }
                 Spacer()
                 Image(systemName: expanded ? "chevron.up" : "chevron.down")

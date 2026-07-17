@@ -105,6 +105,40 @@ final class ShopAtStoreViewModelTests: XCTestCase {
         XCTAssertEqual(aldiXref?.isNeeded, false, "Cascade must flip Aldi xref too")
     }
 
+    func testTogglePurchasedOnPurchasedRowCascadesNeededAcrossStores() async throws {
+        // v0.9.1: un-check is symmetric with the purchase cascade. Un-buying
+        // at Lidl must bring the item back at Aldi too — the VM routes
+        // through markNeededAcrossAllStores, not the old single-store flip.
+        let s = try await makeSetup()
+        try s.db.seed(stores: [TestFixtures.store(id: "s_aldi", name: "Aldi")])
+        let itemId = try await s.itemRepository.addItem(
+            name: "Mozzarella", categoryId: nil, storeIds: ["s_lidl", "s_aldi"],
+            quantity: nil, notes: nil, brand: nil, imageUrl: nil,
+            isStaple: false, isPriority: false
+        )
+        try await waitForCondition {
+            s.viewModel.sections.flatMap(\.rows).contains { $0.itemName == "Mozzarella" }
+        }
+
+        // Buy it (cascades purchased to both stores)...
+        let needed = s.viewModel.sections.flatMap(\.rows).first { $0.itemName == "Mozzarella" }!
+        s.viewModel.togglePurchased(row: needed)
+        try await waitForCondition {
+            s.viewModel.sections.flatMap(\.rows).first { $0.itemName == "Mozzarella" }?.isNeeded == false
+        }
+
+        // ...then un-check it. Both xrefs must converge back to needed.
+        let purchased = s.viewModel.sections.flatMap(\.rows).first { $0.itemName == "Mozzarella" }!
+        s.viewModel.togglePurchased(row: purchased)
+        try await waitForCondition {
+            s.viewModel.sections.flatMap(\.rows).first { $0.itemName == "Mozzarella" }?.isNeeded == true
+        }
+        let aldiXref = try await s.db.queue.read { conn in
+            try ItemStoreXref.fetchOne(conn, sql: "SELECT * FROM item_store_xref WHERE itemId = ? AND storeId = 's_aldi'", arguments: [itemId])
+        }
+        XCTAssertEqual(aldiXref?.isNeeded, true, "Un-check must cascade needed to Aldi too")
+    }
+
     func testUndoLastPurchaseRestoresAllStores() async throws {
         let s = try await makeSetup()
         s.viewModel.quickAdd(name: "Bread")
@@ -188,6 +222,75 @@ final class ShopAtStoreViewModelTests: XCTestCase {
         try await waitForCondition {
             !s.viewModel.sections.flatMap(\.rows).contains { $0.itemName == "Bread" }
         }
+    }
+
+    // MARK: - v0.9.1 category-sort stability (scroll fix)
+
+    func testCategoryModeOrdersRowsIndependentOfIsNeeded() async throws {
+        // The DAO emits rows isNeeded-first; category mode must NOT inherit
+        // that, or un-checking a row yanks it up the list and loses the
+        // scroll anchor (Mike's v0.9 report). With "Apple" purchased and
+        // "Banana" needed in the same category, name order must hold.
+        let s = try await makeSetup()
+        _ = try await s.itemRepository.addItem(
+            name: "Banana", categoryId: "c_dairy", storeIds: ["s_lidl"],
+            quantity: nil, notes: nil, brand: nil, imageUrl: nil,
+            isStaple: false, isPriority: false
+        )
+        _ = try await s.itemRepository.addItem(
+            name: "Apple", categoryId: "c_dairy", storeIds: ["s_lidl"],
+            quantity: nil, notes: nil, brand: nil, imageUrl: nil,
+            isStaple: false, isPriority: false
+        )
+        try await waitForCondition {
+            s.viewModel.sections.flatMap(\.rows).count == 2
+        }
+
+        let apple = s.viewModel.sections.flatMap(\.rows).first { $0.itemName == "Apple" }!
+        s.viewModel.togglePurchased(row: apple)
+        try await waitForCondition {
+            s.viewModel.sections.flatMap(\.rows).first { $0.itemName == "Apple" }?.isNeeded == false
+        }
+
+        let names = s.viewModel.sections.flatMap(\.rows).map(\.itemName)
+        XCTAssertEqual(names, ["Apple", "Banana"],
+                       "Purchased Apple must keep its name-ordered slot, not sink below needed rows")
+    }
+
+    // MARK: - v0.9.1 in-store Buy Today banner
+
+    func testBuyTodayNamesSurfacesNeededBuyTodayItemsAndIgnoresSearch() async throws {
+        // The "buy today" signal must show while shopping a store, not only
+        // on the Stores overview. Gated on isNeeded (a bought one drops off)
+        // and unaffected by the search filter.
+        let s = try await makeSetup()
+        // Gum: flagged but already checked off -> excluded. Seeded directly
+        // (staple so the purchased row stays visible) because buying through
+        // the repo would auto-clear the flag before the gate is exercised.
+        try s.db.seed(
+            items: [TestFixtures.item(id: "i_gum", name: "Gum", isStaple: true, isBuyToday: true)],
+            xrefs: [TestFixtures.xref(itemId: "i_gum", storeId: "s_lidl", isNeeded: false)]
+        )
+        _ = try await s.itemRepository.addItem(
+            name: "Advil", categoryId: nil, storeIds: ["s_lidl"],
+            quantity: nil, notes: nil, brand: nil, imageUrl: nil,
+            isStaple: false, isPriority: false, isBuyToday: true
+        )
+        _ = try await s.itemRepository.addItem(
+            name: "Milk", categoryId: nil, storeIds: ["s_lidl"],
+            quantity: nil, notes: nil, brand: nil, imageUrl: nil,
+            isStaple: false, isPriority: false
+        )
+        // All three rows visible (Gum is a purchased staple, shown by default)
+        // before the search filter is applied, so the assertion isn't racing
+        // the observation stream.
+        try await waitForCondition { s.viewModel.sections.flatMap(\.rows).count == 3 }
+        XCTAssertEqual(s.viewModel.buyTodayNames, ["Advil"])
+
+        // Searching hides Advil from the list but not from the banner.
+        s.viewModel.query = "milk"
+        XCTAssertEqual(s.viewModel.sections.flatMap(\.rows).map(\.itemName), ["Milk"])
+        XCTAssertEqual(s.viewModel.buyTodayNames, ["Advil"])
     }
 
     // MARK: - search filter

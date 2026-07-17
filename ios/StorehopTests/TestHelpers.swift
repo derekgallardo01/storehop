@@ -20,6 +20,7 @@ enum TestFixtures {
         isNeeded: Bool = true,
         isStaple: Bool = false,
         isPriority: Bool = false,
+        isBuyToday: Bool = false,
         now: Int64 = 0
     ) -> Item {
         Item(
@@ -39,6 +40,7 @@ enum TestFixtures {
             imageUrl: nil,
             isStaple: isStaple,
             isPriority: isPriority,
+            isBuyToday: isBuyToday,
             householdId: householdId ?? userId
         )
     }

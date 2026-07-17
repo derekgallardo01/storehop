@@ -260,6 +260,13 @@ private struct ItemFormPhoto: View {
                     .scaledToFill()
                     .frame(maxWidth: .infinity, maxHeight: 160)
                     .clipShape(RoundedRectangle(cornerRadius: StorehopShape.cornerMedium))
+                    // A freshly picked photo is zoomable too, same as a
+                    // saved one — parity with Android's ImagePickerTile.
+                    .contentShape(RoundedRectangle(cornerRadius: StorehopShape.cornerMedium))
+                    .onTapGesture { enlarged = true }
+                    .fullScreenCover(isPresented: $enlarged) {
+                        ZoomableImageView(image: image)
+                    }
             } else if let imageUrl, let url = URL(string: imageUrl) {
                 AsyncImage(url: url) { image in
                     image.resizable().scaledToFill()

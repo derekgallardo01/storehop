@@ -1973,6 +1973,35 @@
         }
       }
     },
+    "critical_needs_all_at %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "All at %@"
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Todos em %@"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Todos en %@"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tutti da %@"
+          }
+        }
+      }
+    },
     "critical_needs_banner_title": {
       "extractionState": "manual",
       "localizations": {
@@ -5136,6 +5165,35 @@
         "pt-PT": { "stringUnit": { "state": "translated", "value": "%lld artigos para comprar hoje" } },
         "es": { "stringUnit": { "state": "translated", "value": "%lld artículos para comprar hoy" } },
         "it": { "stringUnit": { "state": "translated", "value": "%lld articoli da comprare oggi" } }
+      }
+    },
+    "buy_today_all_at %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "All at %@"
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Todos em %@"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Todos en %@"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tutti da %@"
+          }
+        }
       }
     },
     "buy_today_most_at %@ %lld": {
