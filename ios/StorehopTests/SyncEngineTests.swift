@@ -98,8 +98,12 @@ final class SyncEngineTests: XCTestCase {
         }
 
         // Pause — add another row and verify it does NOT push.
+        // Generous settle window (same 16fa726 precedent as the sibling
+        // tests): the pause propagates via job cancellation, and 100ms was
+        // tight enough to flake under full-suite contention — the s2 seed
+        // below could land before the push job actually stopped.
         await s.pullStateRepo.set(.failed, for: "u1")
-        try await Task.sleep(nanoseconds: 100_000_000)
+        try await Task.sleep(nanoseconds: 1_000_000_000)
         let pauseSnapshot = await s.firestore.snapshotPaths()
 
         try s.db.seed(stores: [TestFixtures.store(id: "s2", userId: "u1")])

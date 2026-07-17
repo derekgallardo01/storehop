@@ -318,6 +318,44 @@ final class ItemFormViewModelTests: XCTestCase {
                        "Mixed regular + one-off picks should keep toggles visible — false")
     }
 
+    // MARK: - v0.9.1 staple default
+
+    func testSubmitAddDefaultsStapleTrue() async throws {
+        // New items default to "Always on the list" — most grocery adds are
+        // recurring buys (Mike's v0.9.1 report). Mirrors Android's updated
+        // ItemFormViewModelTest save assertion.
+        let s = try await makeSetup()
+        XCTAssertTrue(s.viewModel.isStaple, "Form must open with staple pre-checked")
+
+        s.viewModel.name = "Mozzarella"
+        s.viewModel.toggleStore("s_lidl")
+        s.viewModel.submit()
+        try await waitForCondition { s.viewModel.saved }
+
+        let isStaple = try await s.db.queue.read { conn in
+            try Bool.fetchOne(conn, sql: "SELECT isStaple FROM items WHERE name = 'Mozzarella'")
+        }
+        XCTAssertEqual(isStaple, true)
+    }
+
+    func testSubmitCoercesStapleFalseWhenAllPickedStoresAreOneOff() async throws {
+        // The staple toggle is hidden for one-off-only picks, so whatever
+        // value it held must not leak into the save — submit() coerces it
+        // back to false. A one-off couch isn't a recurring buy.
+        let s = try await makeOneOffSetup()
+        s.viewModel.name = "Couch"
+        s.viewModel.storeIds = ["s_hardware", "s_online"]  // both one-off
+        XCTAssertTrue(s.viewModel.isStaple, "Sanity: default still true underneath the hidden toggle")
+
+        s.viewModel.submit()
+        try await waitForCondition { s.viewModel.saved }
+
+        let isStaple = try await s.db.queue.read { conn in
+            try Bool.fetchOne(conn, sql: "SELECT isStaple FROM items WHERE name = 'Couch'")
+        }
+        XCTAssertEqual(isStaple, false)
+    }
+
     /// Seeds two regular stores (`s_lidl`, `s_aldi`) plus two one-off stores
     /// (`s_hardware`, `s_online`) so the three `allPickedStoresAreOneOff`
     /// cases above can exercise empty / all-one-off / mixed selections.
