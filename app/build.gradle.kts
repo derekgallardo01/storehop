@@ -26,12 +26,12 @@ val hasReleaseSigning = keystorePropertiesFile.exists()
 
 android {
     namespace = "com.storehop.app"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.storehop.app"
         minSdk = 26
-        targetSdk = 35
+        targetSdk = 36
         versionCode = 70
         versionName = "0.9.1"
 
