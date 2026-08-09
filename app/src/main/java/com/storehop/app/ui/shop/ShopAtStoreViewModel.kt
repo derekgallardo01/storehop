@@ -287,19 +287,22 @@ class ShopAtStoreViewModel @Inject constructor(
         if (trimmed.isEmpty()) return
         viewModelScope.launch {
             itemRepository.addItemFromQuickAdd(trimmed, storeId)
-            _quickAddInput.value = ""
+            // v0.9.2: keep the typed text after adding so the user can edit
+            // just the suffix when adding a run of same-prefix items
+            // ("Chicken Breasts" -> "Chicken Wings"). The trailing "X" in the
+            // QuickAdd bar clears it when they switch to a new prefix.
         }
     }
 
     /**
      * The user tapped a suggestion in the QuickAdd autocomplete. Tag the
      * existing master-list item to this store (idempotent for items already
-     * tagged) and clear the input.
+     * tagged). The typed text is left in place (see [submitQuickAddText]) so a
+     * run of same-prefix adds doesn't force a retype; the bar's "X" clears it.
      */
     fun pickExistingItem(itemId: String) {
         viewModelScope.launch {
             itemRepository.tagItemToStore(itemId, storeId)
-            _quickAddInput.value = ""
         }
     }
 }

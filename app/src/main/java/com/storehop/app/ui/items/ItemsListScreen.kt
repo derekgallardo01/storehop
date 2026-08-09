@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -282,7 +283,10 @@ fun ItemsListScreen(
                 } else {
                     LazyColumn(
                         contentPadding = PaddingValues(bottom = 96.dp),
-                        modifier = Modifier.fillMaxSize(),
+                        // Shrink the list viewport by the keyboard height so the
+                        // last search match isn't drawn under the IME (the 96.dp
+                        // above only clears the FAB, not the keyboard).
+                        modifier = Modifier.fillMaxSize().imePadding(),
                     ) {
                         when (state.sortMode) {
                             SortMode.ALPHABETIC -> {

@@ -359,6 +359,18 @@ private fun QuickAddBar(
                 modifier = Modifier.weight(1f),
                 keyboardOptions = WordCaps.copy(imeAction = ImeAction.Done),
                 keyboardActions = KeyboardActions(onDone = { onSubmit() }),
+                // The input now persists across adds (same-prefix runs), so give
+                // it a manual clear to reset when switching to a new prefix.
+                trailingIcon = {
+                    if (value.isNotBlank()) {
+                        IconButton(onClick = { onValueChange("") }) {
+                            Icon(
+                                Icons.Filled.Close,
+                                contentDescription = stringResource(R.string.action_clear_search),
+                            )
+                        }
+                    }
+                },
             )
             Spacer(Modifier.width(8.dp))
             IconButton(

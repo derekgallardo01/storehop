@@ -17,6 +17,17 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 /**
+ * One store's line in a summary banner's expanded breakdown: the store id (so
+ * the row can navigate to that store's shopping view), its display name, and
+ * the item names listed under it.
+ */
+data class BannerStore(
+    val storeId: String,
+    val storeName: String,
+    val items: List<String>,
+)
+
+/**
  * Snapshot of the critical-needs banner's state. Composed by the VM and
  * consumed by the banner composable. `byStore` lists only stores that have at
  * least one critical item, in displayOrder.
@@ -26,7 +37,7 @@ data class CriticalBannerState(
     val topStoreName: String,
     val topStoreCount: Int,
     val singleStore: Boolean,
-    val byStore: List<Pair<String, List<String>>>,
+    val byStore: List<BannerStore>,
 )
 
 /**
@@ -41,7 +52,7 @@ data class BuyTodayBannerState(
     val topStoreName: String,
     val topStoreCount: Int,
     val singleStore: Boolean,
-    val byStore: List<Pair<String, List<String>>>,
+    val byStore: List<BannerStore>,
 )
 
 @HiltViewModel
@@ -90,7 +101,9 @@ class StorePickerViewModel @Inject constructor(
                 topStoreName = top.store.name,
                 topStoreCount = top.criticalItemNames.size,
                 singleStore = withCriticals.size == 1,
-                byStore = withCriticals.map { it.store.name to it.criticalItemNames },
+                byStore = withCriticals.map {
+                    BannerStore(it.store.id, it.store.name, it.criticalItemNames)
+                },
             )
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000L), null)
@@ -114,7 +127,9 @@ class StorePickerViewModel @Inject constructor(
                 topStoreName = top.store.name,
                 topStoreCount = top.buyTodayItemNames.size,
                 singleStore = withBuyToday.size == 1,
-                byStore = withBuyToday.map { it.store.name to it.buyTodayItemNames },
+                byStore = withBuyToday.map {
+                    BannerStore(it.store.id, it.store.name, it.buyTodayItemNames)
+                },
             )
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000L), null)

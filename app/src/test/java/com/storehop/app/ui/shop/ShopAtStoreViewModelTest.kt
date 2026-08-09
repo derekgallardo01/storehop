@@ -360,9 +360,10 @@ class ShopAtStoreViewModelTest {
         advanceUntilIdle()
 
         coVerify(exactly = 1) { itemRepo.addItemFromQuickAdd("Yogurt", "store_lidl") }
-        // Input should be cleared after a successful submit so the field is
-        // ready for the next entry.
-        assertThat(vm.quickAddInput.value).isEmpty()
+        // v0.9.2: the typed text now persists after a successful submit so the
+        // user can edit just the suffix for same-prefix runs; the bar's "X"
+        // clears it manually.
+        assertThat(vm.quickAddInput.value).isEqualTo("  Yogurt  ")
     }
 
     @Test fun `pickExistingItem routes to tagItemToStore`() = runTest {
@@ -375,7 +376,9 @@ class ShopAtStoreViewModelTest {
         advanceUntilIdle()
 
         coVerify(exactly = 1) { itemRepo.tagItemToStore("milk", "store_lidl") }
-        assertThat(vm.quickAddInput.value).isEmpty()
+        // v0.9.2: input persists after picking a suggestion too, so a run of
+        // same-prefix adds doesn't force a retype.
+        assertThat(vm.quickAddInput.value).isEqualTo("mil")
     }
 
     @Test fun `quickAddSuggestions empty when input is empty even if staples exist`() = runTest {

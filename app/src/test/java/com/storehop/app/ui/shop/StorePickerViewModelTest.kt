@@ -160,8 +160,8 @@ class StorePickerViewModelTest {
             advanceUntilIdle()
             val byStore = expectMostRecentItem()!!.byStore
             assertThat(byStore).containsExactly(
-                "store_pingo" to listOf("Milk"),
-                "store_continente" to listOf("Bread", "Cheese"),
+                BannerStore("store_pingo", "store_pingo", listOf("Milk")),
+                BannerStore("store_continente", "store_continente", listOf("Bread", "Cheese")),
             ).inOrder()
             cancelAndIgnoreRemainingEvents()
         }
