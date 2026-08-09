@@ -169,13 +169,17 @@ struct ShopAtStoreView: View {
                         suggestions: viewModel.quickAddSuggestions,
                         onPick: { itemId in
                             viewModel.pickExistingItem(itemId: itemId)
-                            quickAddFocused = false
+                            // Keep the keyboard up: the input persists so the
+                            // user can keep adding same-prefix items.
+                            quickAddFocused = true
                         }
                     )
                 }
                 QuickAddBar(text: $vm.quickAddInput, focused: $quickAddFocused) {
                     viewModel.submitQuickAddText()
-                    quickAddFocused = false
+                    // Keep the keyboard up so the user can edit just the suffix
+                    // and add the next same-prefix item without re-tapping.
+                    quickAddFocused = true
                 }
             }
         }
@@ -405,14 +409,27 @@ private struct QuickAddBar: View {
 
     var body: some View {
         HStack(spacing: 8) {
-            TextField(L("shop_quick_add_placeholder"), text: $text)
-                .focused(focused)
-                .textInputAutocapitalization(.sentences)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 10)
-                .background(StorehopColors.surfaceVariant, in: RoundedRectangle(cornerRadius: StorehopShape.cornerMedium))
-                .submitLabel(.done)
-                .onSubmit(onSubmit)
+            HStack(spacing: 8) {
+                TextField(L("shop_quick_add_placeholder"), text: $text)
+                    .focused(focused)
+                    .textInputAutocapitalization(.sentences)
+                    .submitLabel(.done)
+                    .onSubmit(onSubmit)
+                // The input now persists across adds (same-prefix runs), so
+                // give it a manual clear to reset when switching to a new prefix.
+                if !text.isEmpty {
+                    Button {
+                        text = ""
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundStyle(StorehopColors.onSurfaceVariant)
+                    }
+                    .accessibilityLabel(L("action_clear_search"))
+                }
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
+            .background(StorehopColors.surfaceVariant, in: RoundedRectangle(cornerRadius: StorehopShape.cornerMedium))
             Button(action: onSubmit) {
                 Image(systemName: "plus.circle.fill")
                     .foregroundStyle(StorehopColors.primary)

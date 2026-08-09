@@ -94,6 +94,10 @@ struct ItemsListView: View {
             }
             .listStyle(.insetGrouped)
             .searchable(text: $vm.query, prompt: L("items_search_placeholder"))
+            // Let the user swipe the list to push the search keyboard away so
+            // the last match isn't stuck behind it (the List already insets for
+            // the keyboard; this adds a natural dismiss gesture on top).
+            .scrollDismissesKeyboard(.interactively)
             .refreshable {
                 // Data is already reactive via GRDB ValueObservation; the
                 // refreshable affordance is a UX beat — gives the user a

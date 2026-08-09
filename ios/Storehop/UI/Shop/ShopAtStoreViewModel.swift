@@ -314,24 +314,28 @@ final class ShopAtStoreViewModel {
     /// Submit the current QuickAdd input. Routes to
     /// `ItemRepository.addItemFromQuickAdd` which dedupes by case-insensitive
     /// name match before creating: existing master-list items get re-tagged
-    /// to this store instead of duplicated. Clears the input on success.
-    /// No-op for whitespace-only input.
+    /// to this store instead of duplicated. No-op for whitespace-only input.
+    ///
+    /// v0.9.2: the typed text is left in place after adding so the user can
+    /// edit just the suffix when adding a run of same-prefix items
+    /// ("Chicken Breasts" -> "Chicken Wings"). The bar's "X" clears it when
+    /// they switch to a new prefix. (Re-submitting identical text is harmless —
+    /// `addItemFromQuickAdd` re-tags the existing item rather than duplicating.)
     func submitQuickAddText() {
         let trimmed = quickAddInput.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
         Task { [storeId, itemRepository] in
             _ = try? await itemRepository.addItemFromQuickAdd(name: trimmed, storeId: storeId)
-            await MainActor.run { self.quickAddInput = "" }
         }
     }
 
     /// The user tapped a suggestion in the QuickAdd autocomplete. Tag the
     /// existing master-list item to this store (idempotent for items already
-    /// tagged) and clear the input.
+    /// tagged). The typed text is left in place (see `submitQuickAddText`) so a
+    /// run of same-prefix adds doesn't force a retype; the bar's "X" clears it.
     func pickExistingItem(itemId: String) {
         Task { [storeId, itemRepository] in
             try? await itemRepository.tagItemToStore(itemId: itemId, storeId: storeId)
-            await MainActor.run { self.quickAddInput = "" }
         }
     }
 

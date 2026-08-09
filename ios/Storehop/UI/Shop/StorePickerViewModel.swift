@@ -1,6 +1,15 @@
 import Foundation
 import Observation
 
+/// One store's line in a summary banner's expanded breakdown: the store id (so
+/// the row can navigate to that store's shopping view), its display name, and
+/// the item names listed under it. Mirrors Android's `BannerStore`.
+struct BannerStore: Equatable, Sendable {
+    let storeId: String
+    let storeName: String
+    let items: [String]
+}
+
 /// Snapshot of the critical-needs banner's state. Computed by the VM and
 /// consumed by `CriticalNeedsBanner`. `byStore` lists only stores that have
 /// at least one critical item, preserving the user's display order. Mirrors
@@ -10,17 +19,7 @@ struct CriticalBannerState: Equatable, Sendable {
     let topStoreName: String
     let topStoreCount: Int
     let singleStore: Bool
-    /// (store name, list of critical item names at that store).
-    let byStore: [(String, [String])]
-
-    static func == (lhs: CriticalBannerState, rhs: CriticalBannerState) -> Bool {
-        lhs.totalCount == rhs.totalCount
-            && lhs.topStoreName == rhs.topStoreName
-            && lhs.topStoreCount == rhs.topStoreCount
-            && lhs.singleStore == rhs.singleStore
-            && lhs.byStore.count == rhs.byStore.count
-            && zip(lhs.byStore, rhs.byStore).allSatisfy { l, r in l.0 == r.0 && l.1 == r.1 }
-    }
+    let byStore: [BannerStore]
 }
 
 /// Snapshot of the "Buy Today!" banner state. Same shape as
@@ -33,16 +32,7 @@ struct BuyTodayBannerState: Equatable, Sendable {
     let topStoreName: String
     let topStoreCount: Int
     let singleStore: Bool
-    let byStore: [(String, [String])]
-
-    static func == (lhs: BuyTodayBannerState, rhs: BuyTodayBannerState) -> Bool {
-        lhs.totalCount == rhs.totalCount
-            && lhs.topStoreName == rhs.topStoreName
-            && lhs.topStoreCount == rhs.topStoreCount
-            && lhs.singleStore == rhs.singleStore
-            && lhs.byStore.count == rhs.byStore.count
-            && zip(lhs.byStore, rhs.byStore).allSatisfy { l, r in l.0 == r.0 && l.1 == r.1 }
-    }
+    let byStore: [BannerStore]
 }
 
 @Observable
@@ -145,7 +135,9 @@ final class StorePickerViewModel {
             topStoreName: top.store.name,
             topStoreCount: top.criticalItemNames.count,
             singleStore: withCriticals.count == 1,
-            byStore: withCriticals.map { ($0.store.name, $0.criticalItemNames) }
+            byStore: withCriticals.map {
+                BannerStore(storeId: $0.store.id, storeName: $0.store.name, items: $0.criticalItemNames)
+            }
         )
     }
 
@@ -172,7 +164,9 @@ final class StorePickerViewModel {
             topStoreName: top.store.name,
             topStoreCount: top.buyTodayItemNames.count,
             singleStore: withBuyToday.count == 1,
-            byStore: withBuyToday.map { ($0.store.name, $0.buyTodayItemNames) }
+            byStore: withBuyToday.map {
+                BannerStore(storeId: $0.store.id, storeName: $0.store.name, items: $0.buyTodayItemNames)
+            }
         )
     }
 

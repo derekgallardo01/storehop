@@ -11,6 +11,13 @@ final class ItemFormViewModel {
     let itemId: String?
     var isEdit: Bool { itemId != nil }
 
+    /// The item's "Buy today" flag as loaded (false for a new item). `submit()`
+    /// uses it to detect the OFF->ON transition: turning Buy today on marks the
+    /// item needed at all its stores so it surfaces today, but re-saving an
+    /// already-buy-today item must not re-spread "needed" to stores the user
+    /// has since cleared. Additive only — turning it off never removes.
+    private var originalBuyToday: Bool = false
+
     var name: String = "" {
         didSet { nameError = false; saveError = nil }
     }
@@ -142,6 +149,7 @@ final class ItemFormViewModel {
         isStaple = row.item.isStaple
         isPriority = row.item.isPriority
         isBuyToday = row.item.isBuyToday
+        originalBuyToday = row.item.isBuyToday
         imageUrl = row.item.imageUrl
         isLoading = false
     }
@@ -265,6 +273,17 @@ final class ItemFormViewModel {
                         isBuyToday: snapshot.isBuyToday
                     )
                 }
+
+                // v0.9.2: flipping "Buy today" on should surface the item today.
+                // "Needed" lives on item_store_xref, not on isBuyToday, so mark
+                // the item needed at all its stores when the flag is newly
+                // enabled. Guarded on the OFF->ON transition so re-saving an
+                // already-buy-today item can't re-spread needed to stores the
+                // user has since cleared (additive only — off never removes).
+                if snapshot.isBuyToday && !self.originalBuyToday {
+                    try await self.itemRepository.markNeededAcrossAllStores(itemId: savedId)
+                }
+                self.originalBuyToday = snapshot.isBuyToday
 
                 self.isSubmitting = false
                 self.isUploadingImage = false

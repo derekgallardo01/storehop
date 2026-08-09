@@ -41,14 +41,14 @@ struct StorePickerView: View {
             List {
                 if let buyToday = viewModel.buyTodayBannerState {
                     Section {
-                        BuyTodayBanner(state: buyToday)
+                        BuyTodayBanner(state: buyToday, onPickStore: onPickStore)
                             .listRowBackground(Color.clear)
                             .listRowInsets(EdgeInsets())
                     }
                 }
                 if let banner = viewModel.criticalBannerState {
                     Section {
-                        CriticalNeedsBanner(state: banner)
+                        CriticalNeedsBanner(state: banner, onPickStore: onPickStore)
                             .listRowBackground(Color.clear)
                             .listRowInsets(EdgeInsets())
                     }
@@ -310,6 +310,7 @@ private struct CriticalChip: View {
 /// (matches Android's `critical_banner_all_at`).
 private struct CriticalNeedsBanner: View {
     let state: CriticalBannerState
+    let onPickStore: (String) -> Void
     @State private var expanded = false
 
     var body: some View {
@@ -345,15 +346,20 @@ private struct CriticalNeedsBanner: View {
                         VStack(alignment: .leading, spacing: 2) {
                             Text(String(
                                 format: L("critical_needs_store_header %@ %lld"),
-                                entry.0,
-                                entry.1.count
+                                entry.storeName,
+                                entry.items.count
                             ))
                                 .font(StorehopTypography.labelMedium.weight(.semibold))
                                 .foregroundStyle(StorehopColors.onPrimaryContainer)
-                            Text(entry.1.joined(separator: ", "))
+                            Text(entry.items.joined(separator: ", "))
                                 .font(StorehopTypography.bodyMedium)
                                 .foregroundStyle(StorehopColors.onPrimaryContainer)
                         }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .contentShape(Rectangle())
+                        // Tapping a store row navigates to that store; the inner
+                        // gesture takes precedence over the card's expand toggle.
+                        .onTapGesture { onPickStore(entry.storeId) }
                     }
                 }
                 .padding(.top, 8)
@@ -381,6 +387,7 @@ private struct CriticalNeedsBanner: View {
 /// `CriticalNeedsBanner` structure.
 private struct BuyTodayBanner: View {
     let state: BuyTodayBannerState
+    let onPickStore: (String) -> Void
     @State private var expanded = false
 
     var body: some View {
@@ -413,15 +420,20 @@ private struct BuyTodayBanner: View {
                         VStack(alignment: .leading, spacing: 2) {
                             Text(String(
                                 format: L("buy_today_store_header %@ %lld"),
-                                entry.0,
-                                entry.1.count
+                                entry.storeName,
+                                entry.items.count
                             ))
                                 .font(StorehopTypography.labelMedium.weight(.semibold))
                                 .foregroundStyle(.white)
-                            Text(entry.1.joined(separator: ", "))
+                            Text(entry.items.joined(separator: ", "))
                                 .font(StorehopTypography.bodyMedium)
                                 .foregroundStyle(.white)
                         }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .contentShape(Rectangle())
+                        // Tapping a store row navigates to that store; the inner
+                        // gesture takes precedence over the card's expand toggle.
+                        .onTapGesture { onPickStore(entry.storeId) }
                     }
                 }
                 .padding(.top, 8)
