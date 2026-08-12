@@ -7,6 +7,20 @@ project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 For the high-level roadmap and earlier-than-0.5.0 history, see the
 "Roadmap" section in the [README](README.md).
 
+## [0.9.2] - 2026-08-12
+
+### Fixed
+
+- **Items search remains usable with the keyboard open.** The root navigation
+  host now consumes system-bar and keyboard insets after applying them, so the
+  nested Items screen does not apply those insets a second time. This restores
+  the full results viewport, prevents the first item's icon from being clipped,
+  and removes the duplicated spacing above the Items toolbar.
+
+### Versions
+
+- Android: `versionName` 0.9.1 -> 0.9.2; `versionCode` 70 -> 73.
+
 ## [0.9.1-ios] - 2026-07-16
 
 **iOS parity pass for v0.9.1.** The v0.9.1 commit shipped both

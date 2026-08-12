@@ -8,6 +8,7 @@ import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
@@ -232,7 +233,14 @@ private fun SignedInRoot() {
         NavHost(
             navController = navController,
             startDestination = Routes.SHOP,
-            modifier = Modifier.padding(padding),
+            // The root Scaffold has already applied the system-bar and IME
+            // insets represented by this padding. Mark them as consumed so
+            // destination Scaffolds do not apply the same insets again. The
+            // duplicate IME inset used to collapse the Items search results
+            // to a single, partially clipped row while the keyboard was open.
+            modifier = Modifier
+                .padding(padding)
+                .consumeWindowInsets(padding),
         ) {
             composable(Routes.SHOP) {
                 StorePickerScreen(
