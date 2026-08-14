@@ -7,6 +7,60 @@ project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 For the high-level roadmap and earlier-than-0.5.0 history, see the
 "Roadmap" section in the [README](README.md).
 
+## [0.9.2] - 2026-08-09
+
+**Four Items/Shop usability improvements**, shipped on both platforms
+(Android + iOS). Each came from a real in-use friction report; none is
+a crash or data-loss fix — they just remove papercuts.
+
+### Added
+
+- **Tap a store to open it from the overview banners.** Store names in
+  the "Buy today" and "Critical items needed" summary cards on the Shop
+  screen are now tappable and navigate straight to that store's list;
+  previously a tap only expanded/collapsed the card. The banner state
+  now carries the store id (`BannerStore`) so the row can route through
+  the existing `onPickStore(storeId)` path; tapping elsewhere on the
+  card still toggles it.
+  ([StorePickerScreen.kt](app/src/main/java/com/storehop/app/ui/shop/StorePickerScreen.kt),
+  [StorePickerView.swift](ios/Storehop/UI/Shop/StorePickerView.swift))
+- **Clear button on the in-store "Add an item" box.** A trailing "✕"
+  now clears the quick-add field (matching the search boxes).
+
+### Changed
+
+- **"Buy today" now puts the item on the list.** Toggling "Buy today"
+  on and saving marks the item needed at all its tagged stores, so it
+  surfaces today on those stores' lists and in the Buy Today banner.
+  Previously "Buy today" only set a display flag layered on an
+  already-needed item, so a not-currently-needed item flagged Buy-today
+  showed up nowhere actionable. Additive only — turning "Buy today" off
+  never removes an item from a list, and re-saving an already-flagged
+  item won't re-spread "needed" to stores you've since cleared (guarded
+  on the OFF→ON transition). Reuses `markNeededAcrossAllStores`.
+  ([ItemFormViewModel.kt](app/src/main/java/com/storehop/app/ui/items/ItemFormViewModel.kt),
+  [ItemFormViewModel.swift](ios/Storehop/UI/Items/ItemFormViewModel.swift))
+- **The in-store "Add an item" box keeps your text after each add.**
+  Adding a run of same-prefix items ("Chicken breasts", "Chicken
+  wings", …) no longer means retyping the prefix — edit just the suffix
+  and tap "+" again, then "✕" to clear when you switch. Quick-add
+  already dedupes by name, so re-adding re-tags the existing item
+  rather than duplicating it. (iOS keeps the keyboard up between adds.)
+  ([ShopAtStoreScreen.kt](app/src/main/java/com/storehop/app/ui/shop/ShopAtStoreScreen.kt),
+  [ShopAtStoreView.swift](ios/Storehop/UI/Shop/ShopAtStoreView.swift))
+
+### Fixed
+
+- **Last search result hidden behind the keyboard.** On the Items list,
+  searching a term with more matches than fit above the keyboard left
+  the final row (e.g. "Toilet Paper" under "toilet") stuck underneath
+  it, unreachable without dismissing the keyboard. The results list now
+  insets for the keyboard on Android (`imePadding`); iOS adds
+  interactive swipe-to-dismiss so a drag on the list pushes the keyboard
+  away.
+  ([ItemsListScreen.kt](app/src/main/java/com/storehop/app/ui/items/ItemsListScreen.kt),
+  [ItemsListView.swift](ios/Storehop/UI/Items/ItemsListView.swift))
+
 ## [0.9.1-ios] - 2026-07-16
 
 **iOS parity pass for v0.9.1.** The v0.9.1 commit shipped both
