@@ -16,6 +16,7 @@ import com.storehop.app.billing.BillingManager
 import com.storehop.app.billing.Entitlement
 import com.storehop.app.billing.EntitlementRepository
 import com.storehop.app.billing.PurchaseEvent
+import com.storehop.app.data.demo.DemoDataSeeder
 import com.storehop.app.data.prefs.ThemeMode
 import com.storehop.app.data.prefs.UserPreferencesRepository
 import com.storehop.app.data.util.HouseholdSessionProvider
@@ -84,7 +85,32 @@ class SettingsViewModel @Inject constructor(
     private val syncEngine: SyncEngine,
     private val entitlementRepo: EntitlementRepository,
     private val billingManager: BillingManager,
+    private val demoDataSeeder: DemoDataSeeder,
 ) : ViewModel() {
+
+    /** DEBUG-only: true while a demo-data load/clear is running. The Settings
+     *  UI shows the loader row (and spinner) only under BuildConfig.DEBUG, so
+     *  R8 strips the [DemoDataSeeder] call sites from release. */
+    private val _demoBusy = MutableStateFlow(false)
+    val demoBusy: StateFlow<Boolean> = _demoBusy.asStateFlow()
+
+    /** Fill the app with curated demo data for marketing screenshots/video. */
+    fun loadDemoData() {
+        if (_demoBusy.value) return
+        _demoBusy.value = true
+        viewModelScope.launch {
+            try { demoDataSeeder.seed() } finally { _demoBusy.value = false }
+        }
+    }
+
+    /** Wipe the demo data (soft-delete items, archive stores/categories). */
+    fun clearDemoData() {
+        if (_demoBusy.value) return
+        _demoBusy.value = true
+        viewModelScope.launch {
+            try { demoDataSeeder.clear() } finally { _demoBusy.value = false }
+        }
+    }
 
     /** v0.8: live entitlement state observed by the upsell card + the
      *  CSV export buttons. */

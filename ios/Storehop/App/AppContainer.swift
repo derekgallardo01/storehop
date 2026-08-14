@@ -202,6 +202,48 @@ final class AppContainer {
         )
     }
 
+    #if DEBUG
+    /// DEBUG-only marketing helper. Constructs a `DemoDataSeeder` wired with
+    /// the same repositories/DAOs the app uses, so the curated dataset lands
+    /// through the real invariant-preserving write paths. Shared by the
+    /// Settings "Demo data (debug)" section and the screenshot-tour launch
+    /// path below.
+    func makeDemoDataSeeder() -> DemoDataSeeder {
+        DemoDataSeeder(
+            writer: database.queue,
+            storeRepository: storeRepository,
+            categoryRepository: categoryRepository,
+            itemRepository: itemRepository,
+            storeCategoryOrderRepository: storeCategoryOrderRepository,
+            purchaseRecordDao: purchaseRecordDao,
+            ids: ids,
+            clock: clock,
+            session: session,
+            householdSession: householdSession
+        )
+    }
+
+    /// Run the curated demo seed once at launch when the host process was
+    /// started with the `-E2ESeedDemoData` launch argument (or the
+    /// `SEED_DEMO_DATA=1` environment variable). Invoked from
+    /// `StorehopApp`'s root `.task` after `session.start()` so the session /
+    /// household ids are resolved before the purchase-history rows stamp
+    /// their `userId` / `householdId`. Used by `DesignSystemTourTest` to
+    /// populate the marketing screenshot dataset; a no-op in every normal
+    /// launch.
+    func seedDemoDataIfRequested() async {
+        let info = ProcessInfo.processInfo
+        let requested = info.arguments.contains("-E2ESeedDemoData")
+            || info.environment["SEED_DEMO_DATA"] == "1"
+        guard requested else { return }
+        do {
+            try await makeDemoDataSeeder().seed()
+        } catch {
+            assertionFailure("Demo-data seed failed: \(error)")
+        }
+    }
+    #endif
+
     static func live() -> AppContainer {
         do {
             let database = try StorehopDatabase.live()

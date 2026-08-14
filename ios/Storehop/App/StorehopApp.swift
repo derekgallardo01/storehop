@@ -55,6 +55,13 @@ struct StorehopApp: App {
                 .environment(container)
                 .task {
                     await container.session.start()
+                    #if DEBUG
+                    // Marketing screenshot tour: fill the app with curated
+                    // demo data when launched with `-E2ESeedDemoData`. No-op
+                    // otherwise. Runs after `session.start()` so the seeded
+                    // purchase history can stamp a resolved user/household id.
+                    await container.seedDemoDataIfRequested()
+                    #endif
                     await container.syncEngine.start()
                     // v0.8: StoreKit2 connection + transaction listener.
                     // Idempotent; safe to call from the app's .task.

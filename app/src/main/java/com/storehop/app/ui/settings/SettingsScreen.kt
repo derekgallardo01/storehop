@@ -174,6 +174,34 @@ fun SettingsScreen(
                 onForceSync = viewModel::forceSyncNow,
                 onAcknowledge = viewModel::acknowledgeForceSync,
             )
+            // DEBUG-only marketing helper: fills the app with curated demo data
+            // for landing-page screenshots/video. BuildConfig.DEBUG is a compile
+            // constant, so R8 strips this whole block from the release build.
+            if (BuildConfig.DEBUG) {
+                val demoBusy = viewModel.demoBusy.collectAsState().value
+                SettingsCard(title = "Demo data (debug)") {
+                    Text(
+                        text = "Fill the app with curated demo data for landing-page screenshots and the walkthrough video.",
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                    Spacer(Modifier.height(12.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Button(onClick = viewModel::loadDemoData, enabled = !demoBusy) {
+                            Text("Load demo data")
+                        }
+                        OutlinedButton(onClick = viewModel::clearDemoData, enabled = !demoBusy) {
+                            Text("Clear")
+                        }
+                        if (demoBusy) {
+                            Spacer(Modifier.width(4.dp))
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(24.dp),
+                                strokeWidth = 2.dp,
+                            )
+                        }
+                    }
+                }
+            }
             // v0.8: upsell card. Shown only when the user isn't entitled.
             // Above the About section so it sits at the bottom of the
             // scroll where the user lands after browsing settings.

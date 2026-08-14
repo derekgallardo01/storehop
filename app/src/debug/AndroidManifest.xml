@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  DEBUG-only manifest additions. Merged into the debug variant only, so none of
+  this ships in release. Registers the demo-data receiver used by the marketing
+  screenshot/video tooling.
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <application>
+        <receiver
+            android:name=".data.demo.DemoDataReceiver"
+            android:enabled="true"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.storehop.app.action.LOAD_DEMO_DATA" />
+                <action android:name="com.storehop.app.action.CLEAR_DEMO_DATA" />
+            </intent-filter>
+        </receiver>
+    </application>
+</manifest>

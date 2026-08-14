@@ -141,6 +141,14 @@ struct SettingsView: View {
             Section(header: Text(L("settings_section_about"))) {
                 AboutSection()
             }
+
+            #if DEBUG
+            // DEBUG-only marketing helper: fills the app with curated demo
+            // data for landing-page screenshots / the walkthrough tour.
+            // Compiled out of release builds. Mirrors Android's "Demo data
+            // (debug)" card.
+            DemoDataDebugSection()
+            #endif
         }
         .navigationTitle(L("title_settings"))
         .navigationBarTitleDisplayMode(.inline)
