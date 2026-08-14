@@ -17,6 +17,12 @@
 param(
   [string] $Avd = 'Pixel_Phone',
   [ValidateSet('light','dark')] [string] $Theme = 'light',
+  # Trim the raw recording to app-only content. The lead-in covers the launcher
+  # + app launch + demo-data seed (~8s here); the tail drops the teardown back to
+  # the launcher. Tune if seed timing shifts (a contact sheet helps:
+  #   ffmpeg -i walk_raw.mp4 -vf "fps=1,scale=150:-1,tile=8x5" sheet.png).
+  [double] $TrimStartSec = 8.0,
+  [double] $TrimEndSec = 2.5,
   [switch] $SkipBuild
 )
 
@@ -85,10 +91,14 @@ try {
   $mp4 = Join-Path $videoDir 'walkthrough.mp4'
   $gif = Join-Path $videoDir 'walkthrough.gif'
   $pal = Join-Path $env:TEMP 'sh_palette.png'
-  # Normalize to 30fps h264; keep native width (scale to even dims for yuv420p).
-  & ffmpeg -y -i $raw -vf "fps=30,scale=trunc(iw/2)*2:trunc(ih/2)*2" -c:v libx264 -pix_fmt yuv420p -movflags +faststart $mp4
-  & ffmpeg -y -i $mp4 -vf "fps=15,scale=480:-1:flags=lanczos,palettegen" $pal
-  & ffmpeg -y -i $mp4 -i $pal -lavfi "fps=15,scale=480:-1:flags=lanczos[x];[x][1:v]paletteuse" $gif
+  # Trim to app-only [TrimStartSec, duration - TrimEndSec], then normalize to
+  # 30fps h264 (even dims for yuv420p). Accurate seek (-ss/-to after -i).
+  $dur = [double](& ffprobe -v error -show_entries format=duration -of default=nk=1:nw=1 $raw)
+  $end = [math]::Max($TrimStartSec + 1.0, $dur - $TrimEndSec)
+  & ffmpeg -y -i $raw -ss $TrimStartSec -to $end -vf "fps=30,scale=trunc(iw/2)*2:trunc(ih/2)*2" -c:v libx264 -pix_fmt yuv420p -movflags +faststart $mp4
+  # GIF from the trimmed mp4.
+  & ffmpeg -y -i $mp4 -vf "fps=15,scale=480:-1:flags=lanczos,palettegen=stats_mode=diff" $pal
+  & ffmpeg -y -i $mp4 -i $pal -lavfi "fps=15,scale=480:-1:flags=lanczos[x];[x][1:v]paletteuse=dither=bayer" $gif
   Remove-Item $raw,$pal -ErrorAction SilentlyContinue
   Write-Host "   -> $mp4" -ForegroundColor Green
   Write-Host "   -> $gif" -ForegroundColor Green
