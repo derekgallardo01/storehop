@@ -5,7 +5,7 @@ capture runs against the **instrumented test graph** (offline `LocalOnly` auth,
 no Firebase, no Google account) seeded with a curated demo dataset, so results
 are deterministic.
 
-## Outputs (git-ignored — regenerate, don't commit)
+## Outputs (committed; regenerate anytime with the scripts below)
 
 ```
 docs/marketing/
