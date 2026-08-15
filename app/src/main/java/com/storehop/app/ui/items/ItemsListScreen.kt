@@ -281,7 +281,10 @@ fun ItemsListScreen(
                     }
                 } else {
                     LazyColumn(
-                        contentPadding = PaddingValues(bottom = 96.dp),
+                        // Extra bottom room so the last row settles clearly above
+                        // the FAB when scrolled to the bottom (96.dp only just
+                        // cleared it, leaving the final item feeling cramped).
+                        contentPadding = PaddingValues(bottom = 144.dp),
                         modifier = Modifier.fillMaxSize(),
                     ) {
                         when (state.sortMode) {
