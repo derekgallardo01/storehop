@@ -7,6 +7,19 @@ project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 For the high-level roadmap and earlier-than-0.5.0 history, see the
 "Roadmap" section in the [README](README.md).
 
+## [0.9.3] - 2026-08-15
+
+### Fixed
+
+- **Breathing room at the bottom of the Items list.** When the list was scrolled
+  to the bottom, the last row sat cramped under the floating "+" button. The
+  results list's bottom content padding is increased (96dp -> 144dp) so the final
+  item settles clearly above the FAB with comfortable space.
+
+### Versions
+
+- Android: `versionName` 0.9.2 -> 0.9.3; `versionCode` 73 -> 74.
+
 ## [0.9.2] - 2026-08-12
 
 ### Fixed
