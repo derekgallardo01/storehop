@@ -7,6 +7,19 @@ project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 For the high-level roadmap and earlier-than-0.5.0 history, see the
 "Roadmap" section in the [README](README.md).
 
+## [0.9.4] - 2026-08-18
+
+### Fixed
+
+- **Items list clearance above keyboard.** Further increased the bottom scroll
+  padding of the Items list (144dp -> 192dp) so that the category, star badge,
+  and +/- quick-action buttons on the bottom item remain fully visible and
+  accessible even with the software keyboard and suggestions bar open.
+
+### Versions
+
+- Android: `versionName` 0.9.3 -> 0.9.4; `versionCode` 74 -> 75.
+
 ## [0.9.3] - 2026-08-15
 
 ### Fixed

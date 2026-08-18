@@ -282,9 +282,10 @@ fun ItemsListScreen(
                 } else {
                     LazyColumn(
                         // Extra bottom room so the last row settles clearly above
-                        // the FAB when scrolled to the bottom (96.dp only just
-                        // cleared it, leaving the final item feeling cramped).
-                        contentPadding = PaddingValues(bottom = 144.dp),
+                        // the FAB / keyboard when scrolled to the bottom (144.dp
+                        // left category, star, and +/- partially clipped with
+                        // the keyboard open; 192.dp provides ample clearance).
+                        contentPadding = PaddingValues(bottom = 192.dp),
                         modifier = Modifier.fillMaxSize(),
                     ) {
                         when (state.sortMode) {
