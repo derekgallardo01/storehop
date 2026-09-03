@@ -43,19 +43,20 @@ For each row, indicate **Collected**, **Shared** (with third parties beyond Fire
 | **Personal info** | Email address | Yes (only if user signs in with Google) | No | Optional | Identifies the user's cloud-synced account |
 | **Personal info** | User IDs | Yes | No | Required | Firebase Authentication assigns an anonymous UID; required for the app to store data per-user |
 | **Photos and videos** | Photos | Yes (only if user attaches a photo to an item) | No | Optional | Stored at `users/{uid}/items/{itemId}.jpg`, displayed only to that user |
-| **App activity** | App interactions | **No** | — | — | We do not collect interaction telemetry |
-| **App info and performance** | Crash logs | **No** | — | — | We do not run Firebase Crashlytics |
-| **App info and performance** | Diagnostics | **No** | — | — | No diagnostics collection |
-| **Device or other IDs** | Device or other IDs | **No** | — | — | The Firebase auth UID is account-scoped, not device-scoped; no advertising ID |
+| **App activity** | App interactions | **Yes** | No | Optional | Anonymous screen views + action events (item added, store opened, item checked off, list shared, etc.) via GA4 + PostHog. Counts/flags only — **no item names or content**. Opt-out in Settings → Data → Analytics |
+| **App info and performance** | Crash logs | **No** | — | — | We do not run Crashlytics |
+| **App info and performance** | Diagnostics | **No** | — | — | No crash/ANR/performance diagnostics collected |
+| **Device or other IDs** | Device or other IDs | **Yes** | No | Optional | Analytics app-instance ID (GA4 / PostHog) to count active users + retention. **No advertising ID** — AD_ID is disabled and the permission removed |
 
 ### Purposes for each data type
-- **App functionality** (everything: it's all used to run the app)
+- **App functionality** (everything used to run the app)
 - **Account management** (only for: Email, Name, User IDs)
+- **Analytics** (only for: App interactions, Device or other IDs)
 
-Do **not** check: Analytics, Developer communications, Advertising or marketing, Fraud prevention, Personalization.
+Do **not** check: Developer communications, Advertising or marketing, Fraud prevention, Personalization.
 
 ### Sharing
-**No data is shared with third parties.** Firebase counts as a "service provider" and Play's wizard treats it as not-sharing for purposes of the form.
+**No data is shared with third parties for their own use.** Firebase, Google Analytics for Firebase, and PostHog act as our **service providers / processors** (processing on our behalf), which Play's wizard treats as not-sharing for the form. Analytics data is **not** used for advertising and **no advertising ID** is collected.
 
 ---
 
@@ -138,7 +139,7 @@ What's inside:
 What's not inside:
 - No ads
 - No sponsored stores
-- No analytics tracking what you shop for
+- We never track *what* you shop for — item names stay on your device. (Anonymous usage analytics help us improve the app; turn them off any time in Settings.)
 - No account required to use the app
 - No subscription
 

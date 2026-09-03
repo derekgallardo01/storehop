@@ -45,6 +45,7 @@ import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -173,6 +174,11 @@ fun SettingsScreen(
                 pendingCount = viewModel.pendingPushCount.collectAsState().value,
                 onForceSync = viewModel::forceSyncNow,
                 onAcknowledge = viewModel::acknowledgeForceSync,
+            )
+            // v0.9.4: analytics consent toggle (on by default, opt-out).
+            AnalyticsCard(
+                enabled = viewModel.analyticsEnabled.collectAsState().value,
+                onToggle = viewModel::setAnalyticsEnabled,
             )
             // v0.8: upsell card. Shown only when the user isn't entitled.
             // Above the About section so it sits at the bottom of the
@@ -612,6 +618,27 @@ private fun StatisticsCard(onOpen: () -> Unit) {
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+        }
+    }
+}
+
+@Composable
+private fun AnalyticsCard(
+    enabled: Boolean,
+    onToggle: (Boolean) -> Unit,
+) {
+    SettingsCard(title = stringResource(R.string.settings_analytics_title)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = stringResource(R.string.settings_analytics_subtitle),
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.weight(1f),
+            )
+            Spacer(Modifier.width(12.dp))
+            Switch(checked = enabled, onCheckedChange = onToggle)
         }
     }
 }

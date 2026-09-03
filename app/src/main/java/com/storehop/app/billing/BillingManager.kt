@@ -17,6 +17,7 @@ import com.android.billingclient.api.QueryPurchasesParams
 import com.android.billingclient.api.acknowledgePurchase
 import com.android.billingclient.api.queryProductDetails
 import com.android.billingclient.api.queryPurchasesAsync
+import com.storehop.app.analytics.AnalyticsService
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -62,6 +63,7 @@ import kotlin.coroutines.resume
 class BillingManager @Inject constructor(
     @ApplicationContext private val context: Context,
     private val applicationScope: CoroutineScope,
+    private val analytics: AnalyticsService,
 ) {
     private val purchasesUpdatedListener = PurchasesUpdatedListener { result, purchases ->
         handlePurchasesUpdated(result, purchases)
@@ -180,6 +182,7 @@ class BillingManager @Inject constructor(
             }
             return
         }
+        analytics.premiumPurchaseStarted()
         val params = BillingFlowParams.newBuilder()
             .setProductDetailsParamsList(
                 listOf(
@@ -205,6 +208,7 @@ class BillingManager @Inject constructor(
      * has the purchase is a no-op.
      */
     fun restorePurchases() {
+        analytics.premiumRestored()
         applicationScope.launch {
             connectAndRefresh()
             _purchaseEvent.emit(PurchaseEvent.Restored)
@@ -255,6 +259,7 @@ class BillingManager @Inject constructor(
             }
         }
         refreshPurchases()
+        analytics.premiumPurchased()
         _purchaseEvent.emit(PurchaseEvent.Purchased)
     }
 

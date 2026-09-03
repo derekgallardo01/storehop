@@ -38,6 +38,22 @@ android {
         // Custom runner swaps in HiltTestApplication so @HiltAndroidTest works.
         testInstrumentationRunner = "com.storehop.app.HiltTestRunner"
         vectorDrawables { useSupportLibrary = true }
+
+        // PostHog (EU cloud) analytics config, read from a gitignored
+        // `posthog.properties` at the repo root (same pattern as
+        // keystore.properties). The project API key is a client-side ingestion
+        // key (safe to embed in the APK), but kept out of git so forks/CI don't
+        // inherit it. Missing file / empty key => PostHog stays disabled; the
+        // app still runs and Firebase Analytics still works. See
+        // posthog.properties.example.
+        val posthogProps = Properties().apply {
+            val f = rootProject.file("posthog.properties")
+            if (f.exists()) f.inputStream().use { load(it) }
+        }
+        val posthogApiKey = (posthogProps["POSTHOG_API_KEY"] as String?).orEmpty()
+        val posthogHost = (posthogProps["POSTHOG_HOST"] as String?) ?: "https://eu.i.posthog.com"
+        buildConfigField("String", "POSTHOG_API_KEY", "\"$posthogApiKey\"")
+        buildConfigField("String", "POSTHOG_HOST", "\"$posthogHost\"")
     }
 
     signingConfigs {
@@ -342,6 +358,9 @@ dependencies {
     implementation(libs.firebase.auth)
     implementation(libs.firebase.firestore)
     implementation(libs.firebase.storage)
+    implementation(libs.firebase.analytics)
+    // Product analytics (PostHog, EU cloud). Consent-gated at runtime.
+    implementation(libs.posthog.android)
 
     implementation(libs.androidx.credentials)
     implementation(libs.androidx.credentials.play.services.auth)

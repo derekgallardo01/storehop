@@ -10,6 +10,7 @@ import com.storehop.app.data.repository.ItemRepository
 import com.storehop.app.data.repository.StoreRepository
 import com.storehop.app.ui.util.UndoEvent
 import com.storehop.app.ui.util.UndoEventBus
+import com.storehop.app.analytics.AnalyticsService
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -72,6 +73,7 @@ data class ItemsListUiState(
 class ItemsListViewModel @Inject constructor(
     private val itemRepository: ItemRepository,
     private val preferencesRepository: UserPreferencesRepository,
+    private val analytics: AnalyticsService,
     storeRepository: StoreRepository,
     undoBus: UndoEventBus,
 ) : ViewModel() {
@@ -167,6 +169,7 @@ class ItemsListViewModel @Inject constructor(
             } else {
                 itemRepository.markNeededAcrossAllStores(itemId)
             }
+            analytics.itemNeededAllStores(needed = !currentlyNeeded)
         }
     }
 
@@ -208,6 +211,7 @@ class ItemsListViewModel @Inject constructor(
         if (ids.isEmpty() || storeIdsToAdd.isEmpty()) return
         viewModelScope.launch {
             itemRepository.bulkTagStoresForItems(ids, storeIdsToAdd)
+            analytics.itemsBulkTagged(itemCount = ids.size, storeCount = storeIdsToAdd.size)
             _selectedItemIds.value = emptySet()
         }
     }

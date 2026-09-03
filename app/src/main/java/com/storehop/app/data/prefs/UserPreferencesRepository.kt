@@ -72,6 +72,19 @@ class UserPreferencesRepository @Inject constructor(
     }
 
     /**
+     * Analytics consent. Default true (analytics on, opt-out via Settings ->
+     * Data). Local-only / per-device consent — deliberately NOT part of
+     * [UserPreferencesSnapshot] and does not bump [KEY_UPDATED_AT], mirroring
+     * the v0.8 entitlement keys. Consent should be a choice on each device.
+     */
+    val analyticsEnabled: Flow<Boolean> = dataStore.data
+        .map { prefs -> prefs[KEY_ANALYTICS_ENABLED] ?: true }
+
+    suspend fun setAnalyticsEnabled(value: Boolean) {
+        dataStore.edit { it[KEY_ANALYTICS_ENABLED] = value }
+    }
+
+    /**
      * Sort mode for the Shop-at-Store list. Default [SortMode.CATEGORY]
      * preserves the historical aisle-grouped layout. Toggle lives in the
      * Shop-at-Store top app bar -- one preference applies to every store
@@ -187,6 +200,9 @@ class UserPreferencesRepository @Inject constructor(
         val KEY_LEGACY_USER_GRANTED = booleanPreferencesKey("legacy_user_granted")
         val KEY_LEGACY_CHECK_DONE_FOR_UID = stringPreferencesKey("legacy_check_done_for_uid")
         val KEY_CACHED_ENTITLEMENT = stringPreferencesKey("cached_entitlement")
+
+        // v0.9.4 analytics consent (local-only, per-device, never cloud-synced).
+        val KEY_ANALYTICS_ENABLED = booleanPreferencesKey("analytics_enabled")
     }
 }
 

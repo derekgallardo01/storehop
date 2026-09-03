@@ -48,6 +48,10 @@ keystore.properties
 *.jks
 *.keystore
 
+# PostHog analytics config — client-side ingestion key, kept out of git so
+# forks/CI don't inherit it. Copy posthog.properties.example to get started.
+posthog.properties
+
 # iOS / Xcode
 # Ignore the contents of the generated .xcodeproj (xcodegen creates it
 # from project.yml) BUT preserve a path through to SwiftPM's

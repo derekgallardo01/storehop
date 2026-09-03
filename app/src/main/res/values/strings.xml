@@ -260,6 +260,8 @@
     <!-- v0.5.2 Settings → Data section: CSV import / export. -->
     <string name="settings_data_section_title">Data</string>
     <string name="settings_data_section_subtitle">Move your items and categories between devices or apps.</string>
+    <string name="settings_analytics_title">Analytics</string>
+    <string name="settings_analytics_subtitle">Share anonymous usage data to help improve StoreHop. No item names or personal content are ever collected. You can turn this off anytime.</string>
     <string name="action_export_items">Export items</string>
     <string name="action_export_categories">Export categories</string>
     <string name="action_import_items">Import items</string>

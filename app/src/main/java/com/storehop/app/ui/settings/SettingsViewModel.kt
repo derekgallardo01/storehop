@@ -11,6 +11,7 @@ import androidx.core.os.LocaleListCompat
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.auth.FirebaseAuth
+import com.storehop.app.analytics.AnalyticsService
 import com.storehop.app.auth.GoogleSignInUseCase
 import com.storehop.app.billing.BillingManager
 import com.storehop.app.billing.Entitlement
@@ -84,6 +85,7 @@ class SettingsViewModel @Inject constructor(
     private val syncEngine: SyncEngine,
     private val entitlementRepo: EntitlementRepository,
     private val billingManager: BillingManager,
+    private val analytics: AnalyticsService,
 ) : ViewModel() {
 
     /** v0.8: live entitlement state observed by the upsell card + the
@@ -117,6 +119,12 @@ class SettingsViewModel @Inject constructor(
     /** Theme-mode pref for the Theme section's selection state. */
     val themeMode: StateFlow<ThemeMode> = userPrefs.themeMode
         .stateIn(viewModelScope, SharingStarted.Eagerly, ThemeMode.SYSTEM)
+
+    /** v0.9.4 analytics consent for the Settings toggle (default on). Flipping
+     *  the pref is enough — AnalyticsServiceImpl observes it and enables/disables
+     *  collection on both sinks. */
+    val analyticsEnabled: StateFlow<Boolean> = userPrefs.analyticsEnabled
+        .stateIn(viewModelScope, SharingStarted.Eagerly, true)
 
     /**
      * v0.4: per-uid sync state for the cloud-sync banner. Tracks the most
@@ -155,6 +163,10 @@ class SettingsViewModel @Inject constructor(
 
     fun setThemeMode(mode: ThemeMode) {
         viewModelScope.launch { userPrefs.setThemeMode(mode) }
+    }
+
+    fun setAnalyticsEnabled(value: Boolean) {
+        viewModelScope.launch { userPrefs.setAnalyticsEnabled(value) }
     }
 
     /**
@@ -234,6 +246,7 @@ class SettingsViewModel @Inject constructor(
                     if (targetUid != null) {
                         sessionProvider.userId.first { it == targetUid }
                     }
+                    analytics.signIn()
                     _state.value = snapshot().copy(busy = false)
                 }
                 .onFailure { e ->
@@ -262,6 +275,7 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 auth.signOut()
+                analytics.signOut()
                 auth.signInAnonymously().await()
                 // Same as signInWithGoogle: wait for the gated userId flow
                 // to flip to the new anon uid before clearing busy. Keeps

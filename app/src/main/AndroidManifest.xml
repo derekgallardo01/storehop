@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
     <!--
       v0.7.1.2: BILLING permission auto-merges from the Play Billing
@@ -8,6 +9,15 @@
       the permission without bundling the library (AIDL-only setup
       is rejected with "must update to at least version 6.0.1").
     -->
+
+    <!--
+      v0.9.4: firebase-analytics auto-merges the AD_ID permission. We don't
+      collect an advertising ID (see the analytics meta-data below), so strip
+      it to keep the Play Data Safety "no advertising ID" declaration accurate.
+    -->
+    <uses-permission
+        android:name="com.google.android.gms.permission.AD_ID"
+        tools:node="remove" />
 
     <application
         android:name=".StorehopApplication"
@@ -31,6 +41,20 @@
         <meta-data
             android:name="autoStoreLocales"
             android:value="true" />
+
+        <!--
+          v0.9.4 analytics: keep Firebase Analytics collection minimal and
+          non-advertising. Disable the Advertising ID (AD_ID) and ad
+          personalization signals so we collect no advertising identifier and
+          never share data for ads — matches the privacy policy + Data Safety.
+          Runtime consent (Settings toggle) additionally gates all collection.
+        -->
+        <meta-data
+            android:name="google_analytics_adid_collection_enabled"
+            android:value="false" />
+        <meta-data
+            android:name="google_analytics_default_allow_ad_personalization_signals"
+            android:value="false" />
 
         <activity
             android:name=".MainActivity"

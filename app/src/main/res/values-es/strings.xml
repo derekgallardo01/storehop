@@ -378,4 +378,6 @@
     <string name="store_action_mark_one_off">Marcar como única</string>
     <string name="store_action_unmark_one_off">Desmarcar como única</string>
     <string name="error_could_not_update_store">No se pudo actualizar la tienda. Inténtalo de nuevo.</string>
+    <string name="settings_analytics_title">Analíticas</string>
+    <string name="settings_analytics_subtitle">Comparte datos de uso anónimos para ayudar a mejorar StoreHop. Nunca recopilamos nombres de artículos ni contenido personal. Puedes desactivarlo cuando quieras.</string>
 </resources>

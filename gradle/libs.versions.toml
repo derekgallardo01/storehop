@@ -21,6 +21,7 @@ espresso = "3.6.1"
 truth = "1.4.4"
 firebaseBom = "34.12.0"
 googleServices = "4.4.4"
+posthog = "3.11.1"
 credentials = "1.5.0"
 googleIdentity = "1.1.1"
 navigationCompose = "2.8.5"
@@ -79,6 +80,10 @@ firebase-bom = { group = "com.google.firebase", name = "firebase-bom", version.r
 firebase-auth = { group = "com.google.firebase", name = "firebase-auth" }
 firebase-firestore = { group = "com.google.firebase", name = "firebase-firestore" }
 firebase-storage = { group = "com.google.firebase", name = "firebase-storage" }
+firebase-analytics = { group = "com.google.firebase", name = "firebase-analytics" }
+
+# PostHog product analytics (EU cloud). Version-pinned (not BoM-managed).
+posthog-android = { group = "com.posthog", name = "posthog-android", version.ref = "posthog" }
 
 # Credential Manager (the modern Sign In with Google flow; replaces the
 # deprecated GoogleSignIn API + GoogleSignInClient from play-services-auth).

@@ -7,6 +7,7 @@ import com.storehop.app.R
 import com.storehop.app.data.repository.ShoppingRepository
 import com.storehop.app.data.repository.StorePickerRow
 import com.storehop.app.data.repository.StoreRepository
+import com.storehop.app.analytics.AnalyticsService
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.SharingStarted
@@ -49,6 +50,7 @@ class StorePickerViewModel @Inject constructor(
     @ApplicationContext private val appContext: Context,
     private val shoppingRepository: ShoppingRepository,
     private val storeRepository: StoreRepository,
+    private val analytics: AnalyticsService,
     sessionTracker: ShoppingSessionTracker,
 ) : ViewModel() {
 
@@ -144,6 +146,7 @@ class StorePickerViewModel @Inject constructor(
         if (trimmed.isEmpty()) return appContext.getString(R.string.error_store_name_empty)
         return try {
             storeRepository.addStore(name = trimmed, isOneOff = isOneOff)
+            analytics.storeAdded(isOneOff)
             null
         } catch (e: IllegalArgumentException) {
             appContext.getString(R.string.error_store_name_duplicate, trimmed)

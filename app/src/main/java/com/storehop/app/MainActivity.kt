@@ -47,6 +47,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.google.android.play.core.appupdate.AppUpdateManagerFactory
 import com.google.firebase.auth.FirebaseAuth
+import com.storehop.app.analytics.AnalyticsService
 import com.storehop.app.data.prefs.ThemeMode
 import com.storehop.app.data.prefs.UserPreferencesRepository
 import com.storehop.app.data.util.UserSessionProvider
@@ -165,8 +166,12 @@ class RootViewModel @Inject constructor(
     val session: UserSessionProvider,
     private val auth: FirebaseAuth,
     userPrefs: UserPreferencesRepository,
+    private val analytics: AnalyticsService,
 ) : ViewModel() {
     fun isAnonymous(): Boolean = auth.currentUser?.isAnonymous == true
+
+    /** Log a screen view. Callers pass the static nav route template only. */
+    fun trackScreen(route: String) = analytics.screenView(route)
 
     /**
      * Theme-mode preference, with SYSTEM as the seed so first-launch users
@@ -207,10 +212,16 @@ private fun LoadingPlaceholder() {
  * → Items → Shop returns you where you were in the Shop tab).
  */
 @Composable
-private fun SignedInRoot() {
+private fun SignedInRoot(rootViewModel: RootViewModel = hiltViewModel()) {
     val navController = rememberNavController()
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route
+
+    // Analytics screen tracking. currentRoute is the static route template
+    // (e.g. "shop/store/{storeId}") — no substituted ids/content.
+    LaunchedEffect(currentRoute) {
+        currentRoute?.let(rootViewModel::trackScreen)
+    }
 
     Scaffold(
         bottomBar = {

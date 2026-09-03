@@ -1,0 +1,14 @@
+# PostHog analytics config for StoreHop.
+#
+# To enable PostHog: copy this file to `posthog.properties` (gitignored) and
+# paste your PostHog *project API key* (starts with `phc_`). Create the project
+# on PostHog EU cloud so analytics data stays in the EU. Leave the file absent
+# or the key empty to keep PostHog disabled (Firebase Analytics still runs).
+#
+#   cp posthog.properties.example posthog.properties
+#
+# The project API key is a client-side ingestion key — safe to embed in the
+# APK, but kept out of git so forks/CI don't inherit it.
+
+POSTHOG_API_KEY=
+POSTHOG_HOST=https://eu.i.posthog.com

@@ -378,4 +378,6 @@
     <string name="store_action_mark_one_off">Segna come una tantum</string>
     <string name="store_action_unmark_one_off">Rimuovi una tantum</string>
     <string name="error_could_not_update_store">Impossibile aggiornare il negozio. Riprova.</string>
+    <string name="settings_analytics_title">Analisi</string>
+    <string name="settings_analytics_subtitle">Condividi dati di utilizzo anonimi per aiutare a migliorare StoreHop. Non raccogliamo mai nomi di articoli né contenuti personali. Puoi disattivarlo in qualsiasi momento.</string>
 </resources>

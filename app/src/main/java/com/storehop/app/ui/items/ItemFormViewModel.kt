@@ -14,6 +14,7 @@ import com.storehop.app.data.repository.StoreRepository
 import com.storehop.app.data.storage.ImageUploader
 import com.storehop.app.ui.util.UndoEvent
 import com.storehop.app.ui.util.UndoEventBus
+import com.storehop.app.analytics.AnalyticsService
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -72,6 +73,7 @@ class ItemFormViewModel @Inject constructor(
     private val imageUploader: ImageUploader,
     private val undoBus: UndoEventBus,
     private val categoryRepository: CategoryRepository,
+    private val analytics: AnalyticsService,
     storeRepository: StoreRepository,
     savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
@@ -231,7 +233,7 @@ class ItemFormViewModel @Inject constructor(
                 // Image URL gets patched in by a follow-up updateItem if the
                 // user staged a local pick; otherwise we save as-is.
                 val savedId = if (itemId == null) {
-                    itemRepository.addItem(
+                    val newId = itemRepository.addItem(
                         name = s.name,
                         categoryId = s.categoryId,
                         storeIds = s.storeIds,
@@ -241,6 +243,14 @@ class ItemFormViewModel @Inject constructor(
                         isPriority = s.isPriority,
                         isBuyToday = s.isBuyToday,
                     )
+                    analytics.itemAdded(
+                        hasBrand = s.brand.isNotBlank(),
+                        storeCount = s.storeIds.size,
+                        isStaple = isStapleToSave,
+                        isPriority = s.isPriority,
+                        isBuyToday = s.isBuyToday,
+                    )
+                    newId
                 } else {
                     itemRepository.updateItem(
                         id = itemId,

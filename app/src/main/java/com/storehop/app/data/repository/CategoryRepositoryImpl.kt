@@ -7,6 +7,7 @@ import com.storehop.app.data.dao.StoreCategoryOrderDao
 import com.storehop.app.data.db.StorehopDatabase
 import com.storehop.app.data.entity.Category
 import com.storehop.app.data.util.HouseholdSessionProvider
+import com.storehop.app.analytics.AnalyticsService
 import com.storehop.app.data.util.IdGenerator
 import com.storehop.app.data.util.UserSessionProvider
 import kotlinx.coroutines.flow.Flow
@@ -31,6 +32,7 @@ class CategoryRepositoryImpl @Inject constructor(
     private val clock: Clock,
     private val session: UserSessionProvider,
     private val householdSession: HouseholdSessionProvider,
+    private val analytics: AnalyticsService,
 ) : CategoryRepository {
 
     override fun observeAll(includeArchived: Boolean): Flow<List<Category>> =
@@ -68,6 +70,7 @@ class CategoryRepositoryImpl @Inject constructor(
                         householdId = householdId,
                     ),
                 )
+                analytics.categoryAdded()
                 id
             }
             existing.deletedAt == null -> {

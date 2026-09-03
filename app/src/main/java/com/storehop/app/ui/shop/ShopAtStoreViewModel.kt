@@ -11,6 +11,7 @@ import com.storehop.app.data.prefs.UserPreferencesRepository
 import com.storehop.app.data.repository.ItemRepository
 import com.storehop.app.data.repository.ShoppingRepository
 import com.storehop.app.data.repository.StoreRepository
+import com.storehop.app.analytics.AnalyticsService
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -78,6 +79,7 @@ class ShopAtStoreViewModel @Inject constructor(
     private val shoppingRepository: ShoppingRepository,
     private val itemRepository: ItemRepository,
     private val preferencesRepository: UserPreferencesRepository,
+    private val analytics: AnalyticsService,
     sessionTracker: ShoppingSessionTracker,
     storeRepository: StoreRepository,
     savedStateHandle: SavedStateHandle,
@@ -255,6 +257,7 @@ class ShopAtStoreViewModel @Inject constructor(
         viewModelScope.launch {
             if (row.isNeeded) {
                 lastPurchaseSnapshot = itemRepository.markPurchasedAtStore(row.itemId, storeId)
+                analytics.itemPurchased()
             } else {
                 lastPurchaseSnapshot = null
                 itemRepository.markNeededAcrossAllStores(row.itemId)
@@ -272,6 +275,7 @@ class ShopAtStoreViewModel @Inject constructor(
     fun undoPurchase(itemId: String) {
         val snapshot = lastPurchaseSnapshot ?: return
         lastPurchaseSnapshot = null
+        analytics.itemPurchaseUndone()
         viewModelScope.launch { itemRepository.undoPurchase(itemId, snapshot) }
     }
 
@@ -288,6 +292,7 @@ class ShopAtStoreViewModel @Inject constructor(
         viewModelScope.launch {
             itemRepository.addItemFromQuickAdd(trimmed, storeId)
             _quickAddInput.value = ""
+            analytics.itemQuickAdded(existing = false)
         }
     }
 
@@ -300,7 +305,13 @@ class ShopAtStoreViewModel @Inject constructor(
         viewModelScope.launch {
             itemRepository.tagItemToStore(itemId, storeId)
             _quickAddInput.value = ""
+            analytics.itemQuickAdded(existing = true)
         }
+    }
+
+    /** Log a list-share (counts only; the screen performs the actual share). */
+    fun onShareList(itemCount: Int, sectionCount: Int) {
+        analytics.listShared(itemCount, sectionCount)
     }
 }
 

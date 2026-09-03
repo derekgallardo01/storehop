@@ -177,6 +177,10 @@ fun ShopAtStoreScreen(
                             leadingIcon = { Icon(Icons.Filled.Share, contentDescription = null) },
                             onClick = {
                                 menuOpen = false
+                                viewModel.onShareList(
+                                    itemCount = state.rowsByCategory.sumOf { it.rows.size },
+                                    sectionCount = state.rowsByCategory.size,
+                                )
                                 launchShareList(
                                     context = context,
                                     storeName = state.store?.name ?: defaultStoreLabel,

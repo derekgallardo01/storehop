@@ -1,6 +1,7 @@
 package com.storehop.app
 
 import android.app.Application
+import com.storehop.app.analytics.AnalyticsService
 import com.storehop.app.billing.BillingManager
 import com.storehop.app.billing.EntitlementRepository
 import com.storehop.app.data.util.UserSessionProvider
@@ -30,6 +31,13 @@ class StorehopApplication : Application() {
     @Inject lateinit var billingManager: BillingManager
     @Inject lateinit var entitlementRepository: EntitlementRepository
 
+    /**
+     * v0.9.4: Firebase Analytics + PostHog, gated on the Settings consent
+     * toggle (default on). `start()` sets up PostHog (if configured) and begins
+     * mirroring consent + the signed-in uid into both sinks.
+     */
+    @Inject lateinit var analytics: AnalyticsService
+
     override fun onCreate() {
         super.onCreate()
         // Touch the lateinit so Hilt resolves it now -- otherwise the session
@@ -43,5 +51,7 @@ class StorehopApplication : Application() {
         billingManager.start()
         // Combines purchases + grandfather flag → publishes Entitlement.
         entitlementRepository.start()
+        // Sets up analytics sinks + starts observing consent and uid.
+        analytics.start()
     }
 }
