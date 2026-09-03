@@ -7,6 +7,23 @@ project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 For the high-level roadmap and earlier-than-0.5.0 history, see the
 "Roadmap" section in the [README](README.md).
 
+## [0.9.5] - 2026-08-18
+
+### Added
+
+- **Anonymous usage analytics (opt-out).** StoreHop now collects anonymous usage
+  data — screen views and action events (item added, store opened, item checked
+  off, list shared, sign-in, purchase) — to understand how the app is used and
+  improve it. Only counts and simple flags are recorded; **your item names,
+  brands, and content are never collected**, and there is **no advertising ID**.
+  Analytics is on by default and can be turned off any time in **Settings → Data
+  → Analytics**. Processed by Google Analytics for Firebase and PostHog (EU
+  cloud). See the updated [privacy policy](docs/privacy-policy.md).
+
+### Versions
+
+- Android: `versionName` 0.9.4 -> 0.9.5; `versionCode` 75 -> 76.
+
 ## [0.9.4] - 2026-08-18
 
 ### Fixed
