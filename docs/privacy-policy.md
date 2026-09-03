@@ -1,3 +1,8 @@
+---
+title: StoreHop Privacy Policy
+permalink: /privacy-policy/
+---
+
 # StoreHop Privacy Policy
 
 _Last updated: 2026-08-15_
