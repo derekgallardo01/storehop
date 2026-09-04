@@ -22,7 +22,7 @@ For the high-level roadmap and earlier-than-0.5.0 history, see the
 
 ### Versions
 
-- Android: `versionName` 0.9.4 -> 0.9.5; `versionCode` 75 -> 77 (76 was already used on Play).
+- Android: `versionName` 0.9.4 -> 0.9.5; `versionCode` 75 -> 78 (76 and 77 were already used on Play).
 
 ## [0.9.4] - 2026-08-18
 
