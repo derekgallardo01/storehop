@@ -1,6 +1,6 @@
 # StoreHop Privacy Policy
 
-_Last updated: 2026-08-15_
+_Last updated: 2026-09-04_
 
 This policy describes what data the StoreHop app ("**StoreHop**", "**we**", "**our**") collects, why, and how we handle it. StoreHop is a personal shopping-list app, available for Android (Google Play) and iOS (App Store), developed by Derek Gallardo as an independent developer.
 
@@ -115,8 +115,9 @@ If we make material changes to how data is collected or used, we'll update this 
 
 For privacy questions or data-deletion requests, contact:
 
-**Email:** _your-email-here@example.com_  
-_(StoreHop is maintained by Derek Gallardo as an independent developer. Replace this placeholder with your real contact email before publishing.)_
+**Email:** derekgallardo01@gmail.com
+
+StoreHop is maintained by Derek Gallardo as an independent developer.
 
 ---
 
