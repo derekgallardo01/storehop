@@ -424,4 +424,117 @@ final class ItemFormViewModelTests: XCTestCase {
         try await Task.sleep(nanoseconds: 100_000_000)
         return Setup(db: db, viewModel: vm, undoEventBus: undoBus)
     }
+
+    // MARK: - v0.9.6 "Buy today" -> needed
+
+    /// Turning "Buy today" on and saving has to put the item back on the list:
+    /// "needed" lives on `item_store_xref`, not on `items.isBuyToday`, so the
+    /// VM marks it needed at every tagged store on the OFF->ON transition.
+    /// Mirrors Android's ItemFormViewModel change.
+    func testTurningBuyTodayOnMarksItemNeededAtAllTaggedStores() async throws {
+        let s = try await makeSetup()
+        s.viewModel.name = "Advil"
+        s.viewModel.toggleStore("s_lidl")
+        s.viewModel.toggleStore("s_aldi")
+        s.viewModel.submit()
+        try await waitForCondition { s.viewModel.saved }
+        let id = try await itemId(s.db, named: "Advil")
+
+        // The user has since checked it off everywhere -- nothing is needed.
+        try await clearNeeded(s.db, itemId: id)
+
+        let editVm = try await makeEditViewModel(db: s.db, itemId: id)
+        XCTAssertFalse(editVm.isBuyToday, "Sanity: loaded with Buy today off")
+        editVm.isBuyToday = true
+        editVm.submit()
+        try await waitForCondition { editVm.saved }
+
+        let needed = try await neededStoreCount(s.db, itemId: id)
+        XCTAssertEqual(needed, 2, "OFF->ON must mark the item needed at both tagged stores")
+    }
+
+    /// The spread is guarded on the transition, not on the flag: re-saving an
+    /// item that was *already* Buy today must not re-spread "needed" to stores
+    /// the user has since cleared (additive only -- turning it off never
+    /// removes either).
+    func testResavingAnAlreadyBuyTodayItemDoesNotReSpreadNeeded() async throws {
+        let s = try await makeSetup()
+        s.viewModel.name = "Advil"
+        s.viewModel.toggleStore("s_lidl")
+        s.viewModel.toggleStore("s_aldi")
+        s.viewModel.isBuyToday = true
+        s.viewModel.submit()
+        try await waitForCondition { s.viewModel.saved }
+        let id = try await itemId(s.db, named: "Advil")
+
+        try await clearNeeded(s.db, itemId: id)
+
+        let editVm = try await makeEditViewModel(db: s.db, itemId: id)
+        XCTAssertTrue(editVm.isBuyToday, "Sanity: loaded with Buy today already on")
+        editVm.brand = "Generic"  // an unrelated edit
+        editVm.submit()
+        try await waitForCondition { editVm.saved }
+
+        let needed = try await neededStoreCount(s.db, itemId: id)
+        XCTAssertEqual(needed, 0, "No OFF->ON transition -> nothing is re-spread")
+    }
+
+    // MARK: - Helpers
+
+    private func itemId(_ db: StorehopDatabase, named name: String) async throws -> String {
+        let id = try await db.queue.read { conn in
+            try String.fetchOne(conn, sql: "SELECT id FROM items WHERE name = ?", arguments: [name])
+        }
+        return try XCTUnwrap(id)
+    }
+
+    /// Simulate the user having checked the item off at every store.
+    private func clearNeeded(_ db: StorehopDatabase, itemId: String) async throws {
+        try await db.queue.write { conn in
+            try conn.execute(sql: "UPDATE item_store_xref SET isNeeded = 0 WHERE itemId = ?", arguments: [itemId])
+        }
+    }
+
+    private func neededStoreCount(_ db: StorehopDatabase, itemId: String) async throws -> Int {
+        try await db.queue.read { conn in
+            try Int.fetchOne(conn, sql: """
+                SELECT COUNT(*) FROM item_store_xref
+                WHERE itemId = ? AND isNeeded = 1 AND deletedAt IS NULL
+                """, arguments: [itemId]) ?? -1
+        }
+    }
+
+    /// A second VM bound to the same database in edit mode -- the only way to
+    /// exercise the loaded-state guard, which is captured in `load()`.
+    private func makeEditViewModel(db: StorehopDatabase, itemId: String, uid: String = "u1") async throws -> ItemFormViewModel {
+        let session = LocalOnlyUserSessionProvider(uid: uid)
+        let householdSession = LocalOnlyHouseholdSessionProvider(initialHouseholdId: uid)
+        let clock = MutableClock(nowMs: 1_000)
+        let writer = db.queue
+        let vm = ItemFormViewModel(
+            itemId: itemId,
+            itemRepository: ItemRepository(
+                writer: writer, itemDao: ItemDao(writer: writer),
+                xrefDao: ItemStoreXrefDao(writer: writer), scoDao: StoreCategoryOrderDao(writer: writer),
+                purchaseDao: PurchaseRecordDao(writer: writer),
+                session: session, householdSession: householdSession, clock: clock, ids: SequenceIdGenerator()
+            ),
+            categoryRepository: CategoryRepository(
+                writer: writer, categoryDao: CategoryDao(writer: writer),
+                itemDao: ItemDao(writer: writer), scoDao: StoreCategoryOrderDao(writer: writer),
+                session: session, householdSession: householdSession, clock: clock, ids: SequenceIdGenerator()
+            ),
+            storeRepository: StoreRepository(
+                writer: writer, storeDao: StoreDao(writer: writer),
+                xrefDao: ItemStoreXrefDao(writer: writer), scoDao: StoreCategoryOrderDao(writer: writer),
+                session: session, householdSession: householdSession, clock: clock, ids: SequenceIdGenerator()
+            ),
+            imageUploader: NoOpImageUploader(),
+            undoEventBus: UndoEventBus(),
+            session: session
+        )
+        vm.bind()
+        try await waitForCondition(timeout: 1.0) { !vm.isLoading }
+        return vm
+    }
 }

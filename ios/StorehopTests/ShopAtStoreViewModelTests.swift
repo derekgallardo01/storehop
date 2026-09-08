@@ -341,8 +341,10 @@ final class ShopAtStoreViewModelTests: XCTestCase {
         // The Milk on the shopping list is the SAME item we created above.
         let row = s.viewModel.sections.flatMap(\.rows).first { $0.itemName == "Milk" }!
         XCTAssertEqual(row.itemId, firstId)
-        // Input was cleared after submit.
-        try await waitForCondition { s.viewModel.quickAddInput.isEmpty }
+        // v0.9.6 parity: the typed text stays put after a successful add so a
+        // run of same-prefix items ("Chicken breasts" -> "Chicken wings") can be
+        // typed by editing the suffix; the bar's "X" clears it.
+        XCTAssertEqual(s.viewModel.quickAddInput, "Milk")
     }
 
     func testQuickAddSuggestionsFiltersByNameSubstring() async throws {
@@ -377,10 +379,13 @@ final class ShopAtStoreViewModelTests: XCTestCase {
             notes: nil, brand: nil, imageUrl: nil, isStaple: false, isPriority: false
         )
 
+        s.viewModel.quickAddInput = "Mil"
         s.viewModel.pickExistingItem(itemId: milkId)
         try await waitForCondition {
             s.viewModel.sections.flatMap(\.rows).contains { $0.itemName == "Milk" }
         }
+        // Picking a suggestion leaves the typed text alone too (v0.9.6 parity).
+        XCTAssertEqual(s.viewModel.quickAddInput, "Mil")
         // Items table still has exactly one Milk.
         let count = try await s.db.queue.read { conn in
             try Int.fetchOne(conn, sql: "SELECT COUNT(*) FROM items WHERE deletedAt IS NULL", arguments: []) ?? -1

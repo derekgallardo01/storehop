@@ -145,4 +145,33 @@ final class StorePickerViewModelTests: XCTestCase {
         XCTAssertTrue(state.singleStore)
         XCTAssertEqual(state.topStoreName, "Lidl")
     }
+
+    // MARK: - v0.9.6 tappable banner stores
+
+    /// The expanded breakdown rows navigate to a store, so each entry has to
+    /// carry the store *id* alongside the display name -- the `BannerStore`
+    /// shape (Android parity). Rows stay in the picker's display order.
+    func testBannerByStoreCarriesStoreIdsInDisplayOrder() async throws {
+        let s = try await makeSetup(stores: [
+            TestFixtures.store(id: "s_aldi", name: "Aldi", displayOrder: 0),
+            TestFixtures.store(id: "s_lidl", name: "Lidl", displayOrder: 1),
+        ])
+        try await addItem(s, name: "Advil", storeIds: ["s_aldi"], isPriority: true, isBuyToday: true)
+        try await addItem(s, name: "Dog food", storeIds: ["s_lidl"], isPriority: true, isBuyToday: true)
+        try await addItem(s, name: "Batteries", storeIds: ["s_lidl"], isPriority: true, isBuyToday: true)
+
+        try await waitForCondition { s.viewModel.buyTodayBannerState?.totalCount == 3 }
+        let buyToday = s.viewModel.buyTodayBannerState!
+        XCTAssertEqual(buyToday.byStore.map(\.storeId), ["s_aldi", "s_lidl"])
+        XCTAssertEqual(buyToday.byStore.map(\.storeName), ["Aldi", "Lidl"])
+        XCTAssertEqual(buyToday.byStore.map { Set($0.items) },
+                       [["Advil"], ["Dog food", "Batteries"]])
+
+        try await waitForCondition { s.viewModel.criticalBannerState?.totalCount == 3 }
+        let critical = s.viewModel.criticalBannerState!
+        XCTAssertEqual(critical.byStore.map(\.storeId), ["s_aldi", "s_lidl"])
+        XCTAssertEqual(critical.byStore.map(\.storeName), ["Aldi", "Lidl"])
+        XCTAssertEqual(critical.byStore.map { Set($0.items) },
+                       [["Advil"], ["Dog food", "Batteries"]])
+    }
 }
