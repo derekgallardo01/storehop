@@ -7,6 +7,28 @@ project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 For the high-level roadmap and earlier-than-0.5.0 history, see the
 "Roadmap" section in the [README](README.md).
 
+## [0.9.6-ios] - 2026-09-08
+
+### Added
+
+iOS parity for the three Items/Shop improvements restored on Android in
+[0.9.6]. The implementation had been built on the unmerged
+`items-shop-ux-improvements` branch and never reached `main`:
+
+- **"Buy today" + Save now adds the item to your list.** Turning on "Buy today"
+  and saving marks the item needed at all its stores (additive only — turning it
+  off never removes it, and re-saving an already-"Buy today" item does not
+  re-add it to stores you have since cleared).
+- **In-store "Add an item" box keeps your text and gains an "X".** The keyboard
+  also stays up, so a run of same-prefix items ("Chicken breasts", "Chicken
+  wings", …) only needs the suffix retyped; the "X" clears the field.
+- **Tappable store names in the "Buy today" / "Critical" summary cards.** Tapping
+  a store name opens that store's list instead of only expanding/collapsing the
+  card.
+
+Adds the `action_clear_search` string (en/pt-PT/es/it) and view-model tests for
+all three behaviors.
+
 ## [0.9.6] - 2026-09-04
 
 ### Added
