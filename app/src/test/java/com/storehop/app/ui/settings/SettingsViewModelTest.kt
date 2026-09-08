@@ -366,5 +366,6 @@ class SettingsViewModelTest {
         syncEngine = mockk(relaxed = true),
         entitlementRepo = mockk(relaxed = true),
         billingManager = mockk(relaxed = true),
+        analytics = mockk(relaxed = true),
     )
 }

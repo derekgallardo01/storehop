@@ -63,6 +63,7 @@ class SettingsViewModelLocaleTest {
         syncEngine = mockk(relaxed = true),
         entitlementRepo = mockk(relaxed = true),
         billingManager = mockk(relaxed = true),
+        analytics = mockk(relaxed = true),
     )
 
     @Test fun `setLocale TIRAMISU+ branch writes to LocaleManager and reads back`() = runTest {

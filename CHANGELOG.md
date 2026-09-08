@@ -7,6 +7,27 @@ project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 For the high-level roadmap and earlier-than-0.5.0 history, see the
 "Roadmap" section in the [README](README.md).
 
+## [0.9.6] - 2026-09-04
+
+### Added
+
+Restores three tester-reported Items/Shop improvements that had been built on a
+side branch and never merged into the shipped app:
+
+- **"Buy today" + Save now adds the item to your list.** Turning on "Buy today"
+  and saving marks the item needed at all its stores, so it surfaces today
+  (additive only — turning it off never removes it).
+- **In-store "Add an item" box keeps your text and gains an "X".** Adding a run
+  of same-prefix items ("Chicken breasts", "Chicken wings", …) no longer needs a
+  full retype; the new "X" clears the field.
+- **Tappable store names in the "Buy today" / "Critical" summary cards.** Tapping
+  a store name opens that store's list instead of only expanding/collapsing the
+  card.
+
+### Versions
+
+- Android: `versionName` 0.9.5 -> 0.9.6; `versionCode` 78 -> 79.
+
 ## [0.9.5] - 2026-08-18
 
 ### Added

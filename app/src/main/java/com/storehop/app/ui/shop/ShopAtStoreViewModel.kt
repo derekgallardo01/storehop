@@ -291,7 +291,10 @@ class ShopAtStoreViewModel @Inject constructor(
         if (trimmed.isEmpty()) return
         viewModelScope.launch {
             itemRepository.addItemFromQuickAdd(trimmed, storeId)
-            _quickAddInput.value = ""
+            // Keep the typed text after adding so a run of same-prefix items
+            // ("Chicken Breasts" -> "Chicken Wings") doesn't need a full retype;
+            // the bar's "X" clears it. (Re-adding identical text is harmless —
+            // addItemFromQuickAdd re-tags the existing item, not a duplicate.)
             analytics.itemQuickAdded(existing = false)
         }
     }
@@ -304,7 +307,7 @@ class ShopAtStoreViewModel @Inject constructor(
     fun pickExistingItem(itemId: String) {
         viewModelScope.launch {
             itemRepository.tagItemToStore(itemId, storeId)
-            _quickAddInput.value = ""
+            // Text persists (see submitQuickAddText); the bar's "X" clears it.
             analytics.itemQuickAdded(existing = true)
         }
     }

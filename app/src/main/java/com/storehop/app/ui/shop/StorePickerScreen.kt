@@ -154,8 +154,8 @@ fun StorePickerScreen(
         },
     ) { padding ->
         Column(modifier = Modifier.padding(padding).fillMaxSize()) {
-            buyTodaySummary?.let { BuyTodayBanner(state = it) }
-            criticalSummary?.let { CriticalNeedsBanner(state = it) }
+            buyTodaySummary?.let { BuyTodayBanner(state = it, onPickStore = onPickStore) }
+            criticalSummary?.let { CriticalNeedsBanner(state = it, onPickStore = onPickStore) }
             if (localRows.isEmpty()) {
                 EmptyState(
                     icon = Icons.Outlined.Store,
@@ -339,7 +339,7 @@ private fun AddStoreDialog(
  * expand a per-store breakdown. Mirrors [CriticalNeedsBanner]'s structure.
  */
 @Composable
-private fun BuyTodayBanner(state: BuyTodayBannerState) {
+private fun BuyTodayBanner(state: BuyTodayBannerState, onPickStore: (String) -> Unit) {
     var expanded by remember { mutableStateOf(false) }
     val onContainer = MaterialTheme.colorScheme.onErrorContainer
     Card(
@@ -396,22 +396,32 @@ private fun BuyTodayBanner(state: BuyTodayBannerState) {
             }
             AnimatedVisibility(visible = expanded) {
                 Column(modifier = Modifier.padding(top = 8.dp, start = 36.dp)) {
-                    state.byStore.forEach { (storeName, items) ->
-                        Text(
-                            text = stringResource(
-                                R.string.buy_today_banner_store_section,
-                                storeName,
-                                items.size,
-                            ),
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.SemiBold,
-                            color = onContainer,
-                        )
-                        Text(
-                            text = items.joinToString(", "),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = onContainer,
-                        )
+                    state.byStore.forEach { store ->
+                        // Tapping a store row navigates to that store's list;
+                        // the nested clickable wins over the card's expand
+                        // toggle for this region.
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { onPickStore(store.storeId) }
+                                .padding(vertical = 2.dp),
+                        ) {
+                            Text(
+                                text = stringResource(
+                                    R.string.buy_today_banner_store_section,
+                                    store.storeName,
+                                    store.items.size,
+                                ),
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.SemiBold,
+                                color = onContainer,
+                            )
+                            Text(
+                                text = store.items.joinToString(", "),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = onContainer,
+                            )
+                        }
                         Spacer(Modifier.height(6.dp))
                     }
                 }
@@ -421,7 +431,7 @@ private fun BuyTodayBanner(state: BuyTodayBannerState) {
 }
 
 @Composable
-private fun CriticalNeedsBanner(state: CriticalBannerState) {
+private fun CriticalNeedsBanner(state: CriticalBannerState, onPickStore: (String) -> Unit) {
     var expanded by remember { mutableStateOf(false) }
     val onContainer = MaterialTheme.colorScheme.onPrimaryContainer
     Card(
@@ -481,22 +491,32 @@ private fun CriticalNeedsBanner(state: CriticalBannerState) {
             }
             AnimatedVisibility(visible = expanded) {
                 Column(modifier = Modifier.padding(top = 8.dp, start = 36.dp)) {
-                    state.byStore.forEach { (storeName, items) ->
-                        Text(
-                            text = stringResource(
-                                R.string.critical_banner_store_section,
-                                storeName,
-                                items.size,
-                            ),
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.SemiBold,
-                            color = onContainer,
-                        )
-                        Text(
-                            text = items.joinToString(", "),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = onContainer,
-                        )
+                    state.byStore.forEach { store ->
+                        // Tapping a store row navigates to that store's list;
+                        // the nested clickable wins over the card's expand
+                        // toggle for this region.
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { onPickStore(store.storeId) }
+                                .padding(vertical = 2.dp),
+                        ) {
+                            Text(
+                                text = stringResource(
+                                    R.string.critical_banner_store_section,
+                                    store.storeName,
+                                    store.items.size,
+                                ),
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.SemiBold,
+                                color = onContainer,
+                            )
+                            Text(
+                                text = store.items.joinToString(", "),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = onContainer,
+                            )
+                        }
                         Spacer(Modifier.height(6.dp))
                     }
                 }

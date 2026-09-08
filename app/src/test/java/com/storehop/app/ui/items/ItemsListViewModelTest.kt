@@ -65,7 +65,7 @@ class ItemsListViewModelTest {
             row("eggs", "Eggs", brand = null),
         )
 
-        val vm = ItemsListViewModel(itemRepo, prefsRepo, storeRepo, undoBus)
+        val vm = ItemsListViewModel(itemRepo, prefsRepo, mockk(relaxed = true), storeRepo, undoBus)
         vm.uiState.test {
             awaitItem() // initial empty
             advanceUntilIdle()
@@ -95,7 +95,7 @@ class ItemsListViewModelTest {
             row("eggs", "Eggs", category = null),
         )
 
-        val vm = ItemsListViewModel(itemRepo, prefsRepo, storeRepo, undoBus)
+        val vm = ItemsListViewModel(itemRepo, prefsRepo, mockk(relaxed = true), storeRepo, undoBus)
         vm.setQuery("FRO")  // matches "Frozen" category, ignore-case
         vm.uiState.test {
             awaitItem()
@@ -116,7 +116,7 @@ class ItemsListViewModelTest {
             row("oat", "Oat Drink", brand = null),
         )
 
-        val vm = ItemsListViewModel(itemRepo, prefsRepo, storeRepo, undoBus)
+        val vm = ItemsListViewModel(itemRepo, prefsRepo, mockk(relaxed = true), storeRepo, undoBus)
         vm.setQuery("MIM")
         vm.uiState.test {
             awaitItem()
@@ -140,7 +140,7 @@ class ItemsListViewModelTest {
             row("eggs", "Eggs"),
         )
 
-        val vm = ItemsListViewModel(itemRepo, prefsRepo, storeRepo, undoBus)
+        val vm = ItemsListViewModel(itemRepo, prefsRepo, mockk(relaxed = true), storeRepo, undoBus)
         vm.setQuery("    ")
         vm.uiState.test {
             awaitItem()
@@ -168,7 +168,7 @@ class ItemsListViewModelTest {
             row("eggs", "Eggs", category = dairy),
         )
 
-        val vm = ItemsListViewModel(itemRepo, prefsRepo, storeRepo, undoBus)
+        val vm = ItemsListViewModel(itemRepo, prefsRepo, mockk(relaxed = true), storeRepo, undoBus)
         vm.setSortMode(SortMode.CATEGORY)
         vm.uiState.test {
             awaitItem()
@@ -198,7 +198,7 @@ class ItemsListViewModelTest {
             row("misc", "Mystery item", category = null),
         )
 
-        val vm = ItemsListViewModel(itemRepo, prefsRepo, storeRepo, undoBus)
+        val vm = ItemsListViewModel(itemRepo, prefsRepo, mockk(relaxed = true), storeRepo, undoBus)
         vm.setSortMode(SortMode.CATEGORY)
         vm.uiState.test {
             awaitItem()
@@ -217,7 +217,7 @@ class ItemsListViewModelTest {
 
     @Test fun `undoEvents forwards events emitted on the bus`() = runTest {
         every { itemRepo.observeAll() } returns itemsFlow
-        val vm = ItemsListViewModel(itemRepo, prefsRepo, storeRepo, undoBus)
+        val vm = ItemsListViewModel(itemRepo, prefsRepo, mockk(relaxed = true), storeRepo, undoBus)
 
         vm.undoEvents.test {
             undoBus.emit(UndoEvent.ItemDeleted(itemId = "milk", itemName = "Milk"))
@@ -231,7 +231,7 @@ class ItemsListViewModelTest {
     @Test fun `undoItemDelete forwards to the repository`() = runTest {
         every { itemRepo.observeAll() } returns itemsFlow
 
-        val vm = ItemsListViewModel(itemRepo, prefsRepo, storeRepo, undoBus)
+        val vm = ItemsListViewModel(itemRepo, prefsRepo, mockk(relaxed = true), storeRepo, undoBus)
         vm.undoItemDelete("milk")
         advanceUntilIdle()
 
@@ -245,7 +245,7 @@ class ItemsListViewModelTest {
         itemsFlow.value = listOf(row("milk", "Milk"), row("eggs", "Eggs"))
         neededIdsFlow.value = setOf("milk")
 
-        val vm = ItemsListViewModel(itemRepo, prefsRepo, storeRepo, undoBus)
+        val vm = ItemsListViewModel(itemRepo, prefsRepo, mockk(relaxed = true), storeRepo, undoBus)
         vm.uiState.test {
             awaitItem()
             advanceUntilIdle()
@@ -257,7 +257,7 @@ class ItemsListViewModelTest {
 
     @Test fun `toggleNeededAtAllStores routes to markNeeded when not currently needed`() = runTest {
         every { itemRepo.observeAll() } returns itemsFlow
-        val vm = ItemsListViewModel(itemRepo, prefsRepo, storeRepo, undoBus)
+        val vm = ItemsListViewModel(itemRepo, prefsRepo, mockk(relaxed = true), storeRepo, undoBus)
         vm.toggleNeededAtAllStores(itemId = "milk", currentlyNeeded = false)
         advanceUntilIdle()
 
@@ -267,7 +267,7 @@ class ItemsListViewModelTest {
 
     @Test fun `toggleNeededAtAllStores routes to markPurchased when currently needed`() = runTest {
         every { itemRepo.observeAll() } returns itemsFlow
-        val vm = ItemsListViewModel(itemRepo, prefsRepo, storeRepo, undoBus)
+        val vm = ItemsListViewModel(itemRepo, prefsRepo, mockk(relaxed = true), storeRepo, undoBus)
         vm.toggleNeededAtAllStores(itemId = "milk", currentlyNeeded = true)
         advanceUntilIdle()
 
@@ -280,7 +280,7 @@ class ItemsListViewModelTest {
     @Test fun `selection mode starts off and first toggleSelection enters it`() = runTest {
         every { itemRepo.observeAll() } returns itemsFlow
         itemsFlow.value = listOf(row("milk", "Milk"), row("eggs", "Eggs"))
-        val vm = ItemsListViewModel(itemRepo, prefsRepo, storeRepo, undoBus)
+        val vm = ItemsListViewModel(itemRepo, prefsRepo, mockk(relaxed = true), storeRepo, undoBus)
 
         vm.uiState.test {
             awaitItem()
@@ -298,7 +298,7 @@ class ItemsListViewModelTest {
 
     @Test fun `toggleSelection on a selected id removes it and clearing all exits selection mode`() = runTest {
         every { itemRepo.observeAll() } returns itemsFlow
-        val vm = ItemsListViewModel(itemRepo, prefsRepo, storeRepo, undoBus)
+        val vm = ItemsListViewModel(itemRepo, prefsRepo, mockk(relaxed = true), storeRepo, undoBus)
 
         // uiState is WhileSubscribed; wrap the whole sequence in .test to
         // keep the combine alive so reads after each toggle reflect the
@@ -327,7 +327,7 @@ class ItemsListViewModelTest {
 
     @Test fun `clearSelection empties the set in one shot`() = runTest {
         every { itemRepo.observeAll() } returns itemsFlow
-        val vm = ItemsListViewModel(itemRepo, prefsRepo, storeRepo, undoBus)
+        val vm = ItemsListViewModel(itemRepo, prefsRepo, mockk(relaxed = true), storeRepo, undoBus)
 
         vm.toggleSelection("milk")
         vm.toggleSelection("eggs")
@@ -341,7 +341,7 @@ class ItemsListViewModelTest {
 
     @Test fun `applyBulkStores forwards the selection to the repo and exits selection mode on success`() = runTest {
         every { itemRepo.observeAll() } returns itemsFlow
-        val vm = ItemsListViewModel(itemRepo, prefsRepo, storeRepo, undoBus)
+        val vm = ItemsListViewModel(itemRepo, prefsRepo, mockk(relaxed = true), storeRepo, undoBus)
 
         vm.toggleSelection("milk")
         vm.toggleSelection("eggs")
@@ -362,7 +362,7 @@ class ItemsListViewModelTest {
 
     @Test fun `applyBulkStores is a no-op when selection is empty`() = runTest {
         every { itemRepo.observeAll() } returns itemsFlow
-        val vm = ItemsListViewModel(itemRepo, prefsRepo, storeRepo, undoBus)
+        val vm = ItemsListViewModel(itemRepo, prefsRepo, mockk(relaxed = true), storeRepo, undoBus)
 
         vm.applyBulkStores(setOf("s_lidl"))
         advanceUntilIdle()
@@ -371,7 +371,7 @@ class ItemsListViewModelTest {
 
     @Test fun `applyBulkStores is a no-op when storeIdsToAdd is empty`() = runTest {
         every { itemRepo.observeAll() } returns itemsFlow
-        val vm = ItemsListViewModel(itemRepo, prefsRepo, storeRepo, undoBus)
+        val vm = ItemsListViewModel(itemRepo, prefsRepo, mockk(relaxed = true), storeRepo, undoBus)
 
         vm.uiState.test {
             awaitItem()

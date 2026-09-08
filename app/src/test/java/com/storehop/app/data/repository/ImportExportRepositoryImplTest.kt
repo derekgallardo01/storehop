@@ -3,6 +3,7 @@ package com.storehop.app.data.repository
 import com.google.common.truth.Truth.assertThat
 import com.storehop.app.data.db.StorehopDatabase
 import com.storehop.app.data.entity.Item
+import com.storehop.app.analytics.AnalyticsService
 import com.storehop.app.data.entity.Store
 import com.storehop.app.data.util.FakeHouseholdSessionProvider
 import com.storehop.app.data.util.IdGenerator
@@ -58,6 +59,7 @@ class ImportExportRepositoryImplTest {
             scoDao = db.storeCategoryOrderDao(),
             ids = ids, clock = clock, session = session,
             householdSession = householdSession,
+            analytics = io.mockk.mockk(relaxed = true),
         )
         val storeRepo = StoreRepositoryImpl(
             db = db, dao = db.storeDao(),
@@ -98,6 +100,7 @@ class ImportExportRepositoryImplTest {
                 scoDao = db.storeCategoryOrderDao(),
                 ids = ids, clock = clock, session = session,
                 householdSession = householdSession,
+                analytics = io.mockk.mockk(relaxed = true),
             ),
             storeRepository = StoreRepositoryImpl(
                 db = db, dao = db.storeDao(),

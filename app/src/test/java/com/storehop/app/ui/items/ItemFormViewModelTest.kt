@@ -63,6 +63,7 @@ class ItemFormViewModelTest {
         imageUploader = imageUploader,
         undoBus = undoBus,
         categoryRepository = categoryRepo,
+        analytics = mockk(relaxed = true),
         storeRepository = storeRepo,
         savedStateHandle = SavedStateHandle(),
     )
@@ -75,6 +76,7 @@ class ItemFormViewModelTest {
             imageUploader = imageUploader,
             undoBus = undoBus,
             categoryRepository = categoryRepo,
+            analytics = mockk(relaxed = true),
             storeRepository = storeRepo,
             savedStateHandle = SavedStateHandle(mapOf("itemId" to itemId)),
         )

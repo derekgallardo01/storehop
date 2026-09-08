@@ -81,6 +81,15 @@ class ItemFormViewModel @Inject constructor(
     private val itemId: String? = savedStateHandle.get<String>("itemId")
     val isEdit: Boolean = itemId != null
 
+    /**
+     * The item's "Buy today" flag as loaded (false for a new item). [submit]
+     * uses it to detect the OFF->ON transition: turning Buy today on marks the
+     * item needed at all its stores so it surfaces today, but re-saving an
+     * already-buy-today item must not re-spread "needed" to stores the user has
+     * since cleared. Additive only — turning it off never removes.
+     */
+    private var originalBuyToday: Boolean = false
+
     private val _state = MutableStateFlow(ItemFormState(isLoading = isEdit))
     val state: StateFlow<ItemFormState> = _state.asStateFlow()
 
@@ -151,6 +160,7 @@ class ItemFormViewModel @Inject constructor(
                         imageUrl = row.item.imageUrl,
                         isLoading = false,
                     )
+                    originalBuyToday = row.item.isBuyToday
                     // Capture the just-loaded form as the "no edits yet"
                     // baseline; isDirty stays false until the user types.
                     _initialFormData.value = _state.value.userFields()
@@ -285,11 +295,21 @@ class ItemFormViewModel @Inject constructor(
                         isBuyToday = s.isBuyToday,
                     )
                 }
+                // Flipping "Buy today" on should surface the item today.
+                // "Needed" lives on item_store_xref, not on isBuyToday, so mark
+                // the item needed at all its stores when the flag is newly
+                // enabled. Guarded on the OFF->ON transition so re-saving an
+                // already-buy-today item can't re-spread needed to stores the
+                // user has since cleared (additive only — off never removes).
+                if (s.isBuyToday && !originalBuyToday) {
+                    itemRepository.markNeededAcrossAllStores(savedId)
+                }
                 _state.value = _state.value.copy(
                     isSubmitting = false,
                     isUploadingImage = false,
                     saved = true,
                 )
+                originalBuyToday = s.isBuyToday
                 // Reset the dirty baseline so the user can keep editing
                 // post-save without an immediate "discard?" prompt.
                 _initialFormData.value = _state.value.userFields()

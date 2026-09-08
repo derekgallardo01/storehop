@@ -360,9 +360,9 @@ class ShopAtStoreViewModelTest {
         advanceUntilIdle()
 
         coVerify(exactly = 1) { itemRepo.addItemFromQuickAdd("Yogurt", "store_lidl") }
-        // Input should be cleared after a successful submit so the field is
-        // ready for the next entry.
-        assertThat(vm.quickAddInput.value).isEmpty()
+        // Text now persists after a successful submit so the user can edit just
+        // the suffix for same-prefix runs; the bar's "X" clears it.
+        assertThat(vm.quickAddInput.value).isEqualTo("  Yogurt  ")
     }
 
     @Test fun `pickExistingItem routes to tagItemToStore`() = runTest {
@@ -375,7 +375,8 @@ class ShopAtStoreViewModelTest {
         advanceUntilIdle()
 
         coVerify(exactly = 1) { itemRepo.tagItemToStore("milk", "store_lidl") }
-        assertThat(vm.quickAddInput.value).isEmpty()
+        // Input persists after picking a suggestion too.
+        assertThat(vm.quickAddInput.value).isEqualTo("mil")
     }
 
     @Test fun `quickAddSuggestions empty when input is empty even if staples exist`() = runTest {
@@ -477,6 +478,7 @@ class ShopAtStoreViewModelTest {
         shoppingRepository = shoppingRepo,
         itemRepository = itemRepo,
         preferencesRepository = prefsRepo,
+        analytics = mockk(relaxed = true),
         sessionTracker = sessionTracker,
         storeRepository = storeRepo,
         savedStateHandle = SavedStateHandle(mapOf("storeId" to "store_lidl")),
@@ -497,6 +499,7 @@ class ShopAtStoreViewModelTest {
                 shoppingRepository = shoppingRepo,
                 itemRepository = itemRepo,
                 preferencesRepository = prefsRepo,
+                analytics = mockk(relaxed = true),
                 sessionTracker = sessionTracker,
                 storeRepository = storeRepo,
                 savedStateHandle = SavedStateHandle(),
