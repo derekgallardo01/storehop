@@ -29,6 +29,12 @@ iOS parity for the three Items/Shop improvements restored on Android in
 Adds the `action_clear_search` string (en/pt-PT/es/it) and view-model tests for
 all three behaviors.
 
+### Versions
+
+- iOS: `MARKETING_VERSION` 0.9.1 -> 0.9.6; `CURRENT_PROJECT_VERSION` 56 -> 57.
+  Catches iOS up to Android's shipped version name; 0.9.2-0.9.5 were never
+  built for iOS.
+
 ## [0.9.6] - 2026-09-04
 
 ### Added

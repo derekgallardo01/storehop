@@ -11,8 +11,8 @@ options:
 settings:
   base:
     SWIFT_VERSION: "5.10"
-    MARKETING_VERSION: "0.9.1"
-    CURRENT_PROJECT_VERSION: "56"
+    MARKETING_VERSION: "0.9.6"
+    CURRENT_PROJECT_VERSION: "57"
     DEVELOPMENT_TEAM: "9U3ZSABZG7"
     # Drives the CFBundleURLSchemes entry in Info.plist for Google
     # Sign-In's OAuth redirect. Value MUST match REVERSED_CLIENT_ID
