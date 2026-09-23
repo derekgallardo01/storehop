@@ -69,6 +69,7 @@ import com.storehop.app.BuildConfig
 import com.storehop.app.R
 import com.storehop.app.billing.Entitlement
 import com.storehop.app.billing.isUnlocked
+import com.storehop.app.data.prefs.StartScreen
 import com.storehop.app.data.prefs.ThemeMode
 import com.storehop.app.sync.PullState
 
@@ -82,6 +83,8 @@ fun SettingsScreen(
 ) {
     val state by viewModel.state.collectAsState()
     val themeMode by viewModel.themeMode.collectAsState()
+    val startScreen by viewModel.startScreen.collectAsState()
+    val focusSearchOnStart by viewModel.focusSearchOnStart.collectAsState()
     val currentLocaleTag by viewModel.currentLocaleTag.collectAsState()
     val pullState by viewModel.pullState.collectAsState()
     val context = LocalContext.current
@@ -140,6 +143,12 @@ fun SettingsScreen(
             HouseholdLinkCard(onOpen = onOpenHousehold)
 
             SectionHeader(text = stringResource(R.string.settings_section_display))
+            StartScreenCard(
+                selected = startScreen,
+                onSelect = viewModel::setStartScreen,
+                focusSearchOnStart = focusSearchOnStart,
+                onToggleFocusSearch = viewModel::setFocusSearchOnStart,
+            )
             ThemeCard(
                 selected = themeMode,
                 onSelect = viewModel::setThemeMode,
@@ -194,6 +203,54 @@ fun SettingsScreen(
 
             SectionHeader(text = stringResource(R.string.settings_section_about))
             AboutCard()
+        }
+    }
+}
+
+@Composable
+private fun StartScreenCard(
+    selected: StartScreen,
+    onSelect: (StartScreen) -> Unit,
+    focusSearchOnStart: Boolean,
+    onToggleFocusSearch: (Boolean) -> Unit,
+) {
+    SettingsCard(title = stringResource(R.string.settings_start_screen_title)) {
+        Column(modifier = Modifier.selectableGroup()) {
+            RadioRow(
+                label = stringResource(R.string.nav_shop),
+                selected = selected == StartScreen.SHOP,
+                onClick = { onSelect(StartScreen.SHOP) },
+            )
+            RadioRow(
+                label = stringResource(R.string.nav_items),
+                selected = selected == StartScreen.ITEMS,
+                onClick = { onSelect(StartScreen.ITEMS) },
+            )
+        }
+        if (selected == StartScreen.ITEMS) {
+            Spacer(Modifier.height(8.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = stringResource(R.string.settings_focus_search_on_launch),
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Medium,
+                    )
+                    Text(
+                        text = stringResource(R.string.settings_focus_search_on_launch_subtitle),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Spacer(Modifier.width(12.dp))
+                Switch(
+                    checked = focusSearchOnStart,
+                    onCheckedChange = onToggleFocusSearch,
+                )
+            }
         }
     }
 }

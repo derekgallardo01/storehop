@@ -7,6 +7,7 @@ import com.google.common.truth.Truth.assertThat
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
 import com.storehop.app.auth.GoogleSignInUseCase
+import com.storehop.app.data.prefs.StartScreen
 import com.storehop.app.data.prefs.ThemeMode
 import com.storehop.app.data.prefs.UserPreferencesRepository
 import com.storehop.app.sync.PullCoordinator
@@ -43,6 +44,8 @@ class SettingsViewModelTest {
     private val googleSignIn: GoogleSignInUseCase = mockk()
     private val userPrefs: UserPreferencesRepository = mockk(relaxed = true) {
         every { themeMode } returns flowOf(ThemeMode.SYSTEM)
+        every { startScreen } returns flowOf(StartScreen.SHOP)
+        every { focusSearchOnStart } returns flowOf(true)
     }
     private val pullCoordinator: PullCoordinator = mockk(relaxed = true)
     private val pullStateRepo: PullStateRepository = mockk(relaxed = true) {
@@ -352,6 +355,22 @@ class SettingsViewModelTest {
 
         vm.clearError()
         assertThat(vm.state.value.error).isNull()
+    }
+
+    @Test fun `setStartScreen delegates to repository`() = runTest {
+        coEvery { userPrefs.setStartScreen(any()) } returns Unit
+        val vm = newVm(FakeSessionProvider("u"))
+        vm.setStartScreen(StartScreen.ITEMS)
+        advanceUntilIdle()
+        coVerify(exactly = 1) { userPrefs.setStartScreen(StartScreen.ITEMS) }
+    }
+
+    @Test fun `setFocusSearchOnStart delegates to repository`() = runTest {
+        coEvery { userPrefs.setFocusSearchOnStart(any()) } returns Unit
+        val vm = newVm(FakeSessionProvider("u"))
+        vm.setFocusSearchOnStart(false)
+        advanceUntilIdle()
+        coVerify(exactly = 1) { userPrefs.setFocusSearchOnStart(false) }
     }
 
     private fun newVm(session: FakeSessionProvider) = SettingsViewModel(

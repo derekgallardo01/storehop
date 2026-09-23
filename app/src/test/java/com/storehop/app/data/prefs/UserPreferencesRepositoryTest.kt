@@ -120,6 +120,36 @@ class UserPreferencesRepositoryTest {
         assertThat(repo.itemsListSortMode.first()).isEqualTo(SortMode.ALPHABETIC)
     }
 
+    @Test fun `startScreen defaults to SHOP when no value is stored`() = runTest {
+        val repo = newRepo(newStore())
+        assertThat(repo.startScreen.first()).isEqualTo(StartScreen.SHOP)
+    }
+
+    @Test fun `setStartScreen persists and round-trips both values`() = runTest {
+        val repo = newRepo(newStore())
+        repo.setStartScreen(StartScreen.ITEMS)
+        assertThat(repo.startScreen.first()).isEqualTo(StartScreen.ITEMS)
+        repo.setStartScreen(StartScreen.SHOP)
+        assertThat(repo.startScreen.first()).isEqualTo(StartScreen.SHOP)
+    }
+
+    @Test fun `startScreen falls back to SHOP if the stored value is unrecognized`() = runTest {
+        val store = newStore(initial = preferencesOf(
+            androidx.datastore.preferences.core.stringPreferencesKey("start_screen") to "EXPLODING_WHALE",
+        ))
+        val repo = newRepo(store)
+        assertThat(repo.startScreen.first()).isEqualTo(StartScreen.SHOP)
+    }
+
+    @Test fun `focusSearchOnStart defaults to true and round-trips`() = runTest {
+        val repo = newRepo(newStore())
+        assertThat(repo.focusSearchOnStart.first()).isTrue()
+        repo.setFocusSearchOnStart(false)
+        assertThat(repo.focusSearchOnStart.first()).isFalse()
+        repo.setFocusSearchOnStart(true)
+        assertThat(repo.focusSearchOnStart.first()).isTrue()
+    }
+
     // MARK: - v0.7.1 additions (localeTag + snapshot + applyRemoteSnapshot)
 
     @Test fun `localeTag defaults to empty string (follow system)`() = runTest {
@@ -150,6 +180,12 @@ class UserPreferencesRepositoryTest {
 
         repo.setItemsListSortMode(SortMode.CATEGORY)
         assertThat(repo.currentSnapshot().updatedAt).isEqualTo(50_000L)
+
+        repo.setStartScreen(StartScreen.ITEMS)
+        assertThat(repo.currentSnapshot().updatedAt).isEqualTo(50_000L)
+
+        repo.setFocusSearchOnStart(false)
+        assertThat(repo.currentSnapshot().updatedAt).isEqualTo(50_000L)
     }
 
     @Test fun `snapshot reflects every cloud-syncable field`() = runTest {
@@ -159,6 +195,8 @@ class UserPreferencesRepositoryTest {
         repo.setShowPurchased(false)
         repo.setShopAtStoreSortMode(SortMode.ALPHABETIC)
         repo.setItemsListSortMode(SortMode.CATEGORY)
+        repo.setStartScreen(StartScreen.ITEMS)
+        repo.setFocusSearchOnStart(false)
 
         val s = repo.currentSnapshot()
         assertThat(s.themeMode).isEqualTo(ThemeMode.DARK)
@@ -166,6 +204,8 @@ class UserPreferencesRepositoryTest {
         assertThat(s.showPurchased).isFalse()
         assertThat(s.shopAtStoreSortMode).isEqualTo(SortMode.ALPHABETIC)
         assertThat(s.itemsListSortMode).isEqualTo(SortMode.CATEGORY)
+        assertThat(s.startScreen).isEqualTo(StartScreen.ITEMS)
+        assertThat(s.focusSearchOnStart).isFalse()
         assertThat(s.updatedAt).isEqualTo(50_000L)
     }
 
@@ -178,6 +218,8 @@ class UserPreferencesRepositoryTest {
             showPurchased = false,
             shopAtStoreSortMode = SortMode.ALPHABETIC,
             itemsListSortMode = SortMode.CATEGORY,
+            startScreen = StartScreen.ITEMS,
+            focusSearchOnStart = false,
             updatedAt = 999_000L,
         )
 

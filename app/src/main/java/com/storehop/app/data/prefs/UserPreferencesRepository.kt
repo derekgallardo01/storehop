@@ -115,6 +115,35 @@ class UserPreferencesRepository @Inject constructor(
     }
 
     /**
+     * Which screen appears on app launch. Default [StartScreen.SHOP] preserves
+     * historical behavior opening to the store picker.
+     */
+    val startScreen: Flow<StartScreen> = dataStore.data
+        .map { prefs -> StartScreen.fromName(prefs[KEY_START_SCREEN]) ?: StartScreen.SHOP }
+
+    suspend fun setStartScreen(mode: StartScreen) {
+        dataStore.edit {
+            it[KEY_START_SCREEN] = mode.name
+            it[KEY_UPDATED_AT] = clock.millis()
+        }
+    }
+
+    /**
+     * Whether to auto-focus the "Search anything" search box on launch when
+     * [StartScreen.ITEMS] is selected. Default is true so users can immediately
+     * type without tapping.
+     */
+    val focusSearchOnStart: Flow<Boolean> = dataStore.data
+        .map { prefs -> prefs[KEY_FOCUS_SEARCH_ON_START] ?: true }
+
+    suspend fun setFocusSearchOnStart(value: Boolean) {
+        dataStore.edit {
+            it[KEY_FOCUS_SEARCH_ON_START] = value
+            it[KEY_UPDATED_AT] = clock.millis()
+        }
+    }
+
+    /**
      * Aggregated snapshot of every cloud-syncable preference plus
      * the LWW [UserPreferencesSnapshot.updatedAt]. Re-emits whenever any
      * field changes — [UserPreferencesSync] subscribes to debounce-push.
@@ -126,6 +155,8 @@ class UserPreferencesRepository @Inject constructor(
             showPurchased = prefs[KEY_SHOW_PURCHASED] ?: true,
             shopAtStoreSortMode = SortMode.fromName(prefs[KEY_SHOP_AT_STORE_SORT_MODE]) ?: SortMode.CATEGORY,
             itemsListSortMode = SortMode.fromName(prefs[KEY_ITEMS_LIST_SORT_MODE]) ?: SortMode.ALPHABETIC,
+            startScreen = StartScreen.fromName(prefs[KEY_START_SCREEN]) ?: StartScreen.SHOP,
+            focusSearchOnStart = prefs[KEY_FOCUS_SEARCH_ON_START] ?: true,
             updatedAt = prefs[KEY_UPDATED_AT] ?: 0L,
         )
     }
@@ -144,6 +175,8 @@ class UserPreferencesRepository @Inject constructor(
             it[KEY_SHOW_PURCHASED] = s.showPurchased
             it[KEY_SHOP_AT_STORE_SORT_MODE] = s.shopAtStoreSortMode.name
             it[KEY_ITEMS_LIST_SORT_MODE] = s.itemsListSortMode.name
+            it[KEY_START_SCREEN] = s.startScreen.name
+            it[KEY_FOCUS_SEARCH_ON_START] = s.focusSearchOnStart
             it[KEY_UPDATED_AT] = s.updatedAt
         }
     }
@@ -194,6 +227,8 @@ class UserPreferencesRepository @Inject constructor(
         val KEY_SHOW_PURCHASED = booleanPreferencesKey("shop_show_purchased")
         val KEY_SHOP_AT_STORE_SORT_MODE = stringPreferencesKey("shop_at_store_sort_mode")
         val KEY_ITEMS_LIST_SORT_MODE = stringPreferencesKey("items_list_sort_mode")
+        val KEY_START_SCREEN = stringPreferencesKey("start_screen")
+        val KEY_FOCUS_SEARCH_ON_START = booleanPreferencesKey("focus_search_on_start")
         val KEY_UPDATED_AT = longPreferencesKey("user_prefs_updated_at")
 
         // v0.8 entitlement keys (local-only, never cloud-synced).
@@ -220,8 +255,24 @@ data class UserPreferencesSnapshot(
     val showPurchased: Boolean,
     val shopAtStoreSortMode: SortMode,
     val itemsListSortMode: SortMode,
+    val startScreen: StartScreen = StartScreen.SHOP,
+    val focusSearchOnStart: Boolean = true,
     val updatedAt: Long,
 )
+
+/**
+ * Which screen to display when the app opens.
+ */
+enum class StartScreen {
+    SHOP,
+    ITEMS;
+
+    companion object {
+        fun fromName(name: String?): StartScreen? = name?.let {
+            entries.firstOrNull { screen -> screen.name == it }
+        }
+    }
+}
 
 /**
  * How a list of items should be ordered. Each screen that supports a sort

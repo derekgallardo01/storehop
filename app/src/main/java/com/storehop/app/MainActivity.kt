@@ -39,6 +39,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
@@ -48,6 +49,7 @@ import androidx.navigation.compose.rememberNavController
 import com.google.android.play.core.appupdate.AppUpdateManagerFactory
 import com.google.firebase.auth.FirebaseAuth
 import com.storehop.app.analytics.AnalyticsService
+import com.storehop.app.data.prefs.StartScreen
 import com.storehop.app.data.prefs.ThemeMode
 import com.storehop.app.data.prefs.UserPreferencesRepository
 import com.storehop.app.data.util.UserSessionProvider
@@ -184,14 +186,33 @@ class RootViewModel @Inject constructor(
             kotlinx.coroutines.flow.SharingStarted.Eagerly,
             ThemeMode.SYSTEM,
         )
+
+    /**
+     * Start screen preference (Shop vs Items), null until DataStore emits.
+     */
+    val startScreen: StateFlow<StartScreen?> = userPrefs.startScreen
+        .map<StartScreen, StartScreen?> { it }
+        .stateIn(
+            viewModelScope,
+            kotlinx.coroutines.flow.SharingStarted.Eagerly,
+            null,
+        )
+
+    val focusSearchOnStart: StateFlow<Boolean> = userPrefs.focusSearchOnStart
+        .stateIn(
+            viewModelScope,
+            kotlinx.coroutines.flow.SharingStarted.Eagerly,
+            true,
+        )
 }
 
 @Composable
 private fun AppRoot(viewModel: RootViewModel = hiltViewModel()) {
     val uid by viewModel.session.userId.collectAsState()
-    when (uid) {
-        null -> LoadingPlaceholder()
-        else -> SignedInRoot()
+    val screen = viewModel.startScreen.collectAsState().value
+    when {
+        uid == null || screen == null -> LoadingPlaceholder()
+        else -> SignedInRoot(initialStartScreen = screen)
     }
 }
 
@@ -212,10 +233,21 @@ private fun LoadingPlaceholder() {
  * → Items → Shop returns you where you were in the Shop tab).
  */
 @Composable
-private fun SignedInRoot(rootViewModel: RootViewModel = hiltViewModel()) {
+private fun SignedInRoot(
+    initialStartScreen: StartScreen,
+    rootViewModel: RootViewModel = hiltViewModel(),
+) {
     val navController = rememberNavController()
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route
+
+    val focusSearchOnStart by rootViewModel.focusSearchOnStart.collectAsState()
+    val initialStartDestination = remember {
+        if (initialStartScreen == StartScreen.ITEMS) Routes.ITEMS else Routes.SHOP
+    }
+    val autoFocusSearchOnLaunch = remember {
+        initialStartScreen == StartScreen.ITEMS && focusSearchOnStart
+    }
 
     // Analytics screen tracking. currentRoute is the static route template
     // (e.g. "shop/store/{storeId}") — no substituted ids/content.
@@ -243,7 +275,7 @@ private fun SignedInRoot(rootViewModel: RootViewModel = hiltViewModel()) {
     ) { padding ->
         NavHost(
             navController = navController,
-            startDestination = Routes.SHOP,
+            startDestination = initialStartDestination,
             // The root Scaffold has already applied the system-bar and IME
             // insets represented by this padding. Mark them as consumed so
             // destination Scaffolds do not apply the same insets again. The
@@ -282,6 +314,7 @@ private fun SignedInRoot(rootViewModel: RootViewModel = hiltViewModel()) {
                     onEditItem = { id -> navController.navigate(Routes.itemEdit(id)) },
                     onOpenSettings = { navController.navigate(Routes.SETTINGS) },
                     onOpenCategories = { navController.navigate(Routes.ITEMS_CATEGORIES) },
+                    autoFocusSearch = autoFocusSearchOnLaunch,
                 )
             }
             composable(Routes.ITEMS_CATEGORIES) {

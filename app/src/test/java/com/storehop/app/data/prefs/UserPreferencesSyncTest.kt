@@ -48,6 +48,8 @@ class UserPreferencesSyncTest {
         showPurchased = false,
         shopAtStoreSortMode = SortMode.ALPHABETIC,
         itemsListSortMode = SortMode.CATEGORY,
+        startScreen = StartScreen.ITEMS,
+        focusSearchOnStart = false,
         updatedAt = 100_000L,
     )
 
@@ -76,6 +78,8 @@ class UserPreferencesSyncTest {
         // preserved so a later device's sync compares against the same value).
         assertThat(captured.captured.themeMode).isEqualTo("DARK")
         assertThat(captured.captured.localeTag).isEqualTo("pt-PT")
+        assertThat(captured.captured.startScreen).isEqualTo("ITEMS")
+        assertThat(captured.captured.focusSearchOnStart).isFalse()
         assertThat(captured.captured.updatedAt).isEqualTo(100_000L)
     }
 
@@ -86,6 +90,8 @@ class UserPreferencesSyncTest {
             showPurchased = true,
             shopAtStoreSortMode = "CATEGORY",
             itemsListSortMode = "ALPHABETIC",
+            startScreen = "ITEMS",
+            focusSearchOnStart = true,
             updatedAt = 200_000L, // newer than local 100_000L
         )
         val snap: DocumentSnapshot = mockk {
@@ -106,6 +112,8 @@ class UserPreferencesSyncTest {
         // Applied snapshot preserves the cloud's updatedAt (load-bearing for LWW).
         assertThat(capturedSnapshot.captured.themeMode).isEqualTo(ThemeMode.LIGHT)
         assertThat(capturedSnapshot.captured.localeTag).isEqualTo("es")
+        assertThat(capturedSnapshot.captured.startScreen).isEqualTo(StartScreen.ITEMS)
+        assertThat(capturedSnapshot.captured.focusSearchOnStart).isTrue()
         assertThat(capturedSnapshot.captured.updatedAt).isEqualTo(200_000L)
     }
 

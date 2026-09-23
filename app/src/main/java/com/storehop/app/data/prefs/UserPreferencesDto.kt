@@ -21,6 +21,8 @@ class UserPreferencesDto(
     var showPurchased: Boolean = true,
     var shopAtStoreSortMode: String = SortMode.CATEGORY.name,
     var itemsListSortMode: String = SortMode.ALPHABETIC.name,
+    var startScreen: String = StartScreen.SHOP.name,
+    var focusSearchOnStart: Boolean = true,
     var updatedAt: Long = 0L,
 )
 
@@ -31,6 +33,8 @@ fun UserPreferencesSnapshot.toDto(): UserPreferencesDto = UserPreferencesDto(
     showPurchased = showPurchased,
     shopAtStoreSortMode = shopAtStoreSortMode.name,
     itemsListSortMode = itemsListSortMode.name,
+    startScreen = startScreen.name,
+    focusSearchOnStart = focusSearchOnStart,
     updatedAt = updatedAt,
 )
 
@@ -45,5 +49,7 @@ fun UserPreferencesDto.toSnapshot(): UserPreferencesSnapshot = UserPreferencesSn
     showPurchased = showPurchased,
     shopAtStoreSortMode = SortMode.fromName(shopAtStoreSortMode) ?: SortMode.CATEGORY,
     itemsListSortMode = SortMode.fromName(itemsListSortMode) ?: SortMode.ALPHABETIC,
+    startScreen = StartScreen.fromName(startScreen) ?: StartScreen.SHOP,
+    focusSearchOnStart = focusSearchOnStart,
     updatedAt = updatedAt,
 )

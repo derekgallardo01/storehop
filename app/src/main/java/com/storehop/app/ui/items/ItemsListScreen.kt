@@ -53,11 +53,15 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -85,6 +89,7 @@ fun ItemsListScreen(
     onEditItem: (itemId: String) -> Unit,
     onOpenSettings: () -> Unit,
     onOpenCategories: () -> Unit,
+    autoFocusSearch: Boolean = false,
     viewModel: ItemsListViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsState()
@@ -92,6 +97,19 @@ fun ItemsListScreen(
     val ctx = LocalContext.current
     val undoTemplate = stringResource(R.string.undo_item_deleted)
     var undoState: UndoBarState? by remember { mutableStateOf(null) }
+
+    val searchFocusRequester = remember { FocusRequester() }
+    val keyboardController = LocalSoftwareKeyboardController.current
+    var hasAutoFocused by rememberSaveable { mutableStateOf(false) }
+
+    LaunchedEffect(autoFocusSearch) {
+        if (autoFocusSearch && !hasAutoFocused) {
+            hasAutoFocused = true
+            delay(200)
+            searchFocusRequester.requestFocus()
+            keyboardController?.show()
+        }
+    }
 
     // Pull cross-screen undo prompts from the bus and surface them on the
     // shared UndoBar (3s auto-dismiss, X close button, swipe-to-dismiss).
@@ -228,7 +246,8 @@ fun ItemsListScreen(
                 onValueChange = viewModel::setQuery,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                    .padding(horizontal = 16.dp, vertical = 8.dp)
+                    .focusRequester(searchFocusRequester),
                 placeholder = { Text(stringResource(R.string.search_items_placeholder)) },
                 leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
                 trailingIcon = {

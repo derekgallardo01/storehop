@@ -17,6 +17,7 @@ import com.storehop.app.billing.BillingManager
 import com.storehop.app.billing.Entitlement
 import com.storehop.app.billing.EntitlementRepository
 import com.storehop.app.billing.PurchaseEvent
+import com.storehop.app.data.prefs.StartScreen
 import com.storehop.app.data.prefs.ThemeMode
 import com.storehop.app.data.prefs.UserPreferencesRepository
 import com.storehop.app.data.util.HouseholdSessionProvider
@@ -120,6 +121,14 @@ class SettingsViewModel @Inject constructor(
     val themeMode: StateFlow<ThemeMode> = userPrefs.themeMode
         .stateIn(viewModelScope, SharingStarted.Eagerly, ThemeMode.SYSTEM)
 
+    /** Start screen pref (Shop vs Items) for the Start Screen section. */
+    val startScreen: StateFlow<StartScreen> = userPrefs.startScreen
+        .stateIn(viewModelScope, SharingStarted.Eagerly, StartScreen.SHOP)
+
+    /** Whether to auto-focus the search box when starting on Items screen. */
+    val focusSearchOnStart: StateFlow<Boolean> = userPrefs.focusSearchOnStart
+        .stateIn(viewModelScope, SharingStarted.Eagerly, true)
+
     /** v0.9.4 analytics consent for the Settings toggle (default on). Flipping
      *  the pref is enough — AnalyticsServiceImpl observes it and enables/disables
      *  collection on both sinks. */
@@ -163,6 +172,14 @@ class SettingsViewModel @Inject constructor(
 
     fun setThemeMode(mode: ThemeMode) {
         viewModelScope.launch { userPrefs.setThemeMode(mode) }
+    }
+
+    fun setStartScreen(screen: StartScreen) {
+        viewModelScope.launch { userPrefs.setStartScreen(screen) }
+    }
+
+    fun setFocusSearchOnStart(value: Boolean) {
+        viewModelScope.launch { userPrefs.setFocusSearchOnStart(value) }
     }
 
     fun setAnalyticsEnabled(value: Boolean) {

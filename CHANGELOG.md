@@ -7,6 +7,25 @@ project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 For the high-level roadmap and earlier-than-0.5.0 history, see the
 "Roadmap" section in the [README](README.md).
 
+## [0.9.7] - 2026-09-22
+
+### Added
+
+- **Configurable Start Screen ("Shop" vs "Items")**: Added a preference in Settings →
+  Display allowing users to choose which screen appears when opening the app.
+- **Auto-focus search box on launch**: When starting on the Items screen, an
+  optional "Focus search on launch" toggle (enabled by default) immediately focuses
+  the "Search anything" box and raises the software keyboard so items can be found
+  or added without any extra taps.
+- **Cross-device preferences sync**: `startScreen` and `focusSearchOnStart` preferences
+  are cloud-synced via Firestore `/userPrefs/{uid}` with backward-compatible defaults.
+- Added localized translations for all new strings across English, Spanish, Italian,
+  and Portuguese.
+
+### Versions
+
+- Android: `versionName` 0.9.6 -> 0.9.7; `versionCode` 79 -> 80.
+
 ## [0.9.6-ios] - 2026-09-08
 
 ### Added
