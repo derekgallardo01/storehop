@@ -59,6 +59,7 @@ final class ItemsListViewModel {
     private let undoEventBus: UndoEventBus
     private let preferencesRepository: any UserPreferencesRepository
     private let session: any UserSessionProvider
+    private let householdSession: (any HouseholdSessionProvider)?
     private let binder = SessionBinder()
     private let neededBinder = SessionBinder()
     private let storesBinder = SessionBinder()
@@ -70,47 +71,73 @@ final class ItemsListViewModel {
         storeRepository: StoreRepository,
         undoEventBus: UndoEventBus,
         preferencesRepository: any UserPreferencesRepository,
-        session: any UserSessionProvider
+        session: any UserSessionProvider,
+        householdSession: (any HouseholdSessionProvider)? = nil
     ) {
         self.itemRepository = itemRepository
         self.storeRepository = storeRepository
         self.undoEventBus = undoEventBus
         self.preferencesRepository = preferencesRepository
         self.session = session
+        self.householdSession = householdSession ?? (session as? any HouseholdSessionProvider)
         // Seed initial value synchronously so the first refresh() doesn't
         // race with the stream subscription below.
         self.sortMode = preferencesRepository.itemsListSortMode
     }
 
     func bind() {
-        binder.bind(
-            session: session,
-            emptyValue: [ItemWithCategoryAndStores]()
-        ) { [itemRepository] uid in
-            itemRepository.observeAll(userId: uid)
-        } onValue: { [weak self] items in
-            self?.rawItems = items
-            self?.refresh()
-        }
-        // v0.6.1: subscribe to the needed-ids stream. The view reads
-        // `neededItemIds` to decide +/- per row.
-        neededBinder.bind(
-            session: session,
-            emptyValue: [String]()
-        ) { [itemRepository] uid in
-            itemRepository.observeNeededItemIds(userId: uid)
-        } onValue: { [weak self] ids in
-            self?.neededItemIds = Set(ids)
-        }
-        // v0.8.1: live store list for the bulk-tag picker dialog. Mirrors
-        // the archived-excluded observation `ItemFormViewModel.bind` uses.
-        storesBinder.bind(
-            session: session,
-            emptyValue: [Store]()
-        ) { [storeRepository] uid in
-            storeRepository.observeAll(userId: uid, includeArchived: false)
-        } onValue: { [weak self] stores in
-            self?.stores = stores
+        if let householdSession {
+            binder.bind(
+                householdSession: householdSession,
+                emptyValue: [ItemWithCategoryAndStores]()
+            ) { [itemRepository] hid in
+                itemRepository.observeAll(userId: hid)
+            } onValue: { [weak self] items in
+                self?.rawItems = items
+                self?.refresh()
+            }
+            neededBinder.bind(
+                householdSession: householdSession,
+                emptyValue: [String]()
+            ) { [itemRepository] hid in
+                itemRepository.observeNeededItemIds(userId: hid)
+            } onValue: { [weak self] ids in
+                self?.neededItemIds = Set(ids)
+            }
+            storesBinder.bind(
+                householdSession: householdSession,
+                emptyValue: [Store]()
+            ) { [storeRepository] hid in
+                storeRepository.observeAll(userId: hid, includeArchived: false)
+            } onValue: { [weak self] stores in
+                self?.stores = stores
+            }
+        } else {
+            binder.bind(
+                session: session,
+                emptyValue: [ItemWithCategoryAndStores]()
+            ) { [itemRepository] uid in
+                itemRepository.observeAll(userId: uid)
+            } onValue: { [weak self] items in
+                self?.rawItems = items
+                self?.refresh()
+            }
+            neededBinder.bind(
+                session: session,
+                emptyValue: [String]()
+            ) { [itemRepository] uid in
+                itemRepository.observeNeededItemIds(userId: uid)
+            } onValue: { [weak self] ids in
+                self?.neededItemIds = Set(ids)
+            }
+            storesBinder.bind(
+                session: session,
+                emptyValue: [Store]()
+            ) { [storeRepository] uid in
+                storeRepository.observeAll(userId: uid, includeArchived: false)
+            } onValue: { [weak self] stores in
+                self?.stores = stores
+            }
         }
 
         // Listen for cross-screen delete events from the form.

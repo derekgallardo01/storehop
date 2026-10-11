@@ -7,6 +7,7 @@ struct SettingsView: View {
 
     @Environment(AppContainer.self) private var container
     @State private var viewModel: SettingsViewModel?
+    @State private var activeImportResult: ImportResult?
 
     var body: some View {
         Group {
@@ -24,6 +25,7 @@ struct SettingsView: View {
                     appleSignIn: container.signInWithAppleUseCase,
                     prefs: container.userPreferences,
                     session: container.session,
+                    householdSession: container.householdSession,
                     pullCoordinator: container.pullCoordinator,
                     pullStateRepo: container.pullStateRepository
                 )
@@ -34,114 +36,154 @@ struct SettingsView: View {
     }
 
     private func content(viewModel: SettingsViewModel) -> some View {
-        Form {
-            // Cloud sync banner — visible when last pull failed.
-            if viewModel.pullState == .failed {
-                Section {
-                    CloudSyncBanner(
-                        reason: viewModel.pullFailureReason,
-                        onRetry: viewModel.retryPull
+        ZStack(alignment: .bottom) {
+            Form {
+                // Cloud sync banner — visible when last pull failed.
+                if viewModel.pullState == .failed {
+                    Section {
+                        CloudSyncBanner(
+                            reason: viewModel.pullFailureReason,
+                            onRetry: viewModel.retryPull
+                        )
+                            .listRowBackground(Color.clear)
+                            .listRowInsets(EdgeInsets())
+                    }
+                }
+
+                // Account card.
+                Section(header: Text(L("account_title"))) {
+                    AccountCard(
+                        account: viewModel.account,
+                        busy: viewModel.busy,
+                        onSignInWithGoogle: {
+                            if let presenter = topViewController() {
+                                viewModel.signInWithGoogle(presenter: presenter)
+                            }
+                        },
+                        prepareAppleNonce: { viewModel.prepareAppleNonce() },
+                        onSignInWithAppleResult: { result, rawNonce in
+                            viewModel.handleAppleSignInResult(result: result, rawNonce: rawNonce)
+                        },
+                        onSignOut: viewModel.signOut
                     )
-                        .listRowBackground(Color.clear)
-                        .listRowInsets(EdgeInsets())
-                }
-            }
-
-            // Account card.
-            Section(header: Text(L("account_title"))) {
-                AccountCard(
-                    account: viewModel.account,
-                    busy: viewModel.busy,
-                    onSignInWithGoogle: {
-                        if let presenter = topViewController() {
-                            viewModel.signInWithGoogle(presenter: presenter)
+                    if let error = viewModel.error {
+                        Text(error)
+                            .foregroundStyle(.red)
+                            .font(StorehopTypography.bodySmall)
+                    }
+                    // v0.7.0: Settings → Household tap-target sits directly
+                    // under the Account section since invites are only useful
+                    // for signed-in users (an anonymous user can still tap
+                    // through and see "Just you").
+                    NavigationLink {
+                        HouseholdView()
+                    } label: {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(L("household_title"))
+                                .font(StorehopTypography.titleMedium)
+                            Text(L("household_settings_subtitle"))
+                                .font(StorehopTypography.bodySmall)
+                                .foregroundStyle(StorehopColors.onSurfaceVariant)
                         }
-                    },
-                    prepareAppleNonce: { viewModel.prepareAppleNonce() },
-                    onSignInWithAppleResult: { result, rawNonce in
-                        viewModel.handleAppleSignInResult(result: result, rawNonce: rawNonce)
-                    },
-                    onSignOut: viewModel.signOut
+                    }
+                }
+
+                // Start screen picker.
+                Section(header: Text(L("settings_start_screen_title"))) {
+                    Picker("", selection: startScreenBinding(viewModel: viewModel)) {
+                        Text(L("nav_shop")).tag(StartScreen.shop)
+                        Text(L("nav_items")).tag(StartScreen.items)
+                    }
+                    .pickerStyle(.inline)
+                    .labelsHidden()
+
+                    if viewModel.startScreen == .items {
+                        Toggle(isOn: focusSearchBinding(viewModel: viewModel)) {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(L("settings_focus_search_on_launch"))
+                                    .font(StorehopTypography.bodyMedium)
+                                Text(L("settings_focus_search_on_launch_subtitle"))
+                                    .font(StorehopTypography.bodySmall)
+                                    .foregroundStyle(StorehopColors.onSurfaceVariant)
+                            }
+                        }
+                    }
+                }
+
+                // Theme picker.
+                Section(header: Text(L("settings_theme_title"))) {
+                    Picker("", selection: themeBinding(viewModel: viewModel)) {
+                        Text(L("settings_theme_system")).tag(ThemeMode.system)
+                        Text(L("settings_theme_light")).tag(ThemeMode.light)
+                        Text(L("settings_theme_dark")).tag(ThemeMode.dark)
+                    }
+                    .pickerStyle(.inline)
+                    .labelsHidden()
+                }
+
+                // Language picker.
+                Section(header: Text(L("settings_language_title"))) {
+                    Picker("", selection: localeBinding(viewModel: viewModel)) {
+                        Text(L("settings_language_system")).tag("")
+                        Text(L("settings_language_english")).tag("en")
+                        Text(L("settings_language_pt_pt")).tag("pt-PT")
+                        Text(L("settings_language_es")).tag("es")
+                        Text(L("settings_language_it")).tag("it")
+                    }
+                    .pickerStyle(.inline)
+                    .labelsHidden()
+                }
+
+                // CSV import / export.
+                DataSettingsSection { result in
+                    withAnimation {
+                        activeImportResult = result
+                    }
+                }
+
+                // v0.7.1: Force-sync-now — drains every pendingSync = 1
+                // row + the user-prefs doc so the user can safely uninstall.
+                ForceSyncSection()
+
+                // v0.8: Premium upsell. Hidden when entitlement is unlocked
+                // (premium or legacy user); visible to non-entitled with the
+                // App-Store-localized price.
+                UpgradeToPremiumCard()
+
+                // Statistics.
+                Section {
+                    NavigationLink {
+                        StatisticsView()
+                    } label: {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(L("statistics_title"))
+                                .font(StorehopTypography.titleMedium)
+                            Text(L("statistics_settings_link_subtitle"))
+                                .font(StorehopTypography.bodySmall)
+                                .foregroundStyle(StorehopColors.onSurfaceVariant)
+                        }
+                    }
+                }
+
+                // About: version + privacy link. Mirrors Android's AboutCard so
+                // the two ports surface the same metadata.
+                Section(header: Text(L("settings_section_about"))) {
+                    AboutSection()
+                }
+            }
+
+            if let result = activeImportResult {
+                UndoBar(
+                    message: importResultMessage(result),
+                    onUndo: { undoImport(result) },
+                    onDismiss: { withAnimation { activeImportResult = nil } }
                 )
-                if let error = viewModel.error {
-                    Text(error)
-                        .foregroundStyle(.red)
-                        .font(StorehopTypography.bodySmall)
-                }
-                // v0.7.0: Settings → Household tap-target sits directly
-                // under the Account section since invites are only useful
-                // for signed-in users (an anonymous user can still tap
-                // through and see "Just you").
-                NavigationLink {
-                    HouseholdView()
-                } label: {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(L("household_title"))
-                            .font(StorehopTypography.titleMedium)
-                        Text(L("household_settings_subtitle"))
-                            .font(StorehopTypography.bodySmall)
-                            .foregroundStyle(StorehopColors.onSurfaceVariant)
-                    }
-                }
-            }
-
-            // Theme picker.
-            Section(header: Text(L("settings_theme_title"))) {
-                Picker("", selection: themeBinding(viewModel: viewModel)) {
-                    Text(L("settings_theme_system")).tag(ThemeMode.system)
-                    Text(L("settings_theme_light")).tag(ThemeMode.light)
-                    Text(L("settings_theme_dark")).tag(ThemeMode.dark)
-                }
-                .pickerStyle(.inline)
-                .labelsHidden()
-            }
-
-            // Language picker.
-            Section(header: Text(L("settings_language_title"))) {
-                Picker("", selection: localeBinding(viewModel: viewModel)) {
-                    Text(L("settings_language_system")).tag("")
-                    Text(L("settings_language_english")).tag("en")
-                    Text(L("settings_language_pt_pt")).tag("pt-PT")
-                    Text(L("settings_language_es")).tag("es")
-                    Text(L("settings_language_it")).tag("it")
-                }
-                .pickerStyle(.inline)
-                .labelsHidden()
-            }
-
-            // CSV import / export.
-            DataSettingsSection()
-
-            // v0.7.1: Force-sync-now — drains every pendingSync = 1
-            // row + the user-prefs doc so the user can safely uninstall.
-            ForceSyncSection()
-
-            // v0.8: Premium upsell. Hidden when entitlement is unlocked
-            // (premium or legacy user); visible to non-entitled with the
-            // App-Store-localized price.
-            UpgradeToPremiumCard()
-
-            // Statistics.
-            Section {
-                NavigationLink {
-                    StatisticsView()
-                } label: {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(L("statistics_title"))
-                            .font(StorehopTypography.titleMedium)
-                        Text(L("statistics_settings_link_subtitle"))
-                            .font(StorehopTypography.bodySmall)
-                            .foregroundStyle(StorehopColors.onSurfaceVariant)
-                    }
-                }
-            }
-
-            // About: version + privacy link. Mirrors Android's AboutCard so
-            // the two ports surface the same metadata.
-            Section(header: Text(L("settings_section_about"))) {
-                AboutSection()
+                .padding(.horizontal, 16)
+                .padding(.bottom, 16)
+                .transition(.move(edge: .bottom).combined(with: .opacity))
             }
         }
+        .animation(.easeInOut, value: activeImportResult != nil)
         .navigationTitle(L("title_settings"))
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -149,6 +191,39 @@ struct SettingsView: View {
                 Button(L("action_done"), action: onDismiss)
             }
         }
+    }
+
+    private func undoImport(_ result: ImportResult) {
+        Task {
+            await container.importExportRepository.undoImport(result)
+            withAnimation {
+                activeImportResult = nil
+            }
+        }
+    }
+
+    private func importResultMessage(_ result: ImportResult) -> String {
+        String(
+            format: L("import_result_summary %lld %lld %lld %lld"),
+            result.itemsImported,
+            result.categoriesImported,
+            result.storesImported,
+            result.duplicatesSkipped
+        )
+    }
+
+    private func startScreenBinding(viewModel: SettingsViewModel) -> Binding<StartScreen> {
+        Binding(
+            get: { viewModel.startScreen },
+            set: { viewModel.setStartScreen($0) }
+        )
+    }
+
+    private func focusSearchBinding(viewModel: SettingsViewModel) -> Binding<Bool> {
+        Binding(
+            get: { viewModel.focusSearchOnStart },
+            set: { viewModel.setFocusSearchOnStart($0) }
+        )
     }
 
     private func themeBinding(viewModel: SettingsViewModel) -> Binding<ThemeMode> {

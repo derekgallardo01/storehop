@@ -137,6 +137,34 @@ class FirebaseAuthSessionProviderTest {
         scope.cancel()
     }
 
+    @Test fun `host of shared household with multiple members runs sync on cold launch even if SUCCEEDED`() = runTest {
+        every { auth.currentUser } returns mockUser("mike-uid")
+        every { auth.signInAnonymously() } returns Tasks.forResult(mockk<AuthResult>(relaxed = true))
+        every { pullStateRepo.observe("mike-uid") } returns kotlinx.coroutines.flow.flowOf(PullState.SUCCEEDED)
+        coEvery { householdMemberDao.activeMembershipFor("mike-uid") } returns HouseholdMember(
+            uid = "mike-uid",
+            householdId = "mike-uid",
+            displayName = "Mike",
+            joinedAt = 100L,
+            isOwner = true,
+            createdAt = 100L,
+            updatedAt = 100L,
+            deletedAt = null,
+        )
+        // Two members in Mike's household: Mike and Amanda
+        coEvery { householdMemberDao.countMembersOf("mike-uid") } returns 2
+        coEvery { pullCoordinator.peek("mike-uid") } returns true
+        coEvery { pullCoordinator.pullForHousehold("mike-uid") } returns PullCoordinator.PullResult.Success(1, 1, 1, 1, 1, 1, 2)
+
+        val scope = CoroutineScope(SupervisorJob() + mainDispatcher.dispatcher)
+        newProvider(scope)
+        advanceUntilIdle()
+
+        // Sync must run because household has multiple members!
+        coVerify(exactly = 1) { pullCoordinator.pullForHousehold("mike-uid") }
+        scope.cancel()
+    }
+
     @Test fun `cloud has data triggers pull and skips orphan-claim`() = runTest {
         every { auth.currentUser } returns mockUser("anon-uid")
         every { auth.signInAnonymously() } returns Tasks.forResult(mockk<AuthResult>(relaxed = true))
@@ -402,6 +430,42 @@ class FirebaseAuthSessionProviderTest {
         // Both flows clear together — never an inconsistent (uid=null, hid="anon-uid") state.
         assertThat(provider.userId.value).isNull()
         assertThat(provider.householdId.value).isNull()
+        scope.cancel()
+    }
+
+    @Test fun `currentDisplayName returns displayName when non-blank`() = runTest {
+        val user = mockUser("uid1").apply {
+            every { displayName } returns "Amanda"
+            every { email } returns "amanda@test.com"
+        }
+        every { auth.currentUser } returns user
+        val scope = CoroutineScope(SupervisorJob() + mainDispatcher.dispatcher)
+        val provider = newProvider(scope)
+        assertThat(provider.currentDisplayName()).isEqualTo("Amanda")
+        scope.cancel()
+    }
+
+    @Test fun `currentDisplayName falls back to email prefix when displayName is null or blank`() = runTest {
+        val user = mockUser("uid2").apply {
+            every { displayName } returns "   "
+            every { email } returns "mike.smith@test.com"
+        }
+        every { auth.currentUser } returns user
+        val scope = CoroutineScope(SupervisorJob() + mainDispatcher.dispatcher)
+        val provider = newProvider(scope)
+        assertThat(provider.currentDisplayName()).isEqualTo("mike.smith")
+        scope.cancel()
+    }
+
+    @Test fun `currentDisplayName returns null when both displayName and email are missing`() = runTest {
+        val user = mockUser("uid3").apply {
+            every { displayName } returns null
+            every { email } returns null
+        }
+        every { auth.currentUser } returns user
+        val scope = CoroutineScope(SupervisorJob() + mainDispatcher.dispatcher)
+        val provider = newProvider(scope)
+        assertThat(provider.currentDisplayName()).isNull()
         scope.cancel()
     }
 

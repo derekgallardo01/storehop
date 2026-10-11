@@ -75,6 +75,9 @@ class FirebaseAuthSessionProvider @Inject constructor(
      */
     private val _userId = MutableStateFlow(auth.currentUser?.uid)
     override val userId: StateFlow<String?> = _userId.asStateFlow()
+    override fun currentDisplayName(): String? =
+        auth.currentUser?.displayName?.takeIf { it.isNotBlank() }
+            ?: auth.currentUser?.email?.substringBefore('@')?.takeIf { it.isNotBlank() }
 
     /**
      * The user's active household id. Published together with [userId] so
@@ -124,13 +127,18 @@ class FirebaseAuthSessionProvider @Inject constructor(
                 // cold-launch short-circuit path.
                 val resolvedHouseholdId = resolveHouseholdFor(newUid)
                 // Cold-launch short-circuit: when _userId.value already
-                // matches the cached uid AND pullState is SUCCEEDED, skip
+                // matches the cached uid AND pullState is SUCCEEDED AND the
+                // user is in their personal household (hid == uid), skip
                 // the Firestore peek (saves a read on every launch). For
+                // shared households (hid != uid), other members can make cloud
+                // edits while the app is closed, so we always sync. For
                 // NEEDED / FAILED / stuck IN_PROGRESS (process died mid-
                 // pull), we still need to run sync -- otherwise push stays
                 // paused forever and the user accumulates dirty rows that
                 // never ship to cloud.
-                val canSkipSync = _userId.value == newUid && run {
+                val memberCount = householdMemberDao.countMembersOf(resolvedHouseholdId)
+                val isSharedHousehold = resolvedHouseholdId != newUid || memberCount > 1
+                val canSkipSync = !isSharedHousehold && _userId.value == newUid && run {
                     val state = pullStateRepo.observe(newUid).first()
                     if (state != PullState.SUCCEEDED) {
                         Log.i(TAG, "Re-running sync for uid=$newUid (pullState=$state)")

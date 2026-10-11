@@ -70,9 +70,13 @@ final actor FirestorePullCoordinator: PullCoordinator {
                 PurchaseRecordDto.self,
                 at: "\(householdPath)/\(SyncCollections.purchaseRecords)"
             )
+            async let members = firestore.fetchAll(
+                HouseholdMemberDto.self,
+                at: "\(householdPath)/\(SyncCollections.members)"
+            )
 
-            let (i, c, s, x, sco, p) = try await (
-                items, categories, stores, xrefs, scoOrders, purchases
+            let (i, c, s, x, sco, p, m) = try await (
+                items, categories, stores, xrefs, scoOrders, purchases, members
             )
 
             // v0.8.0.4: cloud wins on pull EXCEPT for rows with a local
@@ -86,7 +90,8 @@ final actor FirestorePullCoordinator: PullCoordinator {
                 stores: s.map { $0.toEntity() },
                 xrefs: x.map { $0.toEntity() },
                 scoOrders: sco.map { $0.toEntity() },
-                purchaseRecords: p.map { $0.toEntity() }
+                purchaseRecords: p.map { $0.toEntity() },
+                members: m.map { $0.toEntity() }
             )
 
             return .success

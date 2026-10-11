@@ -13,12 +13,13 @@ final class SettingsViewModelTests: XCTestCase {
         let session: LocalOnlyUserSessionProvider
     }
 
-    private func makeSetup() async throws -> Setup {
+    private func makeSetup(householdId: String? = nil) async throws -> Setup {
         let suiteName = "test.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
         let prefs = LiveUserPreferencesRepository(defaults: defaults)
         let auth = MockFirebaseAuthClient(initialUid: "uid_alice", isAnonymous: false)
         let session = LocalOnlyUserSessionProvider(uid: "uid_alice")
+        let householdSession = LocalOnlyHouseholdSessionProvider(initialHouseholdId: householdId ?? "uid_alice")
         let pullStateRepo = InMemoryPullStateRepository()
         let coordinator = ScriptablePullCoordinator()
         let vm = SettingsViewModel(
@@ -27,6 +28,7 @@ final class SettingsViewModelTests: XCTestCase {
             appleSignIn: SignInWithAppleUseCase(authClient: auth),
             prefs: prefs,
             session: session,
+            householdSession: householdSession,
             pullCoordinator: coordinator,
             pullStateRepo: pullStateRepo
         )
@@ -57,11 +59,28 @@ final class SettingsViewModelTests: XCTestCase {
             appleSignIn: SignInWithAppleUseCase(authClient: auth),
             prefs: prefs,
             session: LocalOnlyUserSessionProvider(uid: "u"),
+            householdSession: LocalOnlyHouseholdSessionProvider(initialHouseholdId: "u"),
             pullCoordinator: ScriptablePullCoordinator(),
             pullStateRepo: InMemoryPullStateRepository()
         )
         vm.bind()
         try await waitForCondition { vm.themeMode == .light }
+    }
+
+    // MARK: - Start screen & focus search
+
+    func testSetStartScreenPersistsAndPropagates() async throws {
+        let s = try await makeSetup()
+        s.viewModel.setStartScreen(.items)
+        try await waitForCondition { s.viewModel.startScreen == .items }
+        XCTAssertEqual(s.prefs.startScreen, .items)
+    }
+
+    func testSetFocusSearchOnStartPersistsAndPropagates() async throws {
+        let s = try await makeSetup()
+        s.viewModel.setFocusSearchOnStart(false)
+        try await waitForCondition { s.viewModel.focusSearchOnStart == false }
+        XCTAssertEqual(s.prefs.focusSearchOnStart, false)
     }
 
     // MARK: - Locale
@@ -133,5 +152,15 @@ final class SettingsViewModelTests: XCTestCase {
         s.viewModel.retryPull()
         try await waitForCondition { s.viewModel.pullState == .succeeded }
         XCTAssertEqual(s.coordinator.pullForHouseholdCalls, ["uid_alice"])
+    }
+
+    func testRetryPullInvokesPullForHouseholdWithActiveHouseholdIdInSharedHousehold() async throws {
+        let s = try await makeSetup(householdId: "hid_shared")
+        await s.pullStateRepo.set(.failed, for: "uid_alice")
+        try await waitForCondition { s.viewModel.pullState == .failed }
+
+        s.viewModel.retryPull()
+        try await waitForCondition { s.viewModel.pullState == .succeeded }
+        XCTAssertEqual(s.coordinator.pullForHouseholdCalls, ["hid_shared"])
     }
 }

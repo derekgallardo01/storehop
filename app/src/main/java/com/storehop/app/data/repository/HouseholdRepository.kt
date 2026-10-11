@@ -26,6 +26,11 @@ interface HouseholdRepository {
     fun observeMembers(): Flow<List<HouseholdMember>>
 
     /**
+     * Refresh the members of the active household from Firestore.
+     */
+    suspend fun refreshMembers() {}
+
+    /**
      * Generate a fresh 8-character invite code, write it to Firestore at
      * `/invites/{token}` with expiresAt = now + 24h, and return the
      * token. Throws if the user isn't signed in.

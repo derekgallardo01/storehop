@@ -2,6 +2,7 @@ package com.storehop.app.sync
 
 import android.util.Log
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.ListenerRegistration
 import com.storehop.app.data.dao.CategoryDao
 import com.storehop.app.data.dao.HouseholdMemberDao
 import com.storehop.app.data.dao.ItemDao
@@ -19,14 +20,18 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withTimeoutOrNull
@@ -78,6 +83,7 @@ class SyncEngine @Inject constructor(
     private val purchaseDao: PurchaseRecordDao,
     private val householdMemberDao: HouseholdMemberDao,
     private val userPreferencesSync: UserPreferencesSync,
+    private val pullCoordinator: PullCoordinator,
 ) {
     @Volatile private var pushJob: Job? = null
 
@@ -113,13 +119,62 @@ class SyncEngine @Inject constructor(
                 .collectLatest { (uid, hid, state) ->
                     pushJob?.cancel()
                     pushJob = if (uid != null && hid != null && state == PullState.SUCCEEDED) {
-                        Log.i(TAG, "PullState=SUCCEEDED for uid=$uid hid=$hid; starting push jobs")
-                        launchPushJobsFor(hid)
+                        Log.i(TAG, "PullState=SUCCEEDED for uid=$uid hid=$hid; starting sync jobs")
+                        launchSyncJobsFor(hid)
                     } else {
-                        Log.i(TAG, "PullState=$state for uid=$uid hid=$hid; push paused")
+                        Log.i(TAG, "PullState=$state for uid=$uid hid=$hid; sync paused")
                         null
                     }
                 }
+        }
+    }
+
+    private fun CoroutineScope.launchSyncJobsFor(householdId: String): Job = launch {
+        launchPushJobsFor(householdId)
+        launchPullListenerFor(householdId)
+    }
+
+    @OptIn(kotlinx.coroutines.FlowPreview::class)
+    private fun CoroutineScope.launchPullListenerFor(householdId: String): Job = launch {
+        val householdDoc = firestore.collection("users").document(householdId)
+        val pullChannel = Channel<Unit>(Channel.CONFLATED)
+
+        launch {
+            pullChannel.receiveAsFlow()
+                .debounce(300L)
+                .collect {
+                    Log.i(TAG, "Remote change detected for hid=$householdId; pulling fresh data")
+                    pullCoordinator.pullForHousehold(householdId)
+                }
+        }
+
+        val collections = listOf(
+            SyncCollections.ITEMS,
+            SyncCollections.ITEM_STORE_XREFS,
+            SyncCollections.STORES,
+            SyncCollections.CATEGORIES,
+            SyncCollections.STORE_CATEGORY_ORDERS,
+            SyncCollections.PURCHASE_RECORDS,
+            SyncCollections.MEMBERS,
+        )
+
+        val registrations = mutableListOf<ListenerRegistration>()
+        try {
+            collections.forEach { name ->
+                val reg = householdDoc.collection(name).addSnapshotListener { snapshot, error ->
+                    if (error != null || snapshot == null) return@addSnapshotListener
+                    // Remote changes only: ignore local pending writes and local-only cache
+                    if (snapshot.metadata.hasPendingWrites()) return@addSnapshotListener
+                    if (snapshot.metadata.isFromCache) return@addSnapshotListener
+                    pullChannel.trySend(Unit)
+                }
+                if (reg != null) {
+                    registrations.add(reg)
+                }
+            }
+            awaitCancellation()
+        } finally {
+            registrations.forEach { runCatching { it.remove() } }
         }
     }
 
@@ -208,6 +263,8 @@ class SyncEngine @Inject constructor(
                         .document(row.uid)
                         .collection("households")
                         .document(row.householdId)
+                    val householdMemberRef = householdDoc.collection(SyncCollections.MEMBERS)
+                        .document(row.uid)
                     val payload = mapOf<String, Any?>(
                         "uid" to row.uid,
                         "householdId" to row.householdId,
@@ -219,7 +276,9 @@ class SyncEngine @Inject constructor(
                         "deletedAt" to row.deletedAt,
                     )
                     pushOne(ref, payload) {
-                        householdMemberDao.markPushed(row.uid, row.householdId)
+                        pushOne(householdMemberRef, payload) {
+                            householdMemberDao.markPushed(row.uid, row.householdId)
+                        }
                     }
                 }
             }

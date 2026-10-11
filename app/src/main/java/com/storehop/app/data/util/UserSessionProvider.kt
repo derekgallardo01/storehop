@@ -22,6 +22,7 @@ import javax.inject.Inject
 interface UserSessionProvider {
     val userId: StateFlow<String?>
     fun currentUserId(): String? = userId.value
+    fun currentDisplayName(): String? = null
 }
 
 /**

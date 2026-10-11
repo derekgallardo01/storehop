@@ -1,6 +1,7 @@
 package com.storehop.app.sync.dto
 
 import com.storehop.app.data.entity.Category
+import com.storehop.app.data.entity.HouseholdMember
 import com.storehop.app.data.entity.Item
 import com.storehop.app.data.entity.ItemStoreXref
 import com.storehop.app.data.entity.PurchaseRecord
@@ -103,6 +104,19 @@ fun PurchaseRecord.toDto() = PurchaseRecordDto(
     updatedAt = updatedAt,
     deletedAt = deletedAt,
     householdId = householdId,
+)
+
+fun HouseholdMember.toDto() = HouseholdMemberDto(
+    uid = uid,
+    householdId = householdId,
+    displayName = displayName,
+    email = null,
+    role = if (isOwner) "owner" else "member",
+    joinedAt = joinedAt,
+    isOwner = isOwner,
+    createdAt = createdAt,
+    updatedAt = updatedAt,
+    deletedAt = deletedAt,
 )
 
 // ---- DTO → Entity (pull side, v0.4) -------------------------------------
@@ -210,6 +224,18 @@ fun PurchaseRecordDto.toEntity() = PurchaseRecord(
     householdId = householdId.ifEmpty { userId },
 )
 
+fun HouseholdMemberDto.toEntity() = HouseholdMember(
+    uid = uid,
+    householdId = householdId,
+    displayName = displayName ?: email,
+    joinedAt = joinedAt,
+    isOwner = isOwner || role == "owner",
+    createdAt = if (createdAt != 0L) createdAt else joinedAt,
+    updatedAt = updatedAt,
+    deletedAt = deletedAt,
+    pendingSync = false,
+)
+
 /**
  * The Firestore collection name for each entity. Documents live under
  * `/users/{householdId}/<collection>/<docId>`.
@@ -230,6 +256,7 @@ object SyncCollections {
     const val ITEM_STORE_XREFS = "item_store_xref"
     const val STORE_CATEGORY_ORDERS = "store_category_order"
     const val PURCHASE_RECORDS = "purchase_records"
+    const val MEMBERS = "members"
 }
 
 /**

@@ -163,20 +163,23 @@ fun HouseholdScreen(
 
 @Composable
 private fun MembersCard(members: List<HouseholdMember>, isPersonalHousehold: Boolean) {
-    Card(elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+    ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(
                 stringResource(R.string.household_members_header),
                 style = MaterialTheme.typography.titleMedium,
             )
             Spacer(Modifier.height(8.dp))
-            if (isPersonalHousehold || members.size <= 1) {
+            if (members.isEmpty() || (isPersonalHousehold && members.size <= 1)) {
                 Text(
                     stringResource(R.string.household_members_just_you),
                     style = MaterialTheme.typography.bodyMedium,
                 )
             } else {
-                members.forEach { member ->
+                members.forEachIndexed { index, member ->
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -184,7 +187,7 @@ private fun MembersCard(members: List<HouseholdMember>, isPersonalHousehold: Boo
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Text(
-                            text = member.displayName ?: member.uid,
+                            text = member.displayName?.takeIf { it.isNotBlank() } ?: member.uid,
                             modifier = Modifier.weight(1f),
                             style = MaterialTheme.typography.bodyMedium,
                         )
@@ -196,7 +199,9 @@ private fun MembersCard(members: List<HouseholdMember>, isPersonalHousehold: Boo
                             )
                         }
                     }
-                    HorizontalDivider()
+                    if (index < members.lastIndex) {
+                        HorizontalDivider()
+                    }
                 }
             }
         }
@@ -210,7 +215,10 @@ private fun InviteCard(
     onGenerateInvite: () -> Unit,
 ) {
     val unlocked = entitlement.isUnlocked
-    Card(elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+    ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(
                 stringResource(R.string.household_generate_invite_header),
@@ -256,7 +264,10 @@ private fun JoinCard(
     errorMessageRes: Int?,
     onJoin: () -> Unit,
 ) {
-    Card(elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+    ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(
                 stringResource(R.string.household_join_with_code),
@@ -289,7 +300,10 @@ private fun JoinCard(
 
 @Composable
 private fun LeaveCard(onLeave: () -> Unit) {
-    Card(elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+    ) {
         Column(modifier = Modifier.padding(16.dp)) {
             OutlinedButton(
                 onClick = onLeave,

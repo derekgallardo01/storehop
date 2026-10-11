@@ -19,6 +19,7 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
 import kotlinx.coroutines.test.runTest
+import org.junit.Before
 import org.junit.Test
 import java.time.Clock
 import java.time.Instant
@@ -49,6 +50,19 @@ class HouseholdRepositoryImplTest {
             householdSwitcher = householdSwitcher,
             clock = fixedClock,
         )
+    }
+
+    @Before fun setUp() {
+        val completedTask = Tasks.forResult<Void>(null)
+        val defaultDoc: DocumentReference = mockk(relaxed = true) {
+            every { set(any()) } returns completedTask
+            every { update(any<Map<String, Any?>>()) } returns completedTask
+        }
+        val defaultColl: CollectionReference = mockk(relaxed = true) {
+            every { document(any()) } returns defaultDoc
+        }
+        every { defaultDoc.collection(any()) } returns defaultColl
+        every { firestore.collection(any()) } returns defaultColl
     }
 
     @Test fun `generateInvite writes a token to invites collection with expiresAt = now + 24h`() = runTest {
@@ -109,6 +123,9 @@ class HouseholdRepositoryImplTest {
             every { getLong("expiresAt") } returns 999_999_999_999L
             every { getBoolean("accepted") } returns false
             every { getString("householdId") } returns "mike-hid"
+            every { getString("createdBy") } returns "mike-uid"
+            every { getString("creatorDisplayName") } returns "Mike"
+            every { getLong("createdAt") } returns 10_000L
         }
         val updateSlot = slot<Map<String, Any?>>()
         val inviteDoc: DocumentReference = mockk {
@@ -118,8 +135,17 @@ class HouseholdRepositoryImplTest {
         val invitesColl: CollectionReference = mockk { every { document(any<String>()) } returns inviteDoc }
         every { firestore.collection("invites") } returns invitesColl
 
-        val memberSlot = slot<HouseholdMember>()
-        coEvery { householdMemberDao.upsert(capture(memberSlot)) } returns Unit
+        val membershipSlot = slot<Map<String, Any?>>()
+        val membershipDocRef: DocumentReference = mockk {
+            coEvery { set(capture(membershipSlot)) } returns Tasks.forResult(null)
+        }
+        val householdsColl: CollectionReference = mockk { every { document(any<String>()) } returns membershipDocRef }
+        val membershipDoc: DocumentReference = mockk { every { collection("households") } returns householdsColl }
+        val membershipsColl: CollectionReference = mockk { every { document(any<String>()) } returns membershipDoc }
+        every { firestore.collection("memberships") } returns membershipsColl
+
+        val memberSlots = mutableListOf<HouseholdMember>()
+        coEvery { householdMemberDao.upsert(capture(memberSlots)) } returns Unit
 
         val result = repo.acceptInvite("GOODCODE")
 
@@ -127,12 +153,25 @@ class HouseholdRepositoryImplTest {
         // Invite stamped as accepted.
         assertThat(updateSlot.captured["accepted"]).isEqualTo(true)
         assertThat(updateSlot.captured["acceptedBy"]).isEqualTo(TEST_USER_ID)
+        // Membership written to Firestore before switching so security rules allow peek/pull.
+        assertThat(membershipSlot.captured["uid"]).isEqualTo(TEST_USER_ID)
+        assertThat(membershipSlot.captured["householdId"]).isEqualTo("mike-hid")
+        assertThat(membershipSlot.captured["isOwner"]).isEqualTo(false)
         // Local wipe of prior household ran before the switch.
         coVerify(exactly = 1) { pullWriteDao.wipeAllForHousehold(TEST_USER_ID) }
-        // New membership inserted with hid = mike-hid.
-        assertThat(memberSlot.captured.uid).isEqualTo(TEST_USER_ID)
-        assertThat(memberSlot.captured.householdId).isEqualTo("mike-hid")
-        assertThat(memberSlot.captured.isOwner).isFalse()
+        // Both Amanda and the host (Mike) inserted so members list does not say "Just you".
+        assertThat(memberSlots).hasSize(2)
+        val amanda = memberSlots.first { it.uid == TEST_USER_ID }
+        assertThat(amanda.householdId).isEqualTo("mike-hid")
+        assertThat(amanda.isOwner).isFalse()
+        assertThat(amanda.pendingSync).isFalse()
+
+        val mike = memberSlots.first { it.uid == "mike-uid" }
+        assertThat(mike.householdId).isEqualTo("mike-hid")
+        assertThat(mike.displayName).isEqualTo("Mike")
+        assertThat(mike.isOwner).isTrue()
+        assertThat(mike.pendingSync).isFalse()
+
         // Active household switched.
         coVerify(exactly = 1) { householdSwitcher.switchToHousehold("mike-hid") }
     }

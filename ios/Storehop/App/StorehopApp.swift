@@ -79,6 +79,8 @@ struct RootView: View {
     @State private var showSettings = false
     @State private var themeMode: ThemeMode = .system
     @State private var localeTag: String = ""
+    @State private var hasAppliedInitialStartScreen = false
+    @State private var autoFocusSearchOnLaunch = false
 
     var body: some View {
         TabView(selection: $selectedTab) {
@@ -93,6 +95,17 @@ struct RootView: View {
                     Label(L("nav_items"), systemImage: "list.bullet")
                 }
                 .tag(AppTab.items)
+        }
+        .onAppear {
+            if !hasAppliedInitialStartScreen {
+                hasAppliedInitialStartScreen = true
+                if container.userPreferences.startScreen == .items {
+                    selectedTab = .items
+                    if container.userPreferences.focusSearchOnStart {
+                        autoFocusSearchOnLaunch = true
+                    }
+                }
+            }
         }
         .sheet(isPresented: $showSettings) {
             NavigationStack {
@@ -200,7 +213,8 @@ struct RootView: View {
                 onAddItem: { itemsPath.append(.addItem) },
                 onEditItem: { id in itemsPath.append(.editItem(itemId: id)) },
                 onManageCategories: { itemsPath.append(.manageCategories) },
-                onOpenSettings: { showSettings = true }
+                onOpenSettings: { showSettings = true },
+                autoFocusSearch: autoFocusSearchOnLaunch
             )
             .navigationDestination(for: ItemsRoute.self) { route in
                 switch route {

@@ -26,6 +26,7 @@ struct ShopAtStoreView: View {
                     storeRepository: container.storeRepository,
                     preferencesRepository: container.userPreferences,
                     session: container.session,
+                    householdSession: container.householdSession,
                     sessionTracker: container.shoppingSessionTracker
                 )
             }
@@ -104,9 +105,9 @@ struct ShopAtStoreView: View {
             .listStyle(.insetGrouped)
             .searchable(text: $vm.query, prompt: L("shop_search_placeholder"))
             .refreshable {
-                // Data is already reactive via GRDB ValueObservation; the
-                // refreshable affordance is a UX beat. Matches Android.
-                try? await Task.sleep(nanoseconds: 500_000_000)
+                if let hid = await container.householdSession.currentHouseholdId {
+                    _ = await container.pullCoordinator.pullForHousehold(hid)
+                }
             }
             .navigationTitle(viewModel.store?.name ?? "")
             .navigationBarTitleDisplayMode(.inline)

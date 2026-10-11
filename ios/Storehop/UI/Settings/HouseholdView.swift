@@ -77,7 +77,7 @@ struct HouseholdView: View {
             // Members section. Shows "Just you" for single-member households
             // (cleaner empty state than listing the one row).
             Section(header: Text(L("household_members_header"))) {
-                if viewModel.isPersonalHousehold || viewModel.members.count <= 1 {
+                if viewModel.members.isEmpty || (viewModel.isPersonalHousehold && viewModel.members.count <= 1) {
                     Text(L("household_members_just_you"))
                         .foregroundStyle(.secondary)
                 } else {

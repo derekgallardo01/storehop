@@ -30,6 +30,15 @@ struct HouseholdMemberDao: Sendable {
             """, arguments: [uid])
     }
 
+    func countMembersOf(householdId: String) async throws -> Int {
+        try await writer.read { db in
+            try Int.fetchOne(db, sql: """
+                SELECT COUNT(*) FROM household_members
+                WHERE householdId = ? AND deletedAt IS NULL
+                """, arguments: [householdId]) ?? 0
+        }
+    }
+
     // MARK: - Reactive
 
     /// Same as `activeMembershipFor` but live; the session provider
@@ -110,6 +119,19 @@ struct HouseholdMemberDao: Sendable {
                 UPDATE household_members SET pendingSync = 0
                 WHERE uid = ? AND householdId = ?
                 """, arguments: [uid, householdId])
+        }
+    }
+
+    func upsertFromCloud(_ members: [HouseholdMember]) async throws {
+        try await writer.write { db in
+            let pendingUids = Set(try String.fetchAll(
+                db,
+                sql: "SELECT uid FROM household_members WHERE pendingSync = 1"
+            ))
+            for m in members where !pendingUids.contains(m.uid) {
+                var copy = m
+                try copy.upsert(db)
+            }
         }
     }
 }

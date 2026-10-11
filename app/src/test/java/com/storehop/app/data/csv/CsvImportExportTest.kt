@@ -179,4 +179,46 @@ class CsvImportExportTest {
         assertThat(r.errors).isNotEmpty()
         assertThat(r.errors[0]).contains("name")
     }
+
+    @Test fun `utf8 BOM is stripped from header`() {
+        val bomCsv = "\uFEFFname,stores\nApple,Target\n"
+        val r = parseItemCsv(bomCsv)
+        assertThat(r.errors).isEmpty()
+        assertThat(r.rows.map { it.name }).containsExactly("Apple")
+        assertThat(r.rows.first().storeNames).containsExactly("Target")
+    }
+
+    @Test fun `header aliases are accepted`() {
+        val csv = "product,cat,store\nCoffee,Pantry,Costco\n"
+        val r = parseItemCsv(csv)
+        assertThat(r.errors).isEmpty()
+        assertThat(r.rows.first().name).isEqualTo("Coffee")
+        assertThat(r.rows.first().category).isEqualTo("Pantry")
+        assertThat(r.rows.first().storeNames).containsExactly("Costco")
+    }
+
+    @Test fun `sam schultz sample with quotes and bom parses cleanly`() {
+        val input = """
+            \uFEFFname,stores
+            acetaminophen Equate Arthritis 650mg extended release,"newstore"
+            Afta Pre-Electric Shave,"newstore"
+            Air Filter 16 X 20 X 1 apartment micro particle,"newstore"
+            Alcohol Rubbing 91%,"newstore"
+            Almonds Dry Roasted or smoked,"newstore"
+            Aluminum foil,"newstore"
+            Applesause home style chunk,"newstore"
+            Bacon,"newstore"
+            Bagels,"newstore"
+            Baking cups cupcakes,"newstore"
+            Baking powder,"newstore"
+        """.trimIndent()
+        val r = parseItemCsv(input)
+        assertThat(r.errors).isEmpty()
+        assertThat(r.rows).hasSize(11)
+        assertThat(r.rows.first().name).isEqualTo("acetaminophen Equate Arthritis 650mg extended release")
+        assertThat(r.rows.first().storeNames).containsExactly("newstore")
+        assertThat(r.rows.last().name).isEqualTo("Baking powder")
+        assertThat(r.rows.last().storeNames).containsExactly("newstore")
+    }
 }
+

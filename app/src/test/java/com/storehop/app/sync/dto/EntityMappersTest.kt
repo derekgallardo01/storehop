@@ -238,5 +238,69 @@ class EntityMappersTest {
         assertThat(SyncCollections.ITEM_STORE_XREFS).isEqualTo("item_store_xref")
         assertThat(SyncCollections.STORE_CATEGORY_ORDERS).isEqualTo("store_category_order")
         assertThat(SyncCollections.PURCHASE_RECORDS).isEqualTo("purchase_records")
+        assertThat(SyncCollections.MEMBERS).isEqualTo("members")
+    }
+
+    @Test fun `HouseholdMember toDto and toEntity round trip correctly`() {
+        val member = com.storehop.app.data.entity.HouseholdMember(
+            uid = "user-123",
+            householdId = "hh-456",
+            displayName = "Amanda",
+            joinedAt = 1000L,
+            isOwner = false,
+            createdAt = 1000L,
+            updatedAt = 2000L,
+            deletedAt = null,
+            pendingSync = true,
+        )
+        val dto = member.toDto()
+        assertThat(dto.uid).isEqualTo("user-123")
+        assertThat(dto.householdId).isEqualTo("hh-456")
+        assertThat(dto.displayName).isEqualTo("Amanda")
+        assertThat(dto.isOwner).isFalse()
+
+        val entity = dto.toEntity()
+        assertThat(entity.uid).isEqualTo("user-123")
+        assertThat(entity.householdId).isEqualTo("hh-456")
+        assertThat(entity.displayName).isEqualTo("Amanda")
+        assertThat(entity.pendingSync).isFalse()
+    }
+
+    @Test fun `HouseholdMember toDto maps role to owner or member and toEntity handles role`() {
+        val owner = com.storehop.app.data.entity.HouseholdMember(
+            uid = "mike",
+            householdId = "mike",
+            displayName = "Mike",
+            joinedAt = 1000L,
+            isOwner = true,
+            createdAt = 1000L,
+            updatedAt = 1000L,
+            deletedAt = null,
+        )
+        val ownerDto = owner.toDto()
+        assertThat(ownerDto.role).isEqualTo("owner")
+        assertThat(ownerDto.isOwner).isTrue()
+
+        val member = owner.copy(uid = "amanda", isOwner = false)
+        val memberDto = member.toDto()
+        assertThat(memberDto.role).isEqualTo("member")
+        assertThat(memberDto.isOwner).isFalse()
+
+        // Test decoding from iOS format (role="owner", isOwner=false default)
+        val iosOwnerDto = HouseholdMemberDto(
+            uid = "mike",
+            householdId = "mike",
+            displayName = null,
+            email = "mike@example.com",
+            role = "owner",
+            joinedAt = 1000L,
+            isOwner = false,
+            createdAt = 0L,
+            updatedAt = 1000L,
+        )
+        val iosOwnerEntity = iosOwnerDto.toEntity()
+        assertThat(iosOwnerEntity.isOwner).isTrue()
+        assertThat(iosOwnerEntity.displayName).isEqualTo("mike@example.com")
+        assertThat(iosOwnerEntity.createdAt).isEqualTo(1000L)
     }
 }

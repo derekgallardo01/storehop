@@ -37,6 +37,14 @@ protocol HouseholdRepository: Sendable {
     /// on hid = uid rather than a null scope. No-op when already in a
     /// personal household.
     func leaveHousehold() async throws
+
+    /// Re-pulls members from `/users/{householdId}/members` and checks accepted
+    /// invites to populate the household member list.
+    func refreshMembers() async
+}
+
+extension HouseholdRepository {
+    func refreshMembers() async {}
 }
 
 /// A freshly-generated invite code, ready to share.
@@ -99,6 +107,9 @@ final class FirestoreHouseholdRepository: HouseholdRepository, @unchecked Sendab
                         continuation.yield([])
                         continue
                     }
+                    Task { [weak self] in
+                        await self?.refreshMembers()
+                    }
                     do {
                         for try await members in householdMemberDao.observeMembersOf(householdId: hid) {
                             continuation.yield(members)
@@ -113,23 +124,108 @@ final class FirestoreHouseholdRepository: HouseholdRepository, @unchecked Sendab
         }
     }
 
+    func refreshMembers() async {
+        guard let hid = await householdSession.currentHouseholdId else { return }
+        do {
+            let membersSnap = try await firestore.collection("users")
+                .document(hid)
+                .collection(SyncCollections.members)
+                .getDocuments()
+            var cloudMembers: [HouseholdMember] = []
+            for doc in membersSnap.documents {
+                if let dto = try? doc.data(as: HouseholdMemberDto.self) {
+                    cloudMembers.append(dto.toEntity())
+                }
+            }
+            if !cloudMembers.isEmpty {
+                try? await householdMemberDao.upsertFromCloud(cloudMembers)
+            }
+        } catch {}
+
+        // Heal past accepted invites where accepted == true without requiring composite index
+        do {
+            let invitesSnap = try await firestore.collection(Self.invitesCollection)
+                .whereField("householdId", isEqualTo: hid)
+                .getDocuments()
+            for doc in invitesSnap.documents {
+                guard doc.get("accepted") as? Bool == true else { continue }
+                guard let acceptedBy = doc.get("acceptedBy") as? String else { continue }
+                let existing = try? await householdMemberDao.activeMembershipFor(uid: acceptedBy)
+                if existing == nil {
+                    let acceptedAt = (doc.get("acceptedAt") as? Int64) ?? clock.nowMs()
+                    let newMember = HouseholdMember(
+                        uid: acceptedBy,
+                        householdId: hid,
+                        displayName: nil,
+                        joinedAt: acceptedAt,
+                        isOwner: false,
+                        createdAt: acceptedAt,
+                        updatedAt: acceptedAt,
+                        deletedAt: nil,
+                        pendingSync: false
+                    )
+                    try? await householdMemberDao.upsert(newMember)
+                    let memberPayload: [String: Any] = [
+                        "uid": acceptedBy,
+                        "householdId": hid,
+                        "role": "member",
+                        "isOwner": false,
+                        "displayName": NSNull(),
+                        "joinedAt": acceptedAt,
+                        "createdAt": acceptedAt,
+                        "updatedAt": acceptedAt,
+                        "deletedAt": NSNull()
+                    ]
+                    try? await firestore.collection("users")
+                        .document(hid)
+                        .collection(SyncCollections.members)
+                        .document(acceptedBy)
+                        .setData(memberPayload)
+                }
+            }
+        } catch {}
+    }
+
     func generateInvite() async throws -> InviteCode {
         let uid = try await userSession.requireSignedIn()
         let hid = try await householdSession.requireHouseholdId()
         let now = clock.nowMs()
         let expiresAt = now + Self.inviteTtlMillis
         let token = Self.randomInviteToken()
+        let creatorDisplayName = await userSession.currentDisplayName
+        var inviteData: [String: Any] = [
+            "householdId": hid,
+            "createdBy": uid,
+            "createdAt": now,
+            "expiresAt": expiresAt,
+            "accepted": false,
+            "acceptedBy": NSNull(),
+            "acceptedAt": NSNull(),
+        ]
+        if let creatorDisplayName {
+            inviteData["creatorDisplayName"] = creatorDisplayName
+        } else {
+            inviteData["creatorDisplayName"] = NSNull()
+        }
         try await firestore.collection(Self.invitesCollection)
             .document(token)
-            .setData([
-                "householdId": hid,
-                "createdBy": uid,
-                "createdAt": now,
-                "expiresAt": expiresAt,
-                "accepted": false,
-                "acceptedBy": NSNull(),
-                "acceptedAt": NSNull(),
-            ])
+            .setData(inviteData)
+
+        let creatorPayload: [String: Any] = [
+            "uid": uid,
+            "householdId": hid,
+            "role": "owner",
+            "displayName": creatorDisplayName ?? NSNull(),
+            "joinedAt": now,
+            "updatedAt": now,
+            "deletedAt": NSNull()
+        ]
+        try? await firestore.collection("users")
+            .document(hid)
+            .collection(SyncCollections.members)
+            .document(uid)
+            .setData(creatorPayload)
+
         return InviteCode(token: token, expiresAt: expiresAt)
     }
 
@@ -159,6 +255,60 @@ final class FirestoreHouseholdRepository: HouseholdRepository, @unchecked Sendab
                 "updatedAt": now,
             ])
 
+            let userDisplayName = await userSession.currentDisplayName
+
+            // Write the membership doc to Firestore BEFORE switching households.
+            // Gating SyncEngine on PullState.succeeded means the membership doc
+            // cannot wait for SyncEngine push: firestore.rules checks isMember(uid, hid)
+            // by verifying /memberships/{uid}/households/{hid} exists before allowing
+            // the initial peek/pull on /users/{householdId}/...
+            var membershipData: [String: Any] = [
+                "uid": uid,
+                "householdId": newHouseholdId,
+                "joinedAt": now,
+                "isOwner": false,
+                "createdAt": now,
+                "updatedAt": now,
+                "deletedAt": NSNull()
+            ]
+            if let userDisplayName {
+                membershipData["displayName"] = userDisplayName
+            } else {
+                membershipData["displayName"] = NSNull()
+            }
+            try await firestore.collection(Self.membershipsCollection)
+                .document(uid)
+                .collection(Self.householdsCollection)
+                .document(newHouseholdId)
+                .setData(membershipData)
+
+            var newMemberPayload: [String: Any] = [
+                "uid": uid,
+                "householdId": newHouseholdId,
+                "role": "member",
+                "isOwner": false,
+                "joinedAt": now,
+                "createdAt": now,
+                "updatedAt": now,
+                "deletedAt": NSNull()
+            ]
+            if let userDisplayName {
+                newMemberPayload["displayName"] = userDisplayName
+            } else {
+                newMemberPayload["displayName"] = NSNull()
+            }
+            let writeSharedSuccess: Bool
+            do {
+                try await firestore.collection("users")
+                    .document(newHouseholdId)
+                    .collection(SyncCollections.members)
+                    .document(uid)
+                    .setData(newMemberPayload)
+                writeSharedSuccess = true
+            } catch {
+                writeSharedSuccess = false
+            }
+
             // Wipe local rows under the user's PRIOR household before the
             // switch. The prior membership row stays soft-deleted (keeps
             // sync auditing) — only nuke it when leaving a SHARED
@@ -170,21 +320,62 @@ final class FirestoreHouseholdRepository: HouseholdRepository, @unchecked Sendab
                 )
             }
 
-            // Insert new membership. SyncEngine pushes to
-            // /memberships/{uid}/households/{hid} on the next tick.
+            // Insert new membership. If direct write failed, pendingSync is true
+            // so SyncEngine retries pushing.
             try await householdMemberDao.upsert(
                 HouseholdMember(
                     uid: uid,
                     householdId: newHouseholdId,
-                    displayName: nil,
+                    displayName: userDisplayName,
                     joinedAt: now,
                     isOwner: false,
                     createdAt: now,
                     updatedAt: now,
                     deletedAt: nil,
-                    pendingSync: true
+                    pendingSync: !writeSharedSuccess
                 )
             )
+
+            // Seed the owner's membership row so the members list immediately
+            // reflects the host instead of showing "Just you".
+            let createdBy = snap.get("createdBy") as? String
+            let ownerUid = createdBy ?? newHouseholdId
+            if ownerUid != uid {
+                let ownerDisplayName = snap.get("creatorDisplayName") as? String
+                let createdAt = (snap.get("createdAt") as? Int64) ?? now
+                try await householdMemberDao.upsert(
+                    HouseholdMember(
+                        uid: ownerUid,
+                        householdId: newHouseholdId,
+                        displayName: ownerDisplayName,
+                        joinedAt: createdAt,
+                        isOwner: true,
+                        createdAt: createdAt,
+                        updatedAt: createdAt,
+                        deletedAt: nil,
+                        pendingSync: false
+                    )
+                )
+
+                var ownerPayload: [String: Any] = [
+                    "uid": ownerUid,
+                    "householdId": newHouseholdId,
+                    "role": "owner",
+                    "joinedAt": createdAt,
+                    "updatedAt": createdAt,
+                    "deletedAt": NSNull()
+                ]
+                if let ownerDisplayName {
+                    ownerPayload["displayName"] = ownerDisplayName
+                } else {
+                    ownerPayload["displayName"] = NSNull()
+                }
+                try? await firestore.collection("users")
+                    .document(newHouseholdId)
+                    .collection(SyncCollections.members)
+                    .document(ownerUid)
+                    .setData(ownerPayload)
+            }
 
             // Flip the active household: re-runs sync gate against the new
             // path, then publishes the household id.
@@ -220,6 +411,19 @@ final class FirestoreHouseholdRepository: HouseholdRepository, @unchecked Sendab
                 ])
         } catch {
             // Swallow — see comment above.
+        }
+
+        do {
+            try await firestore.collection("users")
+                .document(currentHousehold)
+                .collection(SyncCollections.members)
+                .document(uid)
+                .updateData([
+                    "deletedAt": now,
+                    "updatedAt": now,
+                ])
+        } catch {
+            // Swallow
         }
 
         try await pullWriteDao.wipeAllForHousehold(householdId: currentHousehold)

@@ -317,3 +317,59 @@ struct PurchaseRecordDto: Codable, Sendable, Equatable {
         householdId = try c.decodeIfPresent(String.self, forKey: .householdId) ?? userId
     }
 }
+
+struct HouseholdMemberDto: Codable, Sendable, Equatable {
+    var uid: String
+    var householdId: String
+    var role: String
+    var isOwner: Bool?
+    var displayName: String?
+    var email: String?
+    var joinedAt: Int64
+    var createdAt: Int64?
+    var updatedAt: Int64
+    var deletedAt: Int64?
+
+    enum CodingKeys: String, CodingKey {
+        case uid, householdId, role, isOwner, displayName, email, joinedAt, createdAt, updatedAt, deletedAt
+    }
+
+    init(
+        uid: String,
+        householdId: String,
+        role: String = "member",
+        isOwner: Bool? = nil,
+        displayName: String? = nil,
+        email: String? = nil,
+        joinedAt: Int64 = 0,
+        createdAt: Int64? = nil,
+        updatedAt: Int64 = 0,
+        deletedAt: Int64? = nil
+    ) {
+        self.uid = uid
+        self.householdId = householdId
+        self.role = role
+        self.isOwner = isOwner
+        self.displayName = displayName
+        self.email = email
+        self.joinedAt = joinedAt
+        self.createdAt = createdAt
+        self.updatedAt = updatedAt
+        self.deletedAt = deletedAt
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        uid = try c.decodeIfPresent(String.self, forKey: .uid) ?? ""
+        householdId = try c.decodeIfPresent(String.self, forKey: .householdId) ?? ""
+        role = try c.decodeIfPresent(String.self, forKey: .role) ?? "member"
+        isOwner = try c.decodeIfPresent(Bool.self, forKey: .isOwner)
+        displayName = try c.decodeIfPresent(String.self, forKey: .displayName)
+        email = try c.decodeIfPresent(String.self, forKey: .email)
+        joinedAt = try c.decodeIfPresent(Int64.self, forKey: .joinedAt) ?? 0
+        createdAt = try c.decodeIfPresent(Int64.self, forKey: .createdAt)
+        updatedAt = try c.decodeIfPresent(Int64.self, forKey: .updatedAt) ?? 0
+        deletedAt = try c.decodeIfPresent(Int64.self, forKey: .deletedAt)
+    }
+}
+

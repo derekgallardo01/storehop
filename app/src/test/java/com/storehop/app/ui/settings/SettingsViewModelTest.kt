@@ -13,6 +13,7 @@ import com.storehop.app.data.prefs.UserPreferencesRepository
 import com.storehop.app.sync.PullCoordinator
 import com.storehop.app.sync.PullState
 import com.storehop.app.sync.PullStateRepository
+import com.storehop.app.data.util.FakeHouseholdSessionProvider
 import com.storehop.app.testing.FakeSessionProvider
 import com.storehop.app.testing.MainDispatcherRule
 import io.mockk.coEvery
@@ -246,6 +247,40 @@ class SettingsViewModelTest {
         coVerify { pullStateRepo.set("google-uid", PullState.FAILED) }
     }
 
+    @Test fun `retryPull invokes PullCoordinator with the active householdId when in a shared household`() = runTest {
+        every { auth.currentUser } returns mockk(relaxed = true) {
+            every { uid } returns "amanda-uid"
+            every { isAnonymous } returns false
+            every { email } returns "a@x.com"
+            every { displayName } returns "Amanda"
+            every { photoUrl } returns null
+        }
+        coEvery { pullCoordinator.pullForHousehold("mike-hid") } returns
+            PullCoordinator.PullResult.Success(0, 0, 0, 0, 0, 0)
+
+        val householdSession = FakeHouseholdSessionProvider("mike-hid")
+        val vm = SettingsViewModel(
+            appContext = context,
+            auth = auth,
+            googleSignIn = googleSignIn,
+            userPrefs = userPrefs,
+            sessionProvider = FakeSessionProvider(initial = "amanda-uid"),
+            householdSession = householdSession,
+            pullCoordinator = pullCoordinator,
+            pullStateRepo = pullStateRepo,
+            syncEngine = mockk(relaxed = true),
+            entitlementRepo = mockk(relaxed = true),
+            billingManager = mockk(relaxed = true),
+            analytics = mockk(relaxed = true),
+        )
+        vm.retryPull()
+        advanceUntilIdle()
+
+        coVerify(exactly = 1) { pullCoordinator.pullForHousehold("mike-hid") }
+        coVerify { pullStateRepo.set("amanda-uid", PullState.IN_PROGRESS) }
+        coVerify { pullStateRepo.set("amanda-uid", PullState.SUCCEEDED) }
+    }
+
     @Test fun `retryPull is a no-op when no uid is signed in`() = runTest {
         every { auth.currentUser } returns null
         val vm = newVm(FakeSessionProvider(initial = null))
@@ -379,7 +414,7 @@ class SettingsViewModelTest {
         googleSignIn = googleSignIn,
         userPrefs = userPrefs,
         sessionProvider = session,
-        householdSession = mockk(relaxed = true),
+        householdSession = FakeHouseholdSessionProvider(session.userId.value),
         pullCoordinator = pullCoordinator,
         pullStateRepo = pullStateRepo,
         syncEngine = mockk(relaxed = true),

@@ -198,7 +198,8 @@ final class AppContainer {
             scoDao: storeCategoryOrderDao,
             purchaseDao: purchaseRecordDao,
             householdMemberDao: householdMemberDao,
-            userPreferencesSync: userPreferencesSync
+            userPreferencesSync: userPreferencesSync,
+            pullCoordinator: pullCoordinator
         )
     }
 

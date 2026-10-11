@@ -243,6 +243,39 @@ extension PurchaseRecordDto {
     }
 }
 
+extension HouseholdMember {
+    func toDto() -> HouseholdMemberDto {
+        HouseholdMemberDto(
+            uid: uid,
+            householdId: householdId,
+            role: isOwner ? "owner" : "member",
+            isOwner: isOwner,
+            displayName: displayName,
+            email: nil,
+            joinedAt: joinedAt,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+            deletedAt: deletedAt
+        )
+    }
+}
+
+extension HouseholdMemberDto {
+    func toEntity() -> HouseholdMember {
+        HouseholdMember(
+            uid: uid,
+            householdId: householdId,
+            displayName: displayName ?? email,
+            joinedAt: joinedAt,
+            isOwner: isOwner ?? (role == "owner"),
+            createdAt: createdAt ?? joinedAt,
+            updatedAt: updatedAt,
+            deletedAt: deletedAt,
+            pendingSync: false
+        )
+    }
+}
+
 /// Firestore collection names. Documents live at
 /// `/users/{householdId}/<collection>/<docId>`. Mirrors Android
 /// `SyncCollections`.
@@ -262,4 +295,5 @@ enum SyncCollections {
     static let itemStoreXrefs = "item_store_xref"
     static let storeCategoryOrders = "store_category_order"
     static let purchaseRecords = "purchase_records"
+    static let members = "members"
 }

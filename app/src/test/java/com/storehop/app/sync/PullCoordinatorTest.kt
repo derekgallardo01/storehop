@@ -15,6 +15,7 @@ import com.storehop.app.data.entity.PurchaseRecord
 import com.storehop.app.data.entity.Store
 import com.storehop.app.data.entity.StoreCategoryOrder
 import com.storehop.app.sync.dto.CategoryDto
+import com.storehop.app.sync.dto.HouseholdMemberDto
 import com.storehop.app.sync.dto.ItemDto
 import com.storehop.app.sync.dto.ItemStoreXrefDto
 import com.storehop.app.sync.dto.PurchaseRecordDto
@@ -108,6 +109,7 @@ class PullCoordinatorTest {
                 xrefs = match<List<ItemStoreXref>> { it.size == 1 && !it.first().pendingSync },
                 scoOrders = match<List<StoreCategoryOrder>> { it.size == 1 && !it.first().pendingSync },
                 purchaseRecords = match<List<PurchaseRecord>> { it.size == 1 && !it.first().pendingSync },
+                members = any(),
             )
         }
     }
@@ -124,7 +126,7 @@ class PullCoordinatorTest {
         // The transaction still runs (with empty lists) — that's fine; it's a
         // no-op write. Just verify we got there without throwing.
         coVerify(exactly = 1) {
-            pullWriteDao.replaceAllForUid(any(), any(), any(), any(), any(), any(), any())
+            pullWriteDao.replaceAllForUid(any(), any(), any(), any(), any(), any(), any(), any())
         }
     }
 
@@ -137,7 +139,7 @@ class PullCoordinatorTest {
 
         // Critical: PullWriteDao is NEVER called -- no partial state lands.
         coVerify(exactly = 0) {
-            pullWriteDao.replaceAllForUid(any(), any(), any(), any(), any(), any(), any())
+            pullWriteDao.replaceAllForUid(any(), any(), any(), any(), any(), any(), any(), any())
         }
     }
 
@@ -146,7 +148,7 @@ class PullCoordinatorTest {
         // must only see one transaction at a time. We stub the DAO to delay
         // so we can observe ordering.
         stubPullForUid(uid = "uid")
-        coEvery { pullWriteDao.replaceAllForUid(any(), any(), any(), any(), any(), any(), any()) } coAnswers {
+        coEvery { pullWriteDao.replaceAllForUid(any(), any(), any(), any(), any(), any(), any(), any()) } coAnswers {
             delay(10)
         }
 
@@ -159,7 +161,7 @@ class PullCoordinatorTest {
 
         // Both transactions ran (Mutex doesn't drop calls, just serializes).
         coVerify(exactly = 2) {
-            pullWriteDao.replaceAllForUid(any(), any(), any(), any(), any(), any(), any())
+            pullWriteDao.replaceAllForUid(any(), any(), any(), any(), any(), any(), any(), any())
         }
     }
 
@@ -190,6 +192,7 @@ class PullCoordinatorTest {
         xrefs: List<ItemStoreXrefDto> = emptyList(),
         scos: List<StoreCategoryOrderDto> = emptyList(),
         purchaseRecords: List<PurchaseRecordDto> = emptyList(),
+        members: List<HouseholdMemberDto> = emptyList(),
         itemsThrow: Throwable? = null,
     ) {
         val users: CollectionReference = mockk()
@@ -209,6 +212,8 @@ class PullCoordinatorTest {
             stubCollectionGet(scos, StoreCategoryOrderDto::class.java, null)
         every { userDoc.collection(SyncCollections.PURCHASE_RECORDS) } returns
             stubCollectionGet(purchaseRecords, PurchaseRecordDto::class.java, null)
+        every { userDoc.collection(SyncCollections.MEMBERS) } returns
+            stubCollectionGet(members, HouseholdMemberDto::class.java, null)
     }
 
     private fun <T : Any> stubCollectionGet(

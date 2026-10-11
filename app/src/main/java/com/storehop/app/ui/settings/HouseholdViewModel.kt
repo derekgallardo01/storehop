@@ -48,6 +48,12 @@ class HouseholdViewModel @Inject constructor(
     private val _uiEvent = MutableStateFlow<HouseholdUiEvent?>(null)
     val uiEvent: StateFlow<HouseholdUiEvent?> = _uiEvent.asStateFlow()
 
+    init {
+        viewModelScope.launch {
+            repository.refreshMembers()
+        }
+    }
+
     /** v0.8: live entitlement state. Generate-Invite button reads this
      *  to decide whether to call [generateInvite] or [launchPurchase]. */
     val entitlement: StateFlow<Entitlement> = entitlementRepo.entitlement

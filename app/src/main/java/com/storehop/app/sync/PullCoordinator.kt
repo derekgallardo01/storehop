@@ -4,6 +4,7 @@ import android.util.Log
 import com.google.firebase.firestore.FirebaseFirestore
 import com.storehop.app.data.dao.PullWriteDao
 import com.storehop.app.sync.dto.CategoryDto
+import com.storehop.app.sync.dto.HouseholdMemberDto
 import com.storehop.app.sync.dto.ItemDto
 import com.storehop.app.sync.dto.ItemStoreXrefDto
 import com.storehop.app.sync.dto.PurchaseRecordDto
@@ -55,6 +56,7 @@ class PullCoordinator @Inject constructor(
             val xrefCount: Int,
             val scoCount: Int,
             val purchaseRecordCount: Int,
+            val memberCount: Int = 0,
         ) : PullResult()
 
         data class Failure(val cause: Throwable) : PullResult()
@@ -123,6 +125,10 @@ class PullCoordinator @Inject constructor(
                     householdDoc.collection(SyncCollections.PURCHASE_RECORDS)
                         .get().await().toObjects(PurchaseRecordDto::class.java).map { it.toEntity() }
                 }
+                val membersAsync = async {
+                    householdDoc.collection(SyncCollections.MEMBERS)
+                        .get().await().toObjects(HouseholdMemberDto::class.java).map { it.toEntity() }
+                }
 
                 val items = itemsAsync.await()
                 val categories = categoriesAsync.await()
@@ -130,12 +136,13 @@ class PullCoordinator @Inject constructor(
                 val xrefs = xrefsAsync.await()
                 val scos = scosAsync.await()
                 val purchaseRecords = purchaseRecordsAsync.await()
+                val members = membersAsync.await()
 
                 Log.i(
                     TAG,
                     "Pull for hid=$householdId: ${items.size} items, ${categories.size} categories, " +
                         "${stores.size} stores, ${xrefs.size} xrefs, ${scos.size} scos, " +
-                        "${purchaseRecords.size} purchaseRecords",
+                        "${purchaseRecords.size} purchaseRecords, ${members.size} members",
                 )
 
                 pullWriteDao.replaceAllForUid(
@@ -146,6 +153,7 @@ class PullCoordinator @Inject constructor(
                     xrefs = xrefs,
                     scoOrders = scos,
                     purchaseRecords = purchaseRecords,
+                    members = members,
                 )
 
                 PullResult.Success(
@@ -155,6 +163,7 @@ class PullCoordinator @Inject constructor(
                     xrefCount = xrefs.size,
                     scoCount = scos.size,
                     purchaseRecordCount = purchaseRecords.size,
+                    memberCount = members.size,
                 )
             }
         } catch (e: Exception) {

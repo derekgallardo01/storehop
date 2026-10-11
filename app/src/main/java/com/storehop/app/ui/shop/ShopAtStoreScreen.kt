@@ -241,18 +241,10 @@ fun ShopAtStoreScreen(
                 singleLine = true,
             )
 
-            // Pure UX affordance: data is already reactive, but pull-to-refresh
-            // gives users a "I asked for fresh data and it happened" beat.
-            var isRefreshing by remember { mutableStateOf(false) }
+            val isRefreshing by viewModel.isRefreshing.collectAsState()
             PullToRefreshBox(
                 isRefreshing = isRefreshing,
-                onRefresh = {
-                    scope.launch {
-                        isRefreshing = true
-                        delay(500)
-                        isRefreshing = false
-                    }
-                },
+                onRefresh = viewModel::refresh,
                 modifier = Modifier.fillMaxSize(),
             ) {
                 val isEmpty = when (state.sortMode) {

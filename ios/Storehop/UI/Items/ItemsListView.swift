@@ -5,10 +5,13 @@ struct ItemsListView: View {
     let onEditItem: (String) -> Void
     let onManageCategories: () -> Void
     let onOpenSettings: () -> Void
+    var autoFocusSearch: Bool = false
 
     @Environment(AppContainer.self) private var container
     @State private var viewModel: ItemsListViewModel?
     @State private var showBulkPicker: Bool = false
+    @State private var isSearchPresented: Bool = false
+    @State private var hasAutoFocused: Bool = false
 
     var body: some View {
         Group {
@@ -19,13 +22,18 @@ struct ItemsListView: View {
             }
         }
         .onAppear {
+            if autoFocusSearch && !hasAutoFocused {
+                hasAutoFocused = true
+                isSearchPresented = true
+            }
             if viewModel == nil {
                 viewModel = ItemsListViewModel(
                     itemRepository: container.itemRepository,
                     storeRepository: container.storeRepository,
                     undoEventBus: container.undoEventBus,
                     preferencesRepository: container.userPreferences,
-                    session: container.session
+                    session: container.session,
+                    householdSession: container.householdSession
                 )
             }
             // Always (re)bind on appear. NavigationStack pushes (e.g. opening
@@ -93,13 +101,11 @@ struct ItemsListView: View {
                 Section { Color.clear.frame(height: 80).listRowBackground(Color.clear) }
             }
             .listStyle(.insetGrouped)
-            .searchable(text: $vm.query, prompt: L("items_search_placeholder"))
+            .searchable(text: $vm.query, isPresented: $isSearchPresented, prompt: L("items_search_placeholder"))
             .refreshable {
-                // Data is already reactive via GRDB ValueObservation; the
-                // refreshable affordance is a UX beat — gives the user a
-                // tactile "I asked for fresh data" confirmation. Matches
-                // the Android pattern.
-                try? await Task.sleep(nanoseconds: 500_000_000)
+                if let hid = await container.householdSession.currentHouseholdId {
+                    _ = await container.pullCoordinator.pullForHousehold(hid)
+                }
             }
             .navigationTitle(viewModel.isInSelectionMode
                 ? String(localized: "items_selection_count \(viewModel.selectedItemIds.count)", bundle: currentLanguageBundle())

@@ -9,6 +9,8 @@ final class SettingsViewModel {
     var account: AccountInfo = .none
     var themeMode: ThemeMode = .system
     var localeTag: String = ""  // "" = follow system
+    var startScreen: StartScreen = .shop
+    var focusSearchOnStart: Bool = true
     var pullState: PullState = .succeeded
     /// v0.8.1.2 diagnostic: last error message from a failed pull. Surfaces
     /// inline below the generic "Cloud sync incomplete" banner so users can
@@ -22,12 +24,15 @@ final class SettingsViewModel {
     private let appleSignIn: SignInWithAppleUseCase
     private let prefs: any UserPreferencesRepository
     private let session: any UserSessionProvider
+    private let householdSession: any HouseholdSessionProvider
     private let pullCoordinator: any PullCoordinator
     private let pullStateRepo: any PullStateRepository
 
     private var accountTask: Task<Void, Never>?
     private var themeTask: Task<Void, Never>?
     private var localeTask: Task<Void, Never>?
+    private var startScreenTask: Task<Void, Never>?
+    private var focusSearchTask: Task<Void, Never>?
     private var pullStateTask: Task<Void, Never>?
 
     init(
@@ -36,6 +41,7 @@ final class SettingsViewModel {
         appleSignIn: SignInWithAppleUseCase,
         prefs: any UserPreferencesRepository,
         session: any UserSessionProvider,
+        householdSession: any HouseholdSessionProvider,
         pullCoordinator: any PullCoordinator,
         pullStateRepo: any PullStateRepository
     ) {
@@ -44,6 +50,7 @@ final class SettingsViewModel {
         self.appleSignIn = appleSignIn
         self.prefs = prefs
         self.session = session
+        self.householdSession = householdSession
         self.pullCoordinator = pullCoordinator
         self.pullStateRepo = pullStateRepo
     }
@@ -65,6 +72,18 @@ final class SettingsViewModel {
             guard let self else { return }
             for await tag in self.prefs.localeTagStream {
                 self.localeTag = tag
+            }
+        }
+        startScreenTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+            for await screen in self.prefs.startScreenStream {
+                self.startScreen = screen
+            }
+        }
+        focusSearchTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+            for await value in self.prefs.focusSearchOnStartStream {
+                self.focusSearchOnStart = value
             }
         }
         // Re-bind pull-state observation on each uid change.
@@ -98,10 +117,20 @@ final class SettingsViewModel {
         accountTask?.cancel()
         themeTask?.cancel()
         localeTask?.cancel()
+        startScreenTask?.cancel()
+        focusSearchTask?.cancel()
         pullStateTask?.cancel()
     }
 
-    // MARK: - Theme + locale
+    // MARK: - Preferences
+
+    func setStartScreen(_ screen: StartScreen) {
+        prefs.setStartScreen(screen)
+    }
+
+    func setFocusSearchOnStart(_ value: Bool) {
+        prefs.setFocusSearchOnStart(value)
+    }
 
     func setThemeMode(_ mode: ThemeMode) {
         prefs.setThemeMode(mode)
@@ -261,13 +290,7 @@ final class SettingsViewModel {
         Task { @MainActor [weak self] in
             guard let self else { return }
             guard let uid = await self.session.currentUserId else { return }
-            // v0.7.0: single-member households mirror uid → householdId.
-            // Until Phase 2's HouseholdSessionProvider is wired into this
-            // VM, mirror uid so the retry button keeps working. Phase 2
-            // FirebaseAuthSessionProvider always publishes a household
-            // alongside the uid, so this aliasing is correct for all
-            // production users.
-            let householdId = uid
+            let householdId = await self.householdSession.currentHouseholdId ?? uid
             await self.pullStateRepo.set(.inProgress, for: uid)
             let result = await self.pullCoordinator.pullForHousehold(householdId)
             switch result {

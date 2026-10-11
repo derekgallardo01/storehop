@@ -30,6 +30,10 @@ extension UserSessionProvider {
     func start() async {
         // Default no-op for local-only / test providers.
     }
+
+    var currentDisplayName: String? {
+        get async { nil }
+    }
 }
 
 extension UserSessionProvider {

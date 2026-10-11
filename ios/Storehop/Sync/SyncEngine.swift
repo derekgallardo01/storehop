@@ -1,4 +1,5 @@
 import Foundation
+@preconcurrency import FirebaseFirestore
 
 /// Push side of cloud sync.
 ///
@@ -53,6 +54,7 @@ final actor SyncEngine {
     /// signalling "Safe to uninstall." Optional for the same back-compat
     /// reason.
     private let userPreferencesSync: UserPreferencesSync?
+    private let pullCoordinator: (any PullCoordinator)?
 
     /// Outermost task: subscribed to (uid, householdId) changes. Cancelled
     /// in `shutdown`.
@@ -81,7 +83,8 @@ final actor SyncEngine {
         scoDao: StoreCategoryOrderDao,
         purchaseDao: PurchaseRecordDao,
         householdMemberDao: HouseholdMemberDao? = nil,
-        userPreferencesSync: UserPreferencesSync? = nil
+        userPreferencesSync: UserPreferencesSync? = nil,
+        pullCoordinator: (any PullCoordinator)? = nil
     ) {
         self.firestore = firestore
         self.session = session
@@ -95,6 +98,7 @@ final actor SyncEngine {
         self.purchaseDao = purchaseDao
         self.householdMemberDao = householdMemberDao
         self.userPreferencesSync = userPreferencesSync
+        self.pullCoordinator = pullCoordinator
     }
 
     /// Boot the engine. Idempotent.
@@ -178,6 +182,9 @@ final actor SyncEngine {
         if let memberDao = householdMemberDao {
             tasks.append(startHouseholdMemberPushJob(dao: memberDao))
         }
+        if let coordinator = pullCoordinator {
+            tasks.append(startPullListenerJob(householdId: householdId, coordinator: coordinator))
+        }
         pushTasks = tasks
     }
 
@@ -192,12 +199,14 @@ final actor SyncEngine {
                         // — uid-scoped, NOT household-scoped. Each row carries
                         // both ids.
                         let path = "memberships/\(row.uid)/households/\(row.householdId)"
+                        let memberPath = "users/\(row.householdId)/\(SyncCollections.members)/\(row.uid)"
                         // Inline payload Map (no DTO) since the shape is
                         // small and we don't decode it back the same way.
                         // Mirrors Android's pushOne with mapOf<String, Any?>.
                         let payload = HouseholdMemberPayload(
                             uid: row.uid,
                             householdId: row.householdId,
+                            role: row.isOwner ? "owner" : "member",
                             displayName: row.displayName,
                             joinedAt: row.joinedAt,
                             isOwner: row.isOwner,
@@ -206,13 +215,57 @@ final actor SyncEngine {
                             deletedAt: row.deletedAt
                         )
                         await Self.pushOne(firestore: firestore, path: path, value: payload) {
-                            try? await dao.markPushed(uid: row.uid, householdId: row.householdId)
+                            await Self.pushOne(firestore: firestore, path: memberPath, value: payload) {
+                                try? await dao.markPushed(uid: row.uid, householdId: row.householdId)
+                            }
                         }
                     }
                 }
             } catch is CancellationError {
                 return
             } catch {}
+        }
+    }
+
+    private func startPullListenerJob(householdId: String, coordinator: any PullCoordinator) -> Task<Void, Never> {
+        let firestore = Firestore.firestore()
+        let householdDoc = firestore.collection("users").document(householdId)
+        let collections = [
+            SyncCollections.items,
+            SyncCollections.itemStoreXrefs,
+            SyncCollections.stores,
+            SyncCollections.categories,
+            SyncCollections.storeCategoryOrders,
+            SyncCollections.purchaseRecords,
+            SyncCollections.members,
+        ]
+
+        return Task {
+            var listeners: [ListenerRegistration] = []
+            defer {
+                for l in listeners { l.remove() }
+            }
+
+            var pendingPullTask: Task<Void, Never>?
+
+            for collName in collections {
+                let reg = householdDoc.collection(collName).addSnapshotListener { snapshot, error in
+                    guard let snapshot, error == nil else { return }
+                    if snapshot.metadata.hasPendingWrites { return }
+                    if snapshot.metadata.isFromCache { return }
+
+                    pendingPullTask?.cancel()
+                    pendingPullTask = Task {
+                        try? await Task.sleep(nanoseconds: 300_000_000)
+                        _ = await coordinator.pullForHousehold(householdId)
+                    }
+                }
+                listeners.append(reg)
+            }
+
+            while !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: 3_600_000_000_000)
+            }
         }
     }
 
@@ -527,6 +580,7 @@ final actor SyncEngine {
 private struct HouseholdMemberPayload: Codable, Sendable {
     let uid: String
     let householdId: String
+    let role: String
     let displayName: String?
     let joinedAt: Int64
     let isOwner: Bool

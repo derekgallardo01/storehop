@@ -88,4 +88,13 @@ interface HouseholdMemberDao {
         "UPDATE household_members SET pendingSync = 0 WHERE uid = :uid AND householdId = :householdId",
     )
     suspend fun markPushed(uid: String, householdId: String)
+
+    @Upsert
+    suspend fun upsertFromCloud(members: List<HouseholdMember>)
+
+    @Query("SELECT uid FROM household_members WHERE householdId = :householdId AND pendingSync = 1")
+    suspend fun pendingPushUids(householdId: String): List<String>
+
+    @Query("SELECT COUNT(*) FROM household_members WHERE householdId = :householdId AND deletedAt IS NULL")
+    suspend fun countMembersOf(householdId: String): Int
 }

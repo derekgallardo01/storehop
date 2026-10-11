@@ -7,6 +7,22 @@ project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 For the high-level roadmap and earlier-than-0.5.0 history, see the
 "Roadmap" section in the [README](README.md).
 
+## [0.9.9] - 2026-10-04
+
+### Fixed
+
+- **Real-time multi-user list sync**: Added real-time Firestore snapshot listeners across active household collections (`items`, `item_store_xrefs`, `stores`, `categories`, `store_category_orders`, `purchase_records`, `members`), so changes and newly added items by one member automatically appear on the other member's list in real time.
+- **Household members discovery on host device**: Dual-write membership records to `/users/{householdId}/members/{uid}` and added healing queries for accepted invites so joined members immediately appear under the host's Household ("My Family") member list.
+- **Cold-launch sync & pull-to-refresh**: Fixed host cold-launch sync check so host devices always fetch remote changes on app launch, and connected pull-to-refresh on Items and Shop screens to live cloud sync.
+- **DTO deserialization robustness**: Added `@IgnoreExtraProperties` and mapped `role`/`email` on `HouseholdMemberDto` to prevent Firestore deserialization crashes across platforms.
+- **iOS parity**: Ported configurable start screen ("Shop" vs "Items") and auto-focus search on launch to iOS, including cloud sync via `/userPrefs/{uid}` and full localization.
+- **CSV import resilience (iOS & Android)**: Added automatic UTF-8 BOM stripping, header aliases (`product`, `item`, `title`, `store`, `cat`), quotes trimming for store names, coordinated file reading with fallback encodings (Windows-1252, ISO-8859-1, UTF-16, ASCII), and unclipped floating UndoBar with error dialogs in Settings.
+
+### Versions
+
+- Android: `versionName` 0.9.8 -> 0.9.9; `versionCode` 81 -> 82.
+- iOS: `MARKETING_VERSION` 0.9.6 -> 0.9.9; `CURRENT_PROJECT_VERSION` 57 -> 58.
+
 ## [0.9.7] - 2026-09-22
 
 ### Added

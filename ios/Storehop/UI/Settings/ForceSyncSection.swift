@@ -97,7 +97,12 @@ struct ForceSyncSection: View {
                 householdId: householdId,
                 uid: uid
             )
-            state = drained ? .safeToUninstall : .failed(pendingCount)
+            if drained {
+                _ = await container.pullCoordinator.pullForHousehold(householdId)
+                state = .safeToUninstall
+            } else {
+                state = .failed(pendingCount)
+            }
         }
     }
 

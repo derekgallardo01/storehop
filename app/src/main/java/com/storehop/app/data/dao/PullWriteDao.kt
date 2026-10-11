@@ -3,6 +3,7 @@ package com.storehop.app.data.dao
 import androidx.room.withTransaction
 import com.storehop.app.data.db.StorehopDatabase
 import com.storehop.app.data.entity.Category
+import com.storehop.app.data.entity.HouseholdMember
 import com.storehop.app.data.entity.Item
 import com.storehop.app.data.entity.ItemStoreXref
 import com.storehop.app.data.entity.PurchaseRecord
@@ -61,6 +62,7 @@ class PullWriteDao @Inject constructor(
         xrefs: List<ItemStoreXref>,
         scoOrders: List<StoreCategoryOrder>,
         purchaseRecords: List<PurchaseRecord>,
+        members: List<HouseholdMember> = emptyList(),
     ) = db.withTransaction {
         // Snapshot pending-sync primary keys per entity. Any cloud row
         // whose PK is in the corresponding set is dropped from the
@@ -71,6 +73,7 @@ class PullWriteDao @Inject constructor(
         val pendingXrefKeys = db.itemStoreXrefDao().pendingPushKeys(householdId).toHashSet()
         val pendingScoKeys = db.storeCategoryOrderDao().pendingPushKeys(householdId).toHashSet()
         val pendingPurchaseIds = db.purchaseRecordDao().pendingPushIds(householdId).toHashSet()
+        val pendingMemberUids = db.householdMemberDao().pendingPushUids(householdId).toHashSet()
 
         // Order doesn't matter for correctness inside a transaction (FKs are
         // checked at commit time), but it keeps the intent visible: parents
@@ -93,6 +96,11 @@ class PullWriteDao @Inject constructor(
         db.purchaseRecordDao().upsertFromCloud(
             purchaseRecords.filterNot { it.id in pendingPurchaseIds }
         )
+        if (members.isNotEmpty()) {
+            db.householdMemberDao().upsertFromCloud(
+                members.filterNot { it.uid in pendingMemberUids }
+            )
+        }
     }
 
     /**

@@ -55,17 +55,28 @@ fun parseItemCsv(content: String): ParsedItemCsv {
     if (rawRows.isEmpty()) return ParsedItemCsv(emptyList(), emptyList())
 
     val header = rawRows.first().map { it.trim().lowercase() }
-    val nameIdx = header.indexOf("name")
+    val nameIdx = header.indexOf("name").takeIf { it >= 0 }
+        ?: header.indexOf("item").takeIf { it >= 0 }
+        ?: header.indexOf("item name").takeIf { it >= 0 }
+        ?: header.indexOf("product").takeIf { it >= 0 }
+        ?: header.indexOf("title").takeIf { it >= 0 }
+        ?: -1
     if (nameIdx < 0) {
         return ParsedItemCsv(
             rows = emptyList(),
             errors = listOf("Header row must include a 'name' column."),
         )
     }
-    fun idx(col: String) = header.indexOf(col).takeIf { it >= 0 }
+    fun idx(vararg cols: String): Int? {
+        for (col in cols) {
+            val i = header.indexOf(col)
+            if (i >= 0) return i
+        }
+        return null
+    }
 
-    val catIdx = idx("category")
-    val storesIdx = idx("stores")
+    val catIdx = idx("category", "categories", "cat")
+    val storesIdx = idx("stores", "store")
     val brandIdx = idx("brand")
     val notesIdx = idx("notes")
     val qtyIdx = idx("quantity")
@@ -87,7 +98,7 @@ fun parseItemCsv(content: String): ParsedItemCsv {
             category = catIdx?.let { fields.getOrNull(it)?.trim().orEmptyOrNull() },
             storeNames = storesIdx?.let { fields.getOrNull(it).orEmpty() }
                 ?.split(",")
-                ?.map { it.trim() }
+                ?.map { it.trim().trim('"', '\'') }
                 ?.filter { it.isNotEmpty() }
                 ?: emptyList(),
             brand = brandIdx?.let { fields.getOrNull(it)?.trim().orEmptyOrNull() },
@@ -105,7 +116,10 @@ fun parseCategoryCsv(content: String): ParsedCategoryCsv {
     if (rawRows.isEmpty()) return ParsedCategoryCsv(emptyList(), emptyList())
 
     val header = rawRows.first().map { it.trim().lowercase() }
-    val nameIdx = header.indexOf("name")
+    val nameIdx = header.indexOf("name").takeIf { it >= 0 }
+        ?: header.indexOf("category").takeIf { it >= 0 }
+        ?: header.indexOf("categories").takeIf { it >= 0 }
+        ?: -1
     if (nameIdx < 0) {
         return ParsedCategoryCsv(
             rows = emptyList(),
@@ -174,13 +188,14 @@ fun List<CategoryCsvRow>.toCategoriesCsv(): String = buildString {
  * newlines, and "" as a literal quote inside a quoted field.
  */
 internal fun parseCsvLines(content: String): List<List<String>> {
-    if (content.isEmpty()) return emptyList()
+    val text = content.removePrefix("\uFEFF")
+    if (text.isEmpty()) return emptyList()
     val rows = mutableListOf<MutableList<String>>()
     var current = mutableListOf<String>()
     val field = StringBuilder()
     var inQuotes = false
     var i = 0
-    val n = content.length
+    val n = text.length
 
     fun pushField() { current.add(field.toString()); field.clear() }
     fun pushRow() {
@@ -190,10 +205,10 @@ internal fun parseCsvLines(content: String): List<List<String>> {
     }
 
     while (i < n) {
-        val c = content[i]
+        val c = text[i]
         when {
             inQuotes -> when {
-                c == '"' && i + 1 < n && content[i + 1] == '"' -> { // escaped quote
+                c == '"' && i + 1 < n && text[i + 1] == '"' -> { // escaped quote
                     field.append('"')
                     i++
                 }
@@ -203,7 +218,7 @@ internal fun parseCsvLines(content: String): List<List<String>> {
             c == '"' && field.isEmpty() -> inQuotes = true
             c == ',' -> pushField()
             c == '\r' -> {
-                if (i + 1 < n && content[i + 1] == '\n') i++
+                if (i + 1 < n && text[i + 1] == '\n') i++
                 pushRow()
             }
             c == '\n' -> pushRow()

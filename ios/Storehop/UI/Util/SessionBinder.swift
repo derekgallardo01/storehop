@@ -59,8 +59,6 @@ final class SessionBinder: @unchecked Sendable {
         }
     }
 
-    /// Variant for streams that aren't `AsyncValueObservation` (e.g.
-    /// `AsyncStream<T>` from `ShoppingRepository.observeStorePickerRows`).
     func bindStream<T: Sendable>(
         session: any UserSessionProvider,
         emptyValue: T,
@@ -74,6 +72,58 @@ final class SessionBinder: @unchecked Sendable {
                 self.cancelInner()
                 if let uid {
                     let stream = streamFor(uid)
+                    self.startInner { @Sendable in
+                        for await value in stream {
+                            await onValue(value)
+                        }
+                    }
+                } else {
+                    await onValue(emptyValue)
+                }
+            }
+        }
+    }
+
+    func bind<T: Sendable>(
+        householdSession: any HouseholdSessionProvider,
+        emptyValue: T,
+        streamFor: @escaping @Sendable (String) -> AsyncValueObservation<T>,
+        onValue: @escaping @MainActor (T) -> Void
+    ) {
+        cancel()
+        outerTask = Task { [weak self] in
+            for await hid in householdSession.householdIdStream {
+                guard let self else { return }
+                self.cancelInner()
+                if let hid {
+                    let stream = streamFor(hid)
+                    self.startInner { @Sendable in
+                        do {
+                            for try await value in stream {
+                                await onValue(value)
+                            }
+                        } catch {}
+                    }
+                } else {
+                    await onValue(emptyValue)
+                }
+            }
+        }
+    }
+
+    func bindStream<T: Sendable>(
+        householdSession: any HouseholdSessionProvider,
+        emptyValue: T,
+        streamFor: @escaping @Sendable (String) -> AsyncStream<T>,
+        onValue: @escaping @MainActor (T) -> Void
+    ) {
+        cancel()
+        outerTask = Task { [weak self] in
+            for await hid in householdSession.householdIdStream {
+                guard let self else { return }
+                self.cancelInner()
+                if let hid {
+                    let stream = streamFor(hid)
                     self.startInner { @Sendable in
                         for await value in stream {
                             await onValue(value)

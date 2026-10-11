@@ -350,6 +350,9 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch {
             _forceSyncState.value = ForceSyncState.Syncing(pendingPushCount.value)
             val drained = syncEngine.flushAllPending(householdId = hid, uid = uid)
+            if (drained) {
+                runCatching { pullCoordinator.pullForHousehold(hid) }
+            }
             _forceSyncState.value = if (drained) {
                 ForceSyncState.SafeToUninstall
             } else {
@@ -374,10 +377,7 @@ class SettingsViewModel @Inject constructor(
      */
     fun retryPull() {
         val uid = sessionProvider.userId.value ?: return
-        // v0.7.0: single-member household → householdId == uid. Phase 2 will
-        // publish a real householdId via HouseholdSessionProvider; until then,
-        // mirror uid so the legacy retry button keeps working.
-        val householdId = uid
+        val householdId = householdSession.householdId.value ?: uid
         viewModelScope.launch {
             pullStateRepo.set(uid, PullState.IN_PROGRESS)
             val result = pullCoordinator.pullForHousehold(householdId)

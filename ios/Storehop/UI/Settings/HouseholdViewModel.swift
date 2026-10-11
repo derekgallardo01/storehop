@@ -77,6 +77,9 @@ final class HouseholdViewModel {
                 await MainActor.run { self.members = list }
             }
         }
+        Task { [weak self] in
+            await self?.repository.refreshMembers()
+        }
     }
 
     func teardown() {

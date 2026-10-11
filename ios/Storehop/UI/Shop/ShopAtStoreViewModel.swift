@@ -90,6 +90,7 @@ final class ShopAtStoreViewModel {
     private let storeRepository: StoreRepository
     private let preferencesRepository: any UserPreferencesRepository
     private let session: any UserSessionProvider
+    private let householdSession: (any HouseholdSessionProvider)?
     private let sessionTracker: ShoppingSessionTracker
     private let rowsBinder = SessionBinder()
     private let storeBinder = SessionBinder()
@@ -104,6 +105,7 @@ final class ShopAtStoreViewModel {
         storeRepository: StoreRepository,
         preferencesRepository: any UserPreferencesRepository,
         session: any UserSessionProvider,
+        householdSession: (any HouseholdSessionProvider)? = nil,
         sessionTracker: ShoppingSessionTracker
     ) {
         self.storeId = storeId
@@ -112,6 +114,7 @@ final class ShopAtStoreViewModel {
         self.storeRepository = storeRepository
         self.preferencesRepository = preferencesRepository
         self.session = session
+        self.householdSession = householdSession ?? (session as? any HouseholdSessionProvider)
         self.sessionTracker = sessionTracker
         // Seed initial values synchronously so the first refreshSections()
         // doesn't race with the stream subscriptions below.
@@ -126,31 +129,60 @@ final class ShopAtStoreViewModel {
         let storeId = self.storeId
         Task { @MainActor in
             let start = await sessionTracker.sessionStartMs()
-            rowsBinder.bind(
-                session: session,
-                emptyValue: [ShoppingRow]()
-            ) { [shoppingRepository] uid in
-                shoppingRepository.shoppingListForStore(userId: uid, storeId: storeId, sessionStartMs: start)
-            } onValue: { [weak self] rows in
-                self?.applyRows(rows)
+            if let householdSession {
+                rowsBinder.bind(
+                    householdSession: householdSession,
+                    emptyValue: [ShoppingRow]()
+                ) { [shoppingRepository] hid in
+                    shoppingRepository.shoppingListForStore(userId: hid, storeId: storeId, sessionStartMs: start)
+                } onValue: { [weak self] rows in
+                    self?.applyRows(rows)
+                }
+            } else {
+                rowsBinder.bind(
+                    session: session,
+                    emptyValue: [ShoppingRow]()
+                ) { [shoppingRepository] uid in
+                    shoppingRepository.shoppingListForStore(userId: uid, storeId: storeId, sessionStartMs: start)
+                } onValue: { [weak self] rows in
+                    self?.applyRows(rows)
+                }
             }
         }
-        storeBinder.bind(
-            session: session,
-            emptyValue: nil as Store?
-        ) { [storeRepository] uid in
-            storeRepository.observeById(userId: uid, id: storeId)
-        } onValue: { [weak self] store in
-            self?.store = store
-        }
-        // Master Items library — used by the QuickAdd autocomplete.
-        masterItemsBinder.bind(
-            session: session,
-            emptyValue: [ItemWithCategoryAndStores]()
-        ) { [itemRepository] uid in
-            itemRepository.observeAll(userId: uid)
-        } onValue: { [weak self] items in
-            self?.applyMasterItems(items)
+        if let householdSession {
+            storeBinder.bind(
+                householdSession: householdSession,
+                emptyValue: nil as Store?
+            ) { [storeRepository] hid in
+                storeRepository.observeById(userId: hid, id: storeId)
+            } onValue: { [weak self] store in
+                self?.store = store
+            }
+            masterItemsBinder.bind(
+                householdSession: householdSession,
+                emptyValue: [ItemWithCategoryAndStores]()
+            ) { [itemRepository] hid in
+                itemRepository.observeAll(userId: hid)
+            } onValue: { [weak self] items in
+                self?.applyMasterItems(items)
+            }
+        } else {
+            storeBinder.bind(
+                session: session,
+                emptyValue: nil as Store?
+            ) { [storeRepository] uid in
+                storeRepository.observeById(userId: uid, id: storeId)
+            } onValue: { [weak self] store in
+                self?.store = store
+            }
+            masterItemsBinder.bind(
+                session: session,
+                emptyValue: [ItemWithCategoryAndStores]()
+            ) { [itemRepository] uid in
+                itemRepository.observeAll(userId: uid)
+            } onValue: { [weak self] items in
+                self?.applyMasterItems(items)
+            }
         }
         // Subscribe to the pref stream so the toggle stays in sync if the
         // user changes it from another VM instance.

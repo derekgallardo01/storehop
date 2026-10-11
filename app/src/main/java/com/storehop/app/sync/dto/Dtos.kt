@@ -1,6 +1,7 @@
 package com.storehop.app.sync.dto
 
 import androidx.annotation.Keep
+import com.google.firebase.firestore.IgnoreExtraProperties
 
 /**
  * Firestore DTOs.
@@ -8,6 +9,8 @@ import androidx.annotation.Keep
  * Each class has:
  * - `@Keep` so R8 doesn't strip the no-arg constructor / setters Firestore's
  *   reflective deserialization needs.
+ * - `@IgnoreExtraProperties` so unrecognized fields written by other platforms
+ *   or newer schema versions don't crash deserialization.
  * - **No-arg constructor with `var` fields and JVM defaults**, NOT data classes
  *   — Firestore's `toObject()` / `fromObject()` requires this shape.
  * - `userId` field for creator/audit traceability AND `householdId` for the
@@ -24,6 +27,7 @@ import androidx.annotation.Keep
  */
 
 @Keep
+@IgnoreExtraProperties
 class ItemDto(
     var id: String = "",
     var name: String = "",
@@ -47,6 +51,7 @@ class ItemDto(
 )
 
 @Keep
+@IgnoreExtraProperties
 class CategoryDto(
     var id: String = "",
     var name: String = "",
@@ -66,6 +71,7 @@ class CategoryDto(
 )
 
 @Keep
+@IgnoreExtraProperties
 class StoreDto(
     var id: String = "",
     var name: String = "",
@@ -84,6 +90,7 @@ class StoreDto(
 )
 
 @Keep
+@IgnoreExtraProperties
 class ItemStoreXrefDto(
     var itemId: String = "",
     var storeId: String = "",
@@ -97,6 +104,7 @@ class ItemStoreXrefDto(
 )
 
 @Keep
+@IgnoreExtraProperties
 class StoreCategoryOrderDto(
     var storeId: String = "",
     var categoryId: String = "",
@@ -110,6 +118,7 @@ class StoreCategoryOrderDto(
 )
 
 @Keep
+@IgnoreExtraProperties
 class PurchaseRecordDto(
     var id: String = "",
     var itemId: String = "",
@@ -120,4 +129,19 @@ class PurchaseRecordDto(
     var updatedAt: Long = 0L,
     var deletedAt: Long? = null,
     var householdId: String = "",
+)
+
+@Keep
+@IgnoreExtraProperties
+class HouseholdMemberDto(
+    var uid: String = "",
+    var householdId: String = "",
+    var displayName: String? = null,
+    var email: String? = null,
+    var role: String? = null,
+    var joinedAt: Long = 0L,
+    var isOwner: Boolean = false,
+    var createdAt: Long = 0L,
+    var updatedAt: Long = 0L,
+    var deletedAt: Long? = null,
 )

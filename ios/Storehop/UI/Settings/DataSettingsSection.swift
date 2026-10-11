@@ -11,12 +11,15 @@ import UniformTypeIdentifiers
 /// user reverse it.
 struct DataSettingsSection: View {
     @Environment(AppContainer.self) private var container
+    var onImportResult: ((ImportResult) -> Void)? = nil
 
     @State private var pendingExport: PendingExport?
-    @State private var importMode: ImportMode?
+    @State private var showFileImporter = false
+    @State private var activeImportMode: ImportMode = .items
     @State private var importResult: ImportResult?
     @State private var importInFlight = false
     @State private var errorMessage: String?
+    @State private var showErrorAlert = false
     @State private var entitlement: Entitlement = .notEntitled
     @State private var localizedPrice: String?
     /// v0.8.1.2: when an un-entitled user taps Export, show the
@@ -25,6 +28,14 @@ struct DataSettingsSection: View {
     /// tap dropped users straight into the purchase chrome with no
     /// explanation.
     @State private var showUpgradeSheet: Bool = false
+
+    private static var allowedImportTypes: [UTType] {
+        var types: [UTType] = [.commaSeparatedText, .plainText, .text]
+        if let csv = UTType(filenameExtension: "csv") {
+            types.append(csv)
+        }
+        return types
+    }
 
     var body: some View {
         Section {
@@ -50,11 +61,17 @@ struct DataSettingsSection: View {
             actionRow(
                 title: L("action_import_items"),
                 systemImage: "square.and.arrow.down"
-            ) { importMode = .items }
+            ) {
+                activeImportMode = .items
+                showFileImporter = true
+            }
             actionRow(
                 title: L("action_import_categories"),
                 systemImage: "square.and.arrow.down"
-            ) { importMode = .categories }
+            ) {
+                activeImportMode = .categories
+                showFileImporter = true
+            }
 
             if let errorMessage {
                 Text(errorMessage)
@@ -77,26 +94,30 @@ struct DataSettingsSection: View {
         ) { result in
             if case .failure(let err) = result {
                 errorMessage = err.localizedDescription
+                showErrorAlert = true
             }
             pendingExport = nil
         }
         .fileImporter(
-            isPresented: Binding(
-                get: { importMode != nil },
-                set: { if !$0 { importMode = nil } }
-            ),
-            allowedContentTypes: [.commaSeparatedText, .text]
+            isPresented: $showFileImporter,
+            allowedContentTypes: Self.allowedImportTypes
         ) { result in
+            let mode = activeImportMode
             switch result {
             case .success(let url):
-                runImport(url: url, mode: importMode ?? .items)
+                runImport(url: url, mode: mode)
             case .failure(let err):
                 errorMessage = err.localizedDescription
+                showErrorAlert = true
             }
-            importMode = nil
+        }
+        .alert(L("settings_data_section_title"), isPresented: $showErrorAlert) {
+            Button(L("action_cancel"), role: .cancel) { }
+        } message: {
+            Text(errorMessage ?? "")
         }
         .overlay(alignment: .bottom) {
-            if let result = importResult {
+            if onImportResult == nil, let result = importResult {
                 UndoBar(
                     message: importResultMessage(result),
                     onUndo: { undo(result) },
@@ -192,21 +213,45 @@ struct DataSettingsSection: View {
         }
     }
 
+    private func readFileContent(at url: URL) throws -> String {
+        let scoped = url.startAccessingSecurityScopedResource()
+        defer {
+            if scoped { url.stopAccessingSecurityScopedResource() }
+        }
+
+        var coordError: NSError?
+        var fileData: Data?
+        let coordinator = NSFileCoordinator()
+        coordinator.coordinate(readingItemAt: url, options: .withoutChanges, error: &coordError) { readURL in
+            fileData = try? Data(contentsOf: readURL)
+        }
+
+        if let coordError {
+            throw coordError
+        }
+
+        guard let data = fileData ?? (try? Data(contentsOf: url)) else {
+            throw CocoaError(.fileReadUnknown)
+        }
+
+        // Try UTF-8 first (handles BOM via CsvImportExport parser)
+        if let s = String(data: data, encoding: .utf8) { return s }
+        // Fallback encodings for files from Windows or legacy systems
+        if let s = String(data: data, encoding: .windowsCP1252) { return s }
+        if let s = String(data: data, encoding: .isoLatin1) { return s }
+        if let s = String(data: data, encoding: .utf16) { return s }
+        if let s = String(data: data, encoding: .ascii) { return s }
+
+        throw CocoaError(.fileReadInapplicableStringEncoding)
+    }
+
     private func runImport(url: URL, mode: ImportMode) {
         Task {
             errorMessage = nil
             importInFlight = true
             defer { importInFlight = false }
-            // .fileImporter returns a security-scoped URL on iOS. We must
-            // bracket access with start/stop calls or the read fails.
-            let scoped = url.startAccessingSecurityScopedResource()
-            defer { if scoped { url.stopAccessingSecurityScopedResource() } }
             do {
-                let data = try Data(contentsOf: url)
-                guard let content = String(data: data, encoding: .utf8) else {
-                    errorMessage = "Could not read file as UTF-8."
-                    return
-                }
+                let content = try readFileContent(at: url)
                 let result: ImportResult
                 switch mode {
                 case .items:
@@ -214,12 +259,24 @@ struct DataSettingsSection: View {
                 case .categories:
                     result = try await container.importExportRepository.importCategoriesCsv(content)
                 }
-                importResult = result
-                if !result.errors.isEmpty {
+
+                if result.itemsImported == 0 && result.categoriesImported == 0 && !result.errors.isEmpty {
                     errorMessage = result.errors.joined(separator: "\n")
+                    showErrorAlert = true
+                } else {
+                    if let onImportResult {
+                        onImportResult(result)
+                    } else {
+                        importResult = result
+                    }
+                    if !result.errors.isEmpty {
+                        errorMessage = result.errors.joined(separator: "\n")
+                        showErrorAlert = true
+                    }
                 }
             } catch {
                 errorMessage = error.localizedDescription
+                showErrorAlert = true
             }
         }
     }

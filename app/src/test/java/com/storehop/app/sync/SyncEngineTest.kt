@@ -65,7 +65,7 @@ class SyncEngineTest {
             every { path } returns "users/uid/items/x"
             coEvery { set(any()) } returns Tasks.forResult(null)
         }
-        val collRef: CollectionReference = mockk {
+        val collRef: CollectionReference = mockk(relaxed = true) {
             every { document(any<String>()) } returns docRef
         }
         val userDoc: DocumentReference = mockk {
@@ -117,7 +117,7 @@ class SyncEngineTest {
             every { path } returns "users/uid/items/x"
             coEvery { set(any()) } returns Tasks.forException(RuntimeException("PERMISSION_DENIED"))
         }
-        val collRef: CollectionReference = mockk { every { document(any<String>()) } returns docRef }
+        val collRef: CollectionReference = mockk(relaxed = true) { every { document(any<String>()) } returns docRef }
         val userDoc: DocumentReference = mockk { every { collection(any<String>()) } returns collRef }
         val usersColl: CollectionReference = mockk { every { document(any<String>()) } returns userDoc }
         every { firestore.collection("users") } returns usersColl
@@ -317,5 +317,6 @@ class SyncEngineTest {
         purchaseDao = purchaseDao,
         householdMemberDao = io.mockk.mockk(relaxed = true),
         userPreferencesSync = io.mockk.mockk(relaxed = true),
+        pullCoordinator = io.mockk.mockk(relaxed = true),
     )
 }

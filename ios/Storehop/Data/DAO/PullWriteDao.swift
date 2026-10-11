@@ -34,7 +34,8 @@ struct PullWriteDao: Sendable {
         stores: [Store],
         xrefs: [ItemStoreXref],
         scoOrders: [StoreCategoryOrder],
-        purchaseRecords: [PurchaseRecord]
+        purchaseRecords: [PurchaseRecord],
+        members: [HouseholdMember] = []
     ) async throws {
         try await writer.write { db in
             // Snapshot the local pending-sync primary keys per entity.
@@ -57,6 +58,11 @@ struct PullWriteDao: Sendable {
             let pendingPurchaseIds = Set(try String.fetchAll(
                 db,
                 sql: "SELECT id FROM purchase_records WHERE householdId = ? AND pendingSync = 1",
+                arguments: [householdId]
+            ))
+            let pendingMemberUids = Set(try String.fetchAll(
+                db,
+                sql: "SELECT uid FROM household_members WHERE householdId = ? AND pendingSync = 1",
                 arguments: [householdId]
             ))
             // Composite PKs use a tuple-style key.
@@ -101,6 +107,10 @@ struct PullWriteDao: Sendable {
             }
             for record in purchaseRecords where !pendingPurchaseIds.contains(record.id) {
                 var copy = record
+                try copy.upsert(db)
+            }
+            for m in members where !pendingMemberUids.contains(m.uid) {
+                var copy = m
                 try copy.upsert(db)
             }
         }

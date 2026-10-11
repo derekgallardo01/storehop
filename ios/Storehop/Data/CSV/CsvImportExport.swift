@@ -68,11 +68,19 @@ func parseItemCsv(_ content: String) -> ParsedItemCsv {
     if rawRows.isEmpty { return ParsedItemCsv(rows: [], errors: []) }
 
     let header = rawRows[0].map { $0.trimmed.lowercased() }
-    guard let nameIdx = header.firstIndex(of: "name") else {
+    let nameIdx = header.firstIndex(of: "name")
+        ?? header.firstIndex(of: "item")
+        ?? header.firstIndex(of: "item name")
+        ?? header.firstIndex(of: "product")
+        ?? header.firstIndex(of: "title")
+    guard let nameIdx else {
         return ParsedItemCsv(rows: [], errors: ["Header row must include a 'name' column."])
     }
     let catIdx = header.firstIndex(of: "category")
+        ?? header.firstIndex(of: "categories")
+        ?? header.firstIndex(of: "cat")
     let storesIdx = header.firstIndex(of: "stores")
+        ?? header.firstIndex(of: "store")
     let brandIdx = header.firstIndex(of: "brand")
     let notesIdx = header.firstIndex(of: "notes")
     let qtyIdx = header.firstIndex(of: "quantity")
@@ -93,7 +101,11 @@ func parseItemCsv(_ content: String) -> ParsedItemCsv {
             name: name,
             category: catIdx.flatMap { fields.indexed($0)?.trimmed.nilIfEmpty },
             storeNames: storesIdx.flatMap { fields.indexed($0) }
-                .map { $0.split(separator: ",").map { String($0).trimmed }.filter { !$0.isEmpty } }
+                .map {
+                    $0.split(separator: ",")
+                        .map { String($0).trimmed.trimmingCharacters(in: CharacterSet(charactersIn: "\"\'")) }
+                        .filter { !$0.isEmpty }
+                }
                 ?? [],
             brand: brandIdx.flatMap { fields.indexed($0)?.trimmed.nilIfEmpty },
             notes: notesIdx.flatMap { fields.indexed($0)?.trimmed.nilIfEmpty },
@@ -110,7 +122,10 @@ func parseCategoryCsv(_ content: String) -> ParsedCategoryCsv {
     if rawRows.isEmpty { return ParsedCategoryCsv(rows: [], errors: []) }
 
     let header = rawRows[0].map { $0.trimmed.lowercased() }
-    guard let nameIdx = header.firstIndex(of: "name") else {
+    let nameIdx = header.firstIndex(of: "name")
+        ?? header.firstIndex(of: "category")
+        ?? header.firstIndex(of: "categories")
+    guard let nameIdx else {
         return ParsedCategoryCsv(rows: [], errors: ["Header row must include a 'name' column."])
     }
     let iconIdx = header.firstIndex(of: "icon")
@@ -172,11 +187,16 @@ extension Array where Element == CategoryCsvRow {
 /// newlines, and "" as a literal quote inside a quoted field.
 func parseCsvLines(_ content: String) -> [[String]] {
     if content.isEmpty { return [] }
+    var text = content
+    if text.hasPrefix("\u{FEFF}") {
+        text.removeFirst()
+    }
+    if text.isEmpty { return [] }
     var rows: [[String]] = []
     var current: [String] = []
     var field = ""
     var inQuotes = false
-    let chars = Array(content)
+    let chars = Array(text)
     var i = 0
     let n = chars.count
 
@@ -206,10 +226,7 @@ func parseCsvLines(_ content: String) -> [[String]] {
                 inQuotes = true
             } else if c == "," {
                 pushField()
-            } else if c == "\r" {
-                if i + 1 < n && chars[i + 1] == "\n" { i += 1 }
-                pushRow()
-            } else if c == "\n" {
+            } else if c == "\r\n" || c == "\n" || c == "\r" {
                 pushRow()
             } else {
                 field.append(c)

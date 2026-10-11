@@ -27,6 +27,7 @@ struct StorePickerView: View {
                     storeRepository: container.storeRepository,
                     shoppingRepository: container.shoppingRepository,
                     session: container.session,
+                    householdSession: container.householdSession,
                     sessionTracker: container.shoppingSessionTracker
                 )
             }

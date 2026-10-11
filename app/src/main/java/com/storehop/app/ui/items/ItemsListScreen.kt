@@ -263,20 +263,10 @@ fun ItemsListScreen(
                 singleLine = true,
             )
 
-            // Pure UX affordance: data is already reactive via Flow, but
-            // pull-to-refresh gives users a "I asked for fresh data and it
-            // happened" beat. We just show the spinner for a short moment.
-            var isRefreshing by remember { mutableStateOf(false) }
-            val ptrScope = rememberCoroutineScope()
+            val isRefreshing by viewModel.isRefreshing.collectAsState()
             PullToRefreshBox(
                 isRefreshing = isRefreshing,
-                onRefresh = {
-                    ptrScope.launch {
-                        isRefreshing = true
-                        delay(500)
-                        isRefreshing = false
-                    }
-                },
+                onRefresh = { viewModel.refresh() },
                 modifier = Modifier.fillMaxSize(),
             ) {
                 val isEmpty = when (state.sortMode) {

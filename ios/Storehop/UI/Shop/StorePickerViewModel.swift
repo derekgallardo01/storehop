@@ -58,6 +58,7 @@ final class StorePickerViewModel {
     private let storeRepository: StoreRepository
     private let shoppingRepository: ShoppingRepository
     private let session: any UserSessionProvider
+    private let householdSession: (any HouseholdSessionProvider)?
     private let sessionTracker: ShoppingSessionTracker
     private let binder = SessionBinder()
     private var sessionStartMs: Int64?
@@ -66,11 +67,13 @@ final class StorePickerViewModel {
         storeRepository: StoreRepository,
         shoppingRepository: ShoppingRepository,
         session: any UserSessionProvider,
+        householdSession: (any HouseholdSessionProvider)? = nil,
         sessionTracker: ShoppingSessionTracker
     ) {
         self.storeRepository = storeRepository
         self.shoppingRepository = shoppingRepository
         self.session = session
+        self.householdSession = householdSession ?? (session as? any HouseholdSessionProvider)
         self.sessionTracker = sessionTracker
     }
 
@@ -80,13 +83,24 @@ final class StorePickerViewModel {
         Task { @MainActor in
             let start = await sessionTracker.sessionStartMs()
             self.sessionStartMs = start
-            binder.bindStream(
-                session: session,
-                emptyValue: [StorePickerRow]()
-            ) { [shoppingRepository] uid in
-                shoppingRepository.observeStorePickerRows(userId: uid, sessionStartMs: start)
-            } onValue: { [weak self] rows in
-                self?.applyRows(rows)
+            if let householdSession {
+                binder.bindStream(
+                    householdSession: householdSession,
+                    emptyValue: [StorePickerRow]()
+                ) { [shoppingRepository] hid in
+                    shoppingRepository.observeStorePickerRows(userId: hid, sessionStartMs: start)
+                } onValue: { [weak self] rows in
+                    self?.applyRows(rows)
+                }
+            } else {
+                binder.bindStream(
+                    session: session,
+                    emptyValue: [StorePickerRow]()
+                ) { [shoppingRepository] uid in
+                    shoppingRepository.observeStorePickerRows(userId: uid, sessionStartMs: start)
+                } onValue: { [weak self] rows in
+                    self?.applyRows(rows)
+                }
             }
         }
     }

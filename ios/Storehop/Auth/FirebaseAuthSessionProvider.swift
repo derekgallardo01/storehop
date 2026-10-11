@@ -85,23 +85,26 @@ final actor FirebaseAuthSessionProvider: UserSessionProvider, HouseholdSessionPr
         // see the right value immediately.
         publishedUserId = await authClient.currentUserId
 
-        // First launch: nobody's signed in, kick off anonymous sign-in. The
-        // auth state listener picks up the resulting uid and runs sync.
-        if publishedUserId == nil {
-            do {
-                _ = try await authClient.signInAnonymously()
-            } catch {
-                // Anonymous sign-in failure is a hard failure mode; the
-                // app sits without a uid until the network comes back. The
-                // auth listener will fire once it succeeds.
-            }
-        }
-
         let stream = authClient.authStateStream
         pumpTask = Task { [weak self] in
             for await newUid in stream {
                 guard let self else { return }
                 await self.handleAuthChange(newUid: newUid)
+            }
+        }
+
+        // First launch: nobody's signed in, kick off anonymous sign-in. The
+        // auth state listener picks up the resulting uid and runs sync.
+        if publishedUserId == nil {
+            Task { [weak self] in
+                guard let self else { return }
+                do {
+                    _ = try await self.authClient.signInAnonymously()
+                } catch {
+                    // Anonymous sign-in failure is a hard failure mode; the
+                    // app sits without a uid until the network comes back. The
+                    // auth listener will fire once it succeeds.
+                }
             }
         }
     }
@@ -125,6 +128,19 @@ final actor FirebaseAuthSessionProvider: UserSessionProvider, HouseholdSessionPr
 
     nonisolated var currentUserId: String? {
         get async { await self.snapshotPublishedUid() }
+    }
+
+    nonisolated var currentDisplayName: String? {
+        get async {
+            let account = await self.authClient.currentAccount
+            if let name = account.displayName, !name.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines).isEmpty {
+                return name
+            }
+            if let email = account.email, !email.isEmpty {
+                return email.components(separatedBy: "@").first
+            }
+            return nil
+        }
     }
 
     private func snapshotPublishedUid() -> String? { publishedUserId }
@@ -232,7 +248,9 @@ final actor FirebaseAuthSessionProvider: UserSessionProvider, HouseholdSessionPr
         // NEEDED / IN_PROGRESS / FAILED we still run sync — otherwise
         // push stays paused forever and pendingSync rows pile up.
         var canSkipSync = false
-        if publishedUserId == newUid {
+        let memberCount = (try? await householdMemberDao.countMembersOf(householdId: resolvedHouseholdId)) ?? 1
+        let isSharedHousehold = resolvedHouseholdId != newUid || memberCount > 1
+        if !isSharedHousehold && publishedUserId == newUid && resolvedHouseholdId == newUid {
             let state = await pullStateRepo.current(for: newUid)
             canSkipSync = (state == .succeeded)
         }

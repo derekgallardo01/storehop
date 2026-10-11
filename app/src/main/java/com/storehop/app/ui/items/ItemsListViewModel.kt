@@ -11,6 +11,8 @@ import com.storehop.app.data.repository.StoreRepository
 import com.storehop.app.ui.util.UndoEvent
 import com.storehop.app.ui.util.UndoEventBus
 import com.storehop.app.analytics.AnalyticsService
+import com.storehop.app.data.util.HouseholdSessionProvider
+import com.storehop.app.sync.PullCoordinator
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -76,7 +78,24 @@ class ItemsListViewModel @Inject constructor(
     private val analytics: AnalyticsService,
     storeRepository: StoreRepository,
     undoBus: UndoEventBus,
+    private val pullCoordinator: PullCoordinator? = null,
+    private val householdSession: HouseholdSessionProvider? = null,
 ) : ViewModel() {
+
+    private val _isRefreshing = MutableStateFlow(false)
+    val isRefreshing: StateFlow<Boolean> = _isRefreshing.asStateFlow()
+
+    fun refresh() {
+        val hid = householdSession?.currentHouseholdId() ?: return
+        viewModelScope.launch {
+            _isRefreshing.value = true
+            try {
+                pullCoordinator?.pullForHousehold(hid)
+            } finally {
+                _isRefreshing.value = false
+            }
+        }
+    }
 
     private val _query = MutableStateFlow("")
     val query: StateFlow<String> = _query.asStateFlow()

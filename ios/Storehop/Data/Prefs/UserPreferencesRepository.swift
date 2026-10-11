@@ -28,6 +28,18 @@ enum SortMode: String, Sendable {
     }
 }
 
+/// Which screen appears on app launch. Mirrors Android's
+/// `com.storehop.app.data.prefs.StartScreen`.
+enum StartScreen: String, Sendable {
+    case shop = "SHOP"
+    case items = "ITEMS"
+
+    static func fromName(_ name: String?) -> StartScreen? {
+        guard let name = name else { return nil }
+        return StartScreen(rawValue: name)
+    }
+}
+
 /// Aggregated user preferences DTO used by [UserPreferencesSync] to ferry
 /// values between local UserDefaults and `/userPrefs/{uid}` in Firestore.
 ///
@@ -41,7 +53,29 @@ struct UserPreferencesSnapshot: Equatable, Sendable {
     let showPurchased: Bool
     let shopAtStoreSortMode: SortMode
     let itemsListSortMode: SortMode
+    let startScreen: StartScreen
+    let focusSearchOnStart: Bool
     let updatedAt: Int64
+
+    init(
+        themeMode: ThemeMode,
+        localeTag: String,
+        showPurchased: Bool,
+        shopAtStoreSortMode: SortMode,
+        itemsListSortMode: SortMode,
+        startScreen: StartScreen = .shop,
+        focusSearchOnStart: Bool = true,
+        updatedAt: Int64
+    ) {
+        self.themeMode = themeMode
+        self.localeTag = localeTag
+        self.showPurchased = showPurchased
+        self.shopAtStoreSortMode = shopAtStoreSortMode
+        self.itemsListSortMode = itemsListSortMode
+        self.startScreen = startScreen
+        self.focusSearchOnStart = focusSearchOnStart
+        self.updatedAt = updatedAt
+    }
 }
 
 protocol UserPreferencesRepository: Sendable {
@@ -64,6 +98,13 @@ protocol UserPreferencesRepository: Sendable {
     /// preserves the historical flat-alphabetic layout.
     var itemsListSortMode: SortMode { get }
 
+    /// Which screen appears on app launch. Default `.shop`.
+    var startScreen: StartScreen { get }
+
+    /// Whether to auto-focus search on launch when startScreen == .items.
+    /// Default true.
+    var focusSearchOnStart: Bool { get }
+
     /// LWW timestamp for the cloud-sync layer. Bumped to `clock.nowMs()`
     /// on every setter call. 0 if no setter has ever run on this device.
     var updatedAt: Int64 { get }
@@ -78,6 +119,8 @@ protocol UserPreferencesRepository: Sendable {
     func setShowPurchased(_ value: Bool)
     func setShopAtStoreSortMode(_ mode: SortMode)
     func setItemsListSortMode(_ mode: SortMode)
+    func setStartScreen(_ mode: StartScreen)
+    func setFocusSearchOnStart(_ value: Bool)
 
     /// Atomically write every field from a cloud-pulled snapshot.
     /// Preserves the cloud's [UserPreferencesSnapshot.updatedAt] so LWW
@@ -92,6 +135,8 @@ protocol UserPreferencesRepository: Sendable {
     var showPurchasedStream: AsyncStream<Bool> { get }
     var shopAtStoreSortModeStream: AsyncStream<SortMode> { get }
     var itemsListSortModeStream: AsyncStream<SortMode> { get }
+    var startScreenStream: AsyncStream<StartScreen> { get }
+    var focusSearchOnStartStream: AsyncStream<Bool> { get }
 
     /// Re-emits the aggregated [snapshot] whenever any field changes.
     /// [UserPreferencesSync] subscribes to this to debounce-push changes
@@ -133,6 +178,8 @@ final class LiveUserPreferencesRepository: UserPreferencesRepository, @unchecked
     private var showPurchasedContinuations: [UUID: AsyncStream<Bool>.Continuation] = [:]
     private var shopSortModeContinuations: [UUID: AsyncStream<SortMode>.Continuation] = [:]
     private var itemsSortModeContinuations: [UUID: AsyncStream<SortMode>.Continuation] = [:]
+    private var startScreenContinuations: [UUID: AsyncStream<StartScreen>.Continuation] = [:]
+    private var focusSearchOnStartContinuations: [UUID: AsyncStream<Bool>.Continuation] = [:]
     private var snapshotContinuations: [UUID: AsyncStream<UserPreferencesSnapshot>.Continuation] = [:]
 
     private static let themeModeKey = "storehop.themeMode"
@@ -143,6 +190,8 @@ final class LiveUserPreferencesRepository: UserPreferencesRepository, @unchecked
     private static let showPurchasedKey = "shop_show_purchased"
     private static let shopAtStoreSortModeKey = "shop_at_store_sort_mode"
     private static let itemsListSortModeKey = "items_list_sort_mode"
+    private static let startScreenKey = "start_screen"
+    private static let focusSearchOnStartKey = "focus_search_on_start"
     private static let updatedAtKey = "user_prefs_updated_at"
     // v0.8 entitlement keys (local-only, never cloud-synced).
     private static let legacyUserGrantedKey = "legacy_user_granted"
@@ -177,6 +226,14 @@ final class LiveUserPreferencesRepository: UserPreferencesRepository, @unchecked
         SortMode.fromName(defaults.string(forKey: Self.itemsListSortModeKey)) ?? .alphabetic
     }
 
+    var startScreen: StartScreen {
+        StartScreen.fromName(defaults.string(forKey: Self.startScreenKey)) ?? .shop
+    }
+
+    var focusSearchOnStart: Bool {
+        defaults.object(forKey: Self.focusSearchOnStartKey) as? Bool ?? true
+    }
+
     var updatedAt: Int64 {
         // UserDefaults stores Int64 as NSNumber. Cast via the Number
         // bridge so we don't lose precision on values > Int32.max.
@@ -190,7 +247,9 @@ final class LiveUserPreferencesRepository: UserPreferencesRepository, @unchecked
             showPurchased: showPurchased,
             shopAtStoreSortMode: shopAtStoreSortMode,
             itemsListSortMode: itemsListSortMode,
-            updatedAt: updatedAt,
+            startScreen: startScreen,
+            focusSearchOnStart: focusSearchOnStart,
+            updatedAt: updatedAt
         )
     }
 
@@ -219,6 +278,20 @@ final class LiveUserPreferencesRepository: UserPreferencesRepository, @unchecked
         defaults.set(mode.rawValue, forKey: Self.itemsListSortModeKey)
         bumpUpdatedAt()
         broadcast(itemsListSortMode: mode)
+        broadcastSnapshot()
+    }
+
+    func setStartScreen(_ mode: StartScreen) {
+        defaults.set(mode.rawValue, forKey: Self.startScreenKey)
+        bumpUpdatedAt()
+        broadcast(startScreen: mode)
+        broadcastSnapshot()
+    }
+
+    func setFocusSearchOnStart(_ value: Bool) {
+        defaults.set(value, forKey: Self.focusSearchOnStartKey)
+        bumpUpdatedAt()
+        broadcast(focusSearchOnStart: value)
         broadcastSnapshot()
     }
 
@@ -283,12 +356,16 @@ final class LiveUserPreferencesRepository: UserPreferencesRepository, @unchecked
         defaults.set(s.showPurchased, forKey: Self.showPurchasedKey)
         defaults.set(s.shopAtStoreSortMode.rawValue, forKey: Self.shopAtStoreSortModeKey)
         defaults.set(s.itemsListSortMode.rawValue, forKey: Self.itemsListSortModeKey)
+        defaults.set(s.startScreen.rawValue, forKey: Self.startScreenKey)
+        defaults.set(s.focusSearchOnStart, forKey: Self.focusSearchOnStartKey)
         defaults.set(NSNumber(value: s.updatedAt), forKey: Self.updatedAtKey)
         broadcast(themeMode: s.themeMode)
         broadcast(locale: s.localeTag)
         broadcast(showPurchased: s.showPurchased)
         broadcast(shopAtStoreSortMode: s.shopAtStoreSortMode)
         broadcast(itemsListSortMode: s.itemsListSortMode)
+        broadcast(startScreen: s.startScreen)
+        broadcast(focusSearchOnStart: s.focusSearchOnStart)
         broadcastSnapshot()
     }
 
@@ -376,6 +453,38 @@ final class LiveUserPreferencesRepository: UserPreferencesRepository, @unchecked
         }
     }
 
+    var startScreenStream: AsyncStream<StartScreen> {
+        AsyncStream { continuation in
+            let id = UUID()
+            self.lock.lock()
+            self.startScreenContinuations[id] = continuation
+            let initial = self.startScreen
+            self.lock.unlock()
+            continuation.yield(initial)
+            continuation.onTermination = { @Sendable _ in
+                self.lock.lock()
+                self.startScreenContinuations[id] = nil
+                self.lock.unlock()
+            }
+        }
+    }
+
+    var focusSearchOnStartStream: AsyncStream<Bool> {
+        AsyncStream { continuation in
+            let id = UUID()
+            self.lock.lock()
+            self.focusSearchOnStartContinuations[id] = continuation
+            let initial = self.focusSearchOnStart
+            self.lock.unlock()
+            continuation.yield(initial)
+            continuation.onTermination = { @Sendable _ in
+                self.lock.lock()
+                self.focusSearchOnStartContinuations[id] = nil
+                self.lock.unlock()
+            }
+        }
+    }
+
     var snapshotStream: AsyncStream<UserPreferencesSnapshot> {
         AsyncStream { continuation in
             let id = UUID()
@@ -425,6 +534,20 @@ final class LiveUserPreferencesRepository: UserPreferencesRepository, @unchecked
         let conts = Array(itemsSortModeContinuations.values)
         lock.unlock()
         for c in conts { c.yield(itemsListSortMode) }
+    }
+
+    private func broadcast(startScreen: StartScreen) {
+        lock.lock()
+        let conts = Array(startScreenContinuations.values)
+        lock.unlock()
+        for c in conts { c.yield(startScreen) }
+    }
+
+    private func broadcast(focusSearchOnStart: Bool) {
+        lock.lock()
+        let conts = Array(focusSearchOnStartContinuations.values)
+        lock.unlock()
+        for c in conts { c.yield(focusSearchOnStart) }
     }
 
     private func broadcastSnapshot() {

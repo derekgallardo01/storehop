@@ -17,6 +17,8 @@ struct UserPreferencesDto: Codable, Sendable {
     var showPurchased: Bool
     var shopAtStoreSortMode: String
     var itemsListSortMode: String
+    var startScreen: String
+    var focusSearchOnStart: Bool
     var updatedAt: Int64
 
     init(
@@ -25,6 +27,8 @@ struct UserPreferencesDto: Codable, Sendable {
         showPurchased: Bool = true,
         shopAtStoreSortMode: String = SortMode.category.rawValue,
         itemsListSortMode: String = SortMode.alphabetic.rawValue,
+        startScreen: String = StartScreen.shop.rawValue,
+        focusSearchOnStart: Bool = true,
         updatedAt: Int64 = 0
     ) {
         self.themeMode = themeMode
@@ -32,7 +36,32 @@ struct UserPreferencesDto: Codable, Sendable {
         self.showPurchased = showPurchased
         self.shopAtStoreSortMode = shopAtStoreSortMode
         self.itemsListSortMode = itemsListSortMode
+        self.startScreen = startScreen
+        self.focusSearchOnStart = focusSearchOnStart
         self.updatedAt = updatedAt
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case themeMode
+        case localeTag
+        case showPurchased
+        case shopAtStoreSortMode
+        case itemsListSortMode
+        case startScreen
+        case focusSearchOnStart
+        case updatedAt
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        themeMode = try container.decodeIfPresent(String.self, forKey: .themeMode) ?? ThemeMode.system.rawValue
+        localeTag = try container.decodeIfPresent(String.self, forKey: .localeTag) ?? ""
+        showPurchased = try container.decodeIfPresent(Bool.self, forKey: .showPurchased) ?? true
+        shopAtStoreSortMode = try container.decodeIfPresent(String.self, forKey: .shopAtStoreSortMode) ?? SortMode.category.rawValue
+        itemsListSortMode = try container.decodeIfPresent(String.self, forKey: .itemsListSortMode) ?? SortMode.alphabetic.rawValue
+        startScreen = try container.decodeIfPresent(String.self, forKey: .startScreen) ?? StartScreen.shop.rawValue
+        focusSearchOnStart = try container.decodeIfPresent(Bool.self, forKey: .focusSearchOnStart) ?? true
+        updatedAt = try container.decodeIfPresent(Int64.self, forKey: .updatedAt) ?? 0
     }
 }
 
@@ -45,7 +74,9 @@ extension UserPreferencesSnapshot {
             showPurchased: showPurchased,
             shopAtStoreSortMode: shopAtStoreSortMode.rawValue,
             itemsListSortMode: itemsListSortMode.rawValue,
-            updatedAt: updatedAt,
+            startScreen: startScreen.rawValue,
+            focusSearchOnStart: focusSearchOnStart,
+            updatedAt: updatedAt
         )
     }
 }
@@ -61,7 +92,9 @@ extension UserPreferencesDto {
             showPurchased: showPurchased,
             shopAtStoreSortMode: SortMode.fromName(shopAtStoreSortMode) ?? .category,
             itemsListSortMode: SortMode.fromName(itemsListSortMode) ?? .alphabetic,
-            updatedAt: updatedAt,
+            startScreen: StartScreen.fromName(startScreen) ?? .shop,
+            focusSearchOnStart: focusSearchOnStart,
+            updatedAt: updatedAt
         )
     }
 }

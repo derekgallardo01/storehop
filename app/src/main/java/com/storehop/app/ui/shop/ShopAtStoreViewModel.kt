@@ -12,6 +12,8 @@ import com.storehop.app.data.repository.ItemRepository
 import com.storehop.app.data.repository.ShoppingRepository
 import com.storehop.app.data.repository.StoreRepository
 import com.storehop.app.analytics.AnalyticsService
+import com.storehop.app.data.util.HouseholdSessionProvider
+import com.storehop.app.sync.PullCoordinator
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -83,10 +85,27 @@ class ShopAtStoreViewModel @Inject constructor(
     sessionTracker: ShoppingSessionTracker,
     storeRepository: StoreRepository,
     savedStateHandle: SavedStateHandle,
+    private val pullCoordinator: PullCoordinator? = null,
+    private val householdSession: HouseholdSessionProvider? = null,
 ) : ViewModel() {
 
     private val storeId: String = checkNotNull(savedStateHandle.get<String>("storeId")) {
         "ShopAtStore route requires a storeId arg"
+    }
+
+    private val _isRefreshing = MutableStateFlow(false)
+    val isRefreshing: StateFlow<Boolean> = _isRefreshing.asStateFlow()
+
+    fun refresh() {
+        val hid = householdSession?.currentHouseholdId() ?: return
+        viewModelScope.launch {
+            _isRefreshing.value = true
+            try {
+                pullCoordinator?.pullForHousehold(hid)
+            } finally {
+                _isRefreshing.value = false
+            }
+        }
     }
 
     /**

@@ -11,8 +11,8 @@ options:
 settings:
   base:
     SWIFT_VERSION: "5.10"
-    MARKETING_VERSION: "0.9.6"
-    CURRENT_PROJECT_VERSION: "57"
+    MARKETING_VERSION: "0.9.9"
+    CURRENT_PROJECT_VERSION: "58"
     DEVELOPMENT_TEAM: "9U3ZSABZG7"
     # Drives the CFBundleURLSchemes entry in Info.plist for Google
     # Sign-In's OAuth redirect. Value MUST match REVERSED_CLIENT_ID
@@ -132,6 +132,7 @@ targets:
       - path: Storehop/Resources/seed/store_categories.json
     settings:
       base:
+        GENERATE_INFOPLIST_FILE: YES
         PRODUCT_BUNDLE_IDENTIFIER: com.storehop.app.tests
         BUNDLE_LOADER: "$(TEST_HOST)"
         TEST_HOST: "$(BUILT_PRODUCTS_DIR)/Storehop.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Storehop"
@@ -147,6 +148,7 @@ targets:
       - path: StorehopUITests
     settings:
       base:
+        GENERATE_INFOPLIST_FILE: YES
         PRODUCT_BUNDLE_IDENTIFIER: com.storehop.app.uitests
         TEST_TARGET_NAME: Storehop
     dependencies:
