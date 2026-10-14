@@ -7,6 +7,19 @@ project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 For the high-level roadmap and earlier-than-0.5.0 history, see the
 "Roadmap" section in the [README](README.md).
 
+## [0.9.10] - 2026-10-14
+
+### Fixed
+
+- **Household-scoped Statistics**: Connected the Statistics screen to `HouseholdSessionProvider` so statistics (item totals, stores, categories) reflect household data dynamically on iOS.
+- **Multi-user Category & Aisle Management**: Bound `ManageCategoriesViewModel` and `EditAisleOrderViewModel` to live household observations, preventing stale cache bleed upon household invite acceptance or member switching.
+- **Store Rename Validation**: Surfaced localized inline errors for duplicate or blank store names matching Android.
+- **Test Suite Parity**: Resolved test-harness concurrency races and symbol ambiguities; 257 unit tests passing with zero failures.
+
+### Versions
+
+- iOS: `MARKETING_VERSION` 0.9.9 -> 0.9.10; `CURRENT_PROJECT_VERSION` 58 -> 59.
+
 ## [0.9.9] - 2026-10-04
 
 ### Fixed
