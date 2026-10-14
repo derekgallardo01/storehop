@@ -12,11 +12,11 @@ Keep these canonical details handy when submitting to directories or personalizi
 - **Tagline (Short)**: Add it once. Shop anywhere.
 - **One-Liner (≤ 80 chars)**: Per-store grocery lists with automatic cross-store check-off. Free & ad-free.
 - **Short Description (≤ 160 chars)**: Add items once and shop anywhere. StoreHop is a free, ad-free multi-store grocery list app with automatic cross-store check-off, aisle order, and sync.
-- **Landing Page (Canonical target for backlinks)**: `https://derekgallardo01.github.io/storehop/`
+- **Landing Page (Canonical target for backlinks)**: `https://www.storehop.app/`
 - **iOS App Store**: `https://apps.apple.com/us/app/storehop/id6771575122`
 - **Google Play Store**: `https://play.google.com/store/apps/details?id=com.storehop.app`
 - **GitHub Repository (Open Source)**: `https://github.com/derekgallardo01/storehop`
-- **Privacy Policy**: `https://derekgallardo01.github.io/storehop/docs/privacy-policy`
+- **Privacy Policy**: `https://www.storehop.app/docs/privacy-policy`
 - **Pricing**: Free to download and use (no ads, no account required, no subscription). Optional **$7.99 one-time lifetime upgrade** (*Storehop Premium*) unlocks creating household invites (invitees join free — inviter-pays model) and CSV export.
 - **Languages**: English, European Portuguese (`Português de Portugal`), Spanish, Italian.
 - **Core Differentiator ("The Multi-Store Cascade")**: Traditional grocery apps make you keep separate lists for Aldi, Costco, Trader Joe's, and Walmart. In StoreHop, you maintain **one master list**, tag each item to the stores where you buy it, and check it off once at whichever store you visit first — automatically clearing it from every other store's list.
@@ -25,7 +25,7 @@ Keep these canonical details handy when submitting to directories or personalizi
 
 ## 1. Prioritized Directory Submission Checklist
 
-Before cold outreach, lock in foundational Referring Domains (RDs) from software directories, open-source hubs, and app discovery platforms. Aim to link to `https://derekgallardo01.github.io/storehop/` as the primary website URL, and include the App Store / Google Play links in the platform fields.
+Before cold outreach, lock in foundational Referring Domains (RDs) from software directories, open-source hubs, and app discovery platforms. Aim to link to `https://www.storehop.app/` as the primary website URL, and include the App Store / Google Play links in the platform fields.
 
 ### Tier 1: High-Intent "Alternative & Comparison" Directories (Highest SEO Value)
 Users searching *"AnyList alternative"*, *"OurGroceries alternative"*, or *"grocery app without subscription"* land on these pages daily.
@@ -159,7 +159,7 @@ Dozens of high-ranking family, mom, and frugal blogs still link to grocery list 
 
 ### Workflow D: Ahrefs Site Audit & Real-Time Mention Alerts
 1. **Ahrefs Site Audit**:
-   - Add `https://derekgallardo01.github.io/storehop/` as a verified project in Ahrefs.
+   - Add `https://www.storehop.app/` as a verified project in Ahrefs.
    - Because `index.html`, `sitemap.xml`, `robots.txt`, OpenGraph tags, and `SoftwareApplication` JSON-LD are now unpacked at the root, run a fresh crawl to verify a **95–100 Health Score** with zero JS-bundler blockages.
 2. **Ahrefs Alerts (`Alerts` → `Mentions`)**:
    - Create a **Weekly Mention Alert** for:
@@ -205,7 +205,7 @@ A few things your readers might appreciate:
 - 100% ad-free, no account required, and no subscription (core app is free; optional household invite creation + CSV export is a one-time $7.99 lifetime unlock)
 
 Here's the overview and store links if you'd like to take a look for your next update:
-- Overview: https://derekgallardo01.github.io/storehop/
+- Overview: https://www.storehop.app/
 - iOS App Store: https://apps.apple.com/us/app/storehop/id6771575122
 - Google Play: https://play.google.com/store/apps/details?id=com.storehop.app
 
@@ -216,7 +216,7 @@ Thanks for putting together such a helpful guide!
 Best,
 Derek Gallardo
 Creator of StoreHop
-https://derekgallardo01.github.io/storehop/
+https://www.storehop.app/
 ```
 
 ---
@@ -247,7 +247,7 @@ I built a free app called StoreHop (iOS & Android) designed specifically around 
 It's free, has zero ads or sponsored coupons cluttering the screen, and doesn't require an account or subscription.
 
 If you ever update your [Article Title / grocery resources page], I'd love for you to check it out:
-https://derekgallardo01.github.io/storehop/
+https://www.storehop.app/
 (Also on the App Store and Google Play as "StoreHop".)
 
 Happy to answer any questions or unlock our household-sharing upgrade for free if you and your family want to try it on your next Aldi run!
@@ -283,7 +283,7 @@ I built StoreHop (available on iOS and Android) as a calm, privacy-first alterna
 - Open-source code on GitHub: https://github.com/derekgallardo01/storehop
 
 You can see how it works here:
-https://derekgallardo01.github.io/storehop/
+https://www.storehop.app/
 
 Thought this might be a great fit if you're updating [Article Title] or curating more pay-once, privacy-respecting tools.
 
@@ -311,7 +311,7 @@ I was reading your guide on [Article Title] ([URL of their article]) and noticed
 
 Just a quick heads-up in case you're updating the post for 2026: [Grocery iQ was shut down / Buy Me a Pie! was pulled from the stores / Cozi recently moved its core features behind the $39/yr Cozi Gold paywall], so readers clicking that section hit a dead end.
 
-If you're looking for an active, modern replacement to slot in, I built StoreHop (iOS & Android) — https://derekgallardo01.github.io/storehop/
+If you're looking for an active, modern replacement to slot in, I built StoreHop (iOS & Android) — https://www.storehop.app/
 
 It's a free, ad-free grocery list built for people who shop at multiple stores:
 - Tag an item to multiple stores once (e.g., Aldi, Walmart, Costco)
@@ -320,7 +320,7 @@ It's a free, ad-free grocery list built for people who shop at multiple stores:
 - Free to use with no ads and no monthly/annual subscription
 
 Here are the direct links if you decide to refresh the article:
-- Website: https://derekgallardo01.github.io/storehop/
+- Website: https://www.storehop.app/
 - iOS: https://apps.apple.com/us/app/storehop/id6771575122
 - Android: https://play.google.com/store/apps/details?id=com.storehop.app
 
@@ -356,7 +356,7 @@ I built a free iOS & Android app called StoreHop with that exact Portugal shoppi
 - Free, ad-free, and no account or subscription required
 
 If you ever update your Portugal grocery or essential-apps guide, I'd love for you to take a look:
-https://derekgallardo01.github.io/storehop/
+https://www.storehop.app/
 
 Muito obrigado, and keep up the great guides!
 
@@ -384,7 +384,7 @@ Desenvolvi a StoreHop (disponível para iOS e Android, totalmente em Português 
 - 100% gratuita para uso individual, sem anúncios, sem necessidade de criar conta e sem subscrições mensais.
 
 Deixo aqui a página oficial caso faça sentido referenciar numa próxima atualização do vosso artigo:
-- Site oficial: https://derekgallardo01.github.io/storehop/
+- Site oficial: https://www.storehop.app/
 - App Store (iOS): https://apps.apple.com/us/app/storehop/id6771575122
 - Google Play (Android): https://play.google.com/store/apps/details?id=com.storehop.app
 
@@ -421,7 +421,8 @@ To build Domain Rating steadily without burning out or triggering spam filters:
 
 1. **Week 1 (Foundation)**: Submit to the **Tier 1 & Tier 2 Directories** above (AlternativeTo, SaaSHub, Product Hunt, Uneed, GitHub Awesome PRs). This builds your initial pillow of clean referring domains.
 2. **Weeks 2–4 (Targeted Outreach)**:
-   - Export 20 targets/week from **Workflow A** (Competitor Backlinks) and **Workflow B** (Content Explorer Co-Citations).
+   - Start immediately with **[Move #3 Execution Pack: First 25 Verified Outreach Targets & Ready-to-Send Emails](outreach-targets-batch-1.md)** (`docs/outreach-targets-batch-1.md`).
+   - Export 20 additional targets/week from **Workflow A** (Competitor Backlinks) and **Workflow B** (Content Explorer Co-Citations).
    - Export 10 targets/week from **Workflow C** (Dead App Link Reclamation — highest conversion rate).
    - Send 5 personalized emails per day (Mon–Fri) using Templates 1–5.
 3. **Ongoing**: Let **Ahrefs Alerts** notify you of new *"best grocery list app"* articles as they publish, and reply within 48 hours while the author still has the post open in their CMS.
