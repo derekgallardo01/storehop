@@ -20,7 +20,8 @@ struct EditAisleOrderView: View {
                     scoRepository: container.storeCategoryOrderRepository,
                     storeRepository: container.storeRepository,
                     categoryRepository: container.categoryRepository,
-                    session: container.session
+                    session: container.session,
+                    householdSession: container.householdSession
                 )
             }
             viewModel?.bind()

@@ -11,21 +11,26 @@ final class ItemFormViewModelTests: XCTestCase {
         let undoEventBus: UndoEventBus
     }
 
-    private func makeSetup(itemId: String? = nil, uid: String = "u1") async throws -> Setup {
+    private func makeSetup(
+        itemId: String? = nil,
+        uid: String = "u1",
+        householdId: String? = nil
+    ) async throws -> Setup {
+        let hid = householdId ?? uid
         let db = try StorehopDatabase.inMemoryForTests()
         try db.seed(
             stores: [
-                TestFixtures.store(id: "s_lidl", name: "Lidl", userId: uid),
-                TestFixtures.store(id: "s_aldi", name: "Aldi", userId: uid),
+                TestFixtures.store(id: "s_lidl", name: "Lidl", userId: hid),
+                TestFixtures.store(id: "s_aldi", name: "Aldi", userId: hid),
             ],
             categories: [
-                TestFixtures.category(id: "c_dairy", name: "Dairy", userId: uid),
+                TestFixtures.category(id: "c_dairy", name: "Dairy", userId: hid),
             ]
         )
         let session = LocalOnlyUserSessionProvider(uid: uid)
         let clock = MutableClock(nowMs: 1_000)
         let writer = db.queue
-        let householdSession = LocalOnlyHouseholdSessionProvider(initialHouseholdId: uid)
+        let householdSession = LocalOnlyHouseholdSessionProvider(initialHouseholdId: hid)
         let itemRepo = ItemRepository(
             writer: writer,
             itemDao: ItemDao(writer: writer),
@@ -65,7 +70,8 @@ final class ItemFormViewModelTests: XCTestCase {
             storeRepository: storeRepo,
             imageUploader: NoOpImageUploader(),
             undoEventBus: undoBus,
-            session: session
+            session: session,
+            householdSession: householdSession
         )
         vm.bind()
         try await Task.sleep(nanoseconds: 50_000_000)
@@ -506,9 +512,15 @@ final class ItemFormViewModelTests: XCTestCase {
 
     /// A second VM bound to the same database in edit mode -- the only way to
     /// exercise the loaded-state guard, which is captured in `load()`.
-    private func makeEditViewModel(db: StorehopDatabase, itemId: String, uid: String = "u1") async throws -> ItemFormViewModel {
+    private func makeEditViewModel(
+        db: StorehopDatabase,
+        itemId: String,
+        uid: String = "u1",
+        householdId: String? = nil
+    ) async throws -> ItemFormViewModel {
+        let hid = householdId ?? uid
         let session = LocalOnlyUserSessionProvider(uid: uid)
-        let householdSession = LocalOnlyHouseholdSessionProvider(initialHouseholdId: uid)
+        let householdSession = LocalOnlyHouseholdSessionProvider(initialHouseholdId: hid)
         let clock = MutableClock(nowMs: 1_000)
         let writer = db.queue
         let vm = ItemFormViewModel(
@@ -531,10 +543,44 @@ final class ItemFormViewModelTests: XCTestCase {
             ),
             imageUploader: NoOpImageUploader(),
             undoEventBus: UndoEventBus(),
-            session: session
+            session: session,
+            householdSession: householdSession
         )
         vm.bind()
         try await waitForCondition(timeout: 1.0) { !vm.isLoading }
         return vm
+    }
+
+    func testSharedHouseholdLoadsCategoriesStoresAndItemSnapshot() async throws {
+        let s = try await makeSetup(uid: "u_member", householdId: "hid_shared")
+        try await waitForCondition {
+            s.viewModel.stores.count == 2 && s.viewModel.categories.count == 1
+        }
+        XCTAssertEqual(s.viewModel.stores.map(\.id).sorted(), ["s_aldi", "s_lidl"])
+        XCTAssertEqual(s.viewModel.categories.map(\.id), ["c_dairy"])
+
+        // Edit mode loads item snapshot scoped to hid_shared
+        s.viewModel.name = "Butter"
+        s.viewModel.categoryId = "c_dairy"
+        s.viewModel.toggleStore("s_lidl")
+        s.viewModel.submit()
+        try await waitForCondition { s.viewModel.saved }
+
+        let itemId = try await s.db.queue.read { conn in
+            try String.fetchOne(conn, sql: "SELECT id FROM items WHERE name = 'Butter'")!
+        }
+
+        let editVm = try await makeEditViewModel(
+            db: s.db,
+            itemId: itemId,
+            uid: "u_member",
+            householdId: "hid_shared"
+        )
+        XCTAssertEqual(editVm.name, "Butter")
+        XCTAssertEqual(editVm.categoryId, "c_dairy")
+        XCTAssertEqual(editVm.storeIds, ["s_lidl"])
+        try await waitForCondition {
+            editVm.stores.count == 2 && editVm.categories.count == 1
+        }
     }
 }

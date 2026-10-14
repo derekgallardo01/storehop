@@ -296,8 +296,8 @@ final class SettingsViewModel {
             switch result {
             case .success:
                 await self.pullStateRepo.set(.succeeded, for: uid)
-            case .failure:
-                await self.pullStateRepo.set(.failed, for: uid)
+            case .failure(let reason):
+                await self.pullStateRepo.set(.failed, for: uid, reason: reason)
             }
         }
     }

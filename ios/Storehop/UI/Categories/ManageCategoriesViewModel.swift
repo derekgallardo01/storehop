@@ -32,21 +32,38 @@ final class ManageCategoriesViewModel {
 
     private let categoryRepository: CategoryRepository
     private let session: any UserSessionProvider
+    private let householdSession: (any HouseholdSessionProvider)?
     private let binder = SessionBinder()
 
-    init(categoryRepository: CategoryRepository, session: any UserSessionProvider) {
+    init(
+        categoryRepository: CategoryRepository,
+        session: any UserSessionProvider,
+        householdSession: (any HouseholdSessionProvider)? = nil
+    ) {
         self.categoryRepository = categoryRepository
         self.session = session
+        self.householdSession = householdSession ?? (session as? any HouseholdSessionProvider)
     }
 
     func bind() {
-        binder.bind(
-            session: session,
-            emptyValue: [Category]()
-        ) { [categoryRepository] uid in
-            categoryRepository.observeAll(userId: uid, includeArchived: false)
-        } onValue: { [weak self] cats in
-            self?.categories = cats
+        if let householdSession {
+            binder.bind(
+                householdSession: householdSession,
+                emptyValue: [Category]()
+            ) { [categoryRepository] hid in
+                categoryRepository.observeAll(userId: hid, includeArchived: false)
+            } onValue: { [weak self] cats in
+                self?.categories = cats
+            }
+        } else {
+            binder.bind(
+                session: session,
+                emptyValue: [Category]()
+            ) { [categoryRepository] uid in
+                categoryRepository.observeAll(userId: uid, includeArchived: false)
+            } onValue: { [weak self] cats in
+                self?.categories = cats
+            }
         }
     }
 
@@ -72,6 +89,10 @@ final class ManageCategoriesViewModel {
         do {
             try await categoryRepository.rename(id: id, name: trimmed)
             return nil
+        } catch CategoryRepositoryError.emptyName {
+            return L("error_category_name_empty")
+        } catch CategoryRepositoryError.duplicateName(let n) {
+            return String(format: L("error_category_name_duplicate %@"), n)
         } catch {
             return L("error_could_not_rename_category")
         }

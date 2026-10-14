@@ -21,7 +21,8 @@ struct ManageCategoriesView: View {
             if viewModel == nil {
                 viewModel = ManageCategoriesViewModel(
                     categoryRepository: container.categoryRepository,
-                    session: container.session
+                    session: container.session,
+                    householdSession: container.householdSession
                 )
             }
             // Rebind on every appear: NavigationStack pushes cancel the

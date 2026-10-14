@@ -234,6 +234,10 @@ final class StorePickerViewModel {
         do {
             try await storeRepository.rename(id: id, name: trimmed)
             return nil
+        } catch StoreRepositoryError.emptyName {
+            return L("error_store_name_empty")
+        } catch StoreRepositoryError.duplicateName(let n) {
+            return String(format: L("error_store_name_duplicate %@"), n)
         } catch {
             return L("error_could_not_rename_store")
         }

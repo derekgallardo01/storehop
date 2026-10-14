@@ -60,6 +60,7 @@ final class SyncEngineTests: XCTestCase {
         await s.session.publish("u1")
         await s.pullStateRepo.set(.inProgress, for: "u1")
         await s.engine.start()
+        try await Task.sleep(nanoseconds: 100_000_000)
 
         // Flip the gate. Push job spins up and pushes the pending store.
         await s.pullStateRepo.set(.succeeded, for: "u1")

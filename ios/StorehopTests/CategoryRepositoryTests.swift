@@ -163,3 +163,103 @@ final class CategoryRepositoryTests: XCTestCase {
         XCTAssertEqual(cat?.name, "DAIRY")
     }
 }
+
+@MainActor
+final class ManageCategoriesViewModelTests: XCTestCase {
+
+    private struct Setup {
+        let db: StorehopDatabase
+        let viewModel: ManageCategoriesViewModel
+        let categoryRepository: CategoryRepository
+    }
+
+    private func makeSetup(
+        uid: String = "u1",
+        householdId: String? = nil,
+        categories: [Storehop.Category] = []
+    ) async throws -> Setup {
+        let hid = householdId ?? uid
+        let db = try StorehopDatabase.inMemoryForTests()
+        try db.seed(categories: categories)
+        let session = LocalOnlyUserSessionProvider(uid: uid)
+        let householdSession = LocalOnlyHouseholdSessionProvider(initialHouseholdId: hid)
+        let clock = MutableClock(nowMs: 1_000)
+        let writer = db.queue
+
+        let categoryRepo = CategoryRepository(
+            writer: writer,
+            categoryDao: CategoryDao(writer: writer),
+            itemDao: ItemDao(writer: writer),
+            scoDao: StoreCategoryOrderDao(writer: writer),
+            session: session,
+            householdSession: householdSession,
+            clock: clock,
+            ids: SequenceIdGenerator()
+        )
+
+        let vm = ManageCategoriesViewModel(
+            categoryRepository: categoryRepo,
+            session: session,
+            householdSession: householdSession
+        )
+        vm.bind()
+        try await Task.sleep(nanoseconds: 50_000_000)
+        return Setup(db: db, viewModel: vm, categoryRepository: categoryRepo)
+    }
+
+    func testSharedHouseholdLoadsCategories() async throws {
+        let s = try await makeSetup(
+            uid: "u_member",
+            householdId: "hid_shared",
+            categories: [
+                TestFixtures.category(id: "c_produce", name: "Produce", userId: "hid_shared"),
+                TestFixtures.category(id: "c_bakery", name: "Bakery", userId: "hid_shared"),
+            ]
+        )
+        try await waitForCondition { s.viewModel.categories.count == 2 }
+        XCTAssertEqual(s.viewModel.categories.map(\.name).sorted(), ["Bakery", "Produce"])
+    }
+
+    func testAddCategoryRejectsEmptyName() async throws {
+        let s = try await makeSetup()
+        let err = await s.viewModel.addCategory(name: "   ")
+        XCTAssertEqual(err, L("error_category_name_empty"))
+    }
+
+    func testAddCategoryRejectsDuplicateName() async throws {
+        let s = try await makeSetup(categories: [
+            TestFixtures.category(id: "c_dairy", name: "Dairy", userId: "u1"),
+        ])
+        let err = await s.viewModel.addCategory(name: "Dairy")
+        XCTAssertEqual(err, String(format: L("error_category_name_duplicate %@"), "Dairy"))
+    }
+
+    func testRenameCategoryRejectsEmptyName() async throws {
+        let s = try await makeSetup(categories: [
+            TestFixtures.category(id: "c_dairy", name: "Dairy", userId: "u1"),
+        ])
+        let err = await s.viewModel.renameCategory(id: "c_dairy", name: "   ")
+        XCTAssertEqual(err, L("error_category_name_empty"))
+    }
+
+    func testRenameCategoryRejectsDuplicateName() async throws {
+        let s = try await makeSetup(categories: [
+            TestFixtures.category(id: "c_dairy", name: "Dairy", userId: "u1"),
+            TestFixtures.category(id: "c_bakery", name: "Bakery", userId: "u1"),
+        ])
+        let err = await s.viewModel.renameCategory(id: "c_dairy", name: "Bakery")
+        XCTAssertEqual(err, String(format: L("error_category_name_duplicate %@"), "Bakery"))
+    }
+
+    func testRenameCategorySucceeds() async throws {
+        let s = try await makeSetup(categories: [
+            TestFixtures.category(id: "c_dairy", name: "Dairy", userId: "u1"),
+        ])
+        let err = await s.viewModel.renameCategory(id: "c_dairy", name: "Fresh Dairy")
+        XCTAssertNil(err)
+        try await waitForCondition {
+            s.viewModel.categories.first?.name == "Fresh Dairy"
+        }
+    }
+}
+

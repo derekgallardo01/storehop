@@ -33,6 +33,7 @@ struct StatisticsView: View {
                     storeRepository: container.storeRepository,
                     categoryRepository: container.categoryRepository,
                     session: container.session,
+                    householdSession: container.householdSession,
                     clock: container.clock
                 )
             }

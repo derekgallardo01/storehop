@@ -77,6 +77,7 @@ final class ItemFormViewModel {
     private let imageUploader: any ImageUploader
     private let undoEventBus: UndoEventBus
     private let session: any UserSessionProvider
+    private let householdSession: (any HouseholdSessionProvider)?
 
     private let categoriesBinder = SessionBinder()
     private let storesBinder = SessionBinder()
@@ -88,7 +89,8 @@ final class ItemFormViewModel {
         storeRepository: StoreRepository,
         imageUploader: any ImageUploader,
         undoEventBus: UndoEventBus,
-        session: any UserSessionProvider
+        session: any UserSessionProvider,
+        householdSession: (any HouseholdSessionProvider)? = nil
     ) {
         self.itemId = itemId
         self.itemRepository = itemRepository
@@ -97,35 +99,60 @@ final class ItemFormViewModel {
         self.imageUploader = imageUploader
         self.undoEventBus = undoEventBus
         self.session = session
+        self.householdSession = householdSession ?? (session as? any HouseholdSessionProvider)
         self.isLoading = itemId != nil
     }
 
     func bind() {
-        categoriesBinder.bind(
-            session: session,
-            emptyValue: [Category]()
-        ) { [categoryRepository] uid in
-            categoryRepository.observeAll(userId: uid, includeArchived: false)
-        } onValue: { [weak self] cats in
-            self?.categories = cats
-        }
-        storesBinder.bind(
-            session: session,
-            emptyValue: [Store]()
-        ) { [storeRepository] uid in
-            storeRepository.observeAll(userId: uid, includeArchived: false)
-        } onValue: { [weak self] stores in
-            self?.stores = stores
+        if let householdSession {
+            categoriesBinder.bind(
+                householdSession: householdSession,
+                emptyValue: [Category]()
+            ) { [categoryRepository] hid in
+                categoryRepository.observeAll(userId: hid, includeArchived: false)
+            } onValue: { [weak self] cats in
+                self?.categories = cats
+            }
+            storesBinder.bind(
+                householdSession: householdSession,
+                emptyValue: [Store]()
+            ) { [storeRepository] hid in
+                storeRepository.observeAll(userId: hid, includeArchived: false)
+            } onValue: { [weak self] stores in
+                self?.stores = stores
+            }
+        } else {
+            categoriesBinder.bind(
+                session: session,
+                emptyValue: [Category]()
+            ) { [categoryRepository] uid in
+                categoryRepository.observeAll(userId: uid, includeArchived: false)
+            } onValue: { [weak self] cats in
+                self?.categories = cats
+            }
+            storesBinder.bind(
+                session: session,
+                emptyValue: [Store]()
+            ) { [storeRepository] uid in
+                storeRepository.observeAll(userId: uid, includeArchived: false)
+            } onValue: { [weak self] stores in
+                self?.stores = stores
+            }
         }
 
         if let itemId {
             Task { @MainActor [weak self] in
                 guard let self else { return }
-                let uid = await session.currentUserId
-                guard let uid else { self.isLoading = false; return }
+                let scopeId: String?
+                if let householdSession = self.householdSession {
+                    scopeId = await householdSession.currentHouseholdId
+                } else {
+                    scopeId = await session.currentUserId
+                }
+                guard let scopeId else { self.isLoading = false; return }
                 // Snapshot read; the form only loads once and writes
                 // through updateItem on save.
-                let row = try? await self.itemRepository.fetchSnapshot(userId: uid, id: itemId)
+                let row = try? await self.itemRepository.fetchSnapshot(userId: scopeId, id: itemId)
                 if let row {
                     self.applyLoaded(row)
                 } else {

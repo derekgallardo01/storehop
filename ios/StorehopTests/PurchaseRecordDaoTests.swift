@@ -70,3 +70,125 @@ final class PurchaseRecordDaoTests: XCTestCase {
         XCTAssertEqual(live.first?.id, "p1")
     }
 }
+
+@MainActor
+final class StatisticsViewModelTests: XCTestCase {
+
+    private struct Setup {
+        let db: StorehopDatabase
+        let viewModel: StatisticsViewModel
+    }
+
+    private func makeSetup(
+        uid: String = "u1",
+        householdId: String? = nil,
+        stores: [Store] = [],
+        categories: [Storehop.Category] = [],
+        items: [Item] = []
+    ) async throws -> Setup {
+        let hid = householdId ?? uid
+        let db = try StorehopDatabase.inMemoryForTests()
+        try db.seed(
+            items: items,
+            stores: stores,
+            categories: categories
+        )
+        let session = LocalOnlyUserSessionProvider(uid: uid)
+        let householdSession = LocalOnlyHouseholdSessionProvider(initialHouseholdId: hid)
+        let clock = MutableClock(nowMs: 1_000_000_000)
+        let writer = db.queue
+
+        let storeDao = StoreDao(writer: writer)
+        let xrefDao = ItemStoreXrefDao(writer: writer)
+        let scoDao = StoreCategoryOrderDao(writer: writer)
+        let categoryDao = CategoryDao(writer: writer)
+        let itemDao = ItemDao(writer: writer)
+        let purchaseDao = PurchaseRecordDao(writer: writer)
+
+        let purchases = PurchaseHistoryRepository(
+            purchaseDao: purchaseDao,
+            session: session,
+            clock: clock
+        )
+        let storeRepo = StoreRepository(
+            writer: writer,
+            storeDao: storeDao,
+            xrefDao: xrefDao,
+            scoDao: scoDao,
+            session: session,
+            householdSession: householdSession,
+            clock: clock,
+            ids: SequenceIdGenerator()
+        )
+        let categoryRepo = CategoryRepository(
+            writer: writer,
+            categoryDao: categoryDao,
+            itemDao: itemDao,
+            scoDao: scoDao,
+            session: session,
+            householdSession: householdSession,
+            clock: clock,
+            ids: SequenceIdGenerator()
+        )
+        let itemRepo = ItemRepository(
+            writer: writer,
+            itemDao: itemDao,
+            xrefDao: xrefDao,
+            scoDao: scoDao,
+            purchaseDao: purchaseDao,
+            session: session,
+            householdSession: householdSession,
+            clock: clock,
+            ids: SequenceIdGenerator()
+        )
+
+        let vm = StatisticsViewModel(
+            purchases: purchases,
+            itemRepository: itemRepo,
+            storeRepository: storeRepo,
+            categoryRepository: categoryRepo,
+            session: session,
+            householdSession: householdSession,
+            clock: clock
+        )
+        vm.bind()
+        try await Task.sleep(nanoseconds: 50_000_000)
+        return Setup(db: db, viewModel: vm)
+    }
+
+    func testSharedHouseholdLoadsLibraryCountsFromHousehold() async throws {
+        let s = try await makeSetup(
+            uid: "u_member",
+            householdId: "hid_shared",
+            stores: [
+                TestFixtures.store(id: "s1", name: "Aldi", userId: "hid_shared"),
+            ],
+            categories: [
+                TestFixtures.category(id: "c1", name: "Dairy", userId: "hid_shared"),
+            ],
+            items: [
+                TestFixtures.item(id: "i1", name: "Milk", categoryId: "c1", userId: "hid_shared", isStaple: true, isPriority: true),
+                TestFixtures.item(id: "i2", name: "Cheese", categoryId: "c1", userId: "hid_shared", isStaple: false, isPriority: false),
+            ]
+        )
+
+        try await waitForCondition {
+            if case .ready(let data) = s.viewModel.state {
+                return data.totalItems == 2
+            }
+            return false
+        }
+
+        guard case .ready(let data) = s.viewModel.state else {
+            XCTFail("Expected .ready state")
+            return
+        }
+
+        XCTAssertEqual(data.totalItems, 2)
+        XCTAssertEqual(data.stapleItems, 1)
+        XCTAssertEqual(data.priorityItems, 1)
+        XCTAssertEqual(data.totalStores, 1)
+        XCTAssertEqual(data.totalCategories, 1)
+    }
+}
+

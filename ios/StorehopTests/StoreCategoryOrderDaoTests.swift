@@ -70,3 +70,104 @@ final class StoreCategoryOrderDaoTests: XCTestCase {
         XCTAssertEqual(live.map(\.categoryId), ["c2", "c3"], "c1 should be tombstoned, c3 inserted")
     }
 }
+
+@MainActor
+final class EditAisleOrderViewModelTests: XCTestCase {
+
+    private struct Setup {
+        let db: StorehopDatabase
+        let viewModel: EditAisleOrderViewModel
+        let scoRepository: StoreCategoryOrderRepository
+    }
+
+    private func makeSetup(
+        uid: String = "u1",
+        householdId: String? = nil,
+        storeId: String = "s_aldi"
+    ) async throws -> Setup {
+        let hid = householdId ?? uid
+        let db = try StorehopDatabase.inMemoryForTests()
+        try db.seed(
+            stores: [
+                TestFixtures.store(id: storeId, name: "Aldi", userId: hid),
+            ],
+            categories: [
+                TestFixtures.category(id: "c_produce", name: "Produce", userId: hid),
+                TestFixtures.category(id: "c_dairy", name: "Dairy", userId: hid),
+            ],
+            scoOrders: [
+                TestFixtures.sco(storeId: storeId, categoryId: "c_dairy", displayOrder: 0),
+                TestFixtures.sco(storeId: storeId, categoryId: "c_produce", displayOrder: 1),
+            ]
+        )
+        let session = LocalOnlyUserSessionProvider(uid: uid)
+        let householdSession = LocalOnlyHouseholdSessionProvider(initialHouseholdId: hid)
+        let clock = MutableClock(nowMs: 1_000)
+        let writer = db.queue
+
+        let storeDao = StoreDao(writer: writer)
+        let xrefDao = ItemStoreXrefDao(writer: writer)
+        let scoDao = StoreCategoryOrderDao(writer: writer)
+        let categoryDao = CategoryDao(writer: writer)
+        let itemDao = ItemDao(writer: writer)
+
+        let storeRepo = StoreRepository(
+            writer: writer,
+            storeDao: storeDao,
+            xrefDao: xrefDao,
+            scoDao: scoDao,
+            session: session,
+            householdSession: householdSession,
+            clock: clock,
+            ids: SequenceIdGenerator()
+        )
+        let categoryRepo = CategoryRepository(
+            writer: writer,
+            categoryDao: categoryDao,
+            itemDao: itemDao,
+            scoDao: scoDao,
+            session: session,
+            householdSession: householdSession,
+            clock: clock,
+            ids: SequenceIdGenerator()
+        )
+        let scoRepo = StoreCategoryOrderRepository(
+            scoDao: scoDao,
+            session: session,
+            householdSession: householdSession,
+            clock: clock
+        )
+
+        let vm = EditAisleOrderViewModel(
+            storeId: storeId,
+            scoRepository: scoRepo,
+            storeRepository: storeRepo,
+            categoryRepository: categoryRepo,
+            session: session,
+            householdSession: householdSession
+        )
+        vm.bind()
+        try await Task.sleep(nanoseconds: 50_000_000)
+        return Setup(db: db, viewModel: vm, scoRepository: scoRepo)
+    }
+
+    func testSharedHouseholdLoadsStoreAndOrderedCategories() async throws {
+        let s = try await makeSetup(uid: "u_member", householdId: "hid_shared")
+        try await waitForCondition {
+            s.viewModel.store != nil && s.viewModel.orderedCategories.count == 2
+        }
+        XCTAssertEqual(s.viewModel.store?.name, "Aldi")
+        XCTAssertEqual(s.viewModel.orderedCategories.map(\.id), ["c_dairy", "c_produce"])
+    }
+
+    func testCommitOrderUpdatesDisplayOrder() async throws {
+        let s = try await makeSetup()
+        try await waitForCondition { s.viewModel.orderedCategories.count == 2 }
+
+        s.viewModel.commitOrder(["c_produce", "c_dairy"])
+        try await waitForCondition {
+            s.viewModel.orderedCategories.map(\.id) == ["c_produce", "c_dairy"]
+        }
+    }
+}
+

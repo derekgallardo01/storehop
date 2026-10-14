@@ -28,7 +28,8 @@ struct ItemFormView: View {
                     storeRepository: container.storeRepository,
                     imageUploader: container.imageUploader,
                     undoEventBus: container.undoEventBus,
-                    session: container.session
+                    session: container.session,
+                    householdSession: container.householdSession
                 )
             }
             // Rebind on every appear; bind() is idempotent (cancels

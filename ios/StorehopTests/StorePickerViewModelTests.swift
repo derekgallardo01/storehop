@@ -174,4 +174,34 @@ final class StorePickerViewModelTests: XCTestCase {
         XCTAssertEqual(critical.byStore.map { Set($0.items) },
                        [["Advil"], ["Dog food", "Batteries"]])
     }
+
+    // MARK: - renameStore
+
+    func testRenameStoreRejectsEmptyName() async throws {
+        let s = try await makeSetup(stores: [
+            TestFixtures.store(id: "s_aldi", name: "Aldi"),
+        ])
+        let err = await s.viewModel.renameStore(id: "s_aldi", name: "   ")
+        XCTAssertEqual(err, L("error_store_name_empty"))
+    }
+
+    func testRenameStoreRejectsDuplicateName() async throws {
+        let s = try await makeSetup(stores: [
+            TestFixtures.store(id: "s_aldi", name: "Aldi"),
+            TestFixtures.store(id: "s_lidl", name: "Lidl"),
+        ])
+        let err = await s.viewModel.renameStore(id: "s_aldi", name: "Lidl")
+        XCTAssertEqual(err, String(format: L("error_store_name_duplicate %@"), "Lidl"))
+    }
+
+    func testRenameStoreSucceeds() async throws {
+        let s = try await makeSetup(stores: [
+            TestFixtures.store(id: "s_aldi", name: "Aldi"),
+        ])
+        let err = await s.viewModel.renameStore(id: "s_aldi", name: "Aldi Süd")
+        XCTAssertNil(err)
+        try await waitForCondition {
+            s.viewModel.rows.first?.store.name == "Aldi Süd"
+        }
+    }
 }

@@ -135,8 +135,10 @@ final class SettingsViewModelTests: XCTestCase {
         s.coordinator.pullResult = .failure(reason: "still down")
         s.viewModel.retryPull()
         try await waitForCondition(timeout: 1.0) {
-            s.viewModel.pullState == .failed
+            await s.pullStateRepo.lastFailureReason(for: "uid_alice") == "still down"
         }
+        let reason = await s.pullStateRepo.lastFailureReason(for: "uid_alice")
+        XCTAssertEqual(reason, "still down")
     }
 
     /// Mirrors Android `SettingsViewModelTest.retryPull invokes

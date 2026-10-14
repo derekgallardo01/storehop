@@ -44,6 +44,7 @@ final class StatisticsViewModel {
     private let storeRepository: StoreRepository
     private let categoryRepository: CategoryRepository
     private let session: any UserSessionProvider
+    private let householdSession: (any HouseholdSessionProvider)?
     private let totalBinder = SessionBinder()
     private let last30Binder = SessionBinder()
     private let last7Binder = SessionBinder()
@@ -62,6 +63,7 @@ final class StatisticsViewModel {
         storeRepository: StoreRepository,
         categoryRepository: CategoryRepository,
         session: any UserSessionProvider,
+        householdSession: (any HouseholdSessionProvider)? = nil,
         clock: any Clock
     ) {
         self.purchases = purchases
@@ -69,6 +71,7 @@ final class StatisticsViewModel {
         self.storeRepository = storeRepository
         self.categoryRepository = categoryRepository
         self.session = session
+        self.householdSession = householdSession ?? (session as? any HouseholdSessionProvider)
 
         let now = clock.nowMs()
         self.now = now
@@ -131,23 +134,44 @@ final class StatisticsViewModel {
             self?.byCategoryRaw = v
             self?.recomputeState()
         }
-        itemsBinder.bind(session: session, emptyValue: [ItemWithCategoryAndStores]()) { [itemRepository] uid in
-            itemRepository.observeAll(userId: uid)
-        } onValue: { [weak self] v in
-            self?.items = v
-            self?.recomputeState()
-        }
-        storesBinder.bind(session: session, emptyValue: [Store]()) { [storeRepository] uid in
-            storeRepository.observeAll(userId: uid, includeArchived: true)
-        } onValue: { [weak self] v in
-            self?.stores = v
-            self?.recomputeState()
-        }
-        categoriesBinder.bind(session: session, emptyValue: [Category]()) { [categoryRepository] uid in
-            categoryRepository.observeAll(userId: uid, includeArchived: true)
-        } onValue: { [weak self] v in
-            self?.categories = v
-            self?.recomputeState()
+        if let householdSession {
+            itemsBinder.bind(householdSession: householdSession, emptyValue: [ItemWithCategoryAndStores]()) { [itemRepository] hid in
+                itemRepository.observeAll(userId: hid)
+            } onValue: { [weak self] v in
+                self?.items = v
+                self?.recomputeState()
+            }
+            storesBinder.bind(householdSession: householdSession, emptyValue: [Store]()) { [storeRepository] hid in
+                storeRepository.observeAll(userId: hid, includeArchived: true)
+            } onValue: { [weak self] v in
+                self?.stores = v
+                self?.recomputeState()
+            }
+            categoriesBinder.bind(householdSession: householdSession, emptyValue: [Category]()) { [categoryRepository] hid in
+                categoryRepository.observeAll(userId: hid, includeArchived: true)
+            } onValue: { [weak self] v in
+                self?.categories = v
+                self?.recomputeState()
+            }
+        } else {
+            itemsBinder.bind(session: session, emptyValue: [ItemWithCategoryAndStores]()) { [itemRepository] uid in
+                itemRepository.observeAll(userId: uid)
+            } onValue: { [weak self] v in
+                self?.items = v
+                self?.recomputeState()
+            }
+            storesBinder.bind(session: session, emptyValue: [Store]()) { [storeRepository] uid in
+                storeRepository.observeAll(userId: uid, includeArchived: true)
+            } onValue: { [weak self] v in
+                self?.stores = v
+                self?.recomputeState()
+            }
+            categoriesBinder.bind(session: session, emptyValue: [Category]()) { [categoryRepository] uid in
+                categoryRepository.observeAll(userId: uid, includeArchived: true)
+            } onValue: { [weak self] v in
+                self?.categories = v
+                self?.recomputeState()
+            }
         }
     }
 
