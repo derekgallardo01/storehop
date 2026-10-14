@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+Disallow: /landing-design/
+Disallow: /storehop/landing-design/
+
+Sitemap: https://derekgallardo01.github.io/storehop/sitemap.xml
