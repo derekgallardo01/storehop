@@ -23,7 +23,7 @@ For the high-level roadmap and earlier-than-0.5.0 history, see the
 ### Versions
 
 - Android: `versionName` 0.9.9 -> 0.9.10; `versionCode` 82 -> 83.
-- iOS: `MARKETING_VERSION` 0.9.9 -> 0.9.10; `CURRENT_PROJECT_VERSION` 58 -> 59.
+- iOS: `MARKETING_VERSION` 0.9.9 -> 0.9.10; `CURRENT_PROJECT_VERSION` 58 -> 60.
 
 ## [0.9.9] - 2026-10-04
 
