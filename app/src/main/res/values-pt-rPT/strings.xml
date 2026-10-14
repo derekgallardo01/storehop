@@ -88,9 +88,13 @@
     <string name="action_clear_search">Limpar pesquisa</string>
     <string name="sort_alphabetic_cd">Mudar para ordem alfabética</string>
     <string name="sort_category_cd">Mudar para ordem por categoria</string>
+    <string name="action_show_selected_items">Mostrar apenas artigos necessários</string>
+    <string name="action_show_all_items">Mostrar todos os artigos</string>
     <string name="items_uncategorised_label">(sem categoria)</string>
     <string name="items_empty_no_query_title">Ainda sem artigos</string>
     <string name="items_empty_no_query_body">Toque em + para adicionar um artigo</string>
+    <string name="items_empty_selected_title">Nenhum artigo necessário de momento</string>
+    <string name="items_empty_selected_body">Toque no ícone de filtro acima para ver todos os artigos e adicionar alguns à sua lista</string>
     <string name="items_empty_search_title">Sem resultados</string>
     <string name="items_empty_search_body">Nada corresponde a \"%1$s\"</string>
     <string name="form_field_name">Nome</string>

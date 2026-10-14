@@ -44,10 +44,15 @@ class ItemsListViewModelTest {
     private val itemsFlow = MutableStateFlow<List<ItemWithCategoryAndStores>>(emptyList())
     private val neededIdsFlow = MutableStateFlow<Set<String>>(emptySet())
     private val sortModeFlow = MutableStateFlow(SortMode.ALPHABETIC)
+    private val showOnlyNeededFlow = MutableStateFlow(false)
     private val prefsRepo: UserPreferencesRepository = mockk {
         every { itemsListSortMode } returns sortModeFlow
         coEvery { setItemsListSortMode(any()) } answers {
             sortModeFlow.value = firstArg()
+        }
+        every { itemsListShowOnlyNeeded } returns showOnlyNeededFlow
+        coEvery { setItemsListShowOnlyNeeded(any()) } answers {
+            showOnlyNeededFlow.value = firstArg()
         }
     }
     private val storeRepo: StoreRepository = mockk {
@@ -381,6 +386,163 @@ class ItemsListViewModelTest {
             coVerify(exactly = 0) { itemRepo.bulkTagStoresForItems(any(), any()) }
             // Selection preserved on no-op so the user can pick stores again.
             assertThat(expectMostRecentItem().selectedItemIds).containsExactly("milk")
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    // ---- showOnlyNeeded filter (all stores needed filter) ----------------
+
+    @Test fun `setShowOnlyNeeded true filters rows to neededItemIds in alphabetic mode`() = runTest {
+        every { itemRepo.observeAll() } returns itemsFlow
+        itemsFlow.value = listOf(
+            row("milk", "Milk"),
+            row("eggs", "Eggs"),
+            row("bread", "Bread"),
+        )
+        neededIdsFlow.value = setOf("milk", "bread")
+
+        val vm = ItemsListViewModel(itemRepo, prefsRepo, mockk(relaxed = true), storeRepo, undoBus)
+        vm.uiState.test {
+            awaitItem()
+            advanceUntilIdle()
+            // Initially showOnlyNeeded is false -> all 3 items visible.
+            val initial = expectMostRecentItem()
+            assertThat(initial.showOnlyNeeded).isFalse()
+            assertThat(initial.rows.map { it.item.name })
+                .containsExactly("Bread", "Eggs", "Milk").inOrder()
+
+            // Enable filter -> only needed items visible, sorted alphabetically.
+            vm.setShowOnlyNeeded(true)
+            advanceUntilIdle()
+            val filtered = expectMostRecentItem()
+            assertThat(filtered.showOnlyNeeded).isTrue()
+            assertThat(filtered.rows.map { it.item.name })
+                .containsExactly("Bread", "Milk").inOrder()
+
+            // Disable filter -> full list restored.
+            vm.setShowOnlyNeeded(false)
+            advanceUntilIdle()
+            val restored = expectMostRecentItem()
+            assertThat(restored.showOnlyNeeded).isFalse()
+            assertThat(restored.rows.map { it.item.name })
+                .containsExactly("Bread", "Eggs", "Milk").inOrder()
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test fun `setShowOnlyNeeded true filters sections to neededItemIds in category mode`() = runTest {
+        every { itemRepo.observeAll() } returns itemsFlow
+        val produce = Category(
+            id = "cat_produce", name = "Produce", nameKey = "cat_produce",
+            icon = null, isArchived = false, isSeeded = true,
+            userId = "u", createdAt = 1L, updatedAt = 1L, deletedAt = null,
+        )
+        val dairy = Category(
+            id = "cat_dairy", name = "Dairy", nameKey = "cat_dairy",
+            icon = null, isArchived = false, isSeeded = true,
+            userId = "u", createdAt = 1L, updatedAt = 1L, deletedAt = null,
+        )
+        itemsFlow.value = listOf(
+            row("milk", "Milk", category = dairy),
+            row("apples", "Apples", category = produce),
+            row("eggs", "Eggs", category = dairy),
+            row("misc", "Mystery item", category = null),
+        )
+        // Only Milk (Dairy) is needed; Produce and uncategorised have no needed items.
+        neededIdsFlow.value = setOf("milk")
+
+        val vm = ItemsListViewModel(itemRepo, prefsRepo, mockk(relaxed = true), storeRepo, undoBus)
+        vm.setSortMode(SortMode.CATEGORY)
+        vm.setShowOnlyNeeded(true)
+
+        vm.uiState.test {
+            awaitItem()
+            advanceUntilIdle()
+            val state = expectMostRecentItem()
+            assertThat(state.sortMode).isEqualTo(SortMode.CATEGORY)
+            assertThat(state.showOnlyNeeded).isTrue()
+            assertThat(state.rows).isEmpty()
+            // Only Dairy section should appear, with only Milk inside.
+            assertThat(state.sections.map { it.categoryName }).containsExactly("Dairy")
+            assertThat(state.sections[0].rows.map { it.item.name }).containsExactly("Milk")
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test fun `setShowOnlyNeeded true combines with search query`() = runTest {
+        every { itemRepo.observeAll() } returns itemsFlow
+        itemsFlow.value = listOf(
+            row("whole_milk", "Whole Milk"),
+            row("oat_milk", "Oat Milk"),
+            row("eggs", "Eggs"),
+        )
+        neededIdsFlow.value = setOf("whole_milk", "eggs")
+
+        val vm = ItemsListViewModel(itemRepo, prefsRepo, mockk(relaxed = true), storeRepo, undoBus)
+        vm.setShowOnlyNeeded(true)
+        vm.setQuery("milk")
+
+        vm.uiState.test {
+            awaitItem()
+            advanceUntilIdle()
+            val state = expectMostRecentItem()
+            // Oat Milk matches query "milk" but is not needed; Eggs is needed
+            // but doesn't match "milk". Only Whole Milk satisfies both.
+            assertThat(state.rows.map { it.item.name }).containsExactly("Whole Milk")
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test fun `setShowOnlyNeeded true with empty neededItemIds returns empty list and updates when neededIds change`() = runTest {
+        every { itemRepo.observeAll() } returns itemsFlow
+        itemsFlow.value = listOf(row("milk", "Milk"), row("eggs", "Eggs"))
+        neededIdsFlow.value = emptySet()
+
+        val vm = ItemsListViewModel(itemRepo, prefsRepo, mockk(relaxed = true), storeRepo, undoBus)
+        vm.setShowOnlyNeeded(true)
+
+        vm.uiState.test {
+            awaitItem()
+            advanceUntilIdle()
+            assertThat(expectMostRecentItem().rows).isEmpty()
+
+            // When an item becomes needed, it immediately appears in the filtered list.
+            neededIdsFlow.value = setOf("eggs")
+            advanceUntilIdle()
+            assertThat(expectMostRecentItem().rows.map { it.item.name }).containsExactly("Eggs")
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test fun `setShowOnlyNeeded true prunes non-needed items from selectedItemIds`() = runTest {
+        every { itemRepo.observeAll() } returns itemsFlow
+        itemsFlow.value = listOf(row("milk", "Milk"), row("eggs", "Eggs"))
+        neededIdsFlow.value = setOf("milk")
+
+        val vm = ItemsListViewModel(itemRepo, prefsRepo, mockk(relaxed = true), storeRepo, undoBus)
+        vm.uiState.test {
+            awaitItem()
+            advanceUntilIdle()
+
+            // Select both needed ("milk") and non-needed ("eggs") while showOnlyNeeded is false.
+            vm.toggleSelection("milk")
+            vm.toggleSelection("eggs")
+            advanceUntilIdle()
+            assertThat(expectMostRecentItem().selectedItemIds).containsExactly("milk", "eggs")
+
+            // Enabling showOnlyNeeded prunes the hidden "eggs" from selection.
+            vm.setShowOnlyNeeded(true)
+            advanceUntilIdle()
+            val afterFilter = expectMostRecentItem()
+            assertThat(afterFilter.selectedItemIds).containsExactly("milk")
+            assertThat(afterFilter.isInSelectionMode).isTrue()
+
+            // If "milk" ceases to be needed while showOnlyNeeded is true, selection empties and exits selection mode.
+            neededIdsFlow.value = emptySet()
+            advanceUntilIdle()
+            val afterCleared = expectMostRecentItem()
+            assertThat(afterCleared.selectedItemIds).isEmpty()
+            assertThat(afterCleared.isInSelectionMode).isFalse()
             cancelAndIgnoreRemainingEvents()
         }
     }

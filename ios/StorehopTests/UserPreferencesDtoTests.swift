@@ -11,6 +11,7 @@ final class UserPreferencesDtoTests: XCTestCase {
         XCTAssertEqual(dto.showPurchased, true)
         XCTAssertEqual(dto.shopAtStoreSortMode, SortMode.category.rawValue)
         XCTAssertEqual(dto.itemsListSortMode, SortMode.alphabetic.rawValue)
+        XCTAssertEqual(dto.itemsListShowOnlyNeeded, false)
         XCTAssertEqual(dto.startScreen, StartScreen.shop.rawValue)
         XCTAssertEqual(dto.focusSearchOnStart, true)
         XCTAssertEqual(dto.updatedAt, 0)
@@ -33,6 +34,7 @@ final class UserPreferencesDtoTests: XCTestCase {
         XCTAssertEqual(dto.showPurchased, false)
         XCTAssertEqual(dto.shopAtStoreSortMode, "ALPHABETIC")
         XCTAssertEqual(dto.itemsListSortMode, "CATEGORY")
+        XCTAssertEqual(dto.itemsListShowOnlyNeeded, false)
         XCTAssertEqual(dto.startScreen, StartScreen.shop.rawValue)
         XCTAssertEqual(dto.focusSearchOnStart, true)
         XCTAssertEqual(dto.updatedAt, 123456789)
@@ -43,6 +45,7 @@ final class UserPreferencesDtoTests: XCTestCase {
         XCTAssertEqual(snapshot.showPurchased, false)
         XCTAssertEqual(snapshot.shopAtStoreSortMode, .alphabetic)
         XCTAssertEqual(snapshot.itemsListSortMode, .category)
+        XCTAssertEqual(snapshot.itemsListShowOnlyNeeded, false)
         XCTAssertEqual(snapshot.startScreen, .shop)
         XCTAssertEqual(snapshot.focusSearchOnStart, true)
         XCTAssertEqual(snapshot.updatedAt, 123456789)
@@ -55,11 +58,13 @@ final class UserPreferencesDtoTests: XCTestCase {
             showPurchased: true,
             shopAtStoreSortMode: .category,
             itemsListSortMode: .alphabetic,
+            itemsListShowOnlyNeeded: true,
             startScreen: .items,
             focusSearchOnStart: false,
             updatedAt: 999999
         )
         let dto = snap.toDto()
+        XCTAssertEqual(dto.itemsListShowOnlyNeeded, true)
         XCTAssertEqual(dto.startScreen, "ITEMS")
         XCTAssertEqual(dto.focusSearchOnStart, false)
 

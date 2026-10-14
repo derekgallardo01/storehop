@@ -24,6 +24,7 @@ import androidx.compose.material.icons.automirrored.filled.Sort
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Category
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Store
@@ -32,6 +33,7 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.Inventory2
 import androidx.compose.material.icons.outlined.SearchOff
 import androidx.compose.material3.DropdownMenu
@@ -41,6 +43,7 @@ import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconToggleButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -194,6 +197,24 @@ fun ItemsListScreen(
                                 ),
                             )
                         }
+                        // Toggle: show only needed/selected items across all stores
+                        // vs showing the entire master list. Mirrors the CheckCircle
+                        // toggle in ShopAtStoreScreen.
+                        IconToggleButton(
+                            checked = state.showOnlyNeeded,
+                            onCheckedChange = viewModel::setShowOnlyNeeded,
+                        ) {
+                            Icon(
+                                imageVector = if (state.showOnlyNeeded)
+                                    Icons.Filled.CheckCircle
+                                else Icons.Outlined.CheckCircle,
+                                contentDescription = stringResource(
+                                    if (state.showOnlyNeeded)
+                                        R.string.action_show_all_items
+                                    else R.string.action_show_selected_items,
+                                ),
+                            )
+                        }
                         IconButton(onClick = onOpenSettings) {
                             Icon(
                                 Icons.Filled.Settings,
@@ -276,11 +297,19 @@ fun ItemsListScreen(
                 if (isEmpty) {
                     val q = query.trim()
                     if (q.isEmpty()) {
-                        EmptyState(
-                            icon = Icons.Outlined.Inventory2,
-                            title = stringResource(R.string.items_empty_no_query_title),
-                            body = stringResource(R.string.items_empty_no_query_body),
-                        )
+                        if (state.showOnlyNeeded) {
+                            EmptyState(
+                                icon = Icons.Outlined.CheckCircle,
+                                title = stringResource(R.string.items_empty_selected_title),
+                                body = stringResource(R.string.items_empty_selected_body),
+                            )
+                        } else {
+                            EmptyState(
+                                icon = Icons.Outlined.Inventory2,
+                                title = stringResource(R.string.items_empty_no_query_title),
+                                body = stringResource(R.string.items_empty_no_query_body),
+                            )
+                        }
                     } else {
                         EmptyState(
                             icon = Icons.Outlined.SearchOff,

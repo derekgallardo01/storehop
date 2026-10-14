@@ -109,6 +109,15 @@ class UserPreferencesRepositoryTest {
         assertThat(repo.itemsListSortMode.first()).isEqualTo(SortMode.ALPHABETIC)
     }
 
+    @Test fun `itemsListShowOnlyNeeded defaults to false and round-trips`() = runTest {
+        val repo = newRepo(newStore())
+        assertThat(repo.itemsListShowOnlyNeeded.first()).isFalse()
+        repo.setItemsListShowOnlyNeeded(true)
+        assertThat(repo.itemsListShowOnlyNeeded.first()).isTrue()
+        repo.setItemsListShowOnlyNeeded(false)
+        assertThat(repo.itemsListShowOnlyNeeded.first()).isFalse()
+    }
+
     @Test fun `unknown SortMode value in storage falls back to the default`() = runTest {
         val store = newStore(initial = preferencesOf(
             androidx.datastore.preferences.core.stringPreferencesKey("shop_at_store_sort_mode") to "BANANA",
@@ -181,6 +190,9 @@ class UserPreferencesRepositoryTest {
         repo.setItemsListSortMode(SortMode.CATEGORY)
         assertThat(repo.currentSnapshot().updatedAt).isEqualTo(50_000L)
 
+        repo.setItemsListShowOnlyNeeded(true)
+        assertThat(repo.currentSnapshot().updatedAt).isEqualTo(50_000L)
+
         repo.setStartScreen(StartScreen.ITEMS)
         assertThat(repo.currentSnapshot().updatedAt).isEqualTo(50_000L)
 
@@ -195,6 +207,7 @@ class UserPreferencesRepositoryTest {
         repo.setShowPurchased(false)
         repo.setShopAtStoreSortMode(SortMode.ALPHABETIC)
         repo.setItemsListSortMode(SortMode.CATEGORY)
+        repo.setItemsListShowOnlyNeeded(true)
         repo.setStartScreen(StartScreen.ITEMS)
         repo.setFocusSearchOnStart(false)
 
@@ -204,6 +217,7 @@ class UserPreferencesRepositoryTest {
         assertThat(s.showPurchased).isFalse()
         assertThat(s.shopAtStoreSortMode).isEqualTo(SortMode.ALPHABETIC)
         assertThat(s.itemsListSortMode).isEqualTo(SortMode.CATEGORY)
+        assertThat(s.itemsListShowOnlyNeeded).isTrue()
         assertThat(s.startScreen).isEqualTo(StartScreen.ITEMS)
         assertThat(s.focusSearchOnStart).isFalse()
         assertThat(s.updatedAt).isEqualTo(50_000L)
@@ -218,6 +232,7 @@ class UserPreferencesRepositoryTest {
             showPurchased = false,
             shopAtStoreSortMode = SortMode.ALPHABETIC,
             itemsListSortMode = SortMode.CATEGORY,
+            itemsListShowOnlyNeeded = true,
             startScreen = StartScreen.ITEMS,
             focusSearchOnStart = false,
             updatedAt = 999_000L,

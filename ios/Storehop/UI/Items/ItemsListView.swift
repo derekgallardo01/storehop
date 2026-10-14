@@ -59,13 +59,23 @@ struct ItemsListView: View {
                     Section {
                         let trimmed = viewModel.query.trimmingCharacters(in: .whitespacesAndNewlines)
                         if trimmed.isEmpty {
-                            EmptyState(
-                                systemImage: "tray",
-                                title: L("items_empty_no_query_title"),
-                                message: L("items_empty_no_query_body")
-                            )
-                            .listRowBackground(Color.clear)
-                            .listRowInsets(EdgeInsets())
+                            if viewModel.showOnlyNeeded {
+                                EmptyState(
+                                    systemImage: "checkmark.circle",
+                                    title: L("items_empty_selected_title"),
+                                    message: L("items_empty_selected_body")
+                                )
+                                .listRowBackground(Color.clear)
+                                .listRowInsets(EdgeInsets())
+                            } else {
+                                EmptyState(
+                                    systemImage: "tray",
+                                    title: L("items_empty_no_query_title"),
+                                    message: L("items_empty_no_query_body")
+                                )
+                                .listRowBackground(Color.clear)
+                                .listRowInsets(EdgeInsets())
+                            }
                         } else {
                             EmptyState(
                                 systemImage: "magnifyingglass",
@@ -142,6 +152,18 @@ struct ItemsListView: View {
                         .accessibilityLabel(L(viewModel.sortMode == .alphabetic
                             ? "sort_category_cd"
                             : "sort_alphabetic_cd"))
+                    }
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button {
+                            viewModel.setShowOnlyNeeded(!viewModel.showOnlyNeeded)
+                        } label: {
+                            Image(systemName: viewModel.showOnlyNeeded
+                                  ? "checkmark.circle.fill"
+                                  : "checkmark.circle")
+                        }
+                        .accessibilityLabel(L(viewModel.showOnlyNeeded
+                            ? "action_show_all_items"
+                            : "action_show_selected_items"))
                     }
                     ToolbarItem(placement: .topBarTrailing) {
                         Menu {

@@ -53,6 +53,7 @@ struct UserPreferencesSnapshot: Equatable, Sendable {
     let showPurchased: Bool
     let shopAtStoreSortMode: SortMode
     let itemsListSortMode: SortMode
+    let itemsListShowOnlyNeeded: Bool
     let startScreen: StartScreen
     let focusSearchOnStart: Bool
     let updatedAt: Int64
@@ -63,6 +64,7 @@ struct UserPreferencesSnapshot: Equatable, Sendable {
         showPurchased: Bool,
         shopAtStoreSortMode: SortMode,
         itemsListSortMode: SortMode,
+        itemsListShowOnlyNeeded: Bool = false,
         startScreen: StartScreen = .shop,
         focusSearchOnStart: Bool = true,
         updatedAt: Int64
@@ -72,6 +74,7 @@ struct UserPreferencesSnapshot: Equatable, Sendable {
         self.showPurchased = showPurchased
         self.shopAtStoreSortMode = shopAtStoreSortMode
         self.itemsListSortMode = itemsListSortMode
+        self.itemsListShowOnlyNeeded = itemsListShowOnlyNeeded
         self.startScreen = startScreen
         self.focusSearchOnStart = focusSearchOnStart
         self.updatedAt = updatedAt
@@ -98,6 +101,10 @@ protocol UserPreferencesRepository: Sendable {
     /// preserves the historical flat-alphabetic layout.
     var itemsListSortMode: SortMode { get }
 
+    /// Whether the master Items list is filtered to show only items currently
+    /// needed at one or more stores (`neededItemIds`). Default is false.
+    var itemsListShowOnlyNeeded: Bool { get }
+
     /// Which screen appears on app launch. Default `.shop`.
     var startScreen: StartScreen { get }
 
@@ -119,6 +126,7 @@ protocol UserPreferencesRepository: Sendable {
     func setShowPurchased(_ value: Bool)
     func setShopAtStoreSortMode(_ mode: SortMode)
     func setItemsListSortMode(_ mode: SortMode)
+    func setItemsListShowOnlyNeeded(_ value: Bool)
     func setStartScreen(_ mode: StartScreen)
     func setFocusSearchOnStart(_ value: Bool)
 
@@ -135,6 +143,7 @@ protocol UserPreferencesRepository: Sendable {
     var showPurchasedStream: AsyncStream<Bool> { get }
     var shopAtStoreSortModeStream: AsyncStream<SortMode> { get }
     var itemsListSortModeStream: AsyncStream<SortMode> { get }
+    var itemsListShowOnlyNeededStream: AsyncStream<Bool> { get }
     var startScreenStream: AsyncStream<StartScreen> { get }
     var focusSearchOnStartStream: AsyncStream<Bool> { get }
 
@@ -178,6 +187,7 @@ final class LiveUserPreferencesRepository: UserPreferencesRepository, @unchecked
     private var showPurchasedContinuations: [UUID: AsyncStream<Bool>.Continuation] = [:]
     private var shopSortModeContinuations: [UUID: AsyncStream<SortMode>.Continuation] = [:]
     private var itemsSortModeContinuations: [UUID: AsyncStream<SortMode>.Continuation] = [:]
+    private var itemsShowOnlyNeededContinuations: [UUID: AsyncStream<Bool>.Continuation] = [:]
     private var startScreenContinuations: [UUID: AsyncStream<StartScreen>.Continuation] = [:]
     private var focusSearchOnStartContinuations: [UUID: AsyncStream<Bool>.Continuation] = [:]
     private var snapshotContinuations: [UUID: AsyncStream<UserPreferencesSnapshot>.Continuation] = [:]
@@ -190,6 +200,7 @@ final class LiveUserPreferencesRepository: UserPreferencesRepository, @unchecked
     private static let showPurchasedKey = "shop_show_purchased"
     private static let shopAtStoreSortModeKey = "shop_at_store_sort_mode"
     private static let itemsListSortModeKey = "items_list_sort_mode"
+    private static let itemsListShowOnlyNeededKey = "items_list_show_only_needed"
     private static let startScreenKey = "start_screen"
     private static let focusSearchOnStartKey = "focus_search_on_start"
     private static let updatedAtKey = "user_prefs_updated_at"
@@ -226,6 +237,10 @@ final class LiveUserPreferencesRepository: UserPreferencesRepository, @unchecked
         SortMode.fromName(defaults.string(forKey: Self.itemsListSortModeKey)) ?? .alphabetic
     }
 
+    var itemsListShowOnlyNeeded: Bool {
+        defaults.object(forKey: Self.itemsListShowOnlyNeededKey) as? Bool ?? false
+    }
+
     var startScreen: StartScreen {
         StartScreen.fromName(defaults.string(forKey: Self.startScreenKey)) ?? .shop
     }
@@ -247,6 +262,7 @@ final class LiveUserPreferencesRepository: UserPreferencesRepository, @unchecked
             showPurchased: showPurchased,
             shopAtStoreSortMode: shopAtStoreSortMode,
             itemsListSortMode: itemsListSortMode,
+            itemsListShowOnlyNeeded: itemsListShowOnlyNeeded,
             startScreen: startScreen,
             focusSearchOnStart: focusSearchOnStart,
             updatedAt: updatedAt
@@ -278,6 +294,13 @@ final class LiveUserPreferencesRepository: UserPreferencesRepository, @unchecked
         defaults.set(mode.rawValue, forKey: Self.itemsListSortModeKey)
         bumpUpdatedAt()
         broadcast(itemsListSortMode: mode)
+        broadcastSnapshot()
+    }
+
+    func setItemsListShowOnlyNeeded(_ value: Bool) {
+        defaults.set(value, forKey: Self.itemsListShowOnlyNeededKey)
+        bumpUpdatedAt()
+        broadcast(itemsListShowOnlyNeeded: value)
         broadcastSnapshot()
     }
 
@@ -356,6 +379,7 @@ final class LiveUserPreferencesRepository: UserPreferencesRepository, @unchecked
         defaults.set(s.showPurchased, forKey: Self.showPurchasedKey)
         defaults.set(s.shopAtStoreSortMode.rawValue, forKey: Self.shopAtStoreSortModeKey)
         defaults.set(s.itemsListSortMode.rawValue, forKey: Self.itemsListSortModeKey)
+        defaults.set(s.itemsListShowOnlyNeeded, forKey: Self.itemsListShowOnlyNeededKey)
         defaults.set(s.startScreen.rawValue, forKey: Self.startScreenKey)
         defaults.set(s.focusSearchOnStart, forKey: Self.focusSearchOnStartKey)
         defaults.set(NSNumber(value: s.updatedAt), forKey: Self.updatedAtKey)
@@ -364,6 +388,7 @@ final class LiveUserPreferencesRepository: UserPreferencesRepository, @unchecked
         broadcast(showPurchased: s.showPurchased)
         broadcast(shopAtStoreSortMode: s.shopAtStoreSortMode)
         broadcast(itemsListSortMode: s.itemsListSortMode)
+        broadcast(itemsListShowOnlyNeeded: s.itemsListShowOnlyNeeded)
         broadcast(startScreen: s.startScreen)
         broadcast(focusSearchOnStart: s.focusSearchOnStart)
         broadcastSnapshot()
@@ -453,6 +478,22 @@ final class LiveUserPreferencesRepository: UserPreferencesRepository, @unchecked
         }
     }
 
+    var itemsListShowOnlyNeededStream: AsyncStream<Bool> {
+        AsyncStream { continuation in
+            let id = UUID()
+            self.lock.lock()
+            self.itemsShowOnlyNeededContinuations[id] = continuation
+            let initial = self.itemsListShowOnlyNeeded
+            self.lock.unlock()
+            continuation.yield(initial)
+            continuation.onTermination = { @Sendable _ in
+                self.lock.lock()
+                self.itemsShowOnlyNeededContinuations[id] = nil
+                self.lock.unlock()
+            }
+        }
+    }
+
     var startScreenStream: AsyncStream<StartScreen> {
         AsyncStream { continuation in
             let id = UUID()
@@ -534,6 +575,13 @@ final class LiveUserPreferencesRepository: UserPreferencesRepository, @unchecked
         let conts = Array(itemsSortModeContinuations.values)
         lock.unlock()
         for c in conts { c.yield(itemsListSortMode) }
+    }
+
+    private func broadcast(itemsListShowOnlyNeeded: Bool) {
+        lock.lock()
+        let conts = Array(itemsShowOnlyNeededContinuations.values)
+        lock.unlock()
+        for c in conts { c.yield(itemsListShowOnlyNeeded) }
     }
 
     private func broadcast(startScreen: StartScreen) {

@@ -6185,6 +6185,42 @@
         "es": { "stringUnit": { "state": "translated", "value": "Introduce un color hex de 6 dígitos como #1565C0" } },
         "it": { "stringUnit": { "state": "translated", "value": "Inserisci un colore hex a 6 cifre come #1565C0" } }
       }
+    },
+    "action_show_selected_items": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Show only needed items" } },
+        "pt-PT": { "stringUnit": { "state": "translated", "value": "Mostrar apenas artigos necessários" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Mostrar solo artículos necesarios" } },
+        "it": { "stringUnit": { "state": "translated", "value": "Mostra solo articoli necessari" } }
+      }
+    },
+    "action_show_all_items": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Show all items" } },
+        "pt-PT": { "stringUnit": { "state": "translated", "value": "Mostrar todos os artigos" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Mostrar todos los artículos" } },
+        "it": { "stringUnit": { "state": "translated", "value": "Mostra tutti gli articoli" } }
+      }
+    },
+    "items_empty_selected_title": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Nothing needed right now" } },
+        "pt-PT": { "stringUnit": { "state": "translated", "value": "Nenhum artigo necessário de momento" } },
+        "es": { "stringUnit": { "state": "translated", "value": "No necesitas nada ahora mismo" } },
+        "it": { "stringUnit": { "state": "translated", "value": "Nessun articolo necessario al momento" } }
+      }
+    },
+    "items_empty_selected_body": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Tap the filter icon above to view all items and add some to your list" } },
+        "pt-PT": { "stringUnit": { "state": "translated", "value": "Toque no ícone de filtro acima para ver todos os artigos e adicionar alguns à sua lista" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Pulsa el icono de filtro arriba para ver todos los artículos y añadir algunos a tu lista" } },
+        "it": { "stringUnit": { "state": "translated", "value": "Tocca l'icona del filtro in alto per vedere tutti gli articoli e aggiungerne alla lista" } }
+      }
     }
   },
   "version": "1.0"

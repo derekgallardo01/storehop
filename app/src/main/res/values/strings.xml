@@ -85,9 +85,13 @@
     <string name="action_clear_search">Clear search</string>
     <string name="sort_alphabetic_cd">Switch to alphabetic sort</string>
     <string name="sort_category_cd">Switch to category sort</string>
+    <string name="action_show_selected_items">Show only needed items</string>
+    <string name="action_show_all_items">Show all items</string>
     <string name="items_uncategorised_label">(uncategorised)</string>
     <string name="items_empty_no_query_title">No items yet</string>
     <string name="items_empty_no_query_body">Tap + to add an item</string>
+    <string name="items_empty_selected_title">Nothing needed right now</string>
+    <string name="items_empty_selected_body">Tap the filter icon above to view all items and add some to your list</string>
     <string name="items_empty_search_title">No matches</string>
     <string name="items_empty_search_body">Nothing matches \"%1$s\"</string>
     <string name="form_field_name">Name</string>

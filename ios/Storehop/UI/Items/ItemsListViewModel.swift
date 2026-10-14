@@ -29,7 +29,9 @@ final class ItemsListViewModel {
     var sections: [ItemsCategorySection] = []
     /// v0.6.1: item ids that have at least one alive xref where
     /// `isNeeded = 1`. The Items list shows "−" for these, "+" otherwise.
-    var neededItemIds: Set<String> = []
+    var neededItemIds: Set<String> = [] {
+        didSet { refresh() }
+    }
     /// v0.8.1: live store list for the bulk-tag picker dialog. Populated by
     /// the same archived-excluded observation `ItemFormViewModel` uses.
     var stores: [Store] = []
@@ -46,6 +48,11 @@ final class ItemsListViewModel {
         didSet { refresh() }
     }
     var sortMode: SortMode = .alphabetic {
+        didSet { refresh() }
+    }
+    /// Whether the master list is filtered to only show items that are
+    /// currently needed at one or more stores (`neededItemIds`).
+    var showOnlyNeeded: Bool = false {
         didSet { refresh() }
     }
 
@@ -65,6 +72,7 @@ final class ItemsListViewModel {
     private let storesBinder = SessionBinder()
     private var undoListenerTask: Task<Void, Never>?
     private var sortPrefsTask: Task<Void, Never>?
+    private var showOnlyNeededPrefsTask: Task<Void, Never>?
 
     init(
         itemRepository: ItemRepository,
@@ -83,6 +91,7 @@ final class ItemsListViewModel {
         // Seed initial value synchronously so the first refresh() doesn't
         // race with the stream subscription below.
         self.sortMode = preferencesRepository.itemsListSortMode
+        self.showOnlyNeeded = preferencesRepository.itemsListShowOnlyNeeded
     }
 
     func bind() {
@@ -154,6 +163,11 @@ final class ItemsListViewModel {
                 self?.sortMode = value
             }
         }
+        showOnlyNeededPrefsTask = Task { @MainActor [weak self, preferencesRepository] in
+            for await value in preferencesRepository.itemsListShowOnlyNeededStream {
+                self?.showOnlyNeeded = value
+            }
+        }
     }
 
     func teardown() {
@@ -164,6 +178,8 @@ final class ItemsListViewModel {
         undoListenerTask = nil
         sortPrefsTask?.cancel()
         sortPrefsTask = nil
+        showOnlyNeededPrefsTask?.cancel()
+        showOnlyNeededPrefsTask = nil
     }
 
     /// v0.6.1: toggle the +/- button on the Items list. Maps to
@@ -187,6 +203,10 @@ final class ItemsListViewModel {
 
     func setSortMode(_ mode: SortMode) {
         preferencesRepository.setItemsListSortMode(mode)
+    }
+
+    func setShowOnlyNeeded(_ value: Bool) {
+        preferencesRepository.setItemsListShowOnlyNeeded(value)
     }
 
     // MARK: - v0.8.1 bulk-tag selection mode
@@ -232,12 +252,21 @@ final class ItemsListViewModel {
     }
 
     private func refresh() {
+        if showOnlyNeeded && !selectedItemIds.isEmpty {
+            let pruned = selectedItemIds.intersection(neededItemIds)
+            if pruned != selectedItemIds {
+                selectedItemIds = pruned
+            }
+        }
+        let neededFiltered = showOnlyNeeded
+            ? rawItems.filter { neededItemIds.contains($0.item.id) }
+            : rawItems
         let needle = query.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         let filtered: [ItemWithCategoryAndStores]
         if needle.isEmpty {
-            filtered = rawItems
+            filtered = neededFiltered
         } else {
-            filtered = rawItems.filter { row in
+            filtered = neededFiltered.filter { row in
                 row.item.name.lowercased().contains(needle) ||
                 (row.item.brand?.lowercased().contains(needle) == true) ||
                 // v0.6.2: also match against the category's raw name so

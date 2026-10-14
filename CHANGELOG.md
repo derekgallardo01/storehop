@@ -7,6 +7,17 @@ project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 For the high-level roadmap and earlier-than-0.5.0 history, see the
 "Roadmap" section in the [README](README.md).
 
+## [0.9.11] - 2026-10-14
+
+### Added
+
+- **Selected Items Filter on Items View**: Added a checkmark toggle in the Items screen top bar to filter the master list down to all items currently selected (needed) across any store, working across both Alphabetic and Category sort modes with cross-device preference sync.
+- **Custom Store Tile Colors**: Store tiles on the Shop screen can now be customized with 12 curated retail brand colors or any custom `#RRGGBB` hex code (when creating a store or via the store's **Store color** menu option), with automatic WCAG luminance-based light/dark text and icon contrast and cross-device cloud sync.
+
+### Versions
+
+- Android: `versionName` 0.9.10 -> 0.9.11; `versionCode` 83 -> 84.
+
 ## [0.9.10] - 2026-10-14
 
 ### Added

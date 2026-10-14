@@ -115,6 +115,21 @@ class UserPreferencesRepository @Inject constructor(
     }
 
     /**
+     * Whether the master Items list is filtered to show only items currently
+     * needed at one or more stores (`neededItemIds`). Default is false so the
+     * master list shows all items unless filtered.
+     */
+    val itemsListShowOnlyNeeded: Flow<Boolean> = dataStore.data
+        .map { prefs -> prefs[KEY_ITEMS_LIST_SHOW_ONLY_NEEDED] ?: false }
+
+    suspend fun setItemsListShowOnlyNeeded(value: Boolean) {
+        dataStore.edit {
+            it[KEY_ITEMS_LIST_SHOW_ONLY_NEEDED] = value
+            it[KEY_UPDATED_AT] = clock.millis()
+        }
+    }
+
+    /**
      * Which screen appears on app launch. Default [StartScreen.SHOP] preserves
      * historical behavior opening to the store picker.
      */
@@ -155,6 +170,7 @@ class UserPreferencesRepository @Inject constructor(
             showPurchased = prefs[KEY_SHOW_PURCHASED] ?: true,
             shopAtStoreSortMode = SortMode.fromName(prefs[KEY_SHOP_AT_STORE_SORT_MODE]) ?: SortMode.CATEGORY,
             itemsListSortMode = SortMode.fromName(prefs[KEY_ITEMS_LIST_SORT_MODE]) ?: SortMode.ALPHABETIC,
+            itemsListShowOnlyNeeded = prefs[KEY_ITEMS_LIST_SHOW_ONLY_NEEDED] ?: false,
             startScreen = StartScreen.fromName(prefs[KEY_START_SCREEN]) ?: StartScreen.SHOP,
             focusSearchOnStart = prefs[KEY_FOCUS_SEARCH_ON_START] ?: true,
             updatedAt = prefs[KEY_UPDATED_AT] ?: 0L,
@@ -175,6 +191,7 @@ class UserPreferencesRepository @Inject constructor(
             it[KEY_SHOW_PURCHASED] = s.showPurchased
             it[KEY_SHOP_AT_STORE_SORT_MODE] = s.shopAtStoreSortMode.name
             it[KEY_ITEMS_LIST_SORT_MODE] = s.itemsListSortMode.name
+            it[KEY_ITEMS_LIST_SHOW_ONLY_NEEDED] = s.itemsListShowOnlyNeeded
             it[KEY_START_SCREEN] = s.startScreen.name
             it[KEY_FOCUS_SEARCH_ON_START] = s.focusSearchOnStart
             it[KEY_UPDATED_AT] = s.updatedAt
@@ -227,6 +244,7 @@ class UserPreferencesRepository @Inject constructor(
         val KEY_SHOW_PURCHASED = booleanPreferencesKey("shop_show_purchased")
         val KEY_SHOP_AT_STORE_SORT_MODE = stringPreferencesKey("shop_at_store_sort_mode")
         val KEY_ITEMS_LIST_SORT_MODE = stringPreferencesKey("items_list_sort_mode")
+        val KEY_ITEMS_LIST_SHOW_ONLY_NEEDED = booleanPreferencesKey("items_list_show_only_needed")
         val KEY_START_SCREEN = stringPreferencesKey("start_screen")
         val KEY_FOCUS_SEARCH_ON_START = booleanPreferencesKey("focus_search_on_start")
         val KEY_UPDATED_AT = longPreferencesKey("user_prefs_updated_at")
@@ -255,6 +273,7 @@ data class UserPreferencesSnapshot(
     val showPurchased: Boolean,
     val shopAtStoreSortMode: SortMode,
     val itemsListSortMode: SortMode,
+    val itemsListShowOnlyNeeded: Boolean = false,
     val startScreen: StartScreen = StartScreen.SHOP,
     val focusSearchOnStart: Boolean = true,
     val updatedAt: Long,

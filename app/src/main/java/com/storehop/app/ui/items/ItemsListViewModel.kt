@@ -40,6 +40,11 @@ data class ItemsListUiState(
     val sections: List<ItemsCategorySection> = emptyList(),
     val sortMode: SortMode = SortMode.ALPHABETIC,
     /**
+     * Whether the master list is filtered to only show items that are
+     * currently needed at one or more stores (`neededItemIds`).
+     */
+    val showOnlyNeeded: Boolean = false,
+    /**
      * Item IDs that are currently "needed" at one or more tagged stores.
      * Drives the +/- toggle on each row: minus when in this set, plus
      * otherwise. Empty when the user is signed out or has no items needed.
@@ -121,13 +126,21 @@ class ItemsListViewModel @Inject constructor(
         combine(
             itemRepository.observeAll(),
             _query,
-            preferencesRepository.itemsListSortMode,
+            combine(
+                preferencesRepository.itemsListSortMode,
+                preferencesRepository.itemsListShowOnlyNeeded,
+            ) { sortMode, showOnlyNeeded -> sortMode to showOnlyNeeded },
             itemRepository.observeNeededItemIds(),
             _selectedItemIds,
-        ) { all, q, sortMode, neededIds, selected ->
+        ) { all, q, (sortMode, showOnlyNeeded), neededIds, selected ->
+            val neededFiltered = if (showOnlyNeeded) {
+                all.filter { it.item.id in neededIds }
+            } else {
+                all
+            }
             val needle = q.trim()
-            val filtered = if (needle.isEmpty()) all
-            else all.filter { row ->
+            val filtered = if (needle.isEmpty()) neededFiltered
+            else neededFiltered.filter { row ->
                 row.item.name.contains(needle, ignoreCase = true) ||
                     (row.item.brand?.contains(needle, ignoreCase = true) == true) ||
                     // v0.6.2: also match against the category's raw name so
@@ -141,6 +154,15 @@ class ItemsListViewModel @Inject constructor(
                     // user feedback indicates the gap.
                     (row.category?.name?.contains(needle, ignoreCase = true) == true)
             }
+            val visibleSelected = if (showOnlyNeeded) {
+                val pruned = selected.intersect(neededIds)
+                if (pruned.size != selected.size) {
+                    _selectedItemIds.value = pruned
+                }
+                pruned
+            } else {
+                selected
+            }
             ItemsListUiState(
                 rows = if (sortMode == SortMode.ALPHABETIC) {
                     filtered.sortedBy { it.item.name.lowercase() }
@@ -149,8 +171,9 @@ class ItemsListViewModel @Inject constructor(
                     filtered.groupIntoSections()
                 } else emptyList(),
                 sortMode = sortMode,
+                showOnlyNeeded = showOnlyNeeded,
                 neededItemIds = neededIds,
-                selectedItemIds = selected,
+                selectedItemIds = visibleSelected,
             )
         }.stateIn(
             scope = viewModelScope,
@@ -171,6 +194,10 @@ class ItemsListViewModel @Inject constructor(
 
     fun setSortMode(mode: SortMode) {
         viewModelScope.launch { preferencesRepository.setItemsListSortMode(mode) }
+    }
+
+    fun setShowOnlyNeeded(value: Boolean) {
+        viewModelScope.launch { preferencesRepository.setItemsListShowOnlyNeeded(value) }
     }
 
     /**
