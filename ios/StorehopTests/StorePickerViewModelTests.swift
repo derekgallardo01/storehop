@@ -204,4 +204,33 @@ final class StorePickerViewModelTests: XCTestCase {
             s.viewModel.rows.first?.store.name == "Aldi Süd"
         }
     }
+
+    // MARK: - Store tile custom color
+
+    func testSetColorUpdatesAndClearsStoreRow() async throws {
+        let s = try await makeSetup(stores: [
+            TestFixtures.store(id: "s_lidl", name: "Lidl"),
+        ])
+        let blue = Int64(Int32(bitPattern: 0xFF1565C0))
+        await s.viewModel.setColor(id: "s_lidl", colorArgb: blue)
+        try await waitForCondition {
+            s.viewModel.rows.first?.store.colorArgb == blue
+        }
+
+        await s.viewModel.setColor(id: "s_lidl", colorArgb: nil)
+        try await waitForCondition {
+            s.viewModel.rows.first?.store.colorArgb == nil
+        }
+    }
+
+    func testStoreColorPaletteHexAndLuminance() {
+        XCTAssertEqual(StoreColorPalette.palette.count, 12)
+        for color in StoreColorPalette.palette {
+            let hex = StoreColorPalette.formatHex(color)
+            XCTAssertEqual(StoreColorPalette.parseHex(hex), color)
+        }
+        XCTAssertNil(StoreColorPalette.parseHex("invalid"))
+        XCTAssertFalse(StoreColorPalette.isLight(Int64(Int32(bitPattern: 0xFF1565C0))))
+        XCTAssertTrue(StoreColorPalette.isLight(Int64(Int32(bitPattern: 0xFFF9A825))))
+    }
 }

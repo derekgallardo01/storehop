@@ -287,6 +287,26 @@ class StorePickerViewModelTest {
         coVerify(exactly = 1) { storeRepo.undoSoftDelete("store_x") }
     }
 
+    @Test fun `addStore forwards custom colorArgb to the repo`() = runTest {
+        coEvery {
+            storeRepo.addStore(name = "Lidl", colorArgb = 0xFF1565C0.toInt(), isOneOff = false)
+        } returns "id"
+        val vm = newVm()
+        assertThat(vm.addStore("Lidl", isOneOff = false, colorArgb = 0xFF1565C0.toInt())).isNull()
+        coVerify(exactly = 1) {
+            storeRepo.addStore(name = "Lidl", colorArgb = 0xFF1565C0.toInt(), isOneOff = false)
+        }
+    }
+
+    @Test fun `setStoreColor forwards custom color and null reset to the repo`() = runTest {
+        val vm = newVm()
+        vm.setStoreColor("store_lidl", 0xFF1565C0.toInt())
+        vm.setStoreColor("store_lidl", null)
+        advanceUntilIdle()
+        coVerify(exactly = 1) { storeRepo.setColor("store_lidl", 0xFF1565C0.toInt()) }
+        coVerify(exactly = 1) { storeRepo.setColor("store_lidl", null) }
+    }
+
     private fun pickerRow(
         storeId: String,
         critical: List<String>,

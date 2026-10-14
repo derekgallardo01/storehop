@@ -9,6 +9,10 @@ For the high-level roadmap and earlier-than-0.5.0 history, see the
 
 ## [0.9.10] - 2026-10-14
 
+### Added
+
+- **Custom Store Tile Colors**: Store tiles on the Shop screen can now be customized with 12 curated retail brand colors or any custom `#RRGGBB` hex code (when creating a store or via the store's **Store color** menu option), with automatic WCAG luminance-based light/dark text and icon contrast and cross-device cloud sync.
+
 ### Fixed
 
 - **Household-scoped Statistics**: Connected the Statistics screen to `HouseholdSessionProvider` so statistics (item totals, stores, categories) reflect household data dynamically on iOS.
@@ -18,6 +22,7 @@ For the high-level roadmap and earlier-than-0.5.0 history, see the
 
 ### Versions
 
+- Android: `versionName` 0.9.9 -> 0.9.10; `versionCode` 82 -> 83.
 - iOS: `MARKETING_VERSION` 0.9.9 -> 0.9.10; `CURRENT_PROJECT_VERSION` 58 -> 59.
 
 ## [0.9.9] - 2026-10-04

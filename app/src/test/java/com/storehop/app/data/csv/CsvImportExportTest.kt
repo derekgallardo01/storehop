@@ -199,7 +199,7 @@ class CsvImportExportTest {
 
     @Test fun `sam schultz sample with quotes and bom parses cleanly`() {
         val input = """
-            \uFEFFname,stores
+            ${'\uFEFF'}name,stores
             acetaminophen Equate Arthritis 650mg extended release,"newstore"
             Afta Pre-Electric Shave,"newstore"
             Air Filter 16 X 20 X 1 apartment micro particle,"newstore"

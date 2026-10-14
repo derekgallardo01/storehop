@@ -152,7 +152,11 @@ class StorePickerViewModel @Inject constructor(
      * Successful adds append to the bottom of the picker via the repo's
      * `nextDisplayOrder` allocation; the user can drag from there.
      */
-    suspend fun addStore(name: String, isOneOff: Boolean = false): String? {
+    suspend fun addStore(
+        name: String,
+        isOneOff: Boolean = false,
+        colorArgb: Int? = null,
+    ): String? {
         val trimmed = name.trim()
         // Validate locally before the repo so we can return localized strings
         // (the repo throws English messages for log diagnostics; we map
@@ -160,7 +164,7 @@ class StorePickerViewModel @Inject constructor(
         // IllegalArgumentException the empty-pre-check leaves on the table).
         if (trimmed.isEmpty()) return appContext.getString(R.string.error_store_name_empty)
         return try {
-            storeRepository.addStore(name = trimmed, isOneOff = isOneOff)
+            storeRepository.addStore(name = trimmed, colorArgb = colorArgb, isOneOff = isOneOff)
             analytics.storeAdded(isOneOff)
             null
         } catch (e: IllegalArgumentException) {
@@ -178,6 +182,16 @@ class StorePickerViewModel @Inject constructor(
     fun setStoreOneOff(id: String, isOneOff: Boolean) {
         viewModelScope.launch {
             storeRepository.setOneOff(id, isOneOff)
+        }
+    }
+
+    /**
+     * Set or clear (`null`) a store's custom background color on the Store
+     * Picker. Idempotent; the repo skips the write if the value is unchanged.
+     */
+    fun setStoreColor(id: String, colorArgb: Int?) {
+        viewModelScope.launch {
+            storeRepository.setColor(id, colorArgb)
         }
     }
 

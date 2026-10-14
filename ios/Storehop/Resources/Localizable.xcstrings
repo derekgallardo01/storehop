@@ -6131,6 +6131,60 @@
         "es": { "stringUnit": { "state": "translated", "value": "Ocultar detalles" } },
         "it": { "stringUnit": { "state": "translated", "value": "Nascondi dettagli" } }
       }
+    },
+    "action_store_color": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Store color" } },
+        "pt-PT": { "stringUnit": { "state": "translated", "value": "Cor da loja" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Color de la tienda" } },
+        "it": { "stringUnit": { "state": "translated", "value": "Colore del negozio" } }
+      }
+    },
+    "store_color_dialog_title %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Color for %@" } },
+        "pt-PT": { "stringUnit": { "state": "translated", "value": "Cor para %@" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Color para %@" } },
+        "it": { "stringUnit": { "state": "translated", "value": "Colore per %@" } }
+      }
+    },
+    "store_color_label": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Tile color" } },
+        "pt-PT": { "stringUnit": { "state": "translated", "value": "Cor do cartão" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Color de la tarjeta" } },
+        "it": { "stringUnit": { "state": "translated", "value": "Colore del riquadro" } }
+      }
+    },
+    "store_color_default": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Default" } },
+        "pt-PT": { "stringUnit": { "state": "translated", "value": "Predefinido" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Predeterminado" } },
+        "it": { "stringUnit": { "state": "translated", "value": "Predefinito" } }
+      }
+    },
+    "store_color_custom_hex_label": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Custom hex (#RRGGBB)" } },
+        "pt-PT": { "stringUnit": { "state": "translated", "value": "Hex personalizado (#RRGGBB)" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Hex personalizado (#RRGGBB)" } },
+        "it": { "stringUnit": { "state": "translated", "value": "Hex personalizzato (#RRGGBB)" } }
+      }
+    },
+    "store_color_error_invalid_hex": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Enter a 6-digit hex color like #1565C0" } },
+        "pt-PT": { "stringUnit": { "state": "translated", "value": "Introduza uma cor hex de 6 dígitos como #1565C0" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Introduce un color hex de 6 dígitos como #1565C0" } },
+        "it": { "stringUnit": { "state": "translated", "value": "Inserisci un colore hex a 6 cifre come #1565C0" } }
+      }
     }
   },
   "version": "1.0"

@@ -2,9 +2,13 @@ package com.storehop.app.ui.shop
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -22,6 +26,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckBox
 import androidx.compose.material.icons.filled.CheckBoxOutlineBlank
 import androidx.compose.material.icons.filled.Delete
@@ -30,6 +35,7 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Today
 import androidx.compose.material.icons.filled.Warning
@@ -68,8 +74,12 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -119,9 +129,10 @@ fun StorePickerScreen(
     }
 
     var showAddDialog by remember { mutableStateOf(false) }
-    // Pending Rename / Delete actions. We keep the entire StorePickerRow so
-    // dialogs can show the current name without re-fetching.
+    // Pending Rename / Color / Delete actions. We keep the entire StorePickerRow so
+    // dialogs can show the current name/color without re-fetching.
     var pendingRename by remember { mutableStateOf<StorePickerRow?>(null) }
+    var pendingColor by remember { mutableStateOf<StorePickerRow?>(null) }
     var pendingDelete by remember { mutableStateOf<StorePickerRow?>(null) }
 
     val haptics = LocalHapticFeedback.current
@@ -178,6 +189,7 @@ fun StorePickerScreen(
                             isDragging = dragging,
                             onClick = { onPickStore(row.store.id) },
                             onRename = { pendingRename = row },
+                            onChangeColor = { pendingColor = row },
                             onDelete = { pendingDelete = row },
                             onEditAisles = { onEditAisles(row.store.id) },
                             onToggleOneOff = {
@@ -208,7 +220,9 @@ fun StorePickerScreen(
     if (showAddDialog) {
         AddStoreDialog(
             onDismiss = { showAddDialog = false },
-            onAdd = { name, isOneOff -> viewModel.addStore(name, isOneOff) },
+            onAdd = { name, isOneOff, colorArgb ->
+                viewModel.addStore(name, isOneOff = isOneOff, colorArgb = colorArgb)
+            },
         )
     }
     pendingRename?.let { row ->
@@ -216,6 +230,17 @@ fun StorePickerScreen(
             currentName = row.store.name,
             onDismiss = { pendingRename = null },
             onRename = { newName -> viewModel.renameStore(row.store.id, newName) },
+        )
+    }
+    pendingColor?.let { row ->
+        StoreColorDialog(
+            storeName = row.store.name,
+            currentColorArgb = row.store.colorArgb,
+            onDismiss = { pendingColor = null },
+            onSave = { newColorArgb ->
+                viewModel.setStoreColor(row.store.id, newColorArgb)
+                pendingColor = null
+            },
         )
     }
     pendingDelete?.let { row ->
@@ -244,24 +269,23 @@ fun StorePickerScreen(
 }
 
 @Composable
-private fun AddStoreDialog(
+internal fun AddStoreDialog(
     onDismiss: () -> Unit,
-    onAdd: suspend (String, Boolean) -> String?,
+    onAdd: suspend (String, Boolean, Int?) -> String?,
 ) {
     var name by remember { mutableStateOf("") }
     var isOneOff by remember { mutableStateOf(false) }
+    var selectedColorArgb by remember { mutableStateOf<Int?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
     var saving by remember { mutableStateOf(false) }
     val focusRequester = remember { FocusRequester() }
     val scope = rememberCoroutineScope()
 
-    LaunchedEffect(Unit) { focusRequester.requestFocus() }
-
     val submit = {
         if (name.isNotBlank() && !saving) {
             saving = true
             scope.launch {
-                val result = onAdd(name, isOneOff)
+                val result = onAdd(name, isOneOff, selectedColorArgb)
                 saving = false
                 if (result == null) onDismiss()
                 else error = result
@@ -273,6 +297,7 @@ private fun AddStoreDialog(
         onDismissRequest = { if (!saving) onDismiss() },
         title = { Text(stringResource(R.string.add_store_dialog_title)) },
         text = {
+            LaunchedEffect(Unit) { focusRequester.requestFocus() }
             Column {
                 OutlinedTextField(
                     value = name,
@@ -287,6 +312,17 @@ private fun AddStoreDialog(
                     isError = error != null,
                     supportingText = error?.let { { Text(it) } },
                     modifier = Modifier.focusRequester(focusRequester),
+                )
+                Spacer(Modifier.height(16.dp))
+                Text(
+                    text = stringResource(R.string.store_color_label),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(Modifier.height(8.dp))
+                StoreColorSwatchPicker(
+                    selectedColorArgb = selectedColorArgb,
+                    onSelectColor = { selectedColorArgb = it },
                 )
                 Spacer(Modifier.height(16.dp))
                 // v0.9: one-off store toggle. Items tagged only to a one-
@@ -526,17 +562,20 @@ private fun CriticalNeedsBanner(state: CriticalBannerState, onPickStore: (String
 }
 
 @Composable
-private fun StorePickerCard(
+internal fun StorePickerCard(
     row: StorePickerRow,
     isDragging: Boolean,
     onClick: () -> Unit,
     onRename: () -> Unit,
+    onChangeColor: () -> Unit,
     onDelete: () -> Unit,
     onEditAisles: () -> Unit,
     onToggleOneOff: () -> Unit,
-    dragHandleModifier: Modifier,
+    dragHandleModifier: Modifier = Modifier,
 ) {
     var menuOpen by remember { mutableStateOf(false) }
+    val customTileColor = row.store.colorArgb?.let { storeColorIntToComposeColor(it) }
+    val customContentColor = row.store.colorArgb?.let { storeTileContentColor(it) }
 
     Card(
         modifier = Modifier
@@ -549,6 +588,14 @@ private fun StorePickerCard(
             .then(dragHandleModifier)
             .clickable(onClick = onClick),
         shape = RoundedCornerShape(12.dp),
+        colors = if (customTileColor != null && customContentColor != null) {
+            CardDefaults.cardColors(
+                containerColor = customTileColor,
+                contentColor = customContentColor,
+            )
+        } else {
+            CardDefaults.cardColors()
+        },
         // Lift the row visually while the user is dragging it.
         elevation = CardDefaults.cardElevation(
             defaultElevation = if (isDragging) 8.dp else 1.dp,
@@ -558,13 +605,14 @@ private fun StorePickerCard(
             modifier = Modifier.fillMaxWidth().padding(start = 16.dp, top = 16.dp, bottom = 16.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            // Store color dot.
+            // Store initial badge. Uses a subtle contrasting overlay when the
+            // tile itself has a custom brand background color.
             Box(
                 modifier = Modifier
                     .size(36.dp)
                     .clip(CircleShape)
                     .background(
-                        row.store.colorArgb?.let { Color(it.toLong() or 0xFF000000) }
+                        customContentColor?.copy(alpha = 0.18f)
                             ?: MaterialTheme.colorScheme.secondaryContainer,
                     ),
                 contentAlignment = Alignment.Center,
@@ -572,7 +620,7 @@ private fun StorePickerCard(
                 Text(
                     text = row.store.name.firstOrNull()?.uppercaseChar()?.toString() ?: "?",
                     style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onSecondaryContainer,
+                    color = customContentColor ?: MaterialTheme.colorScheme.onSecondaryContainer,
                     fontWeight = FontWeight.Bold,
                 )
             }
@@ -582,6 +630,7 @@ private fun StorePickerCard(
                     text = row.store.name,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Medium,
+                    color = customContentColor ?: Color.Unspecified,
                 )
                 val (subtitle, subtitleColor) = when {
                     row.neededCount > 0 -> {
@@ -590,16 +639,17 @@ private fun StorePickerCard(
                             row.neededCount,
                             row.neededCount,
                         )
-                        s to MaterialTheme.colorScheme.onSurfaceVariant
+                        s to (customContentColor?.copy(alpha = 0.85f) ?: MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                     // Trip-affirmation case: this store had things to grab and
                     // they've all been grabbed (here or at another store this
-                    // item was tagged to). Sage primary so the user can scan
-                    // the picker and see at a glance which stops are done.
+                    // item was tagged to). Sage primary (or crisp tile contrast
+                    // color) so the user can scan the picker and see at a glance
+                    // which stops are done.
                     row.pickedUpInSessionCount > 0 ->
-                        stringResource(R.string.store_all_set) to MaterialTheme.colorScheme.primary
+                        stringResource(R.string.store_all_set) to (customContentColor ?: MaterialTheme.colorScheme.primary)
                     else ->
-                        stringResource(R.string.store_nothing_needed) to MaterialTheme.colorScheme.onSurfaceVariant
+                        stringResource(R.string.store_nothing_needed) to (customContentColor?.copy(alpha = 0.80f) ?: MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 Text(
                     text = subtitle,
@@ -620,9 +670,18 @@ private fun StorePickerCard(
                             style = MaterialTheme.typography.labelMedium,
                         )
                     },
+                    border = if (customContentColor != null) {
+                        AssistChipDefaults.assistChipBorder(
+                            enabled = true,
+                            borderColor = customContentColor.copy(alpha = 0.45f),
+                        )
+                    } else {
+                        AssistChipDefaults.assistChipBorder(enabled = true)
+                    },
                     colors = AssistChipDefaults.assistChipColors(
-                        containerColor = MaterialTheme.colorScheme.primary,
-                        labelColor = MaterialTheme.colorScheme.onPrimary,
+                        containerColor = customContentColor?.copy(alpha = 0.22f)
+                            ?: MaterialTheme.colorScheme.primary,
+                        labelColor = customContentColor ?: MaterialTheme.colorScheme.onPrimary,
                     ),
                 )
                 Spacer(Modifier.width(4.dp))
@@ -630,14 +689,15 @@ private fun StorePickerCard(
             // (The dedicated drag-handle icon was removed — long-press on
             // the whole tile starts a drag now, per beta feedback that the
             // 6-dot indicator wasn't discoverable.)
-            // Overflow menu: Rename / Delete. Wrapped in a Box so the
-            // DropdownMenu anchors here rather than at the screen edge.
+            // Overflow menu: Rename / Store color / Edit aisles / One-off / Delete.
+            // Wrapped in a Box so the DropdownMenu anchors here rather than at the screen edge.
             Box {
                 IconButton(onClick = { menuOpen = true }) {
                     Icon(
                         Icons.Filled.MoreVert,
                         contentDescription = stringResource(R.string.store_more_options),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        tint = customContentColor?.copy(alpha = 0.85f)
+                            ?: MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
                 DropdownMenu(
@@ -650,6 +710,14 @@ private fun StorePickerCard(
                         onClick = {
                             menuOpen = false
                             onRename()
+                        },
+                    )
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.action_store_color)) },
+                        leadingIcon = { Icon(Icons.Filled.Palette, contentDescription = null) },
+                        onClick = {
+                            menuOpen = false
+                            onChangeColor()
                         },
                     )
                     DropdownMenuItem(
@@ -704,11 +772,181 @@ private fun StorePickerCard(
             Icon(
                 Icons.AutoMirrored.Filled.KeyboardArrowRight,
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                tint = customContentColor?.copy(alpha = 0.85f)
+                    ?: MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(end = 12.dp),
             )
         }
     }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+internal fun StoreColorSwatchPicker(
+    selectedColorArgb: Int?,
+    onSelectColor: (Int?) -> Unit,
+    modifier: Modifier = Modifier,
+    isDefaultSelected: Boolean = selectedColorArgb == null,
+) {
+    val normalizedSelected = selectedColorArgb?.let { normalizeStoreColorArgb(it) }
+    val defaultLabel = stringResource(R.string.store_color_default)
+    FlowRow(
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+        modifier = modifier.fillMaxWidth(),
+    ) {
+        // First swatch: Default (no custom color -> standard theme surface).
+        Box(
+            modifier = Modifier
+                .size(36.dp)
+                .clip(CircleShape)
+                .background(MaterialTheme.colorScheme.surfaceVariant)
+                .border(
+                    width = if (isDefaultSelected) 2.dp else 1.dp,
+                    color = if (isDefaultSelected) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        MaterialTheme.colorScheme.outline
+                    },
+                    shape = CircleShape,
+                )
+                .semantics { contentDescription = defaultLabel }
+                .selectable(
+                    selected = isDefaultSelected,
+                    onClick = { onSelectColor(null) },
+                    role = Role.RadioButton,
+                ),
+            contentAlignment = Alignment.Center,
+        ) {
+            if (isDefaultSelected) {
+                Icon(
+                    imageVector = Icons.Filled.Check,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(18.dp),
+                )
+            }
+        }
+
+        STORE_COLOR_PALETTE.forEach { paletteArgb ->
+            val normalizedPalette = normalizeStoreColorArgb(paletteArgb)
+            val isSelected = normalizedSelected == normalizedPalette
+            val swatchColor = storeColorIntToComposeColor(normalizedPalette)
+            val checkColor = storeTileContentColor(normalizedPalette)
+            val hexLabel = formatStoreHexColor(normalizedPalette)
+            Box(
+                modifier = Modifier
+                    .size(36.dp)
+                    .clip(CircleShape)
+                    .background(swatchColor)
+                    .border(
+                        width = if (isSelected) 2.dp else 1.dp,
+                        color = if (isSelected) {
+                            MaterialTheme.colorScheme.onSurface
+                        } else {
+                            MaterialTheme.colorScheme.outlineVariant
+                        },
+                        shape = CircleShape,
+                    )
+                    .semantics { contentDescription = hexLabel }
+                    .selectable(
+                        selected = isSelected,
+                        onClick = { onSelectColor(normalizedPalette) },
+                        role = Role.RadioButton,
+                    ),
+                contentAlignment = Alignment.Center,
+            ) {
+                if (isSelected) {
+                    Icon(
+                        imageVector = Icons.Filled.Check,
+                        contentDescription = null,
+                        tint = checkColor,
+                        modifier = Modifier.size(18.dp),
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+internal fun StoreColorDialog(
+    storeName: String,
+    currentColorArgb: Int?,
+    onDismiss: () -> Unit,
+    onSave: (Int?) -> Unit,
+) {
+    var hexInput by remember(currentColorArgb) {
+        mutableStateOf(currentColorArgb?.let { formatStoreHexColor(it) } ?: "")
+    }
+    val isBlankHex = hexInput.isBlank()
+    val parsedHex = parseStoreHexColor(hexInput)
+    val isHexValid = isBlankHex || parsedHex != null
+    val activeColorArgb: Int? = if (isBlankHex) null else parsedHex
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.store_color_dialog_title, storeName)) },
+        text = {
+            Column {
+                StoreColorSwatchPicker(
+                    selectedColorArgb = activeColorArgb,
+                    isDefaultSelected = isBlankHex,
+                    onSelectColor = { picked ->
+                        hexInput = picked?.let { formatStoreHexColor(it) } ?: ""
+                    },
+                )
+                Spacer(Modifier.height(16.dp))
+                OutlinedTextField(
+                    value = hexInput,
+                    onValueChange = { input -> hexInput = input },
+                    label = { Text(stringResource(R.string.store_color_custom_hex_label)) },
+                    placeholder = { Text("#1565C0") },
+                    leadingIcon = {
+                        val previewBg = activeColorArgb?.let { storeColorIntToComposeColor(it) }
+                            ?: MaterialTheme.colorScheme.surfaceVariant
+                        val borderColor = when {
+                            !isHexValid -> MaterialTheme.colorScheme.error
+                            activeColorArgb != null -> MaterialTheme.colorScheme.onSurface
+                            else -> MaterialTheme.colorScheme.outline
+                        }
+                        Box(
+                            modifier = Modifier
+                                .size(24.dp)
+                                .clip(CircleShape)
+                                .background(previewBg)
+                                .border(1.dp, borderColor, CircleShape),
+                        )
+                    },
+                    singleLine = true,
+                    isError = !isHexValid,
+                    supportingText = if (!isHexValid) {
+                        { Text(stringResource(R.string.store_color_error_invalid_hex)) }
+                    } else {
+                        null
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    if (isHexValid) {
+                        onSave(activeColorArgb)
+                    }
+                },
+                enabled = isHexValid,
+            ) {
+                Text(stringResource(R.string.action_save))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.action_cancel))
+            }
+        },
+    )
 }
 
 @Composable

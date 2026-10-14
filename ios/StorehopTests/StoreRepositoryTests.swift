@@ -262,4 +262,50 @@ final class StoreRepositoryTests: XCTestCase {
         XCTAssertEqual(store?.updatedAt, 999, "No-op preserves updatedAt — not bumped to clock.now")
         XCTAssertFalse(store?.pendingSync ?? true, "No-op skips the pendingSync flag")
     }
+
+    func testSetColorUpdatesClearsAndIsIdempotent() async throws {
+        let s = try setup()
+        let blue = Int64(Int32(bitPattern: 0xFF1565C0))
+        let red = Int64(Int32(bitPattern: 0xFFD32F2F))
+        // Passing a 24-bit RGB value is canonicalized to signed 32-bit ARGB.
+        let id = try await s.repo.addStore(name: "Lidl", colorArgb: 0x1565C0)
+
+        try await s.db.queue.write { conn in
+            try conn.execute(sql: "UPDATE stores SET pendingSync = 0, updatedAt = 1000 WHERE id = ?", arguments: [id])
+        }
+        s.clock.now = 2_000
+
+        // Same color (whether signed 32-bit, unsigned 32-bit 0xFF1565C0, or 24-bit 0x1565C0) -> idempotent no-op.
+        try await s.repo.setColor(id: id, colorArgb: blue)
+        try await s.repo.setColor(id: id, colorArgb: 0xFF1565C0)
+        try await s.repo.setColor(id: id, colorArgb: 0x1565C0)
+        var store = try await s.db.queue.read { conn in
+            try Store.fetchOne(conn, sql: "SELECT * FROM stores WHERE id = ?", arguments: [id])
+        }
+        XCTAssertEqual(store?.colorArgb, blue)
+        XCTAssertEqual(store?.updatedAt, 1_000)
+        XCTAssertFalse(store?.pendingSync ?? true)
+
+        // Different color -> updates + flags pendingSync.
+        try await s.repo.setColor(id: id, colorArgb: 0xD32F2F)
+        store = try await s.db.queue.read { conn in
+            try Store.fetchOne(conn, sql: "SELECT * FROM stores WHERE id = ?", arguments: [id])
+        }
+        XCTAssertEqual(store?.colorArgb, red)
+        XCTAssertEqual(store?.updatedAt, 2_000)
+        XCTAssertTrue(store?.pendingSync ?? false)
+
+        // Reset to nil -> clears color + flags pendingSync.
+        try await s.db.queue.write { conn in
+            try conn.execute(sql: "UPDATE stores SET pendingSync = 0 WHERE id = ?", arguments: [id])
+        }
+        s.clock.now = 3_000
+        try await s.repo.setColor(id: id, colorArgb: nil)
+        store = try await s.db.queue.read { conn in
+            try Store.fetchOne(conn, sql: "SELECT * FROM stores WHERE id = ?", arguments: [id])
+        }
+        XCTAssertNil(store?.colorArgb)
+        XCTAssertEqual(store?.updatedAt, 3_000)
+        XCTAssertTrue(store?.pendingSync ?? false)
+    }
 }

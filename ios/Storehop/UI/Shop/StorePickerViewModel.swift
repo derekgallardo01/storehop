@@ -201,10 +201,10 @@ final class StorePickerViewModel {
     /// throws typed errors; the VM just maps them to UI strings.
     /// `isOneOff` (v0.9.0) — see `Store.isOneOff` semantics. Default
     /// `false` so existing call sites compile unchanged.
-    func addStore(name: String, isOneOff: Bool = false) async -> String? {
+    func addStore(name: String, isOneOff: Bool = false, colorArgb: Int64? = nil) async -> String? {
         lastError = nil
         do {
-            _ = try await storeRepository.addStore(name: name, isOneOff: isOneOff)
+            _ = try await storeRepository.addStore(name: name, colorArgb: colorArgb, isOneOff: isOneOff)
             return nil
         } catch StoreRepositoryError.emptyName {
             return L("error_store_name_empty")
@@ -221,6 +221,16 @@ final class StorePickerViewModel {
     func setOneOff(id: String, isOneOff: Bool) async {
         do {
             try await storeRepository.setOneOff(id: id, isOneOff: isOneOff)
+        } catch {
+            lastError = L("error_could_not_update_store")
+        }
+    }
+
+    /// Set or clear (`nil`) a store's custom background color on the Store
+    /// Picker. Idempotent at the repository layer.
+    func setColor(id: String, colorArgb: Int64?) async {
+        do {
+            try await storeRepository.setColor(id: id, colorArgb: colorArgb)
         } catch {
             lastError = L("error_could_not_update_store")
         }

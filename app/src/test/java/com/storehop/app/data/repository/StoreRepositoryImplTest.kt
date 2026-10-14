@@ -568,4 +568,39 @@ class StoreRepositoryImplTest {
         val after = db.storeDao().findById("local-only", id)!!
         assertThat(after.pendingSync).isFalse()  // no write -> still false
     }
+
+    // ---- Custom store tile color ---------------------------------------
+
+    @Test fun `setColor updates colorArgb, clears to null, and is idempotent when unchanged`() = runTest {
+        // Passing 24-bit RGB (0x1565C0 without 0xFF000000) is canonicalized to opaque 32-bit ARGB.
+        val id = repo.addStore("ColorStore", colorArgb = 0x1565C0)
+        val initial = db.storeDao().findById("local-only", id)!!
+        assertThat(initial.colorArgb).isEqualTo(0xFF1565C0.toInt())
+
+        // Mark clean and call setColor with the same color (32-bit or 24-bit) -> idempotent no-op.
+        db.storeDao().upsert(initial.copy(pendingSync = false))
+        repo.setColor(id, colorArgb = 0xFF1565C0.toInt())
+        repo.setColor(id, colorArgb = 0x1565C0)
+        val afterSame = db.storeDao().findById("local-only", id)!!
+        assertThat(afterSame.pendingSync).isFalse()
+
+        // Change to a new brand color -> updates and flags pendingSync.
+        repo.setColor(id, colorArgb = 0xD32F2F)
+        val afterChange = db.storeDao().findById("local-only", id)!!
+        assertThat(afterChange.colorArgb).isEqualTo(0xFFD32F2F.toInt())
+        assertThat(afterChange.pendingSync).isTrue()
+
+        // Clear color back to default (null) -> updates to null and flags pendingSync.
+        db.storeDao().upsert(afterChange.copy(pendingSync = false))
+        repo.setColor(id, colorArgb = null)
+        val afterClear = db.storeDao().findById("local-only", id)!!
+        assertThat(afterClear.colorArgb).isNull()
+        assertThat(afterClear.pendingSync).isTrue()
+
+        // Calling setColor(null) again when already null is also an idempotent no-op.
+        db.storeDao().upsert(afterClear.copy(pendingSync = false))
+        repo.setColor(id, colorArgb = null)
+        val afterSecondClear = db.storeDao().findById("local-only", id)!!
+        assertThat(afterSecondClear.pendingSync).isFalse()
+    }
 }

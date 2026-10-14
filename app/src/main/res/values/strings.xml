@@ -390,4 +390,12 @@
     <string name="store_action_unmark_one_off">Unmark as one-off</string>
     <!-- v0.9.0 — fallback error when StoreRepository.setOneOff write fails. -->
     <string name="error_could_not_update_store">Couldn\'t update store. Try again.</string>
+
+    <!-- Store tile custom background color. -->
+    <string name="action_store_color">Store color</string>
+    <string name="store_color_dialog_title">Color for %1$s</string>
+    <string name="store_color_label">Tile color</string>
+    <string name="store_color_default">Default</string>
+    <string name="store_color_custom_hex_label">Custom hex (#RRGGBB)</string>
+    <string name="store_color_error_invalid_hex">Enter a 6-digit hex color like #1565C0</string>
 </resources>

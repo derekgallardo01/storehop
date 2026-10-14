@@ -56,6 +56,7 @@ class StoreRepositoryImpl @Inject constructor(
         val userId = requireSignedIn()
         val householdId = requireHousehold()
         val now = clock.millis()
+        val normalizedColor = colorArgb?.let { it or 0xFF000000.toInt() }
 
         // Three cases, all serialized inside the transaction:
         //   1. No row at all          -> insert a new row with a fresh UUID.
@@ -77,7 +78,7 @@ class StoreRepositoryImpl @Inject constructor(
                     Store(
                         id = id,
                         name = trimmed,
-                        colorArgb = colorArgb,
+                        colorArgb = normalizedColor,
                         isArchived = false,
                         isSeeded = false,
                         userId = userId,
@@ -103,7 +104,7 @@ class StoreRepositoryImpl @Inject constructor(
                 // store fresh from their POV, so honor their intent.
                 dao.upsert(
                     existing.copy(
-                        colorArgb = colorArgb,
+                        colorArgb = normalizedColor,
                         isArchived = false,
                         deletedAt = null,
                         updatedAt = now,
@@ -133,20 +134,23 @@ class StoreRepositoryImpl @Inject constructor(
         dao.upsert(current.copy(name = trimmed, updatedAt = clock.millis(), pendingSync = true))
     }
 
-    override suspend fun setColor(id: String, colorArgb: Int?) {
+    override suspend fun setColor(id: String, colorArgb: Int?) = db.withTransaction {
         val householdId = requireHousehold()
-        val current = dao.findById(householdId, id) ?: return
-        dao.upsert(current.copy(colorArgb = colorArgb, updatedAt = clock.millis(), pendingSync = true))
+        val current = dao.findById(householdId, id) ?: return@withTransaction
+        val normalizedColor = colorArgb?.let { it or 0xFF000000.toInt() }
+        val currentNormalized = current.colorArgb?.let { it or 0xFF000000.toInt() }
+        if (currentNormalized == normalizedColor) return@withTransaction
+        dao.upsert(current.copy(colorArgb = normalizedColor, updatedAt = clock.millis(), pendingSync = true))
     }
 
     override suspend fun setArchived(id: String, archived: Boolean) {
         dao.setArchived(requireHousehold(), id, archived, clock.millis())
     }
 
-    override suspend fun setOneOff(id: String, isOneOff: Boolean) {
+    override suspend fun setOneOff(id: String, isOneOff: Boolean) = db.withTransaction {
         val householdId = requireHousehold()
-        val current = dao.findById(householdId, id) ?: return
-        if (current.isOneOff == isOneOff) return  // idempotent: no write, no sync hit
+        val current = dao.findById(householdId, id) ?: return@withTransaction
+        if (current.isOneOff == isOneOff) return@withTransaction  // idempotent: no write, no sync hit
         dao.upsert(
             current.copy(
                 isOneOff = isOneOff,

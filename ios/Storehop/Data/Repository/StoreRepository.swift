@@ -52,6 +52,7 @@ struct StoreRepository: Sendable {
         let householdId = try await householdSession.requireHouseholdId()
         let now = clock.nowMs()
         let newId = ids.newId()
+        let normalizedColor = colorArgb.map { Self.normalizeColorArgb($0) }
 
         return try await writer.write { db -> String in
             let existing = try StoreDao.findAnyByName(on: db, householdId: householdId, name: trimmed)
@@ -61,7 +62,7 @@ struct StoreRepository: Sendable {
                 var newStore = Store(
                     id: newId,
                     name: trimmed,
-                    colorArgb: colorArgb,
+                    colorArgb: normalizedColor,
                     isArchived: false,
                     isSeeded: false,
                     userId: userId,
@@ -80,7 +81,7 @@ struct StoreRepository: Sendable {
             case .some(var row):
                 // Resurrect: keep original displayOrder so other devices see
                 // the row revived in place, not bumped to the bottom.
-                row.colorArgb = colorArgb
+                row.colorArgb = normalizedColor
                 row.isArchived = false
                 row.deletedAt = nil
                 row.updatedAt = now
@@ -138,13 +139,21 @@ struct StoreRepository: Sendable {
     func setColor(id: String, colorArgb: Int64?) async throws {
         let householdId = try await householdSession.requireHouseholdId()
         let now = clock.nowMs()
+        let normalizedColor = colorArgb.map { Self.normalizeColorArgb($0) }
         try await writer.write { db in
             guard var current = try StoreDao.findById(on: db, householdId: householdId, id: id) else { return }
-            current.colorArgb = colorArgb
+            let currentNormalized = current.colorArgb.map { Self.normalizeColorArgb($0) }
+            if currentNormalized == normalizedColor { return }
+            current.colorArgb = normalizedColor
             current.updatedAt = now
             current.pendingSync = true
             try current.upsert(db)
         }
+    }
+
+    private static func normalizeColorArgb(_ colorArgb: Int64) -> Int64 {
+        let bits = UInt32(truncatingIfNeeded: colorArgb) | 0xFF000000
+        return Int64(Int32(bitPattern: bits))
     }
 
     func setArchived(id: String, archived: Bool) async throws {
