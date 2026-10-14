@@ -92,3 +92,9 @@ ios/Storehop/Resources/GoogleService-Info.plist
 
 # macOS clutter
 .DS_Store
+
+# Environment & outreach sender secrets / sent-log state
+.env
+.env.*
+!.env.example
+scripts/outreach-sent-log.json

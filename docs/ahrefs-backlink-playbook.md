@@ -42,6 +42,8 @@ Users searching *"AnyList alternative"*, *"OurGroceries alternative"*, or *"groc
     - *"What are the best cross-platform shopping list apps?"*
 - [ ] **Product Hunt** (`https://www.producthunt.com`)
   - Launch with the angle: *"StoreHop — One master grocery list across every store you shop at (No ads, no subscription)."*
+- [ ] **F6S** (`https://www.f6s.com`) — *Discovered via 4-Competitor Ahrefs Intersect (DR 83)*
+  - Create a StoreHop software profile linking to `https://www.storehop.app/` alongside `AnyList` (`https://www.f6s.com/software/anylist`), `Bring!` (`https://www.f6s.com/software/bring`), `Listonic` (`https://www.f6s.com/company/listonic`), and `Out of Milk` (`https://www.f6s.com/software/out-of-milk`).
 
 ### Tier 2: Open-Source & Indie Software Directories (Leveraging Your Public Repo)
 Because StoreHop's repository (`https://github.com/derekgallardo01/storehop`) is public, you qualify for high-DR developer and open-source directories that closed-source competitors cannot access:
@@ -214,7 +216,7 @@ If you'd like to test the multi-user household sync, just let me know what Googl
 Thanks for putting together such a helpful guide!
 
 Best,
-Derek Gallardo
+Derek
 Creator of StoreHop
 https://www.storehop.app/
 ```
@@ -253,7 +255,7 @@ https://www.storehop.app/
 Happy to answer any questions or unlock our household-sharing upgrade for free if you and your family want to try it on your next Aldi run!
 
 Warmly,
-Derek Gallardo
+Derek
 Creator of StoreHop
 ```
 
@@ -288,7 +290,7 @@ https://www.storehop.app/
 Thought this might be a great fit if you're updating [Article Title] or curating more pay-once, privacy-respecting tools.
 
 Best regards,
-Derek Gallardo
+Derek
 Creator of StoreHop
 ```
 
@@ -327,7 +329,7 @@ Here are the direct links if you decide to refresh the article:
 Hope that helps keep your guide fresh for readers!
 
 Best,
-Derek Gallardo
+Derek
 ```
 
 ---
@@ -361,7 +363,7 @@ https://www.storehop.app/
 Muito obrigado, and keep up the great guides!
 
 Best,
-Derek Gallardo
+Derek
 Creator of StoreHop
 ```
 
@@ -392,7 +394,7 @@ Se quiserem testar a funcionalidade de partilha familiar entre vários utilizado
 
 Um abraço e parabéns pelo excelente trabalho no blog!
 
-Derek Gallardo
+Derek
 Criador da StoreHop
 ```
 
@@ -421,8 +423,7 @@ To build Domain Rating steadily without burning out or triggering spam filters:
 
 1. **Week 1 (Foundation)**: Submit to the **Tier 1 & Tier 2 Directories** above (AlternativeTo, SaaSHub, Product Hunt, Uneed, GitHub Awesome PRs). This builds your initial pillow of clean referring domains.
 2. **Weeks 2–4 (Targeted Outreach)**:
-   - Start immediately with **[Move #3 Execution Pack: First 25 Verified Outreach Targets & Ready-to-Send Emails](outreach-targets-batch-1.md)** (`docs/outreach-targets-batch-1.md`).
-   - Export 20 additional targets/week from **Workflow A** (Competitor Backlinks) and **Workflow B** (Content Explorer Co-Citations).
-   - Export 10 targets/week from **Workflow C** (Dead App Link Reclamation — highest conversion rate).
+   - Start immediately with **[Move #3 Execution Pack: First 25 Verified Outreach Targets & Ready-to-Send Emails](outreach-targets-batch-1.md)** (`docs/outreach-targets-batch-1.md`) and **[Ahrefs Competitor Link Intersect & Prioritized Outreach Report](ahrefs-link-intersect-report.md)** (`docs/ahrefs-link-intersect-report.md` + [`docs/ahrefs-competitor-intersect-tracker.csv`](ahrefs-competitor-intersect-tracker.csv)).
+   - Work through the **1,081 deduplicated, non-syndicated referring domains** in `docs/ahrefs-competitor-intersect-tracker.csv` starting with **Tier 1A** (69 Exact-Page Multi-Competitor Roundups), **Tier 1B** (87 Multi-Competitor Domain Intersects), **Tier 2** (50 Dead `Grocery iQ` / `ZipList` Reclamation targets), and **Tier 3** (44 Native `PT`/`IT`/`ES` Multilingual targets).
    - Send 5 personalized emails per day (Mon–Fri) using Templates 1–5.
 3. **Ongoing**: Let **Ahrefs Alerts** notify you of new *"best grocery list app"* articles as they publish, and reply within 48 hours while the author still has the post open in their CMS.

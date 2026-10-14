@@ -2,6 +2,19 @@
 
 This document executes **Move #3** from the [Ahrefs Backlink Playbook](ahrefs-backlink-playbook.md): a curated, verified batch of **25 real, live outreach targets** across **Workflow A** (Competitor Roundups), **Workflow B** (Frugal Multi-Store & Portugal Supermarket Guides), and **Workflow C** (Dead / Paywalled App Link Reclamation), complete with **24 copy-paste, ready-to-send personalized emails** (zero unreplaced template placeholders) referencing **`https://www.storehop.app/`**.
 
+> **New — Ahrefs CSV Export Link Intersect Pack (Rounds 1 + 2)**: For the full **1,081 deduplicated, non-syndicated referring domains** and **26 additional ready-to-send emails (`Email A` – `Email Z`)** mined from your 11 downloaded Ahrefs competitor CSVs across 9 competitors (`AnyList`, `Bring!`, `Out of Milk`, `OurGroceries`, `Grocery iQ`, `Listonic`, `ZipList`, `Flipp`, and `Basket`), see:
+> - **[Ahrefs Competitor Link Intersect & Prioritized Outreach Report](ahrefs-link-intersect-report.md)** (`docs/ahrefs-link-intersect-report.md`)
+> - **[Master Prioritized CSV Tracker (1,081 Domains)](ahrefs-competitor-intersect-tracker.csv)** (`docs/ahrefs-competitor-intersect-tracker.csv`)
+> - **[CLI Email Sender (`scripts/send-outreach.py`)](../scripts/send-outreach.py)**: Send these emails directly from `info@storehop.app` via `smtp.forwardemail.net:465`:
+>   ```powershell
+>   # 1. Copy .env.example to .env and set FORWARDEMAIL_PASSWORD
+>   python scripts/send-outreach.py --list
+>   python scripts/send-outreach.py --dry-run --id 1
+>   python scripts/send-outreach.py --test info@storehop.app
+>   python scripts/send-outreach.py --send --limit 5
+>   python scripts/send-outreach.py --forms
+>   ```
+
 ---
 
 ## 1. Master Outreach Tracker (Batch 1 — 25 Verified Targets)
@@ -69,7 +82,7 @@ If you ever update your Costco vs. Aldi guide or grocery resources, I'd love for
 If you and your family want to test our multi-user household sync on your next Aldi/Costco run, just reply with the Google email you use in the app and I'll permanently unlock StoreHop Premium on your account for free.
 
 Warmly,
-Derek Gallardo
+Derek
 Creator of StoreHop
 https://www.storehop.app/
 ```
@@ -98,7 +111,7 @@ It's free on iOS and Android, 100% ad-free, and requires no account or subscript
 Happy to unlock our household-sharing upgrade for free if you'd like to try it out!
 
 Best,
-Derek Gallardo
+Derek
 Creator of StoreHop
 https://www.storehop.app/
 ```
@@ -126,7 +139,7 @@ https://www.storehop.app/
 Let me know if you'd like a free lifetime unlock for our multi-user household sync feature — I'd be happy to whitelist your account!
 
 Best,
-Derek Gallardo
+Derek
 Creator of StoreHop
 https://www.storehop.app/
 ```
@@ -158,7 +171,7 @@ There are no ads, no required accounts, and no subscriptions. If you'd like to s
 Happy to set up free lifetime StoreHop Premium accounts for anyone on your team who wants to test the household sharing feature!
 
 Warm regards,
-Derek Gallardo
+Derek
 Creator of StoreHop
 https://www.storehop.app/
 ```
@@ -190,7 +203,7 @@ If you're open to adding a "Helpful Tool" note to your Portugal Supermarkets gui
 Muito obrigado, and if you'd like a free lifetime unlock for our multi-user household sync, just let me know!
 
 Best,
-Derek Gallardo
+Derek
 Creator of StoreHop
 https://www.storehop.app/
 ```
@@ -221,7 +234,7 @@ Thought this might be a super practical resource to mention in your Portugal gro
 Happy to whitelist your email for free lifetime Household Sync if you'd like to try it out!
 
 Best regards,
-Derek Gallardo
+Derek
 Creator of StoreHop
 https://www.storehop.app/
 ```
@@ -254,7 +267,7 @@ Caso achem útil partilhar com os vossos leitores no artigo Lidl vs Continente (
 Se quiserem testar a funcionalidade de partilha familiar entre vários utilizadores, digam-me qual é o vosso email Google e terei todo o gosto em ativar a versão Premium vitalícia gratuitamente para toda a equipa!
 
 Um abraço e parabéns pelo excelente trabalho no Menu 5€,
-Derek Gallardo
+Derek
 Criador da StoreHop
 https://www.storehop.app/
 ```
@@ -279,7 +292,7 @@ It's free, ad-free, requires no account, and supports both English and European 
 - Android: https://play.google.com/store/apps/details?id=com.storehop.app
 
 Best,
-Derek Gallardo
+Derek
 Creator of StoreHop
 https://www.storehop.app/
 ```
@@ -316,7 +329,7 @@ Here are the links if you're refreshing your Best Grocery List Apps guide for 20
 I'd be happy to unlock permanent StoreHop Premium for any editor on your team who wants to test the multi-user household sync!
 
 Best,
-Derek Gallardo
+Derek
 Creator of StoreHop
 https://www.storehop.app/
 ```
@@ -343,7 +356,7 @@ I built a free iOS & Android app called StoreHop (https://www.storehop.app/) spe
 If you ever test new grocery apps for The Kitchn, I'd love for you to give StoreHop a spin — and I'd be happy to unlock permanent StoreHop Premium on your account if you want to try the household sync!
 
 Best,
-Derek Gallardo
+Derek
 Creator of StoreHop
 https://www.storehop.app/
 ```
@@ -371,7 +384,7 @@ It's free, 100% ad-free, and has no subscription.
 Hope that helps keep the guide fresh for readers!
 
 Best,
-Derek Gallardo
+Derek
 Creator of StoreHop
 https://www.storehop.app/
 ```
@@ -402,7 +415,7 @@ Here are the direct links if you decide to update the guide:
 Happy to unlock free lifetime StoreHop Premium for anyone on your team who wants to test the multi-user household sync!
 
 Best,
-Derek Gallardo
+Derek
 Creator of StoreHop
 https://www.storehop.app/
 ```
@@ -431,7 +444,7 @@ Here are the links in case you refresh the post:
 - Google Play: https://play.google.com/store/apps/details?id=com.storehop.app
 
 Best regards,
-Derek Gallardo
+Derek
 Creator of StoreHop
 https://www.storehop.app/
 ```
@@ -457,7 +470,7 @@ If you ever add an update note to that post for readers looking for an active ap
 - Google Play: https://play.google.com/store/apps/details?id=com.storehop.app
 
 Best regards,
-Derek Gallardo
+Derek
 Creator of StoreHop
 https://www.storehop.app/
 ```
@@ -485,7 +498,7 @@ Here are the direct links if you decide to add an update note:
 - Google Play: https://play.google.com/store/apps/details?id=com.storehop.app
 
 Best,
-Derek Gallardo
+Derek
 Creator of StoreHop
 https://www.storehop.app/
 ```
@@ -518,7 +531,7 @@ If you ever revisit your grocery shopping app guide, I'd love for you to take a 
 Happy to unlock StoreHop Premium permanently on your account if you'd like to test the household sync!
 
 Best,
-Derek Gallardo
+Derek
 Creator of StoreHop
 https://www.storehop.app/
 ```
@@ -543,7 +556,7 @@ If you ever cover grocery apps again, I'd love to put StoreHop (https://www.stor
 It's available on both Android and iOS, 100% ad-free, and doesn't require an account or monthly subscription. Happy to unlock permanent StoreHop Premium on your Google account if you'd like to test the real-time household sync!
 
 Best regards,
-Derek Gallardo
+Derek
 Creator of StoreHop
 https://www.storehop.app/
 ```
@@ -569,7 +582,7 @@ So I built StoreHop (https://www.storehop.app/) in Kotlin & Jetpack Compose:
 It's free on Google Play (https://play.google.com/store/apps/details?id=com.storehop.app) and open-source on GitHub. If you ever test dedicated Android grocery apps again, I'd love to hear what you think — and I'm happy to whitelist your Google email for our one-time household sync unlock!
 
 Best,
-Derek Gallardo
+Derek
 Creator of StoreHop
 https://www.storehop.app/
 ```
@@ -601,7 +614,7 @@ Links if you'd like to check it out:
 Happy to unlock permanent StoreHop Premium on any editor's account for testing!
 
 Best,
-Derek Gallardo
+Derek
 Creator of StoreHop
 https://www.storehop.app/
 ```
@@ -624,7 +637,7 @@ In StoreHop, families keep one master list and tag items across every store they
 Since Miiro shines on shared family calendars and tasks while StoreHop is hyper-focused on multi-store grocery runs, would you be open to mentioning StoreHop in your 2026 guide for families looking for a dedicated, no-subscription grocery list? I'd gladly return the favor as we expand our family organization resources on storehop.app!
 
 Best,
-Derek Gallardo
+Derek
 Creator of StoreHop
 https://www.storehop.app/
 ```
@@ -650,7 +663,7 @@ I built StoreHop (https://www.storehop.app/ — available on iOS and Android) sp
 If you're open to adding StoreHop to your 2026 family grocery apps guide as a pick for multi-store shoppers, I'd be happy to unlock permanent StoreHop Premium for you and collaborate on future indie app roundups!
 
 Best regards,
-Derek Gallardo
+Derek
 Creator of StoreHop
 https://www.storehop.app/
 ```
@@ -673,7 +686,7 @@ I built StoreHop (https://www.storehop.app/ — iOS & Android) around a single m
 If you ever update your comparison or review additional grocery apps on the blog, I'd love to hear your thoughts on StoreHop's approach!
 
 Best,
-Derek Gallardo
+Derek
 Creator of StoreHop
 https://www.storehop.app/
 ```
@@ -706,7 +719,7 @@ Thought this might be a super handy free resource to share with the Hip2Save com
 Happy to unlock free lifetime StoreHop Premium for anyone on the Hip2Save team who wants to test the family sync feature!
 
 Warmly,
-Derek Gallardo
+Derek
 Creator of StoreHop
 https://www.storehop.app/
 ```
@@ -739,7 +752,7 @@ If you ever share companion tools in your Grocery Price Tracker or money-saving 
 Happy to set up free lifetime StoreHop Premium accounts for anyone on the KCL editorial team who wants to test the household sharing feature!
 
 Best regards,
-Derek Gallardo
+Derek
 Creator of StoreHop
 https://www.storehop.app/
 ```
