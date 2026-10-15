@@ -3,6 +3,8 @@ package com.storehop.app.ui.shop
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 import java.util.Locale
+import kotlin.math.abs
+import kotlin.math.roundToInt
 
 /**
  * Curated store-brand background colors offered as one-tap swatches when
@@ -76,4 +78,55 @@ fun parseStoreHexColor(input: String): Int? {
     if (cleaned.length != 6) return null
     val rgb = cleaned.toIntOrNull(16) ?: return null
     return normalizeStoreColorArgb(rgb)
+}
+
+/**
+ * Converts an ARGB [Int] into HSV components `[hue, saturation, value]` where
+ * `hue` is in `0f..360f` and `saturation` / `value` are in `0f..1f`.
+ */
+fun argbToHsv(colorArgb: Int): FloatArray {
+    val r = ((colorArgb ushr 16) and 0xFF) / 255f
+    val g = ((colorArgb ushr 8) and 0xFF) / 255f
+    val b = (colorArgb and 0xFF) / 255f
+
+    val max = maxOf(r, g, b)
+    val min = minOf(r, g, b)
+    val delta = max - min
+
+    val hue = when {
+        delta == 0f -> 0f
+        max == r -> 60f * (((g - b) / delta).mod(6f))
+        max == g -> 60f * (((b - r) / delta) + 2f)
+        else -> 60f * (((r - g) / delta) + 4f)
+    }
+    val saturation = if (max == 0f) 0f else delta / max
+    return floatArrayOf(hue, saturation, max)
+}
+
+/**
+ * Converts HSV components (`hue` in `0f..360f`, `saturation` in `0f..1f`,
+ * `value` in `0f..1f`) into an opaque `0xFFRRGGBB` ARGB [Int].
+ */
+fun hsvToArgb(hue: Float, saturation: Float, value: Float): Int {
+    val h = hue.mod(360f)
+    val s = saturation.coerceIn(0f, 1f)
+    val v = value.coerceIn(0f, 1f)
+
+    val c = v * s
+    val x = c * (1f - abs((h / 60f) % 2f - 1f))
+    val m = v - c
+
+    val (r1, g1, b1) = when (h.toInt() / 60) {
+        0 -> Triple(c, x, 0f)
+        1 -> Triple(x, c, 0f)
+        2 -> Triple(0f, c, x)
+        3 -> Triple(0f, x, c)
+        4 -> Triple(x, 0f, c)
+        else -> Triple(c, 0f, x)
+    }
+
+    val r = ((r1 + m) * 255f).roundToInt().coerceIn(0, 255)
+    val g = ((g1 + m) * 255f).roundToInt().coerceIn(0, 255)
+    val b = ((b1 + m) * 255f).roundToInt().coerceIn(0, 255)
+    return normalizeStoreColorArgb((r shl 16) or (g shl 8) or b)
 }

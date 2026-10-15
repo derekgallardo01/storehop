@@ -7,6 +7,17 @@ project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 For the high-level roadmap and earlier-than-0.5.0 history, see the
 "Roadmap" section in the [README](README.md).
 
+## [0.9.12] - 2026-10-15
+
+### Added
+
+- **Interactive Store Color Picker**: Added a visual HSV color picker (2D saturation/brightness pad + hue spectrum slider) alongside the custom `#RRGGBB` hex field in the Store Color dialog (plus native iOS `ColorPicker` integration), so custom store colors can be chosen visually without looking up hex codes.
+
+### Versions
+
+- Android: `versionName` 0.9.11 -> 0.9.12; `versionCode` 84 -> 85.
+- iOS: `MARKETING_VERSION` 0.9.11 -> 0.9.12; `CURRENT_PROJECT_VERSION` 61 -> 62.
+
 ## [0.9.11] - 2026-10-14
 
 ### Added

@@ -169,6 +169,38 @@ class StorePickerColorUiTest {
         assertThat(addedColor).isEqualTo(0xFF2E7D32.toInt())
     }
 
+    @Test fun `StoreColorDialog interactive HSV color picker updates hex field and saves custom color`() {
+        var savedColor: Int? = null
+        var saveCalled = false
+
+        composeRule.setContent {
+            StoreColorDialog(
+                storeName = "Aldi",
+                currentColorArgb = null,
+                onDismiss = {},
+                onSave = {
+                    saveCalled = true
+                    savedColor = it
+                },
+            )
+        }
+
+        composeRule.onNodeWithContentDescription("Default").assertIsSelected()
+
+        // Open the visual color picker from the hex field button, then tap Hue and Saturation/brightness.
+        composeRule.onNodeWithContentDescription("Color picker").assertIsDisplayed().performClick()
+        composeRule.onNodeWithContentDescription("Hue").assertIsDisplayed().performClick()
+        composeRule.onNodeWithContentDescription("Saturation and brightness").assertIsDisplayed().performClick()
+
+        // Default should now be unselected because a custom hex color was populated.
+        composeRule.onNodeWithContentDescription("Default").assertIsNotSelected()
+        composeRule.onNodeWithText("Save").assertIsEnabled().performClick()
+
+        assertThat(saveCalled).isTrue()
+        assertThat(savedColor).isNotNull()
+        assertThat(savedColor!! ushr 24).isEqualTo(0xFF)
+    }
+
     private fun sampleRow(
         name: String,
         colorArgb: Int?,

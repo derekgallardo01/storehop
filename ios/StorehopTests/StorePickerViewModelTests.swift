@@ -228,6 +228,13 @@ final class StorePickerViewModelTests: XCTestCase {
         for color in StoreColorPalette.palette {
             let hex = StoreColorPalette.formatHex(color)
             XCTAssertEqual(StoreColorPalette.parseHex(hex), color)
+            let hsv = StoreColorPalette.argbToHsv(color)
+            let roundTripped = StoreColorPalette.hsvToArgb(
+                hue: hsv.hue,
+                saturation: hsv.saturation,
+                value: hsv.value
+            )
+            XCTAssertEqual(StoreColorPalette.formatHex(roundTripped), hex)
         }
         XCTAssertNil(StoreColorPalette.parseHex("invalid"))
         XCTAssertFalse(StoreColorPalette.isLight(Int64(Int32(bitPattern: 0xFF1565C0))))

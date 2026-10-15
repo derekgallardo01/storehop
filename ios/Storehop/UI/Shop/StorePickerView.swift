@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 struct StorePickerView: View {
     @Environment(AppContainer.self) private var container
@@ -684,6 +685,71 @@ enum StoreColorPalette {
         }
         return Int64(Int32(bitPattern: rgb | 0xFF000000))
     }
+
+    static func argbToHsv(_ colorArgb: Int64) -> (hue: Double, saturation: Double, value: Double) {
+        let r = Double((colorArgb >> 16) & 0xFF) / 255.0
+        let g = Double((colorArgb >> 8) & 0xFF) / 255.0
+        let b = Double(colorArgb & 0xFF) / 255.0
+
+        let maxC = max(r, g, b)
+        let minC = min(r, g, b)
+        let delta = maxC - minC
+
+        let hue: Double
+        if delta == 0 {
+            hue = 0
+        } else if maxC == r {
+            var h = ((g - b) / delta).truncatingRemainder(dividingBy: 6.0)
+            if h < 0 { h += 6.0 }
+            hue = 60.0 * h
+        } else if maxC == g {
+            hue = 60.0 * (((b - r) / delta) + 2.0)
+        } else {
+            hue = 60.0 * (((r - g) / delta) + 4.0)
+        }
+        let saturation = maxC == 0 ? 0 : (delta / maxC)
+        return (hue, saturation, maxC)
+    }
+
+    static func hsvToArgb(hue: Double, saturation: Double, value: Double) -> Int64 {
+        var h = hue.truncatingRemainder(dividingBy: 360.0)
+        if h < 0 { h += 360.0 }
+        let s = min(max(saturation, 0.0), 1.0)
+        let v = min(max(value, 0.0), 1.0)
+
+        let c = v * s
+        let x = c * (1.0 - abs((h / 60.0).truncatingRemainder(dividingBy: 2.0) - 1.0))
+        let m = v - c
+
+        let (r1, g1, b1): (Double, Double, Double)
+        switch Int(h) / 60 {
+        case 0: (r1, g1, b1) = (c, x, 0)
+        case 1: (r1, g1, b1) = (x, c, 0)
+        case 2: (r1, g1, b1) = (0, c, x)
+        case 3: (r1, g1, b1) = (0, x, c)
+        case 4: (r1, g1, b1) = (x, 0, c)
+        default: (r1, g1, b1) = (c, 0, x)
+        }
+
+        let r = UInt32(min(max(Int(((r1 + m) * 255.0).rounded()), 0), 255))
+        let g = UInt32(min(max(Int(((g1 + m) * 255.0).rounded()), 0), 255))
+        let b = UInt32(min(max(Int(((b1 + m) * 255.0).rounded()), 0), 255))
+        return Int64(Int32(bitPattern: (r << 16) | (g << 8) | b | 0xFF000000))
+    }
+
+    static func argb(from color: Color) -> Int64? {
+        var r: CGFloat = 0
+        var g: CGFloat = 0
+        var b: CGFloat = 0
+        var a: CGFloat = 0
+        guard UIColor(color).getRed(&r, green: &g, blue: &b, alpha: &a) else {
+            return nil
+        }
+        let ri = UInt32(min(max(Int((r * 255.0).rounded()), 0), 255))
+        let gi = UInt32(min(max(Int((g * 255.0).rounded()), 0), 255))
+        let bi = UInt32(min(max(Int((b * 255.0).rounded()), 0), 255))
+        return Int64(Int32(bitPattern: (ri << 16) | (gi << 8) | bi | 0xFF000000))
+    }
 }
 
 private struct StoreColorSwatchPicker: View {
@@ -741,9 +807,124 @@ private struct StoreColorSwatchPicker: View {
     }
 }
 
+private struct StoreHsvColorPicker: View {
+    let hue: Double
+    let saturation: Double
+    let value: Double
+    let onHsvChange: (Double, Double, Double) -> Void
+
+    private static let hueSpectrum: [Color] = [
+        Color(red: 1, green: 0, blue: 0),
+        Color(red: 1, green: 1, blue: 0),
+        Color(red: 0, green: 1, blue: 0),
+        Color(red: 0, green: 1, blue: 1),
+        Color(red: 0, green: 0, blue: 1),
+        Color(red: 1, green: 0, blue: 1),
+        Color(red: 1, green: 0, blue: 0),
+    ]
+
+    var body: some View {
+        let pureHue = StoreColorPalette.color(
+            from: StoreColorPalette.hsvToArgb(hue: hue, saturation: 1.0, value: 1.0)
+        )
+        let activeColor = StoreColorPalette.color(
+            from: StoreColorPalette.hsvToArgb(hue: hue, saturation: saturation, value: value)
+        )
+
+        VStack(spacing: 10) {
+            GeometryReader { geo in
+                let width = max(geo.size.width, 1)
+                let height = max(geo.size.height, 1)
+                let thumbX = min(max(saturation, 0), 1) * width
+                let thumbY = (1.0 - min(max(value, 0), 1)) * height
+
+                ZStack(alignment: .topLeading) {
+                    LinearGradient(
+                        colors: [.white, pureHue],
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    )
+                    LinearGradient(
+                        colors: [.clear, .black],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                    Circle()
+                        .fill(activeColor)
+                        .frame(width: 18, height: 18)
+                        .overlay {
+                            Circle().strokeBorder(Color.white, lineWidth: 2)
+                        }
+                        .shadow(color: .black.opacity(0.4), radius: 1.5)
+                        .position(x: thumbX, y: thumbY)
+                }
+                .clipShape(RoundedRectangle(cornerRadius: 10))
+                .overlay {
+                    RoundedRectangle(cornerRadius: 10)
+                        .strokeBorder(StorehopColors.outline.opacity(0.4), lineWidth: 1)
+                }
+                .contentShape(Rectangle())
+                .gesture(
+                    DragGesture(minimumDistance: 0)
+                        .onChanged { gesture in
+                            let newSat = min(max(gesture.location.x / width, 0), 1)
+                            let newVal = 1.0 - min(max(gesture.location.y / height, 0), 1)
+                            onHsvChange(hue, newSat, newVal)
+                        }
+                )
+                .accessibilityLabel(L("store_color_saturation_value_label"))
+            }
+            .frame(height: 108)
+
+            GeometryReader { geo in
+                let width = max(geo.size.width, 1)
+                let height = max(geo.size.height, 1)
+                let radius = (height / 2.0) - 2.0
+                let rawX = (hue.truncatingRemainder(dividingBy: 360.0) / 360.0) * width
+                let thumbX = min(max(rawX, radius), width - radius)
+
+                ZStack(alignment: .leading) {
+                    LinearGradient(
+                        colors: Self.hueSpectrum,
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    )
+                    Circle()
+                        .fill(pureHue)
+                        .frame(width: radius * 2, height: radius * 2)
+                        .overlay {
+                            Circle().strokeBorder(Color.white, lineWidth: 2)
+                        }
+                        .shadow(color: .black.opacity(0.4), radius: 1.5)
+                        .position(x: thumbX, y: height / 2.0)
+                }
+                .clipShape(Capsule())
+                .overlay {
+                    Capsule()
+                        .strokeBorder(StorehopColors.outline.opacity(0.4), lineWidth: 1)
+                }
+                .contentShape(Rectangle())
+                .gesture(
+                    DragGesture(minimumDistance: 0)
+                        .onChanged { gesture in
+                            let newHue = min(max(gesture.location.x / width, 0), 1) * 360.0
+                            onHsvChange(newHue, saturation, value)
+                        }
+                )
+                .accessibilityLabel(L("store_color_hue_label"))
+            }
+            .frame(height: 22)
+        }
+        .padding(.vertical, 4)
+    }
+}
+
 private struct StoreColorDialog: View {
     let storeName: String
     @State private var hexInput: String
+    @State private var hsvHue: Double
+    @State private var hsvSaturation: Double
+    @State private var hsvValue: Double
     let onSave: (Int64?) async -> Void
     let onDismiss: () -> Void
 
@@ -756,6 +937,10 @@ private struct StoreColorDialog: View {
         self.storeName = storeName
         let normalized = initialColorArgb.map { StoreColorPalette.normalize($0) }
         self._hexInput = State(initialValue: normalized.map { StoreColorPalette.formatHex($0) } ?? "")
+        let initialHsv = StoreColorPalette.argbToHsv(normalized ?? StoreColorPalette.palette[4])
+        self._hsvHue = State(initialValue: initialHsv.hue)
+        self._hsvSaturation = State(initialValue: initialHsv.saturation)
+        self._hsvValue = State(initialValue: initialHsv.value)
         self.onSave = onSave
         self.onDismiss = onDismiss
     }
@@ -776,6 +961,30 @@ private struct StoreColorDialog: View {
         isBlankHex ? nil : parsedHex
     }
 
+    private var systemColorBinding: Binding<Color> {
+        Binding(
+            get: {
+                activeColorArgb.map { StoreColorPalette.color(from: $0) }
+                    ?? StoreColorPalette.color(
+                        from: StoreColorPalette.hsvToArgb(
+                            hue: hsvHue,
+                            saturation: hsvSaturation,
+                            value: hsvValue
+                        )
+                    )
+            },
+            set: { newColor in
+                if let argb = StoreColorPalette.argb(from: newColor) {
+                    hexInput = StoreColorPalette.formatHex(argb)
+                    let hsv = StoreColorPalette.argbToHsv(argb)
+                    hsvHue = hsv.hue
+                    hsvSaturation = hsv.saturation
+                    hsvValue = hsv.value
+                }
+            }
+        )
+    }
+
     var body: some View {
         NavigationStack {
             Form {
@@ -785,10 +994,32 @@ private struct StoreColorDialog: View {
                         isDefaultSelected: isBlankHex,
                         onSelectColor: { picked in
                             hexInput = picked.map { StoreColorPalette.formatHex($0) } ?? ""
+                            if let picked {
+                                let hsv = StoreColorPalette.argbToHsv(picked)
+                                hsvHue = hsv.hue
+                                hsvSaturation = hsv.saturation
+                                hsvValue = hsv.value
+                            }
                         }
                     )
                 }
                 Section {
+                    StoreHsvColorPicker(
+                        hue: hsvHue,
+                        saturation: hsvSaturation,
+                        value: hsvValue,
+                        onHsvChange: { newH, newS, newV in
+                            hsvHue = newH
+                            hsvSaturation = newS
+                            hsvValue = newV
+                            let argb = StoreColorPalette.hsvToArgb(
+                                hue: newH,
+                                saturation: newS,
+                                value: newV
+                            )
+                            hexInput = StoreColorPalette.formatHex(argb)
+                        }
+                    )
                     HStack(spacing: 12) {
                         Circle()
                             .fill(
@@ -808,6 +1039,21 @@ private struct StoreColorDialog: View {
                         TextField(L("store_color_custom_hex_label"), text: $hexInput)
                             .textInputAutocapitalization(.characters)
                             .autocorrectionDisabled()
+                            .onChange(of: hexInput) { _, newValue in
+                                if let parsed = StoreColorPalette.parseHex(newValue) {
+                                    let hsv = StoreColorPalette.argbToHsv(parsed)
+                                    hsvHue = hsv.hue
+                                    hsvSaturation = hsv.saturation
+                                    hsvValue = hsv.value
+                                }
+                            }
+                        ColorPicker(
+                            L("store_color_picker_label"),
+                            selection: systemColorBinding,
+                            supportsOpacity: false
+                        )
+                        .labelsHidden()
+                        .accessibilityLabel(L("store_color_picker_label"))
                     }
                     if !isHexValid {
                         Text(L("store_color_error_invalid_hex"))
@@ -830,7 +1076,7 @@ private struct StoreColorDialog: View {
                 }
             }
         }
-        .presentationDetents([.medium])
+        .presentationDetents([.medium, .large])
     }
 }
 

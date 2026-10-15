@@ -1,9 +1,12 @@
 package com.storehop.app.ui.shop
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -21,8 +24,11 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Add
@@ -62,19 +68,24 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalHapticFeedback
-import androidx.compose.foundation.selection.selectable
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -879,27 +890,56 @@ internal fun StoreColorDialog(
     var hexInput by remember(currentColorArgb) {
         mutableStateOf(currentColorArgb?.let { formatStoreHexColor(it) } ?: "")
     }
+    val initialHsv = remember(currentColorArgb) {
+        argbToHsv(currentColorArgb ?: STORE_COLOR_PALETTE[4])
+    }
+    var hsvHue by remember(currentColorArgb) { mutableFloatStateOf(initialHsv[0]) }
+    var hsvSaturation by remember(currentColorArgb) { mutableFloatStateOf(initialHsv[1]) }
+    var hsvValue by remember(currentColorArgb) { mutableFloatStateOf(initialHsv[2]) }
+    var showColorPicker by remember { mutableStateOf(false) }
+
     val isBlankHex = hexInput.isBlank()
     val parsedHex = parseStoreHexColor(hexInput)
     val isHexValid = isBlankHex || parsedHex != null
     val activeColorArgb: Int? = if (isBlankHex) null else parsedHex
 
+    val scrollState = rememberScrollState()
+    LaunchedEffect(showColorPicker, scrollState.maxValue) {
+        if (showColorPicker && scrollState.maxValue > 0) {
+            scrollState.scrollTo(scrollState.maxValue)
+        }
+    }
+
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.store_color_dialog_title, storeName)) },
         text = {
-            Column {
+            Column(modifier = Modifier.verticalScroll(scrollState)) {
                 StoreColorSwatchPicker(
                     selectedColorArgb = activeColorArgb,
                     isDefaultSelected = isBlankHex,
                     onSelectColor = { picked ->
                         hexInput = picked?.let { formatStoreHexColor(it) } ?: ""
+                        if (picked != null) {
+                            val pickedHsv = argbToHsv(picked)
+                            hsvHue = pickedHsv[0]
+                            hsvSaturation = pickedHsv[1]
+                            hsvValue = pickedHsv[2]
+                        }
                     },
                 )
                 Spacer(Modifier.height(16.dp))
                 OutlinedTextField(
                     value = hexInput,
-                    onValueChange = { input -> hexInput = input },
+                    onValueChange = { input ->
+                        hexInput = input
+                        parseStoreHexColor(input)?.let { parsed ->
+                            val parsedHsv = argbToHsv(parsed)
+                            hsvHue = parsedHsv[0]
+                            hsvSaturation = parsedHsv[1]
+                            hsvValue = parsedHsv[2]
+                        }
+                    },
                     label = { Text(stringResource(R.string.store_color_custom_hex_label)) },
                     placeholder = { Text("#1565C0") },
                     leadingIcon = {
@@ -915,8 +955,22 @@ internal fun StoreColorDialog(
                                 .size(24.dp)
                                 .clip(CircleShape)
                                 .background(previewBg)
-                                .border(1.dp, borderColor, CircleShape),
+                                .border(1.dp, borderColor, CircleShape)
+                                .clickable { showColorPicker = !showColorPicker },
                         )
+                    },
+                    trailingIcon = {
+                        IconButton(onClick = { showColorPicker = !showColorPicker }) {
+                            Icon(
+                                imageVector = Icons.Filled.Palette,
+                                contentDescription = stringResource(R.string.store_color_picker_label),
+                                tint = if (showColorPicker) {
+                                    MaterialTheme.colorScheme.primary
+                                } else {
+                                    MaterialTheme.colorScheme.onSurfaceVariant
+                                },
+                            )
+                        }
                     },
                     singleLine = true,
                     isError = !isHexValid,
@@ -927,6 +981,20 @@ internal fun StoreColorDialog(
                     },
                     modifier = Modifier.fillMaxWidth(),
                 )
+                if (showColorPicker) {
+                    Spacer(Modifier.height(12.dp))
+                    StoreHsvColorPicker(
+                        hue = hsvHue,
+                        saturation = hsvSaturation,
+                        value = hsvValue,
+                        onHsvChange = { newH, newS, newV ->
+                            hsvHue = newH
+                            hsvSaturation = newS
+                            hsvValue = newV
+                            hexInput = formatStoreHexColor(hsvToArgb(newH, newS, newV))
+                        },
+                    )
+                }
             }
         },
         confirmButton = {
@@ -947,6 +1015,150 @@ internal fun StoreColorDialog(
             }
         },
     )
+}
+
+private val HUE_SPECTRUM_COLORS = listOf(
+    Color(0xFFFF0000),
+    Color(0xFFFFFF00),
+    Color(0xFF00FF00),
+    Color(0xFF00FFFF),
+    Color(0xFF0000FF),
+    Color(0xFFFF00FF),
+    Color(0xFFFF0000),
+)
+
+@Composable
+internal fun StoreHsvColorPicker(
+    hue: Float,
+    saturation: Float,
+    value: Float,
+    onHsvChange: (hue: Float, saturation: Float, value: Float) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val latestHue by rememberUpdatedState(hue)
+    val latestSaturation by rememberUpdatedState(saturation)
+    val latestValue by rememberUpdatedState(value)
+    val latestOnHsvChange by rememberUpdatedState(onHsvChange)
+
+    val satValLabel = stringResource(R.string.store_color_saturation_value_label)
+    val hueLabel = stringResource(R.string.store_color_hue_label)
+    val pureHueColor = remember(hue) { storeColorIntToComposeColor(hsvToArgb(hue, 1f, 1f)) }
+    val activeThumbColor = remember(hue, saturation, value) {
+        storeColorIntToComposeColor(hsvToArgb(hue, saturation, value))
+    }
+
+    Column(modifier = modifier.fillMaxWidth()) {
+        // 2D Saturation (X: 0..1) and Brightness/Value (Y: 1..0) gradient panel.
+        Canvas(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(96.dp)
+                .clip(RoundedCornerShape(10.dp))
+                .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(10.dp))
+                .semantics { contentDescription = satValLabel }
+                .pointerInput(Unit) {
+                    awaitEachGesture {
+                        val down = awaitFirstDown(requireUnconsumed = false)
+                        fun updateFromOffset(offset: Offset) {
+                            if (size.width <= 0 || size.height <= 0) return
+                            val newSat = (offset.x / size.width.toFloat()).coerceIn(0f, 1f)
+                            val newVal = (1f - (offset.y / size.height.toFloat())).coerceIn(0f, 1f)
+                            latestOnHsvChange(latestHue, newSat, newVal)
+                        }
+                        updateFromOffset(down.position)
+                        do {
+                            val event = awaitPointerEvent()
+                            val change = event.changes.firstOrNull { it.id == down.id }
+                                ?: event.changes.firstOrNull()
+                            if (change != null && change.pressed) {
+                                change.consume()
+                                updateFromOffset(change.position)
+                            }
+                        } while (event.changes.any { it.pressed })
+                    }
+                },
+        ) {
+            drawRect(
+                brush = Brush.horizontalGradient(
+                    colors = listOf(Color.White, pureHueColor),
+                ),
+            )
+            drawRect(
+                brush = Brush.verticalGradient(
+                    colors = listOf(Color.Transparent, Color.Black),
+                ),
+            )
+            val thumbX = (saturation.coerceIn(0f, 1f) * size.width)
+            val thumbY = ((1f - value.coerceIn(0f, 1f)) * size.height)
+            val center = Offset(thumbX, thumbY)
+            val radius = 8.dp.toPx()
+            drawCircle(color = activeThumbColor, radius = radius, center = center)
+            drawCircle(
+                color = Color.White,
+                radius = radius,
+                center = center,
+                style = Stroke(width = 2.dp.toPx()),
+            )
+            drawCircle(
+                color = Color.Black.copy(alpha = 0.5f),
+                radius = radius + 1.5.dp.toPx(),
+                center = center,
+                style = Stroke(width = 1.dp.toPx()),
+            )
+        }
+
+        Spacer(Modifier.height(8.dp))
+
+        // Horizontal Hue spectrum slider (0..360 degrees).
+        Canvas(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(20.dp)
+                .clip(CircleShape)
+                .border(1.dp, MaterialTheme.colorScheme.outlineVariant, CircleShape)
+                .semantics { contentDescription = hueLabel }
+                .pointerInput(Unit) {
+                    awaitEachGesture {
+                        val down = awaitFirstDown(requireUnconsumed = false)
+                        fun updateFromOffset(offset: Offset) {
+                            if (size.width <= 0) return
+                            val newHue = ((offset.x / size.width.toFloat()).coerceIn(0f, 1f)) * 360f
+                            latestOnHsvChange(newHue, latestSaturation, latestValue)
+                        }
+                        updateFromOffset(down.position)
+                        do {
+                            val event = awaitPointerEvent()
+                            val change = event.changes.firstOrNull { it.id == down.id }
+                                ?: event.changes.firstOrNull()
+                            if (change != null && change.pressed) {
+                                change.consume()
+                                updateFromOffset(change.position)
+                            }
+                        } while (event.changes.any { it.pressed })
+                    }
+                },
+        ) {
+            drawRect(
+                brush = Brush.horizontalGradient(colors = HUE_SPECTRUM_COLORS),
+            )
+            val radius = (size.height / 2f) - 2.dp.toPx()
+            val thumbX = ((hue.mod(360f) / 360f) * size.width).coerceIn(radius, size.width - radius)
+            val center = Offset(thumbX, size.height / 2f)
+            drawCircle(color = pureHueColor, radius = radius, center = center)
+            drawCircle(
+                color = Color.White,
+                radius = radius,
+                center = center,
+                style = Stroke(width = 2.dp.toPx()),
+            )
+            drawCircle(
+                color = Color.Black.copy(alpha = 0.5f),
+                radius = radius + 1.dp.toPx(),
+                center = center,
+                style = Stroke(width = 1.dp.toPx()),
+            )
+        }
+    }
 }
 
 @Composable

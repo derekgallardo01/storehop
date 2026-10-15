@@ -6186,6 +6186,33 @@
         "it": { "stringUnit": { "state": "translated", "value": "Inserisci un colore hex a 6 cifre come #1565C0" } }
       }
     },
+    "store_color_picker_label": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Color picker" } },
+        "pt-PT": { "stringUnit": { "state": "translated", "value": "Seletor de cor" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Selector de color" } },
+        "it": { "stringUnit": { "state": "translated", "value": "Selettore colore" } }
+      }
+    },
+    "store_color_hue_label": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Hue" } },
+        "pt-PT": { "stringUnit": { "state": "translated", "value": "Matiz" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Tono" } },
+        "it": { "stringUnit": { "state": "translated", "value": "Tonalità" } }
+      }
+    },
+    "store_color_saturation_value_label": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Saturation and brightness" } },
+        "pt-PT": { "stringUnit": { "state": "translated", "value": "Saturação e brilho" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Saturación y brillo" } },
+        "it": { "stringUnit": { "state": "translated", "value": "Saturazione e luminosità" } }
+      }
+    },
     "action_show_selected_items": {
       "extractionState": "manual",
       "localizations": {

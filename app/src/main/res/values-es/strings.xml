@@ -395,4 +395,7 @@
     <string name="store_color_default">Predeterminado</string>
     <string name="store_color_custom_hex_label">Hex personalizado (#RRGGBB)</string>
     <string name="store_color_error_invalid_hex">Introduce un color hex de 6 dígitos como #1565C0</string>
+    <string name="store_color_picker_label">Selector de color</string>
+    <string name="store_color_hue_label">Tono</string>
+    <string name="store_color_saturation_value_label">Saturación y brillo</string>
 </resources>
