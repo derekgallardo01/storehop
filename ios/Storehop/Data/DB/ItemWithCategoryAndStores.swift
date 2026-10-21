@@ -63,7 +63,51 @@ struct ItemWithCategoryAndStores: Hashable, Sendable {
                 """,
             arguments: [householdId]
         )
-        return try items.map { try assemble(db, item: $0) }
+        guard !items.isEmpty else { return [] }
+
+        let categories = try Category.fetchAll(
+            db,
+            sql: """
+                SELECT c.* FROM categories c
+                WHERE c.deletedAt IS NULL
+                  AND (c.householdId = ? OR EXISTS (
+                      SELECT 1 FROM items i
+                      WHERE i.categoryId = c.id AND i.householdId = ? AND i.deletedAt IS NULL
+                  ))
+                """,
+            arguments: [householdId, householdId]
+        )
+        let categoriesById = Dictionary(uniqueKeysWithValues: categories.map { ($0.id, $0) })
+
+        let storeRows = try Row.fetchAll(
+            db,
+            sql: """
+                SELECT isx.itemId AS _xrefItemId, s.*
+                FROM stores s
+                INNER JOIN item_store_xref isx
+                       ON isx.storeId = s.id
+                      AND isx.deletedAt IS NULL
+                INNER JOIN items i
+                       ON i.id = isx.itemId
+                      AND i.householdId = ?
+                      AND i.deletedAt IS NULL
+                WHERE s.deletedAt IS NULL
+                ORDER BY s.displayOrder, s.name COLLATE NOCASE
+                """,
+            arguments: [householdId]
+        )
+        var storesByItemId: [String: [Store]] = [:]
+        for row in storeRows {
+            let itemId: String = row["_xrefItemId"]
+            let store = try Store(row: row)
+            storesByItemId[itemId, default: []].append(store)
+        }
+
+        return items.map { item in
+            let category = item.categoryId.flatMap { categoriesById[$0] }
+            let stores = storesByItemId[item.id] ?? []
+            return ItemWithCategoryAndStores(item: item, category: category, stores: stores)
+        }
     }
 
     private static func assemble(_ db: Database, item: Item) throws -> ItemWithCategoryAndStores {

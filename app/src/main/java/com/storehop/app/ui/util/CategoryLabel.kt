@@ -1,9 +1,22 @@
 package com.storehop.app.ui.util
 
 import android.annotation.SuppressLint
+import android.content.Context
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
 import com.storehop.app.data.entity.Category
+import java.util.concurrent.ConcurrentHashMap
+
+private val categoryNameKeyResIdCache = ConcurrentHashMap<String, Int>()
+
+@SuppressLint("DiscouragedApi")
+fun resolveCategoryLabel(ctx: Context, nameKey: String?, fallbackName: String): String {
+    val key = nameKey ?: return fallbackName
+    val resId = categoryNameKeyResIdCache.getOrPut(key) {
+        ctx.resources.getIdentifier(key, "string", ctx.packageName)
+    }
+    return if (resId != 0) ctx.getString(resId) else fallbackName
+}
 
 /**
  * Resolves a [Category] to its localized display label.
@@ -13,15 +26,8 @@ import com.storehop.app.data.entity.Category
  * User-added categories have `nameKey = null` and just use whatever the user typed.
  */
 @Composable
-@SuppressLint("DiscouragedApi")
 fun Category.localizedLabel(): String {
-    // getIdentifier is intentional: seeded categories carry a string `nameKey` like
-    // "cat_produce" that maps to a translated <string name="cat_produce"> resource at
-    // runtime. A lookup table from key -> R.string.* would have to be regenerated every
-    // time the seed pack adds a new category, which defeats the loose coupling. The
-    // R8 keep rule in res/raw/keep.xml stops the strings being tree-shaken.
     val ctx = LocalContext.current
-    val key = nameKey ?: return name
-    val resId = ctx.resources.getIdentifier(key, "string", ctx.packageName)
-    return if (resId != 0) ctx.getString(resId) else name
+    return resolveCategoryLabel(ctx, nameKey, name)
 }
+

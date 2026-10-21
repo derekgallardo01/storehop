@@ -422,14 +422,15 @@ private fun ItemsCategoryHeader(section: ItemsCategorySection, ctx: Context) {
     )
 }
 
-@android.annotation.SuppressLint("DiscouragedApi")
 private fun resolveSectionLabel(section: ItemsCategorySection, ctx: Context): String {
     if (section.categoryName == UNCATEGORISED_SENTINEL) {
         return ctx.getString(R.string.items_uncategorised_label)
     }
-    val key = section.categoryNameKey ?: return section.categoryName
-    val resId = ctx.resources.getIdentifier(key, "string", ctx.packageName)
-    return if (resId != 0) ctx.getString(resId) else section.categoryName
+    return com.storehop.app.ui.util.resolveCategoryLabel(
+        ctx = ctx,
+        nameKey = section.categoryNameKey,
+        fallbackName = section.categoryName,
+    )
 }
 
 @OptIn(ExperimentalFoundationApi::class)

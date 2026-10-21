@@ -160,6 +160,51 @@ final class SyncEngineTests: XCTestCase {
         }
         await s.engine.shutdown()
     }
+
+    func testLocalPushEchoTrackerSuppressesOwnWriteEchoAndAllowsForeignChange() async throws {
+        let tracker = LocalPushEchoTracker()
+        // Case 1: Echo arrives while push is still in flight
+        tracker.recordPushStart(path: "users/u1/items/milk")
+        let suppressedInFlight = tracker.shouldSuppressSnapshot(
+            collectionPath: "users/u1/items",
+            changedDocIds: ["milk"]
+        )
+        XCTAssertTrue(suppressedInFlight, "In-flight local push echo must be suppressed")
+
+        tracker.recordPushSuccess(path: "users/u1/items/milk")
+        // Since the echo was already consumed while in flight, a subsequent remote
+        // change to the same doc within the grace window must NOT be suppressed.
+        let remoteEditAfterInFlightConsumed = tracker.shouldSuppressSnapshot(
+            collectionPath: "users/u1/items",
+            changedDocIds: ["milk"]
+        )
+        XCTAssertFalse(remoteEditAfterInFlightConsumed, "Subsequent remote edit after in-flight echo was already consumed must NOT be suppressed")
+
+        // Case 2: Echo arrives shortly after push finishes (within grace window)
+        tracker.recordPushStart(path: "users/u1/items/eggs")
+        tracker.recordPushSuccess(path: "users/u1/items/eggs")
+        let suppressedWithinGrace = tracker.shouldSuppressSnapshot(
+            collectionPath: "users/u1/items",
+            changedDocIds: ["eggs"]
+        )
+        XCTAssertTrue(suppressedWithinGrace, "Recently finished local push echo within grace window must be suppressed")
+
+        // Second snapshot for "eggs" is a remote change and must not be suppressed
+        let secondSnapshotForEggs = tracker.shouldSuppressSnapshot(
+            collectionPath: "users/u1/items",
+            changedDocIds: ["eggs"]
+        )
+        XCTAssertFalse(secondSnapshotForEggs, "Echo entry must be consumed after first suppression")
+
+        // Case 3: Batch with both local and foreign doc IDs must not be suppressed
+        tracker.recordPushStart(path: "users/u1/items/milk")
+        tracker.recordPushSuccess(path: "users/u1/items/milk")
+        let foreignAllowed = tracker.shouldSuppressSnapshot(
+            collectionPath: "users/u1/items",
+            changedDocIds: ["milk", "bread"]
+        )
+        XCTAssertFalse(foreignAllowed, "Snapshot containing a foreign doc id must NOT be suppressed")
+    }
 }
 
 // MARK: - Test doubles

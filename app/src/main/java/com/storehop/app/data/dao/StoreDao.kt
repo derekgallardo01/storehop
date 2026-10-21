@@ -160,4 +160,8 @@ interface StoreDao {
         """,
     )
     suspend fun setDisplayOrder(householdId: String, id: String, displayOrder: Int, now: Long)
+
+    @Query("SELECT COUNT(*) FROM stores WHERE householdId = :householdId AND deletedAt IS NULL")
+    suspend fun countForHousehold(householdId: String): Int
 }
+

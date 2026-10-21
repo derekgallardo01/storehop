@@ -60,6 +60,7 @@ final class StorePickerViewModel {
     private let session: any UserSessionProvider
     private let householdSession: (any HouseholdSessionProvider)?
     private let sessionTracker: ShoppingSessionTracker
+    private let pullCoordinator: PullCoordinator?
     private let binder = SessionBinder()
     private var sessionStartMs: Int64?
 
@@ -68,13 +69,20 @@ final class StorePickerViewModel {
         shoppingRepository: ShoppingRepository,
         session: any UserSessionProvider,
         householdSession: (any HouseholdSessionProvider)? = nil,
-        sessionTracker: ShoppingSessionTracker
+        sessionTracker: ShoppingSessionTracker,
+        pullCoordinator: PullCoordinator? = nil
     ) {
         self.storeRepository = storeRepository
         self.shoppingRepository = shoppingRepository
         self.session = session
         self.householdSession = householdSession ?? (session as? any HouseholdSessionProvider)
         self.sessionTracker = sessionTracker
+        self.pullCoordinator = pullCoordinator
+    }
+
+    func refresh() async {
+        guard let hid = await householdSession?.currentHouseholdId else { return }
+        _ = await pullCoordinator?.pullForHousehold(hid)
     }
 
     /// Subscribe to the live picker rows. Anchors the trip on first call —

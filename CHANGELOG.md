@@ -7,6 +7,20 @@ project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 For the high-level roadmap and earlier-than-0.5.0 history, see the
 "Roadmap" section in the [README](README.md).
 
+## [0.9.13] - 2026-10-21
+
+### Fixed
+
+- **Instant Local-First Cold Start**: Published local household and user IDs immediately from SQLite on app launch before running background cloud sync, eliminating the 5–7 second startup loading delay for shared households (and persisted pull state across cold launches on iOS).
+- **Eliminated Post-Tap Sync Echo Lag**: Skipped initial Firestore listener snapshots on startup and suppressed local write server-acknowledgment echoes in `SyncEngine` so checking off or editing items no longer triggers a full 7-collection pull 300ms after every tap.
+- **Pull-to-Refresh on Store Picker & Foreground Auto-Refresh**: Added pull-to-refresh to the Store Picker screen (Android & iOS), automatic foreground refresh with a 30-second cooldown and `PullState.FAILED` recovery on app resume, and automatic background host member discovery.
+- **SQLite & List Rendering Performance**: Replaced per-item SQL query loops on iOS with 3 batch queries, cached category string resource lookups during scroll, and moved list filtering/sorting onto background dispatchers on Android.
+
+### Versions
+
+- Android: `versionName` 0.9.12 -> 0.9.13; `versionCode` 85 -> 86.
+- iOS: `MARKETING_VERSION` 0.9.12 -> 0.9.13; `CURRENT_PROJECT_VERSION` 62 -> 63.
+
 ## [0.9.12] - 2026-10-15
 
 ### Added

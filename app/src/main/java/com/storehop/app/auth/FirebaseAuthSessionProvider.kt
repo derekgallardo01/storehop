@@ -4,8 +4,10 @@ import android.util.Log
 import com.google.firebase.auth.FirebaseAuth
 import com.storehop.app.data.dao.HouseholdMemberDao
 import com.storehop.app.data.dao.LocalOnlyMigrationDao
+import com.storehop.app.data.dao.StoreDao
 import com.storehop.app.data.entity.HouseholdMember
 import com.storehop.app.data.prefs.UserPreferencesSync
+import com.storehop.app.data.repository.HouseholdRepository
 import com.storehop.app.data.util.HouseholdSessionProvider
 import com.storehop.app.data.util.HouseholdSwitcher
 import com.storehop.app.data.util.UserSessionProvider
@@ -36,13 +38,12 @@ import javax.inject.Singleton
  *     find an existing membership. If none exists we create a personal
  *     household (`hid = uid`) and insert the corresponding local
  *     household_members row; sync pushes it to Firestore on the next tick.
- *  4. Running the appropriate sync flow for each uid change *before* the public
- *     [userId] + [householdId] StateFlows flip. The two ids are published
- *     together, atomically, so observers (repos / SyncEngine) never see a
- *     mismatched pair.
- *     - If cloud has data for this household → pull (skip orphan-claim; cloud wins).
- *     - If cloud is empty → orphan-claim (existing path; push afterwards
- *       populates the cloud).
+ *  4. Running the appropriate sync flow for each uid change. For returning
+ *     bootstrapped users (`PullState.SUCCEEDED` or local stores already present
+ *     for the household), [userId] and [householdId] publish immediately (<50ms)
+ *     and any shared-household refresh runs in the background without flipping
+ *     [PullState] to `IN_PROGRESS`. For first-ever sign-in or account switches,
+ *     publishing is gated behind [runSyncFor].
  *
  * Anonymous accounts persist across app restarts (FirebaseAuth keeps the
  * credential on disk), so this only actually calls `signInAnonymously()` on
@@ -58,6 +59,8 @@ class FirebaseAuthSessionProvider @Inject constructor(
     private val userPreferencesSync: UserPreferencesSync,
     private val clock: Clock,
     private val applicationScope: CoroutineScope,
+    private val storeDao: StoreDao? = null,
+    private val householdRepository: dagger.Lazy<HouseholdRepository>? = null,
 ) : UserSessionProvider, HouseholdSessionProvider, HouseholdSwitcher {
 
     /**
@@ -88,6 +91,9 @@ class FirebaseAuthSessionProvider @Inject constructor(
     private val _householdId = MutableStateFlow<String?>(null)
     override val householdId: StateFlow<String?> = _householdId.asStateFlow()
 
+    @Volatile
+    private var lastSyncTimeMs: Long = clock.millis()
+
     init {
         auth.addAuthStateListener { state ->
             val newUid = state.currentUser?.uid
@@ -107,9 +113,8 @@ class FirebaseAuthSessionProvider @Inject constructor(
                 }
         }
 
-        // Gate every uid change behind the sync step. Runs in applicationScope
-        // so the work survives any single ViewModel's lifetime, and serially
-        // via collect so two rapid auth changes can't overlap.
+        // Gate un-bootstrapped uid changes behind the sync step, while
+        // publishing already-bootstrapped returning sessions immediately.
         applicationScope.launch {
             // StateFlow already drops duplicate emissions; no distinctUntilChanged needed.
             rawUid.collect { newUid ->
@@ -122,45 +127,60 @@ class FirebaseAuthSessionProvider @Inject constructor(
                     }
                     return@collect
                 }
-                // Always resolve the household locally — it's a cheap DAO
-                // lookup, and we need a valid value to publish even on the
-                // cold-launch short-circuit path.
                 val resolvedHouseholdId = resolveHouseholdFor(newUid)
-                // Cold-launch short-circuit: when _userId.value already
-                // matches the cached uid AND pullState is SUCCEEDED AND the
-                // user is in their personal household (hid == uid), skip
-                // the Firestore peek (saves a read on every launch). For
-                // shared households (hid != uid), other members can make cloud
-                // edits while the app is closed, so we always sync. For
-                // NEEDED / FAILED / stuck IN_PROGRESS (process died mid-
-                // pull), we still need to run sync -- otherwise push stays
-                // paused forever and the user accumulates dirty rows that
-                // never ship to cloud.
                 val memberCount = householdMemberDao.countMembersOf(resolvedHouseholdId)
                 val isSharedHousehold = resolvedHouseholdId != newUid || memberCount > 1
-                val canSkipSync = !isSharedHousehold && _userId.value == newUid && run {
-                    val state = pullStateRepo.observe(newUid).first()
-                    if (state != PullState.SUCCEEDED) {
-                        Log.i(TAG, "Re-running sync for uid=$newUid (pullState=$state)")
-                        false
-                    } else {
-                        true
+                val pullState = pullStateRepo.observe(newUid).first()
+                val isReturningUser = _userId.value == newUid
+                val hasLocalStores = (storeDao?.countForHousehold(resolvedHouseholdId) ?: 0) > 0
+                val isBootstrapped = isReturningUser && (pullState == PullState.SUCCEEDED || hasLocalStores)
+
+                lastSyncTimeMs = clock.millis()
+
+                if (isBootstrapped) {
+                    // Local-first cold start: publish both ids immediately BEFORE
+                    // running any network sync so Room queries emit in <50ms.
+                    _householdId.value = resolvedHouseholdId
+                    _userId.value = newUid
+
+                    if (pullState != PullState.SUCCEEDED) {
+                        Log.i(TAG, "Re-running sync in background for uid=$newUid (pullState=$pullState)")
+                        applicationScope.launch {
+                            runSyncFor(uid = newUid, householdId = resolvedHouseholdId)
+                            if (resolvedHouseholdId == newUid && memberCount <= 1) {
+                                healHostMembersIfNeeded(resolvedHouseholdId)
+                            }
+                        }
+                    } else if (isSharedHousehold) {
+                        // Refresh shared household in the background without flipping
+                        // PullState to IN_PROGRESS (which would cancel SyncEngine jobs)
+                        // and without issuing a redundant peek().
+                        applicationScope.launch {
+                            pullCoordinator.pullForHousehold(resolvedHouseholdId)
+                        }
+                    } else if (resolvedHouseholdId == newUid && memberCount <= 1) {
+                        // Host self-healing: check in background whether an invite was
+                        // accepted while the app was closed.
+                        applicationScope.launch {
+                            healHostMembersIfNeeded(resolvedHouseholdId)
+                        }
+                    }
+                } else {
+                    if (pullState != PullState.SUCCEEDED) {
+                        Log.i(TAG, "Re-running sync for uid=$newUid (pullState=$pullState)")
+                    }
+                    runSyncFor(uid = newUid, householdId = resolvedHouseholdId)
+                    // Publish both ids together so observers never see a mismatch.
+                    _householdId.value = resolvedHouseholdId
+                    _userId.value = newUid
+                    if (resolvedHouseholdId == newUid && memberCount <= 1) {
+                        applicationScope.launch {
+                            healHostMembersIfNeeded(resolvedHouseholdId)
+                        }
                     }
                 }
-                if (!canSkipSync) {
-                    runSyncFor(uid = newUid, householdId = resolvedHouseholdId)
-                }
-                // Publish both ids together so observers never see a mismatch.
-                _householdId.value = resolvedHouseholdId
-                _userId.value = newUid
 
                 // v0.7.1: kick off the cloud-prefs reconcile in the background.
-                // Push current prefs if cloud is absent/stale; pull cloud if
-                // newer. Load-bearing for the sideload→Play transition —
-                // first launch of v0.7.1 on Mike's phone captures his
-                // local prefs to /userPrefs/{uid} before he ever opens
-                // Settings. Fire-and-forget so the auth listener doesn't
-                // block on a Firestore round-trip.
                 applicationScope.launch {
                     userPreferencesSync.reconcile(newUid)
                 }
@@ -294,7 +314,43 @@ class FirebaseAuthSessionProvider @Inject constructor(
         }
     }
 
+    override fun onAppForegrounded() {
+        val uid = _userId.value ?: return
+        val hid = _householdId.value ?: return
+        applicationScope.launch {
+            val state = pullStateRepo.observe(uid).first()
+            if (state == PullState.FAILED) {
+                Log.i(TAG, "Foregrounded with PullState=FAILED for uid=$uid hid=$hid; retrying sync")
+                lastSyncTimeMs = clock.millis()
+                runSyncFor(uid = uid, householdId = hid)
+                return@launch
+            }
+            if (state != PullState.SUCCEEDED) return@launch
+            val now = clock.millis()
+            if (now - lastSyncTimeMs < FOREGROUND_REFRESH_COOLDOWN_MS) return@launch
+            lastSyncTimeMs = now
+            Log.i(TAG, "Foreground refresh triggered for hid=$hid")
+            pullCoordinator.pullForHousehold(hid)
+            runCatching { householdRepository?.get()?.refreshMembers() }
+        }
+    }
+
+    private suspend fun healHostMembersIfNeeded(householdId: String) {
+        val repo = householdRepository?.get() ?: return
+        runCatching {
+            repo.refreshMembers()
+            if (householdMemberDao.countMembersOf(householdId) > 1) {
+                Log.i(TAG, "Host member self-healing discovered shared household for hid=$householdId; pulling")
+                pullCoordinator.pullForHousehold(householdId)
+            }
+        }.onFailure {
+            Log.w(TAG, "Host member self-healing failed for hid=$householdId", it)
+        }
+    }
+
     companion object {
         private const val TAG = "FirebaseAuthSession"
+        internal const val FOREGROUND_REFRESH_COOLDOWN_MS = 30_000L
     }
 }
+

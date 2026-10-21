@@ -129,6 +129,70 @@ class SyncEngine @Inject constructor(
         }
     }
 
+    private val echoLock = Any()
+    private val inFlightLocalPushes = HashSet<String>()
+    private val echoConsumedWhileInFlight = HashSet<String>()
+    private val recentLocalPushTimestamps = HashMap<String, Long>()
+
+    private fun recordPushStart(path: String) {
+        synchronized(echoLock) {
+            inFlightLocalPushes.add(path)
+            echoConsumedWhileInFlight.remove(path)
+        }
+    }
+
+    private fun recordPushSuccess(path: String, nowMs: Long = System.currentTimeMillis()) {
+        synchronized(echoLock) {
+            inFlightLocalPushes.remove(path)
+            if (!echoConsumedWhileInFlight.remove(path)) {
+                recentLocalPushTimestamps[path] = nowMs
+            }
+            pruneExpiredLocalPushesLocked(nowMs)
+        }
+    }
+
+    private fun recordPushFailure(path: String) {
+        synchronized(echoLock) {
+            inFlightLocalPushes.remove(path)
+            echoConsumedWhileInFlight.remove(path)
+        }
+    }
+
+    internal fun shouldSuppressSnapshot(
+        collectionPath: String,
+        changedDocIds: List<String>,
+        nowMs: Long = System.currentTimeMillis(),
+    ): Boolean {
+        if (changedDocIds.isEmpty()) return true
+        synchronized(echoLock) {
+            pruneExpiredLocalPushesLocked(nowMs)
+            var allLocal = true
+            for (docId in changedDocIds) {
+                val fullPath = "$collectionPath/$docId"
+                if (inFlightLocalPushes.contains(fullPath)) {
+                    echoConsumedWhileInFlight.add(fullPath)
+                    continue
+                }
+                val pushedAt = recentLocalPushTimestamps[fullPath]
+                if (pushedAt != null && nowMs - pushedAt <= LOCAL_ECHO_WINDOW_MS) {
+                    recentLocalPushTimestamps.remove(fullPath)
+                    continue
+                }
+                allLocal = false
+            }
+            return allLocal
+        }
+    }
+
+    private fun pruneExpiredLocalPushesLocked(nowMs: Long) {
+        val it = recentLocalPushTimestamps.entries.iterator()
+        while (it.hasNext()) {
+            if (nowMs - it.next().value > LOCAL_ECHO_WINDOW_MS) {
+                it.remove()
+            }
+        }
+    }
+
     private fun CoroutineScope.launchSyncJobsFor(householdId: String): Job = launch {
         launchPushJobsFor(householdId)
         launchPullListenerFor(householdId)
@@ -161,11 +225,19 @@ class SyncEngine @Inject constructor(
         val registrations = mutableListOf<ListenerRegistration>()
         try {
             collections.forEach { name ->
+                val collectionPath = "users/$householdId/$name"
+                var isFirstSnapshot = true
                 val reg = householdDoc.collection(name).addSnapshotListener { snapshot, error ->
                     if (error != null || snapshot == null) return@addSnapshotListener
+                    if (isFirstSnapshot) {
+                        isFirstSnapshot = false
+                        return@addSnapshotListener
+                    }
                     // Remote changes only: ignore local pending writes and local-only cache
                     if (snapshot.metadata.hasPendingWrites()) return@addSnapshotListener
                     if (snapshot.metadata.isFromCache) return@addSnapshotListener
+                    val changedIds = snapshot.documentChanges.map { it.document.id }
+                    if (shouldSuppressSnapshot(collectionPath, changedIds)) return@addSnapshotListener
                     pullChannel.trySend(Unit)
                 }
                 if (reg != null) {
@@ -290,18 +362,23 @@ class SyncEngine @Inject constructor(
         dto: T,
         markClean: suspend () -> Unit,
     ) {
+        val path = ref.path
+        recordPushStart(path)
         try {
             ref.set(dto).await()
+            recordPushSuccess(path)
             markClean()
         } catch (e: CancellationException) {
+            recordPushFailure(path)
             // Cooperative cancellation (e.g. uid changed mid-push). Don't log; rethrow
             // so the parent Job actually winds down.
             throw e
         } catch (e: Exception) {
+            recordPushFailure(path)
             // Leave pendingSync = 1 so the row gets re-pushed next time the Flow
             // re-emits. WARN because PERMISSION_DENIED in pre-M7 is expected;
             // once rules deploy in M7, this should fall silent.
-            Log.w(TAG, "Push failed for ${ref.path}: ${e.message}")
+            Log.w(TAG, "Push failed for $path: ${e.message}")
         }
     }
 
@@ -361,5 +438,7 @@ class SyncEngine @Inject constructor(
 
     companion object {
         private const val TAG = "SyncEngine"
+        internal const val LOCAL_ECHO_WINDOW_MS = 15_000L
     }
 }
+

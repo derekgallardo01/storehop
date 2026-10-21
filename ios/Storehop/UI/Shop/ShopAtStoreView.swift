@@ -139,6 +139,20 @@ struct ShopAtStoreView: View {
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Menu {
+                        let shareText = viewModel.buildShareableText()
+                        if !shareText.isEmpty {
+                            ShareLink(
+                                item: shareText,
+                                subject: Text(
+                                    String(
+                                        format: L("share_list_subject %@"),
+                                        viewModel.store?.name ?? L("share_list_default_store")
+                                    )
+                                )
+                            ) {
+                                Label(L("shop_share_list"), systemImage: "square.and.arrow.up")
+                            }
+                        }
                         Button(L("action_edit_aisles"), systemImage: "list.number", action: onEditAisles)
                     } label: {
                         Image(systemName: "ellipsis.circle")

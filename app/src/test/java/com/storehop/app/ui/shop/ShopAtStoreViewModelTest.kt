@@ -482,6 +482,7 @@ class ShopAtStoreViewModelTest {
         sessionTracker = sessionTracker,
         storeRepository = storeRepo,
         savedStateHandle = SavedStateHandle(mapOf("storeId" to "store_lidl")),
+        defaultDispatcher = mainDispatcher.dispatcher,
     )
 
     @Test fun `setShowPurchased delegates to the prefs repo`() = runTest {

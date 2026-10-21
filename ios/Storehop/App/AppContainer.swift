@@ -210,7 +210,7 @@ final class AppContainer {
             let authClient = LiveFirebaseAuthClient()
             let googleSignIn = GoogleSignInUseCase(authClient: authClient)
             let appleSignIn = SignInWithAppleUseCase(authClient: authClient)
-            let pullState = InMemoryPullStateRepository()
+            let pullState = UserDefaultsPullStateRepository()
             let firestore = LiveFirestoreClient()
             let pullCoordinator = FirestorePullCoordinator(
                 firestore: firestore,
@@ -232,7 +232,8 @@ final class AppContainer {
                 pullCoordinator: pullCoordinator,
                 pullStateRepo: pullState,
                 clock: clock,
-                userPreferencesSync: userPreferencesSync
+                userPreferencesSync: userPreferencesSync,
+                storeDao: StoreDao(writer: writer)
             )
             // v0.8: StoreKit2 wiring + entitlement source-of-truth.
             // Start the manager up here; it'll scan
@@ -244,7 +245,7 @@ final class AppContainer {
                 session: session,
                 userPrefs: prefs
             )
-            return AppContainer(
+            let container = AppContainer(
                 clock: clock,
                 ids: UuidV4Generator(),
                 session: session,
@@ -274,6 +275,11 @@ final class AppContainer {
                 storeKitManager: storeKit,
                 entitlementRepository: entitlement
             )
+            let householdRepo = container.householdRepository
+            Task {
+                await session.setHouseholdRepository(householdRepo)
+            }
+            return container
         } catch {
             fatalError("Failed to initialize Storehop database: \(error)")
         }
@@ -319,11 +325,14 @@ final class AppContainer {
     static func e2e(
         seedFixtures: Bool = false,
         seedCriticalCoffee: Bool = false,
+        seedAppStoreShowcase: Bool = false,
         forceTheme: ThemeMode? = nil
     ) -> AppContainer {
         do {
             let database = try StorehopDatabase.inMemoryForTests()
-            if seedFixtures {
+            if seedAppStoreShowcase {
+                try E2EFixtureSeeder.seedAppStoreShowcase(database: database)
+            } else if seedFixtures {
                 try E2EFixtureSeeder.seed(database: database)
                 if seedCriticalCoffee {
                     try E2EFixtureSeeder.seedPriorityCoffeeAtLidl(database: database)

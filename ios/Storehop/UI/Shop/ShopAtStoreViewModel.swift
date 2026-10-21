@@ -371,6 +371,54 @@ final class ShopAtStoreViewModel {
         }
     }
 
+    /// Plain-text formatter for the "Share list" action in the store menu.
+    /// Formats the store header followed by needed items grouped by category
+    /// in the store's aisle order, with `• itemName (brand)` rows.
+    /// Returns an empty string when no items are currently needed at this store.
+    func buildShareableText() -> String {
+        let needed = rawRows.filter { $0.isNeeded }.sorted { a, b in
+            let ao = a.displayOrder ?? 9999
+            let bo = b.displayOrder ?? 9999
+            if ao != bo { return ao < bo }
+            let ac = a.categoryName?.lowercased() ?? "\u{FFFF}"
+            let bc = b.categoryName?.lowercased() ?? "\u{FFFF}"
+            if ac != bc { return ac < bc }
+            return a.itemName.lowercased() < b.itemName.lowercased()
+        }
+        guard !needed.isEmpty else { return "" }
+
+        let rawStoreName = store?.name.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let storeName = rawStoreName.isEmpty ? L("share_list_default_store") : rawStoreName
+        let header = String(format: L("share_list_header %@"), storeName)
+
+        let grouped = Self.groupByCategory(needed)
+        var lines: [String] = [header, ""]
+        for section in grouped {
+            let sectionLabel: String
+            if let key = section.categoryNameKey {
+                sectionLabel = L(key)
+            } else if section.categoryName == "(uncategorized)" {
+                sectionLabel = L("items_uncategorised_label")
+            } else {
+                sectionLabel = section.categoryName
+            }
+            lines.append(sectionLabel.uppercased())
+            for row in section.rows {
+                let trimmedBrand = row.brand?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+                if !trimmedBrand.isEmpty {
+                    lines.append("• \(row.itemName) (\(trimmedBrand))")
+                } else {
+                    lines.append("• \(row.itemName)")
+                }
+            }
+            lines.append("")
+        }
+        while lines.last == "" {
+            lines.removeLast()
+        }
+        return lines.joined(separator: "\n")
+    }
+
     // MARK: - Helpers
 
     private static func groupByCategory(_ rows: [ShoppingRow]) -> [ShoppingCategorySection] {

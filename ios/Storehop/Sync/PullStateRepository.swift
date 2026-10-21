@@ -85,3 +85,89 @@ final actor InMemoryPullStateRepository: PullStateRepository {
         }
     }
 }
+
+/// Disk-backed `PullStateRepository` using `UserDefaults`, mirroring Android's
+/// DataStore-backed `PullStateRepository` (`pull_state_<uid>`). Persisting
+/// `.succeeded` across app launches enables instant local-first cold starts
+/// (<50ms) without re-gating the session behind a full cloud peek + pull.
+final actor UserDefaultsPullStateRepository: PullStateRepository {
+    nonisolated(unsafe) private let defaults: UserDefaults
+    private var states: [String: PullState] = [:]
+    private var reasons: [String: String] = [:]
+    private var continuations: [String: [UUID: AsyncStream<PullState>.Continuation]] = [:]
+
+    init(defaults: UserDefaults = .standard) {
+        self.defaults = defaults
+    }
+
+    func current(for uid: String) -> PullState {
+        if let cached = states[uid] {
+            return cached
+        }
+        let persisted = defaults.string(forKey: stateKey(for: uid))
+            .flatMap(PullState.init(rawValue:)) ?? .needed
+        states[uid] = persisted
+        return persisted
+    }
+
+    func lastFailureReason(for uid: String) -> String? {
+        if let cached = reasons[uid] {
+            return cached
+        }
+        let persisted = defaults.string(forKey: reasonKey(for: uid))
+        if let persisted {
+            reasons[uid] = persisted
+        }
+        return persisted
+    }
+
+    func set(_ state: PullState, for uid: String) {
+        set(state, for: uid, reason: nil)
+    }
+
+    func set(_ state: PullState, for uid: String, reason: String?) {
+        states[uid] = state
+        defaults.set(state.rawValue, forKey: stateKey(for: uid))
+        if state == .failed, let reason {
+            reasons[uid] = reason
+            defaults.set(reason, forKey: reasonKey(for: uid))
+        } else if state != .failed {
+            reasons[uid] = nil
+            defaults.removeObject(forKey: reasonKey(for: uid))
+        }
+        for (_, continuation) in continuations[uid] ?? [:] {
+            continuation.yield(state)
+        }
+    }
+
+    nonisolated func observe(_ uid: String) -> AsyncStream<PullState> {
+        AsyncStream { continuation in
+            let id = UUID()
+            Task {
+                await register(uid: uid, id: id, continuation: continuation)
+            }
+            continuation.onTermination = { @Sendable _ in
+                Task {
+                    await self.unregister(uid: uid, id: id)
+                }
+            }
+        }
+    }
+
+    private func register(uid: String, id: UUID, continuation: AsyncStream<PullState>.Continuation) {
+        let initial = current(for: uid)
+        continuations[uid, default: [:]][id] = continuation
+        continuation.yield(initial)
+    }
+
+    private func unregister(uid: String, id: UUID) {
+        continuations[uid]?[id] = nil
+        if continuations[uid]?.isEmpty == true {
+            continuations[uid] = nil
+        }
+    }
+
+    private func stateKey(for uid: String) -> String { "pull_state_\(uid)" }
+    private func reasonKey(for uid: String) -> String { "pull_failure_reason_\(uid)" }
+}
+

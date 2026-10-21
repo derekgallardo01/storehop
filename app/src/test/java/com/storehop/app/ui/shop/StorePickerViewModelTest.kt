@@ -307,6 +307,27 @@ class StorePickerViewModelTest {
         coVerify(exactly = 1) { storeRepo.setColor("store_lidl", null) }
     }
 
+    @Test fun `refresh invokes pullCoordinator pullForHousehold and resets isRefreshing`() = runTest {
+        coEvery { shoppingRepo.observeStorePickerRows(1_000L) } returns rowsFlow
+        val pullCoordinator: com.storehop.app.sync.PullCoordinator = mockk(relaxed = true)
+        val householdSession = com.storehop.app.data.util.FakeHouseholdSessionProvider("shared-hid")
+        val vm = StorePickerViewModel(
+            appContext = context,
+            shoppingRepository = shoppingRepo,
+            storeRepository = storeRepo,
+            analytics = mockk(relaxed = true),
+            sessionTracker = sessionTracker,
+            pullCoordinator = pullCoordinator,
+            householdSession = householdSession,
+        )
+
+        vm.refresh()
+        advanceUntilIdle()
+
+        assertThat(vm.isRefreshing.value).isFalse()
+        coVerify(exactly = 1) { pullCoordinator.pullForHousehold("shared-hid") }
+    }
+
     private fun pickerRow(
         storeId: String,
         critical: List<String>,

@@ -393,6 +393,59 @@ final class ShopAtStoreViewModelTests: XCTestCase {
         XCTAssertEqual(count, 1)
     }
 
+    // MARK: - Share list as text
+
+    func testBuildShareableTextReturnsEmptyWhenNothingNeeded() async throws {
+        let s = try await makeSetup()
+        XCTAssertEqual(s.viewModel.buildShareableText(), "")
+
+        // Add an item and check it off -> no needed items remain -> still empty.
+        s.viewModel.quickAdd(name: "Bread")
+        try await waitForCondition {
+            s.viewModel.sections.flatMap(\.rows).contains { $0.itemName == "Bread" }
+        }
+        let bread = s.viewModel.sections.flatMap(\.rows).first { $0.itemName == "Bread" }!
+        s.viewModel.togglePurchased(row: bread)
+        try await waitForCondition {
+            s.viewModel.sections.flatMap(\.rows).first { $0.itemName == "Bread" }?.isNeeded == false
+        }
+        XCTAssertEqual(s.viewModel.buildShareableText(), "")
+    }
+
+    func testBuildShareableTextFormatsStoreHeaderAndCategorySections() async throws {
+        let s = try await makeSetup()
+        _ = try await s.itemRepository.addItem(
+            name: "Milk",
+            categoryId: "c_dairy",
+            storeIds: ["s_lidl"],
+            quantity: nil,
+            notes: nil,
+            brand: "Organic",
+            imageUrl: nil,
+            isStaple: false,
+            isPriority: false
+        )
+        _ = try await s.itemRepository.addItem(
+            name: "Paper Towels",
+            categoryId: nil,
+            storeIds: ["s_lidl"],
+            quantity: nil,
+            notes: nil,
+            brand: nil,
+            imageUrl: nil,
+            isStaple: false,
+            isPriority: false
+        )
+        try await waitForCondition {
+            s.viewModel.sections.flatMap(\.rows).count == 2
+        }
+
+        let text = s.viewModel.buildShareableText()
+        XCTAssertTrue(text.contains("Lidl"))
+        XCTAssertTrue(text.contains("DAIRY\n• Milk (Organic)"))
+        XCTAssertTrue(text.contains("• Paper Towels"))
+    }
+
     // MARK: - Helpers
 
     private func makeRepositories(writer: any DatabaseWriter, session: any UserSessionProvider, householdSession: any HouseholdSessionProvider, clock: any Clock) -> (

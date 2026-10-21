@@ -469,6 +469,203 @@ class FirebaseAuthSessionProviderTest {
         scope.cancel()
     }
 
+    @Test fun `cold launch with local stores publishes userId and householdId before background sync completes`() = runTest {
+        every { auth.currentUser } returns mockUser("returning-uid")
+        every { auth.addAuthStateListener(any()) } returns Unit
+        coEvery { householdMemberDao.activeMembershipFor("returning-uid") } returns HouseholdMember(
+            uid = "returning-uid", householdId = "returning-uid", displayName = null,
+            joinedAt = 1L, isOwner = true, createdAt = 1L, updatedAt = 1L, deletedAt = null,
+        )
+        coEvery { migrationDao.countLocalOnlyStores() } returns 0
+        coEvery { migrationDao.countOrphanStores("returning-uid") } returns 0
+
+        val storeDao: com.storehop.app.data.dao.StoreDao = mockk {
+            coEvery { countForHousehold("returning-uid") } returns 3
+        }
+        // Simulate a slow network peek that hasn't completed yet
+        val peekGate = kotlinx.coroutines.CompletableDeferred<Boolean>()
+        coEvery { pullCoordinator.peek("returning-uid") } coAnswers { peekGate.await() }
+        every { pullStateRepo.observe("returning-uid") } returns kotlinx.coroutines.flow.flowOf(PullState.NEEDED)
+
+        val scope = CoroutineScope(SupervisorJob() + mainDispatcher.dispatcher)
+        val provider = FirebaseAuthSessionProvider(
+            auth = auth,
+            migrationDao = migrationDao,
+            householdMemberDao = householdMemberDao,
+            pullCoordinator = pullCoordinator,
+            pullStateRepo = pullStateRepo,
+            userPreferencesSync = mockk(relaxed = true),
+            clock = fixedClock,
+            applicationScope = scope,
+            storeDao = storeDao,
+        )
+
+        // Advance until the coroutine hits peekGate.await()
+        testScheduler.runCurrent()
+
+        // userId and householdId are ALREADY published while peekGate is still suspended!
+        assertThat(provider.userId.value).isEqualTo("returning-uid")
+        assertThat(provider.householdId.value).isEqualTo("returning-uid")
+
+        peekGate.complete(false)
+        advanceUntilIdle()
+        scope.cancel()
+    }
+
+    @Test fun `shared household with SUCCEEDED pullState pulls in background without peek or IN_PROGRESS`() = runTest {
+        every { auth.currentUser } returns mockUser("amanda-uid")
+        every { auth.addAuthStateListener(any()) } returns Unit
+        coEvery { householdMemberDao.activeMembershipFor("amanda-uid") } returns HouseholdMember(
+            uid = "amanda-uid", householdId = "mike-uid", displayName = "Amanda",
+            joinedAt = 1L, isOwner = false, createdAt = 1L, updatedAt = 1L, deletedAt = null,
+        )
+        coEvery { migrationDao.countLocalOnlyStores() } returns 0
+        coEvery { migrationDao.countOrphanStores("amanda-uid") } returns 0
+        every { pullStateRepo.observe("amanda-uid") } returns kotlinx.coroutines.flow.flowOf(PullState.SUCCEEDED)
+        coEvery { pullCoordinator.pullForHousehold("mike-uid") } returns PullCoordinator.PullResult.Success(1, 1, 1, 1, 1, 1)
+
+        val scope = CoroutineScope(SupervisorJob() + mainDispatcher.dispatcher)
+        val provider = newProvider(scope)
+        advanceUntilIdle()
+
+        assertThat(provider.userId.value).isEqualTo("amanda-uid")
+        assertThat(provider.householdId.value).isEqualTo("mike-uid")
+        coVerify(exactly = 0) { pullCoordinator.peek(any()) }
+        coVerify(exactly = 0) { pullStateRepo.set("amanda-uid", PullState.IN_PROGRESS) }
+        coVerify(exactly = 1) { pullCoordinator.pullForHousehold("mike-uid") }
+        scope.cancel()
+    }
+
+    @Test fun `onAppForegrounded triggers pullForHousehold and refreshMembers with 30s cooldown`() = runTest {
+        var nowMs = 100_000L
+        val mutableClock = object : Clock() {
+            override fun getZone() = ZoneOffset.UTC
+            override fun withZone(zone: java.time.ZoneId?) = this
+            override fun instant(): Instant = Instant.ofEpochMilli(nowMs)
+        }
+        every { auth.currentUser } returns mockUser("amanda-uid")
+        every { auth.addAuthStateListener(any()) } returns Unit
+        coEvery { householdMemberDao.activeMembershipFor("amanda-uid") } returns HouseholdMember(
+            uid = "amanda-uid", householdId = "mike-uid", displayName = "Amanda",
+            joinedAt = 1L, isOwner = false, createdAt = 1L, updatedAt = 1L, deletedAt = null,
+        )
+        coEvery { migrationDao.countLocalOnlyStores() } returns 0
+        coEvery { migrationDao.countOrphanStores("amanda-uid") } returns 0
+        every { pullStateRepo.observe("amanda-uid") } returns kotlinx.coroutines.flow.flowOf(PullState.SUCCEEDED)
+        coEvery { pullCoordinator.pullForHousehold("mike-uid") } returns PullCoordinator.PullResult.Success(1, 1, 1, 1, 1, 1)
+        val householdRepo: com.storehop.app.data.repository.HouseholdRepository = mockk(relaxed = true)
+
+        val scope = CoroutineScope(SupervisorJob() + mainDispatcher.dispatcher)
+        val provider = FirebaseAuthSessionProvider(
+            auth = auth,
+            migrationDao = migrationDao,
+            householdMemberDao = householdMemberDao,
+            pullCoordinator = pullCoordinator,
+            pullStateRepo = pullStateRepo,
+            userPreferencesSync = mockk(relaxed = true),
+            clock = mutableClock,
+            applicationScope = scope,
+            householdRepository = dagger.Lazy { householdRepo },
+        )
+        advanceUntilIdle()
+
+        // Cold start already ran 1 pull at nowMs = 100_000L; an immediate onResume()
+        // at the same timestamp is throttled so cold start doesn't double-pull.
+        provider.onAppForegrounded()
+        advanceUntilIdle()
+        coVerify(exactly = 1) { pullCoordinator.pullForHousehold("mike-uid") }
+
+        // Foreground refresh 31s later runs pull + refreshMembers
+        nowMs += 31_000L
+        provider.onAppForegrounded()
+        advanceUntilIdle()
+        coVerify(exactly = 2) { pullCoordinator.pullForHousehold("mike-uid") }
+        coVerify(exactly = 1) { householdRepo.refreshMembers() }
+
+        // Foreground refresh 5s later is throttled by 30s cooldown
+        nowMs += 5_000L
+        provider.onAppForegrounded()
+        advanceUntilIdle()
+        coVerify(exactly = 2) { pullCoordinator.pullForHousehold("mike-uid") }
+
+        // Foreground refresh 31s later runs again
+        nowMs += 31_000L
+        provider.onAppForegrounded()
+        advanceUntilIdle()
+        coVerify(exactly = 3) { pullCoordinator.pullForHousehold("mike-uid") }
+        coVerify(exactly = 2) { householdRepo.refreshMembers() }
+        scope.cancel()
+    }
+
+    @Test fun `host household with single member triggers background healHostMembersIfNeeded`() = runTest {
+        every { auth.currentUser } returns mockUser("mike-uid")
+        every { auth.addAuthStateListener(any()) } returns Unit
+        val hostMember = HouseholdMember(
+            uid = "mike-uid", householdId = "mike-uid", displayName = "Mike",
+            joinedAt = 1L, isOwner = true, createdAt = 1L, updatedAt = 1L, deletedAt = null,
+        )
+        coEvery { householdMemberDao.activeMembershipFor("mike-uid") } returns hostMember
+        coEvery { householdMemberDao.countMembersOf("mike-uid") } returns 1
+        coEvery { migrationDao.countLocalOnlyStores() } returns 0
+        coEvery { migrationDao.countOrphanStores("mike-uid") } returns 0
+        every { pullStateRepo.observe("mike-uid") } returns kotlinx.coroutines.flow.flowOf(PullState.SUCCEEDED)
+        val householdRepo: com.storehop.app.data.repository.HouseholdRepository = mockk(relaxed = true)
+
+        val scope = CoroutineScope(SupervisorJob() + mainDispatcher.dispatcher)
+        val provider = FirebaseAuthSessionProvider(
+            auth = auth,
+            migrationDao = migrationDao,
+            householdMemberDao = householdMemberDao,
+            pullCoordinator = pullCoordinator,
+            pullStateRepo = pullStateRepo,
+            userPreferencesSync = mockk(relaxed = true),
+            clock = fixedClock,
+            applicationScope = scope,
+            householdRepository = dagger.Lazy { householdRepo },
+        )
+        advanceUntilIdle()
+
+        coVerify(exactly = 1) { householdRepo.refreshMembers() }
+        scope.cancel()
+    }
+
+    @Test fun `host household with single member and NEEDED pullState still triggers healHostMembersIfNeeded after sync`() = runTest {
+        every { auth.currentUser } returns mockUser("mike-uid")
+        every { auth.addAuthStateListener(any()) } returns Unit
+        val hostMember = HouseholdMember(
+            uid = "mike-uid", householdId = "mike-uid", displayName = "Mike",
+            joinedAt = 1L, isOwner = true, createdAt = 1L, updatedAt = 1L, deletedAt = null,
+        )
+        coEvery { householdMemberDao.activeMembershipFor("mike-uid") } returns hostMember
+        coEvery { householdMemberDao.countMembersOf("mike-uid") } returns 1
+        coEvery { migrationDao.countLocalOnlyStores() } returns 0
+        coEvery { migrationDao.countOrphanStores("mike-uid") } returns 0
+        val storeDao: com.storehop.app.data.dao.StoreDao = mockk {
+            coEvery { countForHousehold("mike-uid") } returns 2
+        }
+        stubCloudEmpty()
+        every { pullStateRepo.observe("mike-uid") } returns kotlinx.coroutines.flow.flowOf(PullState.NEEDED)
+        val householdRepo: com.storehop.app.data.repository.HouseholdRepository = mockk(relaxed = true)
+
+        val scope = CoroutineScope(SupervisorJob() + mainDispatcher.dispatcher)
+        val provider = FirebaseAuthSessionProvider(
+            auth = auth,
+            migrationDao = migrationDao,
+            householdMemberDao = householdMemberDao,
+            pullCoordinator = pullCoordinator,
+            pullStateRepo = pullStateRepo,
+            userPreferencesSync = mockk(relaxed = true),
+            clock = fixedClock,
+            applicationScope = scope,
+            storeDao = storeDao,
+            householdRepository = dagger.Lazy { householdRepo },
+        )
+        advanceUntilIdle()
+
+        coVerify(exactly = 1) { householdRepo.refreshMembers() }
+        scope.cancel()
+    }
+
     // -------------------------------------------------------------------------
 
     private fun newProvider(scope: CoroutineScope) = FirebaseAuthSessionProvider(

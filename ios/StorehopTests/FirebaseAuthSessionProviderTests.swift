@@ -162,6 +162,90 @@ final class FirebaseAuthSessionProviderTests: XCTestCase {
         await s.session.shutdown()
     }
 
+    func testSharedHouseholdWithSucceededPullStatePullsInBackgroundWithoutPeek() async throws {
+        let db = try StorehopDatabase.inMemoryForTests()
+        let memberDao = HouseholdMemberDao(writer: db.queue)
+        try await memberDao.upsert(HouseholdMember(
+            uid: "amanda",
+            householdId: "mike_hid",
+            displayName: "Amanda",
+            joinedAt: 1,
+            isOwner: false,
+            createdAt: 1,
+            updatedAt: 1,
+            deletedAt: nil,
+            pendingSync: false
+        ))
+        let auth = MockFirebaseAuthClient(initialUid: "amanda", isAnonymous: false)
+        let pullStateRepo = InMemoryPullStateRepository()
+        await pullStateRepo.set(.succeeded, for: "amanda")
+        let coordinator = ScriptablePullCoordinator()
+
+        let session = FirebaseAuthSessionProvider(
+            authClient: auth,
+            migrationDao: LocalOnlyMigrationDao(writer: db.queue),
+            householdMemberDao: memberDao,
+            pullCoordinator: coordinator,
+            pullStateRepo: pullStateRepo,
+            clock: MutableClock(nowMs: 1_000)
+        )
+        await session.start()
+        try await waitForUid("amanda", in: session)
+        let hid = await session.currentHouseholdId
+        XCTAssertEqual(hid, "mike_hid")
+
+        try await Task.sleep(nanoseconds: 50_000_000)
+        XCTAssertEqual(coordinator.peekCallCount, 0, "Shared household with succeeded pullState must not call peek")
+        XCTAssertEqual(coordinator.pullForHouseholdCalls, ["mike_hid"])
+        let state = await pullStateRepo.current(for: "amanda")
+        XCTAssertEqual(state, .succeeded)
+        await session.shutdown()
+    }
+
+    func testOnAppForegroundedRespects30sCooldown() async throws {
+        let db = try StorehopDatabase.inMemoryForTests()
+        let clock = MutableClock(nowMs: 100_000)
+        let auth = MockFirebaseAuthClient(initialUid: "uid_alice", isAnonymous: false)
+        let pullStateRepo = InMemoryPullStateRepository()
+        await pullStateRepo.set(.succeeded, for: "uid_alice")
+        let coordinator = ScriptablePullCoordinator()
+
+        let session = FirebaseAuthSessionProvider(
+            authClient: auth,
+            migrationDao: LocalOnlyMigrationDao(writer: db.queue),
+            householdMemberDao: HouseholdMemberDao(writer: db.queue),
+            pullCoordinator: coordinator,
+            pullStateRepo: pullStateRepo,
+            clock: clock
+        )
+        await session.start()
+        try await waitForUid("uid_alice", in: session)
+
+        // Immediate foreground right at cold start is throttled by cold-start timestamp
+        await session.onAppForegrounded()
+        try await Task.sleep(nanoseconds: 30_000_000)
+        XCTAssertEqual(coordinator.pullForHouseholdCalls.count, 0)
+
+        // Past 30s cooldown -> runs first foreground pull
+        clock.nowMs += 31_000
+        await session.onAppForegrounded()
+        try await Task.sleep(nanoseconds: 30_000_000)
+        XCTAssertEqual(coordinator.pullForHouseholdCalls.count, 1)
+
+        // Within 30s cooldown -> skipped
+        clock.nowMs += 5_000
+        await session.onAppForegrounded()
+        try await Task.sleep(nanoseconds: 30_000_000)
+        XCTAssertEqual(coordinator.pullForHouseholdCalls.count, 1)
+
+        // Past 30s cooldown -> runs again
+        clock.nowMs += 31_000
+        await session.onAppForegrounded()
+        try await Task.sleep(nanoseconds: 30_000_000)
+        XCTAssertEqual(coordinator.pullForHouseholdCalls.count, 2)
+        await session.shutdown()
+    }
+
     // MARK: - Helpers
 
     private func waitForUid(_ expected: String?, in session: FirebaseAuthSessionProvider, timeout: TimeInterval = 1.0) async throws {

@@ -71,6 +71,10 @@ final actor SyncEngine {
     /// can suppress duplicate emissions.
     private var currentBinding: (uid: String, householdId: String)?
 
+    /// Tracks in-flight and recently completed local pushes so server-ack
+    /// snapshots for our own writes do not trigger redundant full pulls.
+    let echoTracker = LocalPushEchoTracker()
+
     init(
         firestore: any FirestoreClient,
         session: any UserSessionProvider,
@@ -191,6 +195,7 @@ final actor SyncEngine {
     private func startHouseholdMemberPushJob(dao: HouseholdMemberDao) -> Task<Void, Never> {
         let stream = dao.observePendingPush()
         let firestore = self.firestore
+        let echoTracker = self.echoTracker
         return Task {
             do {
                 for try await rows in stream {
@@ -214,8 +219,8 @@ final actor SyncEngine {
                             updatedAt: row.updatedAt,
                             deletedAt: row.deletedAt
                         )
-                        await Self.pushOne(firestore: firestore, path: path, value: payload) {
-                            await Self.pushOne(firestore: firestore, path: memberPath, value: payload) {
+                        await Self.pushOne(firestore: firestore, echoTracker: echoTracker, path: path, value: payload) {
+                            await Self.pushOne(firestore: firestore, echoTracker: echoTracker, path: memberPath, value: payload) {
                                 try? await dao.markPushed(uid: row.uid, householdId: row.householdId)
                             }
                         }
@@ -230,6 +235,7 @@ final actor SyncEngine {
     private func startPullListenerJob(householdId: String, coordinator: any PullCoordinator) -> Task<Void, Never> {
         let firestore = Firestore.firestore()
         let householdDoc = firestore.collection("users").document(householdId)
+        let echoTracker = self.echoTracker
         let collections = [
             SyncCollections.items,
             SyncCollections.itemStoreXrefs,
@@ -249,10 +255,20 @@ final actor SyncEngine {
             var pendingPullTask: Task<Void, Never>?
 
             for collName in collections {
+                let collectionPath = "users/\(householdId)/\(collName)"
+                var isFirstSnapshot = true
                 let reg = householdDoc.collection(collName).addSnapshotListener { snapshot, error in
                     guard let snapshot, error == nil else { return }
+                    if isFirstSnapshot {
+                        isFirstSnapshot = false
+                        return
+                    }
                     if snapshot.metadata.hasPendingWrites { return }
                     if snapshot.metadata.isFromCache { return }
+                    let changedIds = snapshot.documentChanges.map { $0.document.documentID }
+                    if echoTracker.shouldSuppressSnapshot(collectionPath: collectionPath, changedDocIds: changedIds) {
+                        return
+                    }
 
                     pendingPullTask?.cancel()
                     pendingPullTask = Task {
@@ -273,12 +289,13 @@ final actor SyncEngine {
         let stream = itemDao.observePendingPush(householdId: householdId)
         let dao = self.itemDao
         let firestore = self.firestore
+        let echoTracker = self.echoTracker
         return Task {
             do {
                 for try await rows in stream {
                     for row in rows {
                         let path = "users/\(householdId)/\(SyncCollections.items)/\(row.id)"
-                        await Self.pushOne(firestore: firestore, path: path, value: row.toDto()) {
+                        await Self.pushOne(firestore: firestore, echoTracker: echoTracker, path: path, value: row.toDto()) {
                             try? await dao.markPushed(householdId: householdId, id: row.id)
                         }
                     }
@@ -296,12 +313,13 @@ final actor SyncEngine {
         let stream = categoryDao.observePendingPush(householdId: householdId)
         let dao = self.categoryDao
         let firestore = self.firestore
+        let echoTracker = self.echoTracker
         return Task {
             do {
                 for try await rows in stream {
                     for row in rows {
                         let path = "users/\(householdId)/\(SyncCollections.categories)/\(row.id)"
-                        await Self.pushOne(firestore: firestore, path: path, value: row.toDto()) {
+                        await Self.pushOne(firestore: firestore, echoTracker: echoTracker, path: path, value: row.toDto()) {
                             try? await dao.markPushed(householdId: householdId, id: row.id)
                         }
                     }
@@ -316,12 +334,13 @@ final actor SyncEngine {
         let stream = storeDao.observePendingPush(householdId: householdId)
         let dao = self.storeDao
         let firestore = self.firestore
+        let echoTracker = self.echoTracker
         return Task {
             do {
                 for try await rows in stream {
                     for row in rows {
                         let path = "users/\(householdId)/\(SyncCollections.stores)/\(row.id)"
-                        await Self.pushOne(firestore: firestore, path: path, value: row.toDto()) {
+                        await Self.pushOne(firestore: firestore, echoTracker: echoTracker, path: path, value: row.toDto()) {
                             try? await dao.markPushed(householdId: householdId, id: row.id)
                         }
                     }
@@ -336,12 +355,13 @@ final actor SyncEngine {
         let stream = xrefDao.observePendingPush(householdId: householdId)
         let dao = self.xrefDao
         let firestore = self.firestore
+        let echoTracker = self.echoTracker
         return Task {
             do {
                 for try await rows in stream {
                     for row in rows {
                         let path = "users/\(householdId)/\(SyncCollections.itemStoreXrefs)/\(row.docId)"
-                        await Self.pushOne(firestore: firestore, path: path, value: row.toDto()) {
+                        await Self.pushOne(firestore: firestore, echoTracker: echoTracker, path: path, value: row.toDto()) {
                             try? await dao.markPushed(householdId: householdId, itemId: row.itemId, storeId: row.storeId)
                         }
                     }
@@ -356,12 +376,13 @@ final actor SyncEngine {
         let stream = scoDao.observePendingPush(householdId: householdId)
         let dao = self.scoDao
         let firestore = self.firestore
+        let echoTracker = self.echoTracker
         return Task {
             do {
                 for try await rows in stream {
                     for row in rows {
                         let path = "users/\(householdId)/\(SyncCollections.storeCategoryOrders)/\(row.docId)"
-                        await Self.pushOne(firestore: firestore, path: path, value: row.toDto()) {
+                        await Self.pushOne(firestore: firestore, echoTracker: echoTracker, path: path, value: row.toDto()) {
                             try? await dao.markPushed(householdId: householdId, storeId: row.storeId, categoryId: row.categoryId)
                         }
                     }
@@ -376,12 +397,13 @@ final actor SyncEngine {
         let stream = purchaseDao.observePendingPush(householdId: householdId)
         let dao = self.purchaseDao
         let firestore = self.firestore
+        let echoTracker = self.echoTracker
         return Task {
             do {
                 for try await rows in stream {
                     for row in rows {
                         let path = "users/\(householdId)/\(SyncCollections.purchaseRecords)/\(row.id)"
-                        await Self.pushOne(firestore: firestore, path: path, value: row.toDto()) {
+                        await Self.pushOne(firestore: firestore, echoTracker: echoTracker, path: path, value: row.toDto()) {
                             try? await dao.markPushed(householdId: householdId, id: row.id)
                         }
                     }
@@ -521,16 +543,21 @@ final actor SyncEngine {
     /// re-emission of pending rows.
     private static func pushOne<T: Encodable & Sendable>(
         firestore: any FirestoreClient,
+        echoTracker: LocalPushEchoTracker,
         path: String,
         value: T,
         markClean: @Sendable () async -> Void
     ) async {
+        echoTracker.recordPushStart(path: path)
         do {
             try await firestore.setDocument(at: path, value: value)
+            echoTracker.recordPushSuccess(path: path)
             await markClean()
         } catch is CancellationError {
+            echoTracker.recordPushFailure(path: path)
             return
         } catch {
+            echoTracker.recordPushFailure(path: path)
             // Push failed; pendingSync stays 1 for retry on next emission.
         }
     }
@@ -569,6 +596,74 @@ final actor SyncEngine {
                 householdTask.cancel()
             }
         }
+    }
+}
+
+/// Thread-safe tracker for in-flight and recently completed local pushes so
+/// Firestore snapshot listeners can ignore server-ack echoes for documents
+/// pushed by this device.
+final class LocalPushEchoTracker: @unchecked Sendable {
+    private let lock = NSLock()
+    private var inFlight: Set<String> = []
+    private var echoConsumedWhileInFlight: Set<String> = []
+    private var recentCompletedAtMs: [String: Int64] = [:]
+    private let echoWindowMs: Int64
+
+    init(echoWindowMs: Int64 = 15_000) {
+        self.echoWindowMs = echoWindowMs
+    }
+
+    func recordPushStart(path: String) {
+        lock.lock()
+        inFlight.insert(path)
+        echoConsumedWhileInFlight.remove(path)
+        lock.unlock()
+    }
+
+    func recordPushSuccess(path: String, nowMs: Int64 = Int64(Date().timeIntervalSince1970 * 1000)) {
+        lock.lock()
+        inFlight.remove(path)
+        if echoConsumedWhileInFlight.remove(path) == nil {
+            recentCompletedAtMs[path] = nowMs
+        }
+        pruneExpiredLocked(nowMs: nowMs)
+        lock.unlock()
+    }
+
+    func recordPushFailure(path: String) {
+        lock.lock()
+        inFlight.remove(path)
+        echoConsumedWhileInFlight.remove(path)
+        lock.unlock()
+    }
+
+    func shouldSuppressSnapshot(
+        collectionPath: String,
+        changedDocIds: [String],
+        nowMs: Int64 = Int64(Date().timeIntervalSince1970 * 1000)
+    ) -> Bool {
+        guard !changedDocIds.isEmpty else { return true }
+        lock.lock()
+        defer { lock.unlock() }
+        pruneExpiredLocked(nowMs: nowMs)
+        var allLocal = true
+        for docId in changedDocIds {
+            let fullPath = "\(collectionPath)/\(docId)"
+            if inFlight.contains(fullPath) {
+                echoConsumedWhileInFlight.insert(fullPath)
+                continue
+            }
+            if let pushedAt = recentCompletedAtMs[fullPath], nowMs - pushedAt <= echoWindowMs {
+                recentCompletedAtMs.removeValue(forKey: fullPath)
+                continue
+            }
+            allLocal = false
+        }
+        return allLocal
+    }
+
+    private func pruneExpiredLocked(nowMs: Int64) {
+        recentCompletedAtMs = recentCompletedAtMs.filter { nowMs - $0.value <= echoWindowMs }
     }
 }
 
@@ -638,3 +733,4 @@ private actor JointBindingState {
         return (uid: uid, householdId: householdId)
     }
 }
+

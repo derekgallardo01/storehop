@@ -1,5 +1,6 @@
 package com.storehop.app.data.repository
 
+import app.cash.turbine.test
 import com.google.android.gms.tasks.Tasks
 import com.google.common.truth.Truth.assertThat
 import com.google.firebase.firestore.CollectionReference
@@ -208,6 +209,34 @@ class HouseholdRepositoryImplTest {
         coVerify(exactly = 0) { pullWriteDao.wipeAllForHousehold(any()) }
         coVerify(exactly = 0) { householdMemberDao.softDelete(any(), any(), any()) }
         coVerify(exactly = 0) { householdSwitcher.switchToHousehold(any()) }
+    }
+
+    @Test fun `observeMembers emits local Room rows immediately without blocking on slow refreshMembers`() = runTest {
+        val localMember = HouseholdMember(
+            uid = TEST_USER_ID, householdId = TEST_USER_ID, displayName = "Mike",
+            joinedAt = 1L, isOwner = true, createdAt = 1L, updatedAt = 1L, deletedAt = null,
+        )
+        every { householdMemberDao.observeMembersOf(TEST_USER_ID) } returns kotlinx.coroutines.flow.flowOf(listOf(localMember))
+
+        // Make Firestore .get() hang indefinitely so refreshMembers() never completes during the test
+        val neverCompletingSource = com.google.android.gms.tasks.TaskCompletionSource<com.google.firebase.firestore.QuerySnapshot>()
+        val hangingColl: CollectionReference = mockk(relaxed = true) {
+            every { get() } returns neverCompletingSource.task
+            every { whereEqualTo(any<String>(), any()) } returns this
+        }
+        val defaultDoc: DocumentReference = mockk(relaxed = true) {
+            every { collection(any()) } returns hangingColl
+        }
+        val usersColl: CollectionReference = mockk(relaxed = true) {
+            every { document(any()) } returns defaultDoc
+        }
+        every { firestore.collection("users") } returns usersColl
+        every { firestore.collection("invites") } returns hangingColl
+
+        repo.observeMembers().test {
+            assertThat(awaitItem()).containsExactly(localMember)
+            cancelAndIgnoreRemainingEvents()
+        }
     }
 
     private fun stubInviteGet(snap: DocumentSnapshot) {

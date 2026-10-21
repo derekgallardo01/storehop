@@ -24,10 +24,18 @@ protocol UserSessionProvider: Sendable {
     /// anonymous sign-in if no user is present, etc. Idempotent. Local-only
     /// providers default to a no-op.
     func start() async
+
+    /// Notify the session provider that the app returned to the foreground so
+    /// it can recover from a failed pull or run a cooldown-gated refresh.
+    func onAppForegrounded() async
 }
 
 extension UserSessionProvider {
     func start() async {
+        // Default no-op for local-only / test providers.
+    }
+
+    func onAppForegrounded() async {
         // Default no-op for local-only / test providers.
     }
 

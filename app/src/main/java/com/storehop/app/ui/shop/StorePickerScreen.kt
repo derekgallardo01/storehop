@@ -64,6 +64,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -115,6 +116,7 @@ fun StorePickerScreen(
     val rows by viewModel.rows.collectAsState()
     val criticalSummary by viewModel.criticalSummary.collectAsState()
     val buyTodaySummary by viewModel.buyTodaySummary.collectAsState()
+    val isRefreshing by viewModel.isRefreshing.collectAsState()
 
     // Local mutable copy so the dragging row visually moves before the DB
     // round-trip lands (and so the upstream Flow re-emit triggered by our
@@ -178,50 +180,56 @@ fun StorePickerScreen(
         Column(modifier = Modifier.padding(padding).fillMaxSize()) {
             buyTodaySummary?.let { BuyTodayBanner(state = it, onPickStore = onPickStore) }
             criticalSummary?.let { CriticalNeedsBanner(state = it, onPickStore = onPickStore) }
-            if (localRows.isEmpty()) {
-                EmptyState(
-                    icon = Icons.Outlined.Store,
-                    title = stringResource(R.string.storepicker_empty_title),
-                    body = stringResource(R.string.storepicker_empty_body),
-                )
-                return@Column
-            }
-            LazyColumn(
-                state = lazyListState,
+            PullToRefreshBox(
+                isRefreshing = isRefreshing,
+                onRefresh = viewModel::refresh,
                 modifier = Modifier.fillMaxSize(),
-                // Bottom padding leaves room for the FAB so the last card
-                // isn't covered by it.
-                contentPadding = PaddingValues(top = 8.dp, bottom = 96.dp),
             ) {
-                items(localRows, key = { it.store.id }) { row ->
-                    ReorderableItem(reorderState, key = row.store.id) { dragging ->
-                        StorePickerCard(
-                            row = row,
-                            isDragging = dragging,
-                            onClick = { onPickStore(row.store.id) },
-                            onRename = { pendingRename = row },
-                            onChangeColor = { pendingColor = row },
-                            onDelete = { pendingDelete = row },
-                            onEditAisles = { onEditAisles(row.store.id) },
-                            onToggleOneOff = {
-                                viewModel.setStoreOneOff(row.store.id, !row.store.isOneOff)
-                            },
-                            // Long-press the drag-handle icon starts a drag.
-                            // Tap (without long-press) still navigates via onClick.
-                            dragHandleModifier = Modifier.longPressDraggableHandle(
-                                onDragStarted = {
-                                    isDragging = true
-                                    // Tactile cue confirming the long-press
-                                    // engaged drag mode -- otherwise users
-                                    // may not realize they can now drag.
-                                    haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                                },
-                                onDragStopped = {
-                                    isDragging = false
-                                    viewModel.commitOrder(localRows.map { it.store.id })
-                                },
-                            ),
-                        )
+                if (localRows.isEmpty()) {
+                    EmptyState(
+                        icon = Icons.Outlined.Store,
+                        title = stringResource(R.string.storepicker_empty_title),
+                        body = stringResource(R.string.storepicker_empty_body),
+                    )
+                } else {
+                    LazyColumn(
+                        state = lazyListState,
+                        modifier = Modifier.fillMaxSize(),
+                        // Bottom padding leaves room for the FAB so the last card
+                        // isn't covered by it.
+                        contentPadding = PaddingValues(top = 8.dp, bottom = 96.dp),
+                    ) {
+                        items(localRows, key = { it.store.id }) { row ->
+                            ReorderableItem(reorderState, key = row.store.id) { dragging ->
+                                StorePickerCard(
+                                    row = row,
+                                    isDragging = dragging,
+                                    onClick = { onPickStore(row.store.id) },
+                                    onRename = { pendingRename = row },
+                                    onChangeColor = { pendingColor = row },
+                                    onDelete = { pendingDelete = row },
+                                    onEditAisles = { onEditAisles(row.store.id) },
+                                    onToggleOneOff = {
+                                        viewModel.setStoreOneOff(row.store.id, !row.store.isOneOff)
+                                    },
+                                    // Long-press the drag-handle icon starts a drag.
+                                    // Tap (without long-press) still navigates via onClick.
+                                    dragHandleModifier = Modifier.longPressDraggableHandle(
+                                        onDragStarted = {
+                                            isDragging = true
+                                            // Tactile cue confirming the long-press
+                                            // engaged drag mode -- otherwise users
+                                            // may not realize they can now drag.
+                                            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                                        },
+                                        onDragStopped = {
+                                            isDragging = false
+                                            viewModel.commitOrder(localRows.map { it.store.id })
+                                        },
+                                    ),
+                                )
+                            }
+                        }
                     }
                 }
             }

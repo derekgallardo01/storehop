@@ -14,8 +14,10 @@ import com.storehop.app.sync.dto.toDto
 import com.storehop.app.sync.dto.toEntity
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.channelFlow
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import java.security.SecureRandom
 import java.time.Clock
@@ -35,9 +37,9 @@ class HouseholdRepositoryImpl @Inject constructor(
     override fun observeMembers(): Flow<List<HouseholdMember>> =
         householdSession.householdId.flatMapLatest { hid ->
             if (hid == null) flowOf(emptyList())
-            else {
-                runCatching { refreshMembers() }
-                householdMemberDao.observeMembersOf(hid)
+            else channelFlow {
+                launch { runCatching { refreshMembers() } }
+                householdMemberDao.observeMembersOf(hid).collect { send(it) }
             }
         }
 

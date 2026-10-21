@@ -195,4 +195,15 @@ struct StoreDao: Sendable {
             try db.execute(sql: "UPDATE stores SET pendingSync = 0 WHERE id = ? AND householdId = ?", arguments: [id, householdId])
         }
     }
+
+    func countForHousehold(householdId: String) async throws -> Int {
+        try await writer.read { db in
+            try Int.fetchOne(
+                db,
+                sql: "SELECT COUNT(*) FROM stores WHERE householdId = ? AND deletedAt IS NULL",
+                arguments: [householdId]
+            ) ?? 0
+        }
+    }
 }
+

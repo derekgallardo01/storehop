@@ -14,12 +14,15 @@ import com.storehop.app.analytics.AnalyticsService
 import com.storehop.app.data.util.HouseholdSessionProvider
 import com.storehop.app.sync.PullCoordinator
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -85,6 +88,7 @@ class ItemsListViewModel @Inject constructor(
     undoBus: UndoEventBus,
     private val pullCoordinator: PullCoordinator? = null,
     private val householdSession: HouseholdSessionProvider? = null,
+    defaultDispatcher: CoroutineDispatcher = Dispatchers.Default,
 ) : ViewModel() {
 
     private val _isRefreshing = MutableStateFlow(false)
@@ -122,6 +126,24 @@ class ItemsListViewModel @Inject constructor(
      */
     private val _selectedItemIds = MutableStateFlow<Set<String>>(emptySet())
 
+    init {
+        viewModelScope.launch {
+            combine(
+                preferencesRepository.itemsListShowOnlyNeeded,
+                itemRepository.observeNeededItemIds(),
+            ) { showOnlyNeeded, neededIds -> showOnlyNeeded to neededIds }
+                .collect { (showOnlyNeeded, neededIds) ->
+                    if (showOnlyNeeded) {
+                        val current = _selectedItemIds.value
+                        val pruned = current.intersect(neededIds)
+                        if (pruned.size != current.size) {
+                            _selectedItemIds.value = pruned
+                        }
+                    }
+                }
+        }
+    }
+
     val uiState: StateFlow<ItemsListUiState> =
         combine(
             itemRepository.observeAll(),
@@ -155,11 +177,7 @@ class ItemsListViewModel @Inject constructor(
                     (row.category?.name?.contains(needle, ignoreCase = true) == true)
             }
             val visibleSelected = if (showOnlyNeeded) {
-                val pruned = selected.intersect(neededIds)
-                if (pruned.size != selected.size) {
-                    _selectedItemIds.value = pruned
-                }
-                pruned
+                selected.intersect(neededIds)
             } else {
                 selected
             }
@@ -175,11 +193,13 @@ class ItemsListViewModel @Inject constructor(
                 neededItemIds = neededIds,
                 selectedItemIds = visibleSelected,
             )
-        }.stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5_000L),
-            initialValue = ItemsListUiState(),
-        )
+        }
+            .flowOn(defaultDispatcher)
+            .stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.WhileSubscribed(5_000L),
+                initialValue = ItemsListUiState(),
+            )
 
     /**
      * Pass-through stream of cross-screen undo events. The form fires an

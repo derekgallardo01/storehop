@@ -3,6 +3,7 @@ import SwiftUI
 
 @main
 struct StorehopApp: App {
+    @Environment(\.scenePhase) private var scenePhase
     @State private var container: AppContainer
 
     init() {
@@ -29,6 +30,7 @@ struct StorehopApp: App {
         if args.contains("-UITestE2E") {
             let seed = args.contains("-E2ESeedFixtures")
             let withCritical = args.contains("-E2ESeedCriticalFixture")
+            let showcase = args.contains("-E2ESeedAppStoreShowcase")
             let forceTheme: ThemeMode? = {
                 if args.contains("-E2EForceLightTheme") { return .light }
                 if args.contains("-E2EForceDarkTheme")  { return .dark }
@@ -37,6 +39,7 @@ struct StorehopApp: App {
             _container = State(initialValue: AppContainer.e2e(
                 seedFixtures: seed,
                 seedCriticalCoffee: withCritical,
+                seedAppStoreShowcase: showcase,
                 forceTheme: forceTheme
             ))
         } else {
@@ -54,6 +57,9 @@ struct StorehopApp: App {
             RootView()
                 .environment(container)
                 .task {
+                    if let firebaseSession = container.session as? FirebaseAuthSessionProvider {
+                        await firebaseSession.setHouseholdRepository(container.householdRepository)
+                    }
                     await container.session.start()
                     await container.syncEngine.start()
                     // v0.8: StoreKit2 connection + transaction listener.
@@ -62,6 +68,13 @@ struct StorehopApp: App {
                         await storeKit.start()
                     }
                     container.entitlementRepository?.start()
+                }
+                .onChange(of: scenePhase) { _, newPhase in
+                    if newPhase == .active {
+                        Task {
+                            await container.session.onAppForegrounded()
+                        }
+                    }
                 }
         }
     }

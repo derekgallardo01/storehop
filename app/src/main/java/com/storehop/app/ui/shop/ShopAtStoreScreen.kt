@@ -580,12 +580,13 @@ private fun CategoryHeader(section: CategorySection) {
  * [com.storehop.app.ui.util.localizedLabel] extension on Category.
  */
 @Composable
-@android.annotation.SuppressLint("DiscouragedApi")
 private fun CategorySection.localizedDisplayName(): String {
     val context = LocalContext.current
-    val key = categoryNameKey ?: return categoryName
-    val resId = context.resources.getIdentifier(key, "string", context.packageName)
-    return if (resId != 0) context.getString(resId) else categoryName
+    return com.storehop.app.ui.util.resolveCategoryLabel(
+        ctx = context,
+        nameKey = categoryNameKey,
+        fallbackName = categoryName,
+    )
 }
 
 @OptIn(ExperimentalFoundationApi::class)

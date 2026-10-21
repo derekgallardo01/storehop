@@ -73,6 +73,8 @@ import javax.inject.Inject
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
 
+    @Inject lateinit var userSession: UserSessionProvider
+
     private val appUpdateController by lazy {
         AppUpdateController(AppUpdateManagerFactory.create(this))
     }
@@ -117,6 +119,9 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         appUpdateController.checkForUpdate(updateFlowLauncher)
+        if (::userSession.isInitialized) {
+            userSession.onAppForegrounded()
+        }
     }
 
     override fun onDestroy() {

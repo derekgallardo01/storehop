@@ -8,10 +8,14 @@ import com.storehop.app.data.repository.ShoppingRepository
 import com.storehop.app.data.repository.StorePickerRow
 import com.storehop.app.data.repository.StoreRepository
 import com.storehop.app.analytics.AnalyticsService
+import com.storehop.app.data.util.HouseholdSessionProvider
+import com.storehop.app.sync.PullCoordinator
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -63,7 +67,24 @@ class StorePickerViewModel @Inject constructor(
     private val storeRepository: StoreRepository,
     private val analytics: AnalyticsService,
     sessionTracker: ShoppingSessionTracker,
+    private val pullCoordinator: PullCoordinator? = null,
+    private val householdSession: HouseholdSessionProvider? = null,
 ) : ViewModel() {
+
+    private val _isRefreshing = MutableStateFlow(false)
+    val isRefreshing: StateFlow<Boolean> = _isRefreshing.asStateFlow()
+
+    fun refresh() {
+        val hid = householdSession?.currentHouseholdId() ?: return
+        viewModelScope.launch {
+            _isRefreshing.value = true
+            try {
+                pullCoordinator?.pullForHousehold(hid)
+            } finally {
+                _isRefreshing.value = false
+            }
+        }
+    }
 
     /**
      * The picker anchors the trip on first view -- if the user opens the app

@@ -283,6 +283,244 @@ class SyncEngineTest {
         scope.cancel()
     }
 
+    @Test fun `initial listener snapshot is skipped to prevent 7x double-pull storm while subsequent remote change pulls`() = runTest {
+        stubAllPushFlowsEmpty()
+        val listenerSlot = slot<com.google.firebase.firestore.EventListener<com.google.firebase.firestore.QuerySnapshot>>()
+        val registration: com.google.firebase.firestore.ListenerRegistration = mockk(relaxed = true)
+        val itemsColl: CollectionReference = mockk(relaxed = true) {
+            every { addSnapshotListener(capture(listenerSlot)) } returns registration
+        }
+        val otherColl: CollectionReference = mockk(relaxed = true)
+        val userDoc: DocumentReference = mockk {
+            every { collection(any<String>()) } answers {
+                if (firstArg<String>() == "items") itemsColl else otherColl
+            }
+        }
+        val usersColl: CollectionReference = mockk {
+            every { document(any<String>()) } returns userDoc
+        }
+        every { firestore.collection("users") } returns usersColl
+
+        val pullCoordinator: PullCoordinator = mockk(relaxed = true)
+        val scope = CoroutineScope(SupervisorJob() + mainDispatcher.dispatcher)
+        val engine = SyncEngine(
+            firestore = firestore,
+            session = FakeSessionProvider(initial = "uid"),
+            householdSession = FakeHouseholdSessionProvider(initial = "uid"),
+            pullStateRepo = stubSucceededPullState(),
+            applicationScope = scope,
+            itemDao = itemDao,
+            categoryDao = categoryDao,
+            storeDao = storeDao,
+            xrefDao = xrefDao,
+            scoDao = scoDao,
+            purchaseDao = purchaseDao,
+            householdMemberDao = mockk(relaxed = true),
+            userPreferencesSync = mockk(relaxed = true),
+            pullCoordinator = pullCoordinator,
+        )
+        engine.start()
+        advanceUntilIdle()
+
+        val initialSnap: com.google.firebase.firestore.QuerySnapshot = mockk {
+            every { metadata.hasPendingWrites() } returns false
+            every { metadata.isFromCache } returns false
+            every { documentChanges } returns listOf(
+                mockk { every { document.id } returns "milk" },
+            )
+        }
+        // First snapshot on registration is skipped!
+        listenerSlot.captured.onEvent(initialSnap, null)
+        advanceUntilIdle()
+        coVerify(exactly = 0) { pullCoordinator.pullForHousehold(any()) }
+
+        // Second snapshot (remote change) triggers a pull (after 250ms debounce)
+        listenerSlot.captured.onEvent(initialSnap, null)
+        advanceUntilIdle()
+        coVerify(exactly = 1) { pullCoordinator.pullForHousehold("uid") }
+        scope.cancel()
+    }
+
+    @Test fun `local push echo snapshot is suppressed while foreign doc change triggers pull`() = runTest {
+        val docRef: DocumentReference = mockk {
+            every { path } returns "users/uid/items/milk"
+            coEvery { set(any()) } returns Tasks.forResult(null)
+        }
+        val listenerSlot = slot<com.google.firebase.firestore.EventListener<com.google.firebase.firestore.QuerySnapshot>>()
+        val registration: com.google.firebase.firestore.ListenerRegistration = mockk(relaxed = true)
+        val itemsColl: CollectionReference = mockk(relaxed = true) {
+            every { document(any<String>()) } returns docRef
+            every { addSnapshotListener(capture(listenerSlot)) } returns registration
+        }
+        val otherColl: CollectionReference = mockk(relaxed = true) {
+            every { document(any<String>()) } returns docRef
+        }
+        val userDoc: DocumentReference = mockk {
+            every { collection(any<String>()) } answers {
+                if (firstArg<String>() == "items") itemsColl else otherColl
+            }
+        }
+        val usersColl: CollectionReference = mockk {
+            every { document(any<String>()) } returns userDoc
+        }
+        every { firestore.collection("users") } returns usersColl
+
+        val item = Item(
+            id = "milk", name = "Milk", categoryId = null, notes = null,
+            quantity = null, isNeeded = true, lastPurchasedAt = null,
+            userId = "uid", createdAt = 1L, updatedAt = 1L, deletedAt = null,
+        )
+        every { itemDao.observePendingPush("uid") } returns flowOf(listOf(item))
+        every { categoryDao.observePendingPush(any()) } returns flowOf(emptyList())
+        every { storeDao.observePendingPush(any()) } returns flowOf(emptyList())
+        every { xrefDao.observePendingPush(any()) } returns flowOf(emptyList())
+        every { scoDao.observePendingPush(any()) } returns flowOf(emptyList())
+        every { purchaseDao.observePendingPush(any()) } returns flowOf(emptyList())
+
+        val pullCoordinator: PullCoordinator = mockk(relaxed = true)
+        val scope = CoroutineScope(SupervisorJob() + mainDispatcher.dispatcher)
+        val engine = SyncEngine(
+            firestore = firestore,
+            session = FakeSessionProvider(initial = "uid"),
+            householdSession = FakeHouseholdSessionProvider(initial = "uid"),
+            pullStateRepo = stubSucceededPullState(),
+            applicationScope = scope,
+            itemDao = itemDao,
+            categoryDao = categoryDao,
+            storeDao = storeDao,
+            xrefDao = xrefDao,
+            scoDao = scoDao,
+            purchaseDao = purchaseDao,
+            householdMemberDao = mockk(relaxed = true),
+            userPreferencesSync = mockk(relaxed = true),
+            pullCoordinator = pullCoordinator,
+        )
+        engine.start()
+        advanceUntilIdle()
+
+        // Consume initial snapshot
+        val initialSnap: com.google.firebase.firestore.QuerySnapshot = mockk {
+            every { metadata.hasPendingWrites() } returns false
+            every { metadata.isFromCache } returns false
+            every { documentChanges } returns emptyList()
+        }
+        listenerSlot.captured.onEvent(initialSnap, null)
+
+        // Server-ack echo for the locally pushed "milk" doc must be suppressed!
+        val echoSnap: com.google.firebase.firestore.QuerySnapshot = mockk {
+            every { metadata.hasPendingWrites() } returns false
+            every { metadata.isFromCache } returns false
+            every { documentChanges } returns listOf(
+                mockk { every { document.id } returns "milk" },
+            )
+        }
+        listenerSlot.captured.onEvent(echoSnap, null)
+        advanceUntilIdle()
+        coVerify(exactly = 0) { pullCoordinator.pullForHousehold(any()) }
+
+        // Foreign doc change ("bread") is NOT in recentLocalPushTimestamps, so it triggers pull!
+        val foreignSnap: com.google.firebase.firestore.QuerySnapshot = mockk {
+            every { metadata.hasPendingWrites() } returns false
+            every { metadata.isFromCache } returns false
+            every { documentChanges } returns listOf(
+                mockk { every { document.id } returns "bread" },
+            )
+        }
+        listenerSlot.captured.onEvent(foreignSnap, null)
+        advanceUntilIdle()
+        coVerify(exactly = 1) { pullCoordinator.pullForHousehold("uid") }
+        scope.cancel()
+    }
+
+    @Test fun `in-flight echo consumption does not suppress subsequent remote edit to same doc`() = runTest {
+        val setCompletionSource = com.google.android.gms.tasks.TaskCompletionSource<Void?>()
+        val docRef: DocumentReference = mockk {
+            every { path } returns "users/uid/items/milk"
+            every { set(any()) } returns setCompletionSource.task
+        }
+        val listenerSlot = slot<com.google.firebase.firestore.EventListener<com.google.firebase.firestore.QuerySnapshot>>()
+        val registration: com.google.firebase.firestore.ListenerRegistration = mockk(relaxed = true)
+        val itemsColl: CollectionReference = mockk(relaxed = true) {
+            every { document(any<String>()) } returns docRef
+            every { addSnapshotListener(capture(listenerSlot)) } returns registration
+        }
+        val otherColl: CollectionReference = mockk(relaxed = true) {
+            every { document(any<String>()) } returns docRef
+        }
+        val userDoc: DocumentReference = mockk {
+            every { collection(any<String>()) } answers {
+                if (firstArg<String>() == "items") itemsColl else otherColl
+            }
+        }
+        val usersColl: CollectionReference = mockk {
+            every { document(any<String>()) } returns userDoc
+        }
+        every { firestore.collection("users") } returns usersColl
+
+        val item = Item(
+            id = "milk", name = "Milk", categoryId = null, notes = null,
+            quantity = null, isNeeded = true, lastPurchasedAt = null,
+            userId = "uid", createdAt = 1L, updatedAt = 1L, deletedAt = null,
+        )
+        every { itemDao.observePendingPush("uid") } returns flowOf(listOf(item))
+        every { categoryDao.observePendingPush(any()) } returns flowOf(emptyList())
+        every { storeDao.observePendingPush(any()) } returns flowOf(emptyList())
+        every { xrefDao.observePendingPush(any()) } returns flowOf(emptyList())
+        every { scoDao.observePendingPush(any()) } returns flowOf(emptyList())
+        every { purchaseDao.observePendingPush(any()) } returns flowOf(emptyList())
+
+        val pullCoordinator: PullCoordinator = mockk(relaxed = true)
+        val scope = CoroutineScope(SupervisorJob() + mainDispatcher.dispatcher)
+        val engine = SyncEngine(
+            firestore = firestore,
+            session = FakeSessionProvider(initial = "uid"),
+            householdSession = FakeHouseholdSessionProvider(initial = "uid"),
+            pullStateRepo = stubSucceededPullState(),
+            applicationScope = scope,
+            itemDao = itemDao,
+            categoryDao = categoryDao,
+            storeDao = storeDao,
+            xrefDao = xrefDao,
+            scoDao = scoDao,
+            purchaseDao = purchaseDao,
+            householdMemberDao = mockk(relaxed = true),
+            userPreferencesSync = mockk(relaxed = true),
+            pullCoordinator = pullCoordinator,
+        )
+        engine.start()
+        testScheduler.runCurrent()
+
+        // Consume initial snapshot while push is still in flight
+        val initialSnap: com.google.firebase.firestore.QuerySnapshot = mockk {
+            every { metadata.hasPendingWrites() } returns false
+            every { metadata.isFromCache } returns false
+            every { documentChanges } returns emptyList()
+        }
+        listenerSlot.captured.onEvent(initialSnap, null)
+
+        // Server-ack echo arrives WHILE docRef.set() is still in flight -> suppressed!
+        val milkSnap: com.google.firebase.firestore.QuerySnapshot = mockk {
+            every { metadata.hasPendingWrites() } returns false
+            every { metadata.isFromCache } returns false
+            every { documentChanges } returns listOf(
+                mockk { every { document.id } returns "milk" },
+            )
+        }
+        listenerSlot.captured.onEvent(milkSnap, null)
+        advanceUntilIdle()
+        coVerify(exactly = 0) { pullCoordinator.pullForHousehold(any()) }
+
+        // Now complete the in-flight push
+        setCompletionSource.setResult(null)
+        advanceUntilIdle()
+
+        // A subsequent remote edit to "milk" within the 15s window MUST NOT be suppressed!
+        listenerSlot.captured.onEvent(milkSnap, null)
+        advanceUntilIdle()
+        coVerify(exactly = 1) { pullCoordinator.pullForHousehold("uid") }
+        scope.cancel()
+    }
+
     /**
      * Default pullStateRepo for tests that exercise pre-v0.4 contracts: every
      * uid is already SUCCEEDED so push jobs run immediately. The new gating

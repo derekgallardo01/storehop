@@ -15,12 +15,15 @@ import com.storehop.app.analytics.AnalyticsService
 import com.storehop.app.data.util.HouseholdSessionProvider
 import com.storehop.app.sync.PullCoordinator
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -87,6 +90,7 @@ class ShopAtStoreViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val pullCoordinator: PullCoordinator? = null,
     private val householdSession: HouseholdSessionProvider? = null,
+    defaultDispatcher: CoroutineDispatcher = Dispatchers.Default,
 ) : ViewModel() {
 
     private val storeId: String = checkNotNull(savedStateHandle.get<String>("storeId")) {
@@ -164,7 +168,7 @@ class ShopAtStoreViewModel @Inject constructor(
                                 { it.displayOrder ?: 9999 },
                                 // Uncategorized rows sort last (U+FFFF); they're
                                 // grouped under "(uncategorized)" by groupByCategory.
-                                { it.categoryName?.lowercase() ?: "￿" },
+                                { it.categoryName?.lowercase() ?: "\uFFFF" },
                                 { it.itemName.lowercase() },
                             ),
                         )
@@ -192,9 +196,11 @@ class ShopAtStoreViewModel @Inject constructor(
                 showPurchased = showP,
                 sortMode = sortMode,
             )
-        }.stateIn(
-            viewModelScope, SharingStarted.WhileSubscribed(5_000L), ShopAtStoreUiState(),
-        )
+        }
+            .flowOn(defaultDispatcher)
+            .stateIn(
+                viewModelScope, SharingStarted.WhileSubscribed(5_000L), ShopAtStoreUiState(),
+            )
 
     fun setQuery(q: String) { _query.value = q }
 
@@ -249,7 +255,9 @@ class ShopAtStoreViewModel @Inject constructor(
                 .take(8)
                 .map { it.toSuggestion() }
                 .toList()
-        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000L), emptyList())
+        }
+            .flowOn(defaultDispatcher)
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000L), emptyList())
 
     /**
      * Snapshot timestamp returned by the most recent cascade purchase, kept

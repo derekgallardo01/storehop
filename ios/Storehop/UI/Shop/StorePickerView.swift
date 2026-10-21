@@ -30,7 +30,8 @@ struct StorePickerView: View {
                     shoppingRepository: container.shoppingRepository,
                     session: container.session,
                     householdSession: container.householdSession,
-                    sessionTracker: container.shoppingSessionTracker
+                    sessionTracker: container.shoppingSessionTracker,
+                    pullCoordinator: container.pullCoordinator
                 )
             }
             viewModel?.bind()
@@ -126,6 +127,9 @@ struct StorePickerView: View {
                 }
             }
             .listStyle(.insetGrouped)
+            .refreshable {
+                await viewModel.refresh()
+            }
             .navigationTitle(L("title_shop"))
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {

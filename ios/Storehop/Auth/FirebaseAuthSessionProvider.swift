@@ -30,13 +30,18 @@ import Foundation
 ///
 /// Mirrors Android `FirebaseAuthSessionProvider` 1:1.
 final actor FirebaseAuthSessionProvider: UserSessionProvider, HouseholdSessionProvider, HouseholdSwitcher {
+    static let foregroundRefreshCooldownMs: Int64 = 30_000
+
     private let authClient: any FirebaseAuthClient
     private let migrationDao: LocalOnlyMigrationDao
     private let householdMemberDao: HouseholdMemberDao
     private let pullCoordinator: any PullCoordinator
     private let pullStateRepo: any PullStateRepository
     private let userPreferencesSync: UserPreferencesSync?
+    private let storeDao: StoreDao?
+    private var householdRepository: (any HouseholdRepository)?
     private let clock: any Clock
+    private var lastSyncTimeMs: Int64 = 0
 
     /// Disk-cached uid on cold launch (returning users), or nil. Updates
     /// only after `runSync` completes for the new uid, so observers
@@ -64,7 +69,9 @@ final actor FirebaseAuthSessionProvider: UserSessionProvider, HouseholdSessionPr
         pullCoordinator: any PullCoordinator,
         pullStateRepo: any PullStateRepository,
         clock: any Clock,
-        userPreferencesSync: UserPreferencesSync? = nil
+        userPreferencesSync: UserPreferencesSync? = nil,
+        storeDao: StoreDao? = nil,
+        householdRepository: (any HouseholdRepository)? = nil
     ) {
         self.authClient = authClient
         self.migrationDao = migrationDao
@@ -72,7 +79,14 @@ final actor FirebaseAuthSessionProvider: UserSessionProvider, HouseholdSessionPr
         self.pullCoordinator = pullCoordinator
         self.pullStateRepo = pullStateRepo
         self.userPreferencesSync = userPreferencesSync
+        self.storeDao = storeDao
+        self.householdRepository = householdRepository
         self.clock = clock
+        self.lastSyncTimeMs = clock.nowMs()
+    }
+
+    func setHouseholdRepository(_ repository: any HouseholdRepository) {
+        self.householdRepository = repository
     }
 
     /// Boot the session provider. Must be called once at app start before
@@ -243,35 +257,89 @@ final actor FirebaseAuthSessionProvider: UserSessionProvider, HouseholdSessionPr
         // even on the cold-launch fast path.
         let resolvedHouseholdId = await resolveHousehold(for: newUid)
 
-        // Cold-launch short-circuit: when publishedUserId already matches
-        // AND pullState is SUCCEEDED, skip the Firestore peek. For
-        // NEEDED / IN_PROGRESS / FAILED we still run sync — otherwise
-        // push stays paused forever and pendingSync rows pile up.
-        var canSkipSync = false
         let memberCount = (try? await householdMemberDao.countMembersOf(householdId: resolvedHouseholdId)) ?? 1
         let isSharedHousehold = resolvedHouseholdId != newUid || memberCount > 1
-        if !isSharedHousehold && publishedUserId == newUid && resolvedHouseholdId == newUid {
-            let state = await pullStateRepo.current(for: newUid)
-            canSkipSync = (state == .succeeded)
-        }
-        if !canSkipSync {
-            await runSync(uid: newUid, householdId: resolvedHouseholdId)
-        }
+        let pullState = await pullStateRepo.current(for: newUid)
+        let isReturningUser = publishedUserId == newUid
+        let hasLocalStores = ((try? await storeDao?.countForHousehold(householdId: resolvedHouseholdId)) ?? 0) > 0
+        let isBootstrapped = isReturningUser && (pullState == .succeeded || hasLocalStores)
 
-        // Publish both ids together so observers never see a mismatch.
-        publishedHouseholdId = resolvedHouseholdId
-        publishedUserId = newUid
-        broadcastHid(resolvedHouseholdId)
-        broadcastUid(newUid)
+        lastSyncTimeMs = clock.nowMs()
+
+        if isBootstrapped {
+            // Local-first cold start: publish both ids immediately BEFORE
+            // running any network sync so GRDB observations emit in <50ms.
+            publishedHouseholdId = resolvedHouseholdId
+            publishedUserId = newUid
+            broadcastHid(resolvedHouseholdId)
+            broadcastUid(newUid)
+
+            if pullState != .succeeded {
+                Task { [weak self] in
+                    await self?.runSync(uid: newUid, householdId: resolvedHouseholdId)
+                    if resolvedHouseholdId == newUid && memberCount <= 1 {
+                        await self?.healHostMembersIfNeeded(householdId: resolvedHouseholdId)
+                    }
+                }
+            } else if isSharedHousehold {
+                // Refresh shared household in the background without flipping
+                // PullState to .inProgress (which would cancel SyncEngine jobs)
+                // and without issuing a redundant peek().
+                let coordinator = self.pullCoordinator
+                Task {
+                    _ = await coordinator.pullForHousehold(resolvedHouseholdId)
+                }
+            } else if resolvedHouseholdId == newUid && memberCount <= 1 {
+                Task { [weak self] in
+                    await self?.healHostMembersIfNeeded(householdId: resolvedHouseholdId)
+                }
+            }
+        } else {
+            await runSync(uid: newUid, householdId: resolvedHouseholdId)
+            // Publish both ids together so observers never see a mismatch.
+            publishedHouseholdId = resolvedHouseholdId
+            publishedUserId = newUid
+            broadcastHid(resolvedHouseholdId)
+            broadcastUid(newUid)
+            if resolvedHouseholdId == newUid && memberCount <= 1 {
+                Task { [weak self] in
+                    await self?.healHostMembersIfNeeded(householdId: resolvedHouseholdId)
+                }
+            }
+        }
 
         // v0.7.1: kick off the cloud-prefs reconcile in the background.
-        // Push current prefs if cloud is absent/stale; pull cloud if
-        // newer. Load-bearing for the first launch of v0.7.1 — captures
-        // existing local prefs to /userPrefs/{uid} on the first auth
-        // tick even if the user never opens Settings. Fire-and-forget;
-        // we don't block the auth pump on a Firestore round-trip.
         if let userPreferencesSync {
             Task { await userPreferencesSync.reconcile(uid: newUid) }
+        }
+    }
+
+    nonisolated func onAppForegrounded() async {
+        await self.handleForeground()
+    }
+
+    private func handleForeground() async {
+        guard let uid = publishedUserId, let hid = publishedHouseholdId else { return }
+        let state = await pullStateRepo.current(for: uid)
+        if state == .failed {
+            lastSyncTimeMs = clock.nowMs()
+            await runSync(uid: uid, householdId: hid)
+            return
+        }
+        guard state == .succeeded else { return }
+        let now = clock.nowMs()
+        guard now - lastSyncTimeMs >= Self.foregroundRefreshCooldownMs else { return }
+        lastSyncTimeMs = now
+        _ = await pullCoordinator.pullForHousehold(hid)
+        await householdRepository?.refreshMembers()
+    }
+
+    private func healHostMembersIfNeeded(householdId: String) async {
+        guard let repo = householdRepository else { return }
+        await repo.refreshMembers()
+        let updatedCount = (try? await householdMemberDao.countMembersOf(householdId: householdId)) ?? 1
+        if updatedCount > 1 {
+            _ = await pullCoordinator.pullForHousehold(householdId)
         }
     }
 
@@ -378,3 +446,4 @@ final actor FirebaseAuthSessionProvider: UserSessionProvider, HouseholdSessionPr
         }
     }
 }
+
